@@ -6,6 +6,9 @@ export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
+export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type SubcategoryDto = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type ProductDto = {
   id: string; name: string; slug?: string; category?: string; description?: string; moq?: number;
   sizes?: string[]; tags?: string[]; keywords?: string[]; primaryImageUrl?: string; imageUrls?: string[];
@@ -14,9 +17,12 @@ export type ProductDto = {
   sku?: string; basePrice?: number; compareAtPrice?: number; stock?: number; stockCount?: number; lowStockThreshold?: number; trackInventory?: boolean;
   stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "MADE_TO_ORDER";
   vatRate?: number; vatExempt?: boolean;
+  subcategoryId?: string | null; subcategoryName?: string | null; categoryName?: string | null; segmentName?: string | null;
   variants?: Array<{ id?: string; label: string; sku?: string; price?: number; stock?: number }>;
 };
 export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries">;
+export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; industryIds?: string[] };
+export type BulkClassifyResponse = { updatedCount: number; productIds: string[] };
 
 
 export type BlogDto = {
@@ -134,12 +140,36 @@ export const adminResources = {
     update: (id: string, body: Partial<IndustryDto>) => adminJson<IndustryDto>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
+  segments: {
+    list: () => adminJson<SegmentDto[]>("/api/v1/admin/segments"),
+    create: (body: Partial<SegmentDto>) => adminJson<SegmentDto>("/api/v1/admin/segments", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<SegmentDto>) => adminJson<SegmentDto>(`/api/v1/admin/segments/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/segments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  categories: {
+    list: (segmentId?: string) => adminJson<CategoryDto[]>(`/api/v1/admin/categories${qs({ segmentId })}`),
+    create: (body: { segmentId: string; name: string; description?: string; sortOrder?: number }) =>
+      adminJson<CategoryDto>("/api/v1/admin/categories", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<{ segmentId: string; name: string; description?: string; sortOrder?: number }>) =>
+      adminJson<CategoryDto>(`/api/v1/admin/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  subcategories: {
+    list: (categoryId?: string) => adminJson<SubcategoryDto[]>(`/api/v1/admin/subcategories${qs({ categoryId })}`),
+    create: (body: { categoryId: string; name: string; description?: string; sortOrder?: number }) =>
+      adminJson<SubcategoryDto>("/api/v1/admin/subcategories", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<{ categoryId: string; name: string; description?: string; sortOrder?: number }>) =>
+      adminJson<SubcategoryDto>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
   products: {
     list: async (params: Record<string, string | number | boolean | undefined>) => unwrap(await adminJson<PageResponse<ProductDto> | ProductDto[]>(`/api/v1/admin/products${qs(params)}`)),
     get: (id: string) => adminJson<ProductDto>(`/api/v1/admin/products/${encodeURIComponent(id)}`),
     create: (body: ProductRequest) => adminJson<ProductDto>("/api/v1/admin/products", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<ProductRequest>) => adminJson<ProductDto>(`/api/v1/admin/products/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/products/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    bulkClassify: (body: BulkClassifyRequest) =>
+      adminJson<BulkClassifyResponse>("/api/v1/admin/products/bulk-classify", { method: "PATCH", body: JSON.stringify(body) }),
   },
   inventory: {
     getLowStock: () => adminJson<ProductDto[]>("/api/v1/admin/products/inventory/low-stock"),

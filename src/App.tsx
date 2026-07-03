@@ -65,7 +65,9 @@ import AdminAuditLogsPage from "@/routes/_adminAuth.admin.audit-logs";
 import AdminBlogsPage from "@/routes/_adminAuth.admin.blogs";
 import AdminBlogsNewPage from "@/routes/_adminAuth.admin.blogs.new";
 import AdminBlogEditPage from "@/routes/_adminAuth.admin.blogs.$id";
+import AdminCatalogPage from "@/routes/_adminAuth.admin.catalog";
 import AdminChangePasswordPage from "@/routes/_adminAuth.admin.change-password";
+import AdminClassifyProductsPage from "@/routes/_adminAuth.admin.classify-products";
 import AdminCustomersPage from "@/routes/_adminAuth.admin.customers";
 import AdminCustomerDetailPage from "@/routes/_adminAuth.admin.customers.$id";
 import AdminDeliveryZonesPage from "@/routes/_adminAuth.admin.delivery-zones";
@@ -156,7 +158,9 @@ export default function App() {
                       <Route path="/admin/blogs" element={<AdminBlogsPage />} />
                       <Route path="/admin/blogs/new" element={<AdminBlogsNewPage />} />
                       <Route path="/admin/blogs/:id" element={<AdminBlogEditPage />} />
+                      <Route path="/admin/catalog" element={<AdminCatalogPage />} />
                       <Route path="/admin/change-password" element={<AdminChangePasswordPage />} />
+                      <Route path="/admin/classify-products" element={<AdminClassifyProductsPage />} />
                       <Route path="/admin/customers" element={<AdminCustomersPage />} />
                       <Route path="/admin/customers/:id" element={<AdminCustomerDetailPage />} />
                       <Route path="/admin/delivery-zones" element={<AdminDeliveryZonesPage />} />
