@@ -71,6 +71,61 @@ export function OrderStatusBadge({ status }: { status: OrderStatus }) {
   );
 }
 
+/**
+ * Elapsed time since a timestamp, color-coded so a stuck order is visible at
+ * a glance instead of requiring staff to notice a plain date. Default
+ * thresholds (6h / 24h) are tuned for same-day-Nairobi / up-to-3-day delivery
+ * — an order sitting untouched that long in one status is worth a second look.
+ */
+export function AgeBadge({
+  since,
+  warnAfterHours = 6,
+  urgentAfterHours = 24,
+}: {
+  since: string | undefined;
+  warnAfterHours?: number;
+  urgentAfterHours?: number;
+}) {
+  if (!since) return null;
+  const ms = Date.now() - new Date(since).getTime();
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const hours = ms / (1000 * 60 * 60);
+
+  const text =
+    hours < 1
+      ? `${Math.max(1, Math.round(hours * 60))}m ago`
+      : hours < 24
+        ? `${Math.round(hours)}h ago`
+        : `${Math.round(hours / 24)}d ago`;
+
+  const tone =
+    hours >= urgentAfterHours
+      ? { bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c" }
+      : hours >= warnAfterHours
+        ? { bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207" }
+        : { bg: "rgba(107, 114, 128, 0.12)", fg: "#4b5563" };
+
+  return (
+    <span
+      title={new Date(since).toLocaleString("en-KE")}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 7px",
+        borderRadius: 999,
+        fontSize: 10,
+        fontWeight: 600,
+        background: tone.bg,
+        color: tone.fg,
+        lineHeight: 1.4,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {text}
+    </span>
+  );
+}
+
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   const tone = PAYMENT_TONE[status] ?? { bg: "rgba(234,179,8,0.15)", fg: "#a16207", label: status };
   return (
@@ -154,6 +209,38 @@ export const ORDER_STATUS_OPTIONS: { value: OrderStatus | "ALL"; label: string }
   { value: "CANCELLED", label: "Cancelled" },
   { value: "REFUNDED", label: "Refunded" },
 ];
+
+// Linear happy-path progression — the payment/preparation/dispatch queue pages
+// already only show the one valid next action instead of every status button
+// always-visible; this brings the same pattern to the order detail page and
+// drawer. Branches (CANCELLED, REFUNDED) and the starting state
+// (PENDING_PAYMENT — nothing staff can do until the customer pays) have no
+// forward action.
+const FORWARD_FLOW: OrderStatus[] = [
+  "PENDING_PAYMENT",
+  "PAID",
+  "PAYMENT_VERIFIED",
+  "IN_PRODUCTION",
+  "READY_FOR_DISPATCH",
+  "DISPATCHED",
+  "DELIVERED",
+];
+
+const NEXT_ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
+  PAID: "Mark payment verified",
+  PAYMENT_VERIFIED: "Start production",
+  IN_PRODUCTION: "Mark ready for dispatch",
+  READY_FOR_DISPATCH: "Mark dispatched",
+  DISPATCHED: "Mark delivered",
+};
+
+export function getNextAction(status: OrderStatus): { nextStatus: OrderStatus; label: string } | null {
+  const idx = FORWARD_FLOW.indexOf(status);
+  if (idx === -1 || idx === FORWARD_FLOW.length - 1) return null;
+  const nextStatus = FORWARD_FLOW[idx + 1];
+  const label = NEXT_ACTION_LABEL[status];
+  return label ? { nextStatus, label } : null;
+}
 
 export const PAYMENT_STATUS_OPTIONS: { value: PaymentStatus | "ALL"; label: string }[] = [
   { value: "ALL", label: "All statuses" },

@@ -12,6 +12,7 @@ import {
   PaymentStatusBadge,
   formatDate,
   formatKes,
+  getNextAction,
 } from "@/components/admin/commerceUi";
 import { getOrder, updateOrderStatus, refundOrder } from "@/services/commerceApi";
 import { refundStore, type RefundRequest, type RefundRequestStatus } from "@/services/refundStore";
@@ -325,58 +326,63 @@ function AdminOrderDetailPage() {
             {/* Status update */}
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">Update status</div>
-              <select
-                className="admin-select"
-                value={order.status}
-                onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
-                disabled={saving}
-                style={{ marginTop: 8 }}
-              >
-                {ORDER_STATUS_OPTIONS.filter((o) => o.value !== "ALL").map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
 
-              {/* Quick-action buttons — all use valid backend enum values */}
-              <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  disabled={saving || order.status === "IN_PRODUCTION"}
-                  onClick={() => handleStatusChange("IN_PRODUCTION")}
+              {order.status === "PENDING_PAYMENT" && (
+                <p style={{ marginTop: 8, fontSize: 13, color: "var(--admin-muted)" }}>
+                  Waiting for the customer's M-Pesa payment — nothing to do here yet.
+                </p>
+              )}
+
+              {/* Single contextual next-action button, same pattern as the
+                  payment/preparation/dispatch queues — only the one valid
+                  next step is shown, not every status always-enabled. */}
+              {(() => {
+                const next = getNextAction(order.status);
+                if (!next) return null;
+                return (
+                  <button
+                    className="admin-btn admin-btn-primary"
+                    disabled={saving}
+                    style={{ marginTop: 8 }}
+                    onClick={() => handleStatusChange(next.nextStatus)}
+                  >
+                    {saving && <Loader2 size={14} className="animate-spin inline mr-1" />}
+                    {next.label}
+                  </button>
+                );
+              })()}
+
+              {/* Manual override for edge cases the linear flow doesn't cover
+                  (e.g. correcting a mis-click, jumping straight to CANCELLED). */}
+              <details style={{ marginTop: 12 }}>
+                <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--admin-muted)" }}>
+                  Manual override
+                </summary>
+                <select
+                  className="admin-select"
+                  value={order.status}
+                  onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
+                  disabled={saving}
+                  style={{ marginTop: 8 }}
                 >
-                  In production
-                </button>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  disabled={saving || order.status === "READY_FOR_DISPATCH"}
-                  onClick={() => handleStatusChange("READY_FOR_DISPATCH")}
-                >
-                  Ready for dispatch
-                </button>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  disabled={saving || order.status === "DISPATCHED"}
-                  onClick={() => handleStatusChange("DISPATCHED")}
-                >
-                  Dispatched
-                </button>
-                <button
-                  className="admin-btn admin-btn-ghost"
-                  disabled={saving || order.status === "DELIVERED"}
-                  onClick={() => handleStatusChange("DELIVERED")}
-                >
-                  Delivered
-                </button>
+                  {ORDER_STATUS_OPTIONS.filter((o) => o.value !== "ALL").map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </details>
+
+              {order.paymentStatus === "PAID" && order.status !== "REFUNDED" && order.status !== "CANCELLED" && (
                 <button
                   className="admin-btn admin-btn-danger"
                   disabled={saving}
+                  style={{ marginTop: 12 }}
                   onClick={() => setShowRefundInput((v) => !v)}
                 >
                   Process refund
                 </button>
-              </div>
+              )}
 
               {showRefundInput && (
                 <div style={{ marginTop: 12 }}>

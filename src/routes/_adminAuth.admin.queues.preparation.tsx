@@ -7,7 +7,7 @@ import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
 import { updateOrderStatus } from "@/services/commerceApi";
-import { formatDateShort, OrderStatusBadge } from "@/components/admin/commerceUi";
+import { AgeBadge, formatDateShort, OrderStatusBadge } from "@/components/admin/commerceUi";
 import { QueueFreshness } from "@/components/admin/QueueFreshness";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
@@ -83,7 +83,9 @@ function PreparationQueuePage() {
                       <td style={{ maxWidth: 340 }}>{o.items.map((i) => i.name).join(", ")}</td>
                       <td>{o.county ?? "—"}</td>
                       <td><OrderStatusBadge status={o.status} /></td>
-                      <td>{formatDateShort(o.createdAt)}</td>
+                      <td>
+                        {formatDateShort(o.createdAt)} <AgeBadge since={o.createdAt} />
+                      </td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         {o.status === "PAYMENT_VERIFIED" && (
                           <button
@@ -123,6 +125,7 @@ function PreparationQueuePage() {
                   <div style={{ fontSize: 12, color: "var(--admin-muted)" }}>{o.items.map((i) => i.name).join(", ")}</div>
                   <div className="admin-card-row" style={{ fontSize: 11, color: "var(--admin-muted)" }}>
                     <span>Created {formatDateShort(o.createdAt)}</span>
+                    <AgeBadge since={o.createdAt} />
                   </div>
                   <div className="admin-card-actions">
                     {o.status === "PAYMENT_VERIFIED" && (

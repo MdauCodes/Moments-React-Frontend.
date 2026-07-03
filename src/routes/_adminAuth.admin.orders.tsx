@@ -5,6 +5,7 @@ import { AssignSelect } from "@/components/admin/AssignSelect";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
+  AgeBadge,
   GatewayChip,
   ORDER_STATUS_OPTIONS,
   OrderStatusBadge,
@@ -27,6 +28,10 @@ import { Download, FileText } from "lucide-react";
 
 const PAGE_SIZE = 20;
 type Scope = "ALL" | "MINE" | "UNASSIGNED";
+
+// Age/urgency coloring makes no sense once an order is done — don't show a
+// red "3d ago" badge on something already delivered.
+const TERMINAL_STATUSES = new Set(["DELIVERED", "CANCELLED", "REFUNDED"]);
 
 function AdminOrdersPage() {
   const allowed = useRequirePermission([PERM.ORDER_VIEW, PERM.ORDER_MANAGE_ALL, PERM.ORDER_ASSIGN]);
@@ -250,7 +255,10 @@ function AdminOrdersPage() {
 
                           </td>
                         )}
-                        <td>{formatDateShort(o.createdAt)}</td>
+                        <td>
+                          {formatDateShort(o.createdAt)}{" "}
+                          {!TERMINAL_STATUSES.has(o.status) && <AgeBadge since={o.createdAt} />}
+                        </td>
                         <td>
                           <button className="admin-btn admin-btn-ghost" onClick={() => setOpenId(o.id)}>View</button>
                         </td>
@@ -287,6 +295,7 @@ function AdminOrdersPage() {
                   <div className="admin-card-row" style={{ fontSize: 11, color: "var(--admin-muted)" }}>
                     <span>{o.items.reduce((s, it) => s + Number(it.qty ?? 0), 0)} units · {o.items.length} SKU{o.items.length === 1 ? "" : "s"}</span>
                     <span>{formatDateShort(o.createdAt)}</span>
+                    {!TERMINAL_STATUSES.has(o.status) && <AgeBadge since={o.createdAt} />}
                   </div>
                   {canAssign && (
                     <div onClick={(e) => e.stopPropagation()}>

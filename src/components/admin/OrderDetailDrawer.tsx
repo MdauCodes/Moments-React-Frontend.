@@ -9,11 +9,13 @@ import {
   formatKes,
   formatDate,
   ORDER_STATUS_OPTIONS,
+  getNextAction,
 } from "@/components/admin/commerceUi";
 import { assignOrder, getOrder, listAssignableUsers, updateOrderStatus, type AssignableUser } from "@/services/commerceApi";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
+import { refundStore, type RefundRequest, type RefundRequestStatus } from "@/services/refundStore";
 
 interface Props {
   orderId: string | null;
@@ -47,6 +49,9 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   const [assignees, setAssignees] = useState<AssignableUser[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [refund, setRefund] = useState<RefundRequest | null>(null);
+  const [refundNote, setRefundNote] = useState("");
+  const [refundBusy, setRefundBusy] = useState(false);
   useEffect(() => { if (canAssign) listAssignableUsers().then(setAssignees).catch(() => {}); }, [canAssign]);
 
   useEffect(() => {
@@ -72,6 +77,38 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   }, [orderId]);
 
   const o = order as (OrderRecord & Record<string, any>) | null;
+
+  useEffect(() => {
+    if (!o?.reference) { setRefund(null); return; }
+    let cancelled = false;
+    refundStore
+      .getAdminForOrder(o.reference)
+      .then((r) => {
+        if (cancelled) return;
+        setRefund(r);
+        setRefundNote(r?.adminNote ?? "");
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [o?.reference]);
+
+  const updateRefund = async (status: RefundRequestStatus) => {
+    if (!refund) return;
+    setRefundBusy(true);
+    try {
+      const next = await refundStore.updateStatus(refund.id, status, refundNote.trim() || undefined);
+      if (next) {
+        setRefund(next);
+        toast.success(`Refund request ${status.toLowerCase()}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update refund");
+    } finally {
+      setRefundBusy(false);
+    }
+  };
 
   const handleStatusUpdate = async () => {
     if (!o || !selectedStatus || selectedStatus === o.status) return;
@@ -293,26 +330,71 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
               {canOverrideStatus && (
                 <Section title="Update order status">
                   <div className="space-y-3 pt-1">
-                    <select
-                      className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value as OrderStatus)}
-                      disabled={updatingStatus || cancelling}
-                    >
-                      {ORDER_STATUS_OPTIONS.filter((opt) => opt.value !== "ALL").map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      className="admin-btn admin-btn-primary w-full"
-                      disabled={updatingStatus || cancelling || selectedStatus === o.status}
-                      onClick={handleStatusUpdate}
-                    >
-                      {updatingStatus && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                      {selectedStatus === o.status ? "Current status" : `Set to ${statusLabel(selectedStatus)}`}
-                    </button>
+                    {o.status === "PENDING_PAYMENT" && (
+                      <p className="text-xs text-muted-foreground">
+                        Waiting for the customer's M-Pesa payment — nothing to do here yet.
+                      </p>
+                    )}
+
+                    {/* Single contextual next-action, same pattern as the
+                        payment/preparation/dispatch queues. */}
+                    {(() => {
+                      const next = getNextAction(o.status as OrderStatus);
+                      if (!next) return null;
+                      return (
+                        <button
+                          className="admin-btn admin-btn-primary w-full"
+                          disabled={updatingStatus || cancelling}
+                          onClick={async () => {
+                            setSelectedStatus(next.nextStatus);
+                            setUpdatingStatus(true);
+                            try {
+                              const res = await updateOrderStatus(o.id, next.nextStatus, staffNotes || undefined);
+                              if (res.order) {
+                                setOrder(res.order);
+                                setSelectedStatus(res.order.status);
+                                toast.success(`Status updated to ${statusLabel(next.nextStatus)}`);
+                                onChanged?.();
+                              }
+                            } catch (err) {
+                              toast.error(err instanceof Error ? err.message : "Failed to update status");
+                            } finally {
+                              setUpdatingStatus(false);
+                            }
+                          }}
+                        >
+                          {updatingStatus && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                          {next.label}
+                        </button>
+                      );
+                    })()}
+
+                    <details>
+                      <summary className="cursor-pointer text-xs text-muted-foreground">Manual override</summary>
+                      <div className="mt-2 space-y-3">
+                        <select
+                          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                          value={selectedStatus}
+                          onChange={(e) => setSelectedStatus(e.target.value as OrderStatus)}
+                          disabled={updatingStatus || cancelling}
+                        >
+                          {ORDER_STATUS_OPTIONS.filter((opt) => opt.value !== "ALL").map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="admin-btn admin-btn-ghost w-full"
+                          disabled={updatingStatus || cancelling || selectedStatus === o.status}
+                          onClick={handleStatusUpdate}
+                        >
+                          {updatingStatus && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                          {selectedStatus === o.status ? "Current status" : `Set to ${statusLabel(selectedStatus)}`}
+                        </button>
+                      </div>
+                    </details>
+
                     {o.status !== "CANCELLED" && o.status !== "REFUNDED" && (
                       <button
                         type="button"
@@ -325,6 +407,67 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                         Cancel order
                       </button>
                     )}
+                  </div>
+                </Section>
+              )}
+
+              {/* Customer refund request — was missing from the drawer entirely
+                  before, forcing admins to leave and open the full order page
+                  just to see/manage a refund request. */}
+              {refund && (
+                <Section title="Refund / return request">
+                  <div className="flex items-center justify-between gap-2 pb-2">
+                    <span className="text-xs text-muted-foreground">Status</span>
+                    <span
+                      className={`n ${
+                        refund.status === "PENDING" ? "n-muted" : refund.status === "REJECTED" ? "n-muted" : "n-ok"
+                      }`}
+                    >
+                      {refund.status}
+                    </span>
+                  </div>
+                  <Row label="Wants" value={refund.desiredAction.replace(/_/g, " ")} />
+                  <div className="pt-2">
+                    <span className="text-sm text-muted-foreground">Reason</span>
+                    <p className="mt-1 whitespace-pre-wrap text-sm">{refund.reason}</p>
+                  </div>
+                  <div className="pt-1 text-[11px] text-muted-foreground">
+                    Submitted {new Date(refund.createdAt).toLocaleString("en-KE")}
+                    {refund.updatedAt !== refund.createdAt &&
+                      ` · updated ${new Date(refund.updatedAt).toLocaleString("en-KE")}`}
+                  </div>
+                  <label className="mt-3 block">
+                    <span className="text-xs uppercase text-muted-foreground">Admin note (shown to customer)</span>
+                    <textarea
+                      className="mt-1 w-full rounded-md border bg-background p-2 text-sm"
+                      rows={3}
+                      value={refundNote}
+                      onChange={(e) => setRefundNote(e.target.value)}
+                      placeholder="e.g. Approved — replacement dispatched via Sendy."
+                    />
+                  </label>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      className="admin-btn admin-btn-primary"
+                      disabled={refundBusy || refund.status === "APPROVED"}
+                      onClick={() => void updateRefund("APPROVED")}
+                    >
+                      {refundBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />} Approve
+                    </button>
+                    <button
+                      className="admin-btn admin-btn-ghost"
+                      disabled={refundBusy || refund.status === "REJECTED"}
+                      onClick={() => void updateRefund("REJECTED")}
+                    >
+                      Reject
+                    </button>
+                    <button
+                      className="admin-btn admin-btn-ghost"
+                      disabled={refundBusy || refund.status === "RESOLVED"}
+                      onClick={() => void updateRefund("RESOLVED")}
+                    >
+                      Mark resolved
+                    </button>
                   </div>
                 </Section>
               )}

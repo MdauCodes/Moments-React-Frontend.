@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AdminAuthContext";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
-import { formatDateShort } from "@/components/admin/commerceUi";
+import { AgeBadge, formatDateShort } from "@/components/admin/commerceUi";
 import { DispatchChecklist } from "@/components/admin/DispatchChecklist";
 import { QueueFreshness } from "@/components/admin/QueueFreshness";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
@@ -106,7 +106,9 @@ function DispatchQueuePage() {
           <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{o.courierType}</div>
         )}
       </td>
-      <td>{formatDateShort(o.createdAt)}</td>
+      <td>
+        {formatDateShort(o.createdAt)} {!dispatched && <AgeBadge since={o.createdAt} />}
+      </td>
       <td>
         {dispatched ? (
           <button
@@ -145,6 +147,7 @@ function DispatchQueuePage() {
       <div className="admin-card-row" style={{ fontSize: 11, color: "var(--admin-muted)" }}>
         <span>{o.customerPhone}</span>
         <span>Created {formatDateShort(o.createdAt)}</span>
+        {!dispatched && <AgeBadge since={o.createdAt} />}
       </div>
       <div className="admin-card-actions">
         {dispatched ? (

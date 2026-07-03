@@ -7,7 +7,7 @@ import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
 import { updateOrderStatus } from "@/services/commerceApi";
-import { formatDateShort, formatKes } from "@/components/admin/commerceUi";
+import { AgeBadge, formatDateShort, formatKes } from "@/components/admin/commerceUi";
 import { QueueFreshness } from "@/components/admin/QueueFreshness";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
 import type { OrderRecord } from "@/services/commerceMock";
@@ -82,7 +82,9 @@ function PaymentQueuePage() {
                     <td>{o.customerPhone}</td>
                     <td><b>{formatKes(o.total)}</b></td>
                     <td>{o.items.reduce((s, i) => s + Number(i.qty ?? 0), 0)} units</td>
-                    <td>{formatDateShort(o.createdAt)}</td>
+                    <td>
+                      {formatDateShort(o.createdAt)} <AgeBadge since={o.createdAt} />
+                    </td>
                     <td>
                       <button
                         className="admin-btn admin-btn-primary"
@@ -111,6 +113,7 @@ function PaymentQueuePage() {
                 <div className="admin-card-row" style={{ fontSize: 11, color: "var(--admin-muted)" }}>
                   <span>{o.items.reduce((s, i) => s + Number(i.qty ?? 0), 0)} units</span>
                   <span>Created {formatDateShort(o.createdAt)}</span>
+                  <AgeBadge since={o.createdAt} />
                 </div>
                 <div className="admin-card-actions">
                   <button
