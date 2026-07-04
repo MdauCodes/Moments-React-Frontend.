@@ -6,6 +6,9 @@ import type { Blog, BlogStatus, BlogTemplate } from "@/data/blogs";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
 
 type PageResponse<T> = { content: T[] };
+export type Segment = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type Category = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type Subcategory = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
 type ProductApiDto = Partial<Product> & {
   id: string;
   slug: string;
@@ -144,6 +147,7 @@ export const api = {
     isNewArrival?: boolean;
     isFastMoving?: boolean;
     category?: string;
+    subcategoryId?: string;
     page?: number;
     size?: number;
     sort?: string;
@@ -154,6 +158,7 @@ export const api = {
       isNewArrival: params?.isNewArrival,
       isFastMoving: params?.isFastMoving,
       category: params?.category,
+      subcategoryId: params?.subcategoryId,
       page: params?.page ?? 0,
       size: params?.size ?? 20,
       sort: params?.sort ?? "createdAt,desc",
@@ -196,6 +201,14 @@ export const api = {
     const data = await getJson<Array<Partial<Industry> & { displayId?: number }>>("/api/v1/public/industries");
     return data.map(normalizeIndustry);
   },
+
+  getSegments: async () => getJson<Segment[]>("/api/v1/public/segments"),
+
+  getCategories: async (segmentId?: string) =>
+    getJson<Category[]>(`/api/v1/public/categories${qs({ segmentId })}`),
+
+  getSubcategories: async (categoryId?: string) =>
+    getJson<Subcategory[]>(`/api/v1/public/subcategories${qs({ categoryId })}`),
 
   getProductBySlug: async (slug: string): Promise<Product | null> => {
     try {

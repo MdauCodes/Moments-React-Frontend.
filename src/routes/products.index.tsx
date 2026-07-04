@@ -9,7 +9,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
-import { api } from "@/services/api";
+import { api, type Segment, type Category as TaxCategory, type Subcategory } from "@/services/api";
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
 
 // Customer-intent chips shown when an industry is selected.
@@ -143,6 +143,7 @@ type SortKey = (typeof sortOptions)[number];
 
 const searchSchema = z.object({
   category: z.string().optional(),
+  subcategoryId: z.string().optional(),
   industry: z.string().optional(),
   q: z.string().optional(),
   newArrivals: z.boolean().optional(),
@@ -186,7 +187,7 @@ const ALL_PRICE_MAX = 500;
 function ProductsPage() {
   const [_searchParams, setSearchParams] = useSearchParams();
   const search = Object.fromEntries(_searchParams.entries());
-  const { category, industry: industrySlug, q, sort = "newest" } = search;
+  const { category, subcategoryId, industry: industrySlug, q, sort = "newest" } = search;
   const newArrivals = search.newArrivals === "true";
   const deals = search.deals === "true";
   const fastMoving = search.fastMoving === "true";
@@ -195,6 +196,11 @@ function ProductsPage() {
   const maxPrice = search.maxPrice ? Number(search.maxPrice) : undefined;
 
   const [industries, setIndustries] = useState<Industry[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -264,7 +270,7 @@ function ProductsPage() {
   }, [sort]);
 
   const anyFilterActive = !!(
-    industrySlug || category || newArrivals || deals || fastMoving ||
+    industrySlug || category || subcategoryId || newArrivals || deals || fastMoving ||
     inStock || minPrice !== undefined || maxPrice !== undefined ||
     (q && q.length > 1)
   );
@@ -278,10 +284,59 @@ function ProductsPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Segment -> Category -> Subcategory taxonomy for "Browse by category".
+  // Counts stay small (dozens, not product-scale) even once the full catalogue
+  // is classified, so fetching all three flat and filtering client-side is fine.
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([api.getSegments(), api.getCategories(), api.getSubcategories()]).then(
+      ([segs, cats, subs]) => {
+        if (cancelled) return;
+        setSegments(segs);
+        setTaxCategories(cats);
+        setSubcategories(subs);
+      },
+    ).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  // Restore the Segment/Category selection from a bookmarked/shared subcategoryId link.
+  useEffect(() => {
+    if (!subcategoryId) return;
+    const sub = subcategories.find((s) => s.id === subcategoryId);
+    if (sub) {
+      setSelectedCategoryId(sub.categoryId);
+      setSelectedSegmentId(sub.segmentId ?? taxCategories.find((c) => c.id === sub.categoryId)?.segmentId ?? null);
+    }
+  }, [subcategoryId, subcategories, taxCategories]);
+
+  const categoriesForSegment = useMemo(
+    () => taxCategories.filter((c) => c.segmentId === selectedSegmentId),
+    [taxCategories, selectedSegmentId],
+  );
+  const subcategoriesForCategory = useMemo(
+    () => subcategories.filter((s) => s.categoryId === selectedCategoryId),
+    [subcategories, selectedCategoryId],
+  );
+
+  const selectSegment = (id: string) => {
+    setSelectedSegmentId((prev) => (prev === id ? null : id));
+    setSelectedCategoryId(null);
+    setParam("subcategoryId", undefined);
+  };
+  const selectTaxCategory = (id: string) => {
+    setSelectedCategoryId((prev) => (prev === id ? null : id));
+    setParam("subcategoryId", undefined);
+  };
+  const selectSubcategory = (id: string) => {
+    setParam("category", undefined); // mutually exclusive with the legacy flat category filter
+    setParam("subcategoryId", subcategoryId === id ? undefined : id);
+  };
+
   // Reset on filter change
   useEffect(() => {
     setPage(0);
-  }, [industrySlug, category, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sort]);
+  }, [industrySlug, category, subcategoryId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sort]);
 
   // Fetch (wrapped with smart fallback handling — does not change API calls).
   useEffect(() => {
@@ -299,6 +354,7 @@ function ProductsPage() {
       : api.getProducts({
           industryId: selectedIndustry?.id,
           category: category || undefined,
+          subcategoryId: subcategoryId || undefined,
           isNewArrival: newArrivals || undefined,
           isDiscount: deals || undefined,
           isFastMoving: fastMoving || undefined,
@@ -351,7 +407,7 @@ function ProductsPage() {
       });
 
     return () => { cancelled = true; };
-  }, [selectedIndustry, category, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sortParam, page, searchResults, anyFilterActive, retryTick, sort]);
+  }, [selectedIndustry, category, subcategoryId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sortParam, page, searchResults, anyFilterActive, retryTick, sort]);
 
   // Debounced search
   useEffect(() => {
@@ -403,6 +459,8 @@ function ProductsPage() {
   const clearAll = () => {
     setQuery("");
     setSearchResults(null);
+    setSelectedSegmentId(null);
+    setSelectedCategoryId(null);
     setSearchParams(new URLSearchParams());
   };
 
@@ -444,6 +502,17 @@ function ProductsPage() {
   if (category) {
     const cat = CATEGORY_OPTIONS.find((c) => c.value === category);
     chips.push({ label: cat?.label ?? category, clear: () => setParam("category", undefined) });
+  }
+  if (subcategoryId) {
+    const sub = subcategories.find((s) => s.id === subcategoryId);
+    chips.push({
+      label: sub ? `${sub.segmentName ?? ""} › ${sub.categoryName ?? ""} › ${sub.name}` : "Category",
+      clear: () => {
+        setParam("subcategoryId", undefined);
+        setSelectedSegmentId(null);
+        setSelectedCategoryId(null);
+      },
+    });
   }
   if (newArrivals) chips.push({ label: "New Arrivals", clear: () => setParam("newArrivals", undefined) });
   if (deals) chips.push({ label: "Deals", clear: () => setParam("deals", undefined) });
@@ -539,7 +608,12 @@ function ProductsPage() {
             Category
             <select
               value={category ?? ""}
-              onChange={(e) => setParam("category", e.target.value || undefined)}
+              onChange={(e) => {
+                setParam("category", e.target.value || undefined);
+                setParam("subcategoryId", undefined);
+                setSelectedSegmentId(null);
+                setSelectedCategoryId(null);
+              }}
               className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
             >
               <option value="">All</option>
@@ -594,6 +668,69 @@ function ProductsPage() {
             </button>
           )}
         </div>
+
+        {/* Browse by category — Segment -> Category -> Subcategory. Only renders
+            once at least one Segment exists, so this scales automatically as
+            the full catalogue gets classified without further code changes. */}
+        {segments.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-border bg-card p-4">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Browse by category
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              {segments.map((seg) => (
+                <button
+                  key={seg.id}
+                  type="button"
+                  onClick={() => selectSegment(seg.id)}
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                    selectedSegmentId === seg.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
+                  }`}
+                >
+                  {seg.name}
+                </button>
+              ))}
+            </div>
+            {selectedSegmentId && categoriesForSegment.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {categoriesForSegment.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => selectTaxCategory(cat.id)}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      selectedCategoryId === cat.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedCategoryId && subcategoriesForCategory.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {subcategoriesForCategory.map((sub) => (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => selectSubcategory(sub.id)}
+                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                      subcategoryId === sub.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/60 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    {sub.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Active chips */}
         {chips.length > 0 && (
