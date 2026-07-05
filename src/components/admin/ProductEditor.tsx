@@ -10,8 +10,6 @@ import { fetchPublicUoms, adminCreateUom, type Uom } from "@/services/uomService
 // Types
 // ---------------------------------------------------------------------------
 
-const TAGS: ProductTag[] = ["Trending", "New", "Discounted", "Featured"];
-
 export interface ProductVariant {
   id?: string;
   label: string;
@@ -260,15 +258,12 @@ function slugifyDraft(input: string): string {
     .slice(0, 80);
 }
 
-function categoryName(slug: string): string {
-  return categories.find((c) => c.slug === slug)?.name ?? slug;
-}
-
 function validateProduct(values: ProductFormValues): string[] {
   const issues: string[] = [];
   if (!values.name.trim()) issues.push("Product name is required.");
   if (!values.image) issues.push("Add a product image.");
-  if (!values.category) issues.push("Pick a product category.");
+  // Category/Subcategory/Industries/Tags are no longer set here — classification
+  // happens on the Classify Products page, so a new product is valid unclassified.
   if (!values.description.trim()) issues.push("Add a short catalogue description.");
   if (values.moq < 1) issues.push("MOQ must be at least 1.");
   if (values.isDiscount && (!values.discountPercent || values.discountPercent <= 0))
@@ -505,18 +500,6 @@ function invalidStyle(isInvalid: boolean): CSSProperties {
     : {};
 }
 
-function chip(active: boolean): CSSProperties {
-  return {
-    border: `1px solid ${active ? "var(--admin-accent-hover)" : "var(--admin-border)"}`,
-    background: active ? "color-mix(in oklab,var(--admin-accent) 34%,var(--admin-surface))" : "var(--admin-bg)",
-    color: active ? "var(--cream)" : "var(--admin-muted)",
-    borderRadius: 999,
-    padding: "5px 12px",
-    fontSize: 11.5,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -801,21 +784,9 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [liveIndustries, setLiveIndustries] = useState<Array<{ id: string; name: string; slug: string }>>([]);
   const [uoms, setUoms] = useState<Uom[]>([]);
   const [showUomDialog, setShowUomDialog] = useState(false);
   const [priceModes, setPriceModes] = useState<Record<number, "perUnit" | "total">>({});
-
-  useEffect(() => {
-    api
-      .getIndustries()
-      .then((data) => {
-        setLiveIndustries(
-          data.map((ind) => ({ id: String(ind.id), name: ind.name, slug: ind.slug })),
-        );
-      })
-      .catch(() => {}); // non-fatal — industries chip section just stays empty
-  }, []);
 
   const loadUoms = () => fetchPublicUoms().then(setUoms).catch(() => {});
   useEffect(() => {
@@ -838,17 +809,6 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
   const set = <K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
 
-  const toggleIndustry = (id: string) =>
-    setValues((v) => ({
-      ...v,
-      industryIds: v.industryIds.includes(id) ? v.industryIds.filter((x) => x !== id) : [...v.industryIds, id],
-    }));
-
-  const toggleTag = (tag: ProductTag) =>
-    setValues((v) => ({
-      ...v,
-      tags: v.tags.includes(tag) ? v.tags.filter((x) => x !== tag) : [...v.tags, tag],
-    }));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -948,22 +908,6 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
               </div>
             </div>
             <div style={s.row} data-admin-row>
-              <div style={s.col}>
-                <label style={s.label}>{reqLabel("Category")}</label>
-                <select
-                  style={{ ...s.select, ...invalidStyle(submitted && !values.category) }}
-                  value={values.category}
-                  onChange={(e) => set("category", e.target.value)}
-                  required
-                  aria-required="true"
-                >
-                  {categories.map((c) => (
-                    <option key={c.slug} value={c.slug}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
               <div style={s.col}>
                 <label style={s.label}>{reqLabel("MOQ")}</label>
                 <input
@@ -1458,51 +1402,19 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
           </div>
         </div>
 
-        {/* Industries */}
+        {/* Search keywords — categorization (Subcategory/Industries) and display
+            tags now live entirely on the Classify Products page, not here. */}
         <div style={s.card}>
           <div style={s.cardHd}>
-            <div style={s.cardTitle}>Industries served</div>
-            <span style={s.helper}>Drives industry filters &amp; search.</span>
+            <div style={s.cardTitle}>Search keywords</div>
           </div>
-          <div style={s.chipRow}>
-            {liveIndustries.map((ind) => (
-              <button
-                key={ind.id}
-                type="button"
-                style={chip(values.industryIds.includes(ind.id))}
-                onClick={() => toggleIndustry(ind.id)}
-              >
-                {ind.name}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tags & keywords */}
-        <div style={s.card}>
-          <div style={s.cardHd}>
-            <div style={s.cardTitle}>Tags &amp; search keywords</div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={s.col}>
-              <label style={s.label}>Display tags</label>
-              <div style={s.chipRow}>
-                {TAGS.map((t) => (
-                  <button key={t} type="button" style={chip(values.tags.includes(t))} onClick={() => toggleTag(t)}>
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={s.col}>
-              <label style={s.label}>Search keywords</label>
-              <TokenInput
-                values={values.keywords ?? []}
-                onChange={(next) => set("keywords", next)}
-                placeholder="e.g. coffee, takeaway cup, kikombe"
-              />
-              <span style={s.helper}>Synonyms, sheng, misspellings — all boost search recall.</span>
-            </div>
+          <div style={s.col}>
+            <TokenInput
+              values={values.keywords ?? []}
+              onChange={(next) => set("keywords", next)}
+              placeholder="e.g. coffee, takeaway cup, kikombe"
+            />
+            <span style={s.helper}>Synonyms, sheng, misspellings — all boost search recall.</span>
           </div>
         </div>
 
@@ -1575,7 +1487,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
           )}
           <div style={s.previewBody}>
             <div style={s.previewMeta}>
-              {categoryName(values.category)} · MOQ {Math.max(values.moq, 0).toLocaleString()}
+              MOQ {Math.max(values.moq, 0).toLocaleString()}
             </div>
             <h3 style={s.previewTitle}>{values.name || "Product name"}</h3>
             <p style={s.previewDesc}>{values.description || "Product description preview."}</p>

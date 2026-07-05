@@ -9,6 +9,7 @@ type PageResponse<T> = { content: T[] };
 export type Segment = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type Category = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type Subcategory = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type Tag = { id: string; name: string; slug?: string; description?: string };
 type ProductApiDto = Partial<Product> & {
   id: string;
   slug: string;
@@ -148,6 +149,7 @@ export const api = {
     isFastMoving?: boolean;
     category?: string;
     subcategoryId?: string;
+    tagId?: string;
     page?: number;
     size?: number;
     sort?: string;
@@ -159,6 +161,7 @@ export const api = {
       isFastMoving: params?.isFastMoving,
       category: params?.category,
       subcategoryId: params?.subcategoryId,
+      tagId: params?.tagId,
       page: params?.page ?? 0,
       size: params?.size ?? 20,
       sort: params?.sort ?? "createdAt,desc",
@@ -209,6 +212,8 @@ export const api = {
 
   getSubcategories: async (categoryId?: string) =>
     getJson<Subcategory[]>(`/api/v1/public/subcategories${qs({ categoryId })}`),
+
+  getTags: async () => getJson<Tag[]>("/api/v1/public/tags"),
 
   getProductBySlug: async (slug: string): Promise<Product | null> => {
     try {

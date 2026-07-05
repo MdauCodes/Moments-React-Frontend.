@@ -6,6 +6,7 @@ export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
+export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type SubcategoryDto = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -18,10 +19,11 @@ export type ProductDto = {
   stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "MADE_TO_ORDER";
   vatRate?: number; vatExempt?: boolean;
   subcategoryId?: string | null; subcategoryName?: string | null; categoryName?: string | null; segmentName?: string | null;
+  curatedTags?: TagDto[]; curatedTagIds?: string[];
   variants?: Array<{ id?: string; label: string; sku?: string; price?: number; stock?: number }>;
 };
 export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries">;
-export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; industryIds?: string[] };
+export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; industryIds?: string[]; tagIds?: string[] };
 export type BulkClassifyResponse = { updatedCount: number; productIds: string[] };
 
 
@@ -139,6 +141,12 @@ export const adminResources = {
     create: (body: Partial<IndustryDto>) => adminJson<IndustryDto>("/api/v1/admin/industries", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<IndustryDto>) => adminJson<IndustryDto>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  tags: {
+    list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),
+    create: (body: Partial<TagDto>) => adminJson<TagDto>("/api/v1/admin/tags", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<TagDto>) => adminJson<TagDto>(`/api/v1/admin/tags/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/tags/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   segments: {
     list: () => adminJson<SegmentDto[]>("/api/v1/admin/segments"),
