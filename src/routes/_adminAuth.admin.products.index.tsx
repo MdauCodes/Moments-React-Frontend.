@@ -73,7 +73,10 @@ function AdminProductsPage() {
 
   const getStockDisplay = (p: ProductDto) => {
     const ss = (p as any).stockStatus ?? "MADE_TO_ORDER";
-    const stockCount = p.stock ?? 0;
+    // Backend ProductDto only ever sends `stockCount` — `stock` is a stale
+    // alias in the TS type that the API never actually populates, so reading
+    // it always silently fell back to 0 regardless of real inventory.
+    const stockCount = p.stockCount ?? 0;
     const tone =
       ss === "MADE_TO_ORDER" ? "var(--admin-muted)"
         : ss === "OUT_OF_STOCK" ? "#b91c1c"
