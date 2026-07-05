@@ -113,7 +113,7 @@ export function AdminDashboardPage() {
 
           {/* Queue-specific blocks */}
           {(showPaymentBlock || showPrepBlock || showDispatchBlock || showMyAssigned) && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }} data-admin-grid>
               {showPaymentBlock && (
                 <QueueCard icon={CheckCircle2} label="Payments to verify" count={queueCounts.paid} to="/admin/queues/payment" cta="Open Payment Queue" />
               )}

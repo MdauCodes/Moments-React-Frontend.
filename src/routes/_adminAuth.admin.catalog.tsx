@@ -191,7 +191,7 @@ function AdminCatalogPage() {
         </HelpPanel>
 
         <div className="admin-page-stack">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }} data-admin-grid>
             {/* Segments */}
             <div className="admin-panel" style={{ padding: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>

@@ -150,7 +150,7 @@ function AdminRolesPage() {
         {loading ? (
           <div className="admin-panel" style={{ padding: 24 }}>Loading roles…</div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 14 }} data-admin-grid>
             {roles.map((r) => {
               const isSystem = !!r.isSystem || !!r.isDefault;
               return (

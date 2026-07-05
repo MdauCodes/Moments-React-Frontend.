@@ -280,7 +280,7 @@ function AdminProductsPage() {
             </table>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }} data-admin-grid>
             {visibleProducts.map((p) => {
               const { tone: stockTone, text: stockText } = getStockDisplay(p);
               return (

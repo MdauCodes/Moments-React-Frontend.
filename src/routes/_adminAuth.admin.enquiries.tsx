@@ -172,7 +172,7 @@ function AdminEnquiriesPage() {
     <AdminLayout title="Enquiries CRM">
       <div className="admin-page-stack">
         {/* Pipeline summary tiles */}
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))" }}>
+        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))" }} data-admin-grid>
           {PIPELINE.map((s) => (
             <button key={s} type="button" onClick={() => { setStatus(s); setPage(0); }}
               className="admin-panel"

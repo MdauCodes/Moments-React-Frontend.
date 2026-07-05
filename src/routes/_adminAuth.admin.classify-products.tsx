@@ -242,7 +242,7 @@ function AdminClassifyProductsPage() {
               </table>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }} data-admin-grid>
               {visibleProducts.map((p) => {
                 const selected = selectedIds.has(p.id);
                 const image = p.primaryImageUrl || p.imageUrls?.[0];
