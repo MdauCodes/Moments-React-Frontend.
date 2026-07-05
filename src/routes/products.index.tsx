@@ -9,7 +9,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
-import { api, type Segment, type Category as TaxCategory, type Subcategory } from "@/services/api";
+import { api, type Segment, type Category as TaxCategory, type Subcategory, type Tag } from "@/services/api";
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
 import { CATEGORY_OPTIONS } from "@/data/categoryOptions";
 
@@ -145,6 +145,7 @@ type SortKey = (typeof sortOptions)[number];
 const searchSchema = z.object({
   category: z.string().optional(),
   subcategoryId: z.string().optional(),
+  tagId: z.string().optional(),
   industry: z.string().optional(),
   q: z.string().optional(),
   newArrivals: z.boolean().optional(),
@@ -164,7 +165,7 @@ const ALL_PRICE_MAX = 500;
 function ProductsPage() {
   const [_searchParams, setSearchParams] = useSearchParams();
   const search = Object.fromEntries(_searchParams.entries());
-  const { category, subcategoryId, industry: industrySlug, q, sort = "newest" } = search;
+  const { category, subcategoryId, tagId, industry: industrySlug, q, sort = "newest" } = search;
   const newArrivals = search.newArrivals === "true";
   const deals = search.deals === "true";
   const fastMoving = search.fastMoving === "true";
@@ -176,6 +177,7 @@ function ProductsPage() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [tagsList, setTagsList] = useState<Tag[]>([]);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -247,7 +249,7 @@ function ProductsPage() {
   }, [sort]);
 
   const anyFilterActive = !!(
-    industrySlug || category || subcategoryId || newArrivals || deals || fastMoving ||
+    industrySlug || category || subcategoryId || tagId || newArrivals || deals || fastMoving ||
     inStock || minPrice !== undefined || maxPrice !== undefined ||
     (q && q.length > 1)
   );
@@ -274,6 +276,15 @@ function ProductsPage() {
         setSubcategories(subs);
       },
     ).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  // Admin-managed tags, driving "What do you need?" once populated. Additive
+  // to the verified keyword quick-finds below, not a replacement — there are
+  // no real tags yet, so this stays empty until the admin starts creating them.
+  useEffect(() => {
+    let cancelled = false;
+    void api.getTags().then((data) => { if (!cancelled) setTagsList(data); }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
 
@@ -313,7 +324,7 @@ function ProductsPage() {
   // Reset on filter change
   useEffect(() => {
     setPage(0);
-  }, [industrySlug, category, subcategoryId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sort]);
+  }, [industrySlug, category, subcategoryId, tagId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sort]);
 
   // Fetch (wrapped with smart fallback handling — does not change API calls).
   useEffect(() => {
@@ -332,6 +343,7 @@ function ProductsPage() {
           industryId: selectedIndustry?.id,
           category: category || undefined,
           subcategoryId: subcategoryId || undefined,
+          tagId: tagId || undefined,
           isNewArrival: newArrivals || undefined,
           isDiscount: deals || undefined,
           isFastMoving: fastMoving || undefined,
@@ -384,7 +396,7 @@ function ProductsPage() {
       });
 
     return () => { cancelled = true; };
-  }, [selectedIndustry, category, subcategoryId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sortParam, page, searchResults, anyFilterActive, retryTick, sort]);
+  }, [selectedIndustry, category, subcategoryId, tagId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sortParam, page, searchResults, anyFilterActive, retryTick, sort]);
 
   // Debounced search
   useEffect(() => {
@@ -490,6 +502,10 @@ function ProductsPage() {
         setSelectedCategoryId(null);
       },
     });
+  }
+  if (tagId) {
+    const tag = tagsList.find((t) => t.id === tagId);
+    chips.push({ label: tag?.name ?? "Tag", clear: () => setParam("tagId", undefined) });
   }
   if (newArrivals) chips.push({ label: "New Arrivals", clear: () => setParam("newArrivals", undefined) });
   if (deals) chips.push({ label: "Deals", clear: () => setParam("deals", undefined) });
@@ -980,6 +996,32 @@ function ProductsPage() {
               Tap as many as apply — we&apos;ll show everything that matches.
             </p>
           </div>
+          {tagsList.length > 0 && (
+            <div className="border-b border-border px-5 py-5">
+              <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {tagsList.map((tag) => (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => {
+                      setParam("tagId", tag.id);
+                      setQuickFindOpen(false);
+                      const scroll = () => document.getElementById("results-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      [100, 500, 1000].forEach((ms) => window.setTimeout(scroll, ms));
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                      tagId === tag.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
+                    }`}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 px-5 py-5">
             {GLOBAL_QUICK_FINDS.map((item) => {
               const active = selectedQuickFinds.includes(item.search);
