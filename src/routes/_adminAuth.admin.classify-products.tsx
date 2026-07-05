@@ -245,6 +245,7 @@ function AdminClassifyProductsPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
               {visibleProducts.map((p) => {
                 const selected = selectedIds.has(p.id);
+                const image = p.primaryImageUrl || p.imageUrls?.[0];
                 return (
                   <button
                     key={p.id}
@@ -252,19 +253,31 @@ function AdminClassifyProductsPage() {
                     onClick={() => toggleOne(p.id)}
                     className="admin-panel"
                     style={{
-                      padding: 14, textAlign: "left", display: "flex", flexDirection: "column", gap: 6, cursor: "pointer",
+                      position: "relative", overflow: "hidden", padding: 14, textAlign: "left",
+                      display: "flex", flexDirection: "column", gap: 6, cursor: "pointer",
                       border: selected ? "2px solid var(--admin-accent, #15803d)" : undefined,
+                      ...(image ? {
+                        backgroundImage: `url(${image})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      } : {}),
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                    {/* Faded overlay so the background photo aids quick visual ID
+                        without hurting text legibility — keeps the card as compact
+                        as the plain version. */}
+                    {image && (
+                      <div style={{ position: "absolute", inset: 0, background: "var(--admin-bg, #fff)", opacity: 0.86 }} />
+                    )}
+                    <div style={{ position: "relative", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
                       <b style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</b>
                       <input type="checkbox" checked={selected} readOnly style={{ marginTop: 2 }} />
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{p.category || "—"}</div>
+                    <div style={{ position: "relative", fontSize: 11, color: "var(--admin-muted)" }}>{p.category || "—"}</div>
                     {p.subcategoryName ? (
-                      <span style={{ fontSize: 12 }}>{p.segmentName} › {p.categoryName} › {p.subcategoryName}</span>
+                      <span style={{ position: "relative", fontSize: 12 }}>{p.segmentName} › {p.categoryName} › {p.subcategoryName}</span>
                     ) : (
-                      <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>Unclassified</span>
+                      <span style={{ position: "relative", fontSize: 12, color: "var(--admin-muted)" }}>Unclassified</span>
                     )}
                   </button>
                 );
