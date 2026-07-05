@@ -11,6 +11,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 import { api, type Segment, type Category as TaxCategory, type Subcategory } from "@/services/api";
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
+import { CATEGORY_OPTIONS } from "@/data/categoryOptions";
 
 // Customer-intent chips shown when an industry is selected.
 // label = plain English the customer thinks in.
@@ -156,30 +157,6 @@ const searchSchema = z.object({
 });
 
 const PAGE_SIZE = 20;
-// The backend `category` field is free text with an exact case-insensitive match filter,
-// normalized server-side (ProductCategoryNormalizationSeeder) to these canonical values.
-// `value` must match the canonical DB string exactly — this is intentionally decoupled from
-// the homepage's decorative `categories` list (data/products.ts), which only covers 6
-// curated, image-backed groupings for visual browsing, not the full real taxonomy.
-const CATEGORY_OPTIONS = [
-  { value: "Bags", label: "Bags" },
-  { value: "Food & Condiments", label: "Food & Condiments" },
-  { value: "Thermal Rolls", label: "Thermal Rolls" },
-  { value: "Cups & Lids", label: "Cups & Lids" },
-  { value: "Wrapping & Foil", label: "Wrapping & Foil" },
-  { value: "Containers & Trays", label: "Containers & Trays" },
-  { value: "Tableware & Hygiene", label: "Tableware & Hygiene" },
-  { value: "Cutlery", label: "Cutlery" },
-  { value: "Straws & Stirrers", label: "Straws & Stirrers" },
-  { value: "Jars & Bottles", label: "Jars & Bottles" },
-  { value: "Hygiene & PPE", label: "Hygiene & PPE" },
-  { value: "Tapes", label: "Tapes" },
-  { value: "General", label: "General" },
-  { value: "Miscellaneous", label: "Miscellaneous" },
-  { value: "Boards", label: "Boards" },
-  { value: "Gifting & Retail", label: "Gifting & Retail" },
-  { value: "Mailers & Shipping", label: "Mailers & Shipping" },
-];
 const ALL_PRICE_MAX = 500;
 
 

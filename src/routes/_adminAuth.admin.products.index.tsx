@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type IndustryDto, type ProductDto } from "@/services/adminResources";
+import { CATEGORY_OPTIONS } from "@/data/categoryOptions";
 
 
 
@@ -142,16 +143,20 @@ function AdminProductsPage() {
               </option>
             ))}
           </select>
-          <input
-            className="admin-input"
+          <select
+            className="admin-select"
             style={{ maxWidth: 200 }}
-            placeholder="Category"
             value={filters.category}
             onChange={(e) => {
               setPage(0);
               setFilters({ ...filters, category: e.target.value });
             }}
-          />
+          >
+            <option value="">All categories</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
           {(["isDiscount", "isNewArrival", "isFastMoving"] as const).map((key) => (
             <button
               key={key}
