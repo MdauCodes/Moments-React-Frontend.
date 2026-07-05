@@ -741,13 +741,31 @@ function ProductsPage() {
           </div>
         )}
 
-        {/* Browse by business type — shown when no filter active and data is loaded */}
+        {/* Browse by business type — shown when no filter active and data is loaded.
+            A card grid works fine on tablet/desktop, but on a phone it pushes the
+            actual product grid several screens down — a compact dropdown gets to
+            the same result (?industry=slug) in the same footprint as any other
+            filter control. */}
         {!anyFilterActive && !isLoading && !searchResults && industries.length > 0 && (
           <div className="mt-8">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               What does your business do?
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <div className="mt-3 sm:hidden">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) setParam("industry", e.target.value);
+                }}
+                className="w-full rounded-full border border-foreground/20 bg-background px-4 py-2.5 text-sm text-foreground"
+              >
+                <option value="">Select your business type…</option>
+                {industries.map((ind) => (
+                  <option key={ind.id} value={ind.slug}>{ind.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
               {industries.map((ind) => {
                 const Icon = ind.icon;
                 return (
