@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Loader2, Search, X } from "lucide-react";
+import { LayoutGrid, Loader2, Rows3, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
@@ -21,6 +21,7 @@ function AdminClassifyProductsPage() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [unclassifiedOnly, setUnclassifiedOnly] = useState(true);
+  const [view, setView] = useState<"table" | "cards">("table");
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
@@ -173,6 +174,24 @@ function AdminClassifyProductsPage() {
             >
               Unclassified only
             </button>
+            <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+              <button
+                type="button"
+                className={`admin-btn ${view === "table" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+                onClick={() => setView("table")}
+                aria-label="Table view"
+              >
+                <Rows3 size={14} />
+              </button>
+              <button
+                type="button"
+                className={`admin-btn ${view === "cards" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+                onClick={() => setView("cards")}
+                aria-label="Card view"
+              >
+                <LayoutGrid size={14} />
+              </button>
+            </div>
           </div>
 
           {selectedIds.size > 0 && (
@@ -185,23 +204,27 @@ function AdminClassifyProductsPage() {
             </div>
           )}
 
-          <div className="admin-panel" data-admin-table-scroll>
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /></th>
-                  <th>Product</th>
-                  <th>Legacy category</th>
-                  <th>Current classification</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={4}>Loading products…</td></tr>
-                ) : visibleProducts.length === 0 ? (
-                  <tr><td colSpan={4}><div className="admin-empty">No products match.</div></td></tr>
-                ) : (
-                  visibleProducts.map((p) => (
+          {loading ? (
+            <div className="admin-panel" style={{ padding: 24 }}>
+              <div className="admin-empty">Loading products…</div>
+            </div>
+          ) : visibleProducts.length === 0 ? (
+            <div className="admin-panel" style={{ padding: 24 }}>
+              <div className="admin-empty">No products match.</div>
+            </div>
+          ) : view === "table" ? (
+            <div className="admin-panel" data-admin-table-scroll>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th><input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} /></th>
+                    <th>Product</th>
+                    <th>Legacy category</th>
+                    <th>Current classification</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleProducts.map((p) => (
                     <tr key={p.id}>
                       <td><input type="checkbox" checked={selectedIds.has(p.id)} onChange={() => toggleOne(p.id)} /></td>
                       <td><b>{p.name}</b></td>
@@ -214,11 +237,40 @@ function AdminClassifyProductsPage() {
                         )}
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+              {visibleProducts.map((p) => {
+                const selected = selectedIds.has(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleOne(p.id)}
+                    className="admin-panel"
+                    style={{
+                      padding: 14, textAlign: "left", display: "flex", flexDirection: "column", gap: 6, cursor: "pointer",
+                      border: selected ? "2px solid var(--admin-accent, #15803d)" : undefined,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                      <b style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</b>
+                      <input type="checkbox" checked={selected} readOnly style={{ marginTop: 2 }} />
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{p.category || "—"}</div>
+                    {p.subcategoryName ? (
+                      <span style={{ fontSize: 12 }}>{p.segmentName} › {p.categoryName} › {p.subcategoryName}</span>
+                    ) : (
+                      <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>Unclassified</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           <div className="admin-toolbar">
             <button className="admin-btn admin-btn-ghost" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>Previous</button>

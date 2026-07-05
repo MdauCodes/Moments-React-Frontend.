@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, Search, Trash2, X } from "lucide-react";
+import { LayoutGrid, Pencil, Rows3, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -21,6 +21,7 @@ function AdminProductsPage() {
   const [filters, setFilters] = useState({ industryId: "", category: "", isDiscount: "", isNewArrival: "", isFastMoving: "" });
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const [view, setView] = useState<"table" | "cards">("table");
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim().toLowerCase()), 250);
@@ -68,6 +69,22 @@ function AdminProductsPage() {
     if (filters.isFastMoving) rows = rows.filter((p) => p.isFastMoving);
     return rows;
   }, [products, debouncedQ, filters]);
+
+  const getStockDisplay = (p: ProductDto) => {
+    const ss = (p as any).stockStatus ?? "MADE_TO_ORDER";
+    const stockCount = p.stock ?? 0;
+    const tone =
+      ss === "MADE_TO_ORDER" ? "var(--admin-muted)"
+        : ss === "OUT_OF_STOCK" ? "#b91c1c"
+        : ss === "LOW_STOCK" ? "#a16207"
+        : "#15803d";
+    const text =
+      ss === "MADE_TO_ORDER" ? "Made to order"
+        : ss === "OUT_OF_STOCK" ? "Out of stock"
+        : ss === "LOW_STOCK" ? `${stockCount.toLocaleString()} ⚠ Low`
+        : `${stockCount.toLocaleString()} units`;
+    return { tone, text };
+  };
 
   const beginCreate = () => navigate("/admin/products/new");
   const beginEdit = (p: ProductDto) => navigate(`/admin/products/${p.id}`);
@@ -159,56 +176,56 @@ function AdminProductsPage() {
               Clear
             </button>
           )}
+          <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
+            <button
+              type="button"
+              className={`admin-btn ${view === "table" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+              onClick={() => setView("table")}
+              aria-label="Table view"
+            >
+              <Rows3 size={14} />
+            </button>
+            <button
+              type="button"
+              className={`admin-btn ${view === "cards" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+              onClick={() => setView("cards")}
+              aria-label="Card view"
+            >
+              <LayoutGrid size={14} />
+            </button>
+          </div>
         </div>
-        <div className="admin-panel" data-admin-table-scroll>
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Price (KES)</th>
-                <th>Stock</th>
-                <th>Category</th>
-                <th>Flags</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+
+        {loading ? (
+          <div className="admin-panel" style={{ padding: 24 }}>
+            <div className="admin-empty">Loading products…</div>
+          </div>
+        ) : visibleProducts.length === 0 ? (
+          <div className="admin-panel" style={{ padding: 24 }}>
+            <div className="admin-empty">
+              No products found.{" "}
+              <button className="admin-btn admin-btn-primary" onClick={beginCreate}>
+                Create product
+              </button>
+            </div>
+          </div>
+        ) : view === "table" ? (
+          <div className="admin-panel" data-admin-table-scroll>
+            <table className="admin-table">
+              <thead>
                 <tr>
-                  <td colSpan={7}>Loading products…</td>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Price (KES)</th>
+                  <th>Stock</th>
+                  <th>Category</th>
+                  <th>Flags</th>
+                  <th></th>
                 </tr>
-              ) : visibleProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={7}>
-                    <div className="admin-empty">
-                      No products found.{" "}
-                      <button className="admin-btn admin-btn-primary" onClick={beginCreate}>
-                        Create product
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                visibleProducts.map((p) => {
-                  const ss = (p as any).stockStatus ?? "MADE_TO_ORDER";
-                  const stockCount = p.stock ?? 0;
-                  const stockTone =
-                    ss === "MADE_TO_ORDER"
-                      ? "var(--admin-muted)"
-                      : ss === "OUT_OF_STOCK"
-                        ? "#b91c1c"
-                        : ss === "LOW_STOCK"
-                          ? "#a16207"
-                          : "#15803d";
-                  const stockText =
-                    ss === "MADE_TO_ORDER"
-                      ? "Made to order"
-                      : ss === "OUT_OF_STOCK"
-                        ? "Out of stock"
-                        : ss === "LOW_STOCK"
-                          ? `${stockCount.toLocaleString()} ⚠ Low`
-                          : `${stockCount.toLocaleString()} units`;
+              </thead>
+              <tbody>
+                {visibleProducts.map((p) => {
+                  const { tone: stockTone, text: stockText } = getStockDisplay(p);
                   return (
                     <tr key={p.id}>
                       <td>
@@ -250,11 +267,53 @@ function AdminProductsPage() {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
+            {visibleProducts.map((p) => {
+              const { tone: stockTone, text: stockText } = getStockDisplay(p);
+              return (
+                <div key={p.id} className="admin-panel" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {(p.primaryImageUrl || p.imageUrls?.[0]) ? (
+                    <img
+                      src={p.primaryImageUrl || p.imageUrls?.[0]}
+                      alt=""
+                      style={{ width: "100%", height: 130, objectFit: "cover", borderRadius: 8 }}
+                    />
+                  ) : (
+                    <div style={{ width: "100%", height: 130, borderRadius: 8, background: "var(--admin-border)" }} />
+                  )}
+                  <b style={{ fontSize: 13, lineHeight: 1.3 }}>{p.name}</b>
+                  <div style={{ fontSize: 11, color: "var(--admin-muted)", fontFamily: "monospace" }}>{p.sku || "—"}</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                    <span>{p.basePrice != null ? `KES ${p.basePrice.toLocaleString()}` : "—"}</span>
+                    <span style={{ color: stockTone, fontWeight: 600 }}>{stockText}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{p.category || "—"}</div>
+                  {[p.isDiscount && "Discount", p.isNewArrival && "New", p.isFastMoving && "Fast"].filter(Boolean).length > 0 && (
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
+                      {[p.isDiscount && "Discount", p.isNewArrival && "New", p.isFastMoving && "Fast"].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 6, marginTop: "auto" }}>
+                    <button className="admin-btn admin-btn-ghost" style={{ flex: 1 }} onClick={() => beginEdit(p)}>
+                      <Pencil size={14} />
+                      Edit
+                    </button>
+                    {isAdmin && (
+                      <button className="admin-btn admin-btn-danger" disabled={saving} onClick={() => void remove(p)}>
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
         <div className="admin-toolbar">
           <button
             className="admin-btn admin-btn-ghost"
