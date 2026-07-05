@@ -602,135 +602,109 @@ function ProductsPage() {
           <ToggleChip active={!!inStock} onClick={() => toggle("inStock")}>In stock</ToggleChip>
         </div>
 
-        {/* Refinement bar */}
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4">
-          <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-            Category
-            <select
-              value={category ?? ""}
-              onChange={(e) => {
-                setParam("category", e.target.value || undefined);
-                setParam("subcategoryId", undefined);
-                setSelectedSegmentId(null);
-                setSelectedCategoryId(null);
-              }}
-              className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
-            >
-              <option value="">All</option>
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-            Sort
-            <select
-              value={sort}
-              onChange={(e) => setParam("sort", e.target.value as SortKey)}
-              className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
-            >
-              <option value="newest">Newest</option>
-              <option value="price-asc">Price: low → high</option>
-              <option value="price-desc">Price: high → low</option>
-              <option value="popular">Most popular</option>
-            </select>
-          </label>
-
-          <label className="flex items-center gap-2 text-xs font-medium text-foreground">
-            Price (KES)
-            <input
-              type="number"
-              min={0}
-              placeholder="min"
-              value={minPrice ?? ""}
-              onChange={(e) => setParam("minPrice", e.target.value ? Number(e.target.value) : undefined)}
-              className="w-20 rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
-            />
-            <span className="text-muted-foreground">–</span>
-            <input
-              type="number"
-              min={0}
-              placeholder="max"
-              value={maxPrice ?? ""}
-              onChange={(e) => setParam("maxPrice", e.target.value ? Number(e.target.value) : undefined)}
-              className="w-20 rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
-            />
-          </label>
-
-          {anyFilterActive && (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="ml-auto whitespace-nowrap text-xs font-medium text-primary hover:underline"
-            >
-              Clear all
-            </button>
-          )}
-        </div>
-
-        {/* Browse by category — Segment -> Category -> Subcategory. Only renders
-            once at least one Segment exists, so this scales automatically as
-            the full catalogue gets classified without further code changes. */}
-        {segments.length > 0 && (
-          <div className="mt-4 rounded-2xl border border-border bg-card p-4">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Browse by category
-            </p>
-            <div className="mt-2.5 flex flex-wrap gap-2">
-              {segments.map((seg) => (
-                <button
-                  key={seg.id}
-                  type="button"
-                  onClick={() => selectSegment(seg.id)}
-                  className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
-                    selectedSegmentId === seg.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
-                  }`}
-                >
-                  {seg.name}
-                </button>
-              ))}
+        {/* Refinement bar — Segment/Category/Subcategory browsing (when available)
+            lives here alongside the legacy flat category list, sort, and price,
+            all in one panel so there's one place to refine, not two competing ones. */}
+        <div className="rounded-2xl border border-border bg-card p-4">
+          {segments.length > 0 && (
+            <div className="mb-4 border-b border-border pb-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Browse by category
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-2">
+                {segments.map((seg) => (
+                  <ChipButton key={seg.id} active={selectedSegmentId === seg.id} onClick={() => selectSegment(seg.id)}>
+                    {seg.name}
+                  </ChipButton>
+                ))}
+              </div>
+              {selectedSegmentId && categoriesForSegment.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {categoriesForSegment.map((cat) => (
+                    <ChipButton key={cat.id} active={selectedCategoryId === cat.id} onClick={() => selectTaxCategory(cat.id)} size="sm">
+                      {cat.name}
+                    </ChipButton>
+                  ))}
+                </div>
+              )}
+              {selectedCategoryId && subcategoriesForCategory.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {subcategoriesForCategory.map((sub) => (
+                    <ChipButton key={sub.id} active={subcategoryId === sub.id} onClick={() => selectSubcategory(sub.id)} size="sm">
+                      {sub.name}
+                    </ChipButton>
+                  ))}
+                </div>
+              )}
             </div>
-            {selectedSegmentId && categoriesForSegment.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {categoriesForSegment.map((cat) => (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => selectTaxCategory(cat.id)}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      selectedCategoryId === cat.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
-                    }`}
-                  >
-                    {cat.name}
-                  </button>
+          )}
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+              {segments.length > 0 ? "Other categories" : "Category"}
+              <select
+                value={category ?? ""}
+                onChange={(e) => {
+                  setParam("category", e.target.value || undefined);
+                  setParam("subcategoryId", undefined);
+                  setSelectedSegmentId(null);
+                  setSelectedCategoryId(null);
+                }}
+                className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
+              >
+                <option value="">All</option>
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
                 ))}
-              </div>
-            )}
-            {selectedCategoryId && subcategoriesForCategory.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {subcategoriesForCategory.map((sub) => (
-                  <button
-                    key={sub.id}
-                    type="button"
-                    onClick={() => selectSubcategory(sub.id)}
-                    className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-                      subcategoryId === sub.id
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border/60 bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                    }`}
-                  >
-                    {sub.name}
-                  </button>
-                ))}
-              </div>
+              </select>
+            </label>
+
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+              Sort
+              <select
+                value={sort}
+                onChange={(e) => setParam("sort", e.target.value as SortKey)}
+                className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
+              >
+                <option value="newest">Newest</option>
+                <option value="price-asc">Price: low → high</option>
+                <option value="price-desc">Price: high → low</option>
+                <option value="popular">Most popular</option>
+              </select>
+            </label>
+
+            <label className="flex items-center gap-2 text-xs font-medium text-foreground">
+              Price (KES)
+              <input
+                type="number"
+                min={0}
+                placeholder="min"
+                value={minPrice ?? ""}
+                onChange={(e) => setParam("minPrice", e.target.value ? Number(e.target.value) : undefined)}
+                className="w-20 rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
+              />
+              <span className="text-muted-foreground">–</span>
+              <input
+                type="number"
+                min={0}
+                placeholder="max"
+                value={maxPrice ?? ""}
+                onChange={(e) => setParam("maxPrice", e.target.value ? Number(e.target.value) : undefined)}
+                className="w-20 rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
+              />
+            </label>
+
+            {anyFilterActive && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="ml-auto whitespace-nowrap text-xs font-medium text-primary hover:underline"
+              >
+                Clear all
+              </button>
             )}
           </div>
-        )}
+        </div>
 
         {/* Active chips */}
         {chips.length > 0 && (
@@ -1023,6 +997,34 @@ function ProductsPage() {
         </SheetContent>
       </Sheet>
     </SiteLayout>
+  );
+}
+
+function ChipButton({
+  active,
+  onClick,
+  children,
+  size = "md",
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  size?: "md" | "sm";
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-full border font-medium transition-colors ${
+        size === "sm" ? "px-3 py-1 text-xs" : "px-3.5 py-1.5 text-xs"
+      } ${
+        active
+          ? "border-primary bg-primary text-primary-foreground"
+          : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 
