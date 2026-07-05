@@ -210,7 +210,17 @@ export default function ProductDetail() {
         <span className="mx-1.5">/</span>
         <Link to="/products" className="hover:text-foreground">Products</Link>
         <span className="mx-1.5">/</span>
-        <span className="text-foreground/80">{product.category}</span>
+        {product.subcategoryName ? (
+          <>
+            <span className="text-foreground/80">{product.segmentName}</span>
+            <span className="mx-1.5">/</span>
+            <span className="text-foreground/80">{product.categoryName}</span>
+            <span className="mx-1.5">/</span>
+            <span className="text-foreground/80">{product.subcategoryName}</span>
+          </>
+        ) : (
+          <span className="text-foreground/80">{product.category}</span>
+        )}
         <span className="mx-1.5">/</span>
         <span className="text-foreground">{product.name}</span>
       </nav>

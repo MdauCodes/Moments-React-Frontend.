@@ -155,7 +155,7 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
 
       <div className="flex flex-1 flex-col px-2.5 pt-0 pb-2.5 sm:px-4 sm:pt-0 sm:pb-4">
         <span className="hidden self-start rounded-full border border-kraft/30 bg-kraft/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-kraft sm:inline-block">
-          {p.category}
+          {p.subcategoryName ?? p.category}
         </span>
         <h3 className="font-display text-sm font-semibold leading-snug text-foreground line-clamp-2 sm:mt-2 sm:text-base">
           {p.name}

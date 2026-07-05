@@ -213,6 +213,11 @@ export type Product = {
   primaryImageUrl?: string;
   imageUrls?: string[];
   industries?: Array<{ id?: string | number; displayId?: string | number; name?: string; slug?: string }>;
+  /** Real Segment/Category/Subcategory classification — absent until the product is classified. */
+  subcategoryId?: string | null;
+  subcategoryName?: string | null;
+  categoryName?: string | null;
+  segmentName?: string | null;
   /** Backend collection-based pricing tiers. Hydrated by API mapper. */
   pricingTiers?: ProductPricingTierLike[];
   /** Whether the product can be purchased as individual units (default true if undefined). */
