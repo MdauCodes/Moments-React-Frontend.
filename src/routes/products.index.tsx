@@ -619,21 +619,52 @@ function ProductsPage() {
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-xs font-medium text-foreground">
               {segments.length > 0 ? "Other categories" : "Category"}
-              <select
-                value={category ?? ""}
-                onChange={(e) => {
-                  setParam("category", e.target.value || undefined);
-                  setParam("subcategoryId", undefined);
-                  setSelectedSegmentId(null);
-                  setSelectedCategoryId(null);
-                }}
-                className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
-              >
-                <option value="">All</option>
-                {CATEGORY_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
-                ))}
-              </select>
+              {segments.length > 0 ? (
+                // Once the admin has set up real Segments/Categories/Subcategories,
+                // this dropdown offers the same real data as a compact flat picklist
+                // (useful once there are many subcategories) instead of the legacy
+                // hardcoded category strings.
+                <select
+                  value={subcategoryId ?? ""}
+                  onChange={(e) => {
+                    const id = e.target.value || undefined;
+                    setParam("subcategoryId", id);
+                    setParam("category", undefined);
+                    const sub = id ? subcategories.find((s) => s.id === id) : undefined;
+                    setSelectedCategoryId(sub?.categoryId ?? null);
+                    setSelectedSegmentId(sub?.segmentId ?? null);
+                  }}
+                  className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
+                >
+                  <option value="">All</option>
+                  {segments.map((seg) =>
+                    taxCategories
+                      .filter((cat) => cat.segmentId === seg.id)
+                      .map((cat) => {
+                        const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
+                        if (catSubs.length === 0) return null;
+                        return (
+                          <optgroup key={cat.id} label={`${seg.name} › ${cat.name}`}>
+                            {catSubs.map((sub) => (
+                              <option key={sub.id} value={sub.id}>{sub.name}</option>
+                            ))}
+                          </optgroup>
+                        );
+                      }),
+                  )}
+                </select>
+              ) : (
+                <select
+                  value={category ?? ""}
+                  onChange={(e) => setParam("category", e.target.value || undefined)}
+                  className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
+                >
+                  <option value="">All</option>
+                  {CATEGORY_OPTIONS.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              )}
             </label>
 
             <label className="flex items-center gap-2 text-xs font-medium text-foreground">
