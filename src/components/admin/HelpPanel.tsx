@@ -7,13 +7,17 @@ interface Props {
 }
 
 /**
- * Floating "?" helper anchored to the top-right of an admin page's content area.
+ * Floating "?" helper fixed to the bottom-right of the viewport. Deliberately
+ * NOT anchored to page content (top-right there is where per-page toolbars —
+ * search, filters, view toggles — already live, and a relative-to-content
+ * anchor collided with those). Bottom-right of the viewport stays clear on
+ * every admin page regardless of what that page puts in its own toolbar.
  * Click to expand into a popover with role-specific guidance.
  */
 export function HelpPanel({ title, children }: Props) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ position: "absolute", top: 12, right: 12, zIndex: 30 }}>
+    <div style={{ position: "fixed", bottom: 20, right: 20, zIndex: 40 }}>
       <button
         type="button"
         aria-label="Page help"
@@ -41,7 +45,7 @@ export function HelpPanel({ title, children }: Props) {
           aria-label={title}
           style={{
             position: "absolute",
-            top: 40,
+            bottom: 40,
             right: 0,
             width: "min(360px, calc(100vw - 32px))",
             background: "var(--admin-surface, #fff)",
@@ -72,7 +76,7 @@ export function HelpPanel({ title, children }: Props) {
   );
 }
 
-/** Wraps page content so the floating HelpPanel can absolutely position. */
+/** No-op wrapper kept for call-site compatibility — HelpPanel now fixed-positions to the viewport, not to this anchor. */
 export function HelpAnchor({ children }: { children: ReactNode }) {
   return <div style={{ position: "relative" }}>{children}</div>;
 }
