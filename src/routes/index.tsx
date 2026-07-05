@@ -64,25 +64,29 @@ const TRUST_STATS = [
   { num: "M-Pesa", label: "Accepted at checkout", desktopOnly: true },
 ];
 
+// Each card links to a real, working /products filter — either a live
+// Industry slug or an exact CATEGORY_OPTIONS value (src/data/categoryOptions.ts).
+// Previously these carried a `search` object that was computed but never
+// actually applied to the Link, so every card landed on an unfiltered page.
 const CATEGORIES = [
-  { name: "Café & restaurant", desc: "Cups, boxes, sleeves", Icon: Coffee, search: { category: "cups" } },
-  { name: "Retail & e-commerce", desc: "Mailers, carrier bags", Icon: Package, search: { category: "bags" } },
-  { name: "Events & gifting", desc: "Gift boxes, wrapping", Icon: Gift, search: { category: "gifting" } },
-  { name: "Agriculture", desc: "Sacks, liners, kraft", Icon: Sprout, search: { category: "bags" } },
-  { name: "Cosmetics", desc: "Boxes, pouches, labels", Icon: Gem, search: { category: "boxes" } },
-  { name: "Stationery & General", desc: "Mailers, wraps", Icon: PencilLine, search: { category: "boxes" } },
-  { name: "Kitchen Essentials", desc: "Food-safe containers", Icon: CookingPot, search: { category: "boxes" } },
-  { name: "Enterprise", desc: "10,000+ unit runs", Icon: Briefcase, search: { category: "boxes" } },
+  { name: "Café & restaurant", desc: "Cups, boxes, sleeves", Icon: Coffee, to: "/products?industry=food-and-beverage" },
+  { name: "Retail & e-commerce", desc: "Mailers, carrier bags", Icon: Package, to: "/products?industry=retail-and-ecommerce" },
+  { name: "Events & gifting", desc: "Gift boxes, wrapping", Icon: Gift, to: "/products?industry=hospitality" },
+  { name: "Agriculture", desc: "Sacks, liners, kraft", Icon: Sprout, to: "/products?industry=agriculture" },
+  { name: "Cosmetics", desc: "Boxes, pouches, labels", Icon: Gem, to: "/products?industry=health-and-beauty" },
+  { name: "Stationery & General", desc: "Mailers, wraps", Icon: PencilLine, to: `/products?category=${encodeURIComponent("General")}` },
+  { name: "Kitchen Essentials", desc: "Food-safe containers", Icon: CookingPot, to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
+  { name: "Enterprise", desc: "10,000+ unit runs", Icon: Briefcase, to: "/enterprise-quote" },
 ];
 
 // Global industry chips — mirrors the company-profile "industries" list
 const HERO_INDUSTRIES = [
-  { Icon: UtensilsCrossed, label: "Food & Beverage", search: { category: "cups" } },
-  { Icon: ShoppingCart, label: "Wholesale & E-commerce", search: { category: "bags" } },
-  { Icon: Sprout, label: "Agriculture", search: { category: "bags" } },
-  { Icon: Gem, label: "Cosmetics", search: { category: "boxes" } },
-  { Icon: PencilLine, label: "Stationery & General", search: { category: "boxes" } },
-  { Icon: CookingPot, label: "Kitchen Essentials", search: { category: "boxes" } },
+  { Icon: UtensilsCrossed, label: "Food & Beverage", to: "/products?industry=food-and-beverage" },
+  { Icon: ShoppingCart, label: "Wholesale & E-commerce", to: "/products?industry=retail-and-ecommerce" },
+  { Icon: Sprout, label: "Agriculture", to: "/products?industry=agriculture" },
+  { Icon: Gem, label: "Cosmetics", to: "/products?industry=health-and-beauty" },
+  { Icon: PencilLine, label: "Stationery & General", to: `/products?category=${encodeURIComponent("General")}` },
+  { Icon: CookingPot, label: "Kitchen Essentials", to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
 ];
 
 // ── First-visit splash ──
@@ -490,7 +494,7 @@ function Hero() {
               {HERO_INDUSTRIES.map((ind) => (
                 <Link
                   key={ind.label}
-                  to="/products"
+                  to={ind.to}
                   className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/85 backdrop-blur-sm transition-colors hover:border-accent/50 hover:bg-white/12 hover:text-white"
                 >
                   <ind.Icon className="h-3.5 w-3.5" style={{ color: "#e8c878" }} strokeWidth={1.8} />
@@ -567,7 +571,7 @@ function CategoryRow() {
         {CATEGORIES.map((c, i) => (
           <Link
             key={c.name}
-            to="/products"
+            to={c.to}
             className="flex items-center"
             style={{
               padding: "14px 20px",
@@ -681,16 +685,16 @@ function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "b
 }
 
 // ── Category image grid ──
-type CategoryTile = { label: string; image: string; search: Record<string, string> };
+type CategoryTile = { label: string; image: string; to: string };
 const categoryTiles: CategoryTile[] = [
-  { label: "Paper bags", image: catPaperBagsImg, search: { category: "bags" } },
-  { label: "Boxes & cartons", image: catBoxesCartonsImg, search: { category: "boxes" } },
-  { label: "Cups & sleeves", image: catCupsSleevesImg, search: { category: "cups" } },
-  { label: "Mailers & pouches", image: catMailersPouchesImg, search: { category: "mailers" } },
-  { label: "Labels & stickers", image: catLabelsStickersImg, search: { category: "labels" } },
-  { label: "Food containers", image: catFoodContainersImg, search: { category: "boxes" } },
-  { label: "Gift & event", image: catGiftEventImg, search: { category: "gifting" } },
-  { label: "Beauty & pharma", image: catBeautyPharmaImg, search: { category: "gifting" } },
+  { label: "Paper bags", image: catPaperBagsImg, to: `/products?category=${encodeURIComponent("Bags")}` },
+  { label: "Boxes & cartons", image: catBoxesCartonsImg, to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
+  { label: "Cups & sleeves", image: catCupsSleevesImg, to: `/products?category=${encodeURIComponent("Cups & Lids")}` },
+  { label: "Mailers & pouches", image: catMailersPouchesImg, to: `/products?category=${encodeURIComponent("Mailers & Shipping")}` },
+  { label: "Labels & stickers", image: catLabelsStickersImg, to: `/products?category=${encodeURIComponent("Miscellaneous")}` },
+  { label: "Food containers", image: catFoodContainersImg, to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
+  { label: "Gift & event", image: catGiftEventImg, to: `/products?category=${encodeURIComponent("Gifting & Retail")}` },
+  { label: "Beauty & pharma", image: catBeautyPharmaImg, to: "/products?industry=health-and-beauty" },
 ];
 
 function CategoryGrid() {
@@ -717,7 +721,7 @@ function CategoryGrid() {
           {categoryTiles.map((tile) => (
             <Link
               key={tile.label}
-              to="/products"
+              to={tile.to}
               className="group relative overflow-hidden rounded-2xl aspect-square sm:aspect-[4/3] block"
             >
               <img
