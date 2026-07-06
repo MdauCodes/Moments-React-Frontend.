@@ -990,16 +990,16 @@ function ProductsPage() {
           side="bottom"
           className="max-h-[85vh] overflow-y-auto rounded-t-2xl bg-background p-0 sm:mx-auto sm:max-w-2xl"
         >
-          <div className="sticky top-0 z-10 border-b border-border bg-background px-5 py-4">
-            <h2 className="font-display text-lg text-foreground">What do you need?</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Tap as many as apply — we&apos;ll show everything that matches.
-            </p>
-          </div>
-          {tagsList.length > 0 && (
-            <div className="border-b border-border px-5 py-5">
-              <p className="mb-2 text-[11px] uppercase tracking-wide text-muted-foreground">Tags</p>
-              <div className="flex flex-wrap gap-2">
+          {tagsList.length > 0 ? (
+            // Real backend tags exist — this is now the one and only system.
+            // The legacy hardcoded keyword grid only shows up as a fallback
+            // for as long as the backend genuinely has zero tags.
+            <>
+              <div className="sticky top-0 z-10 border-b border-border bg-background px-5 py-4">
+                <h2 className="font-display text-lg text-foreground">What do you need?</h2>
+                <p className="mt-1 text-xs text-muted-foreground">Tap one to see matching products.</p>
+              </div>
+              <div className="flex flex-wrap gap-2 px-5 py-5">
                 {tagsList.map((tag) => (
                   <button
                     key={tag.id}
@@ -1020,48 +1020,57 @@ function ProductsPage() {
                   </button>
                 ))}
               </div>
-            </div>
-          )}
-          <div className="flex flex-wrap gap-2 px-5 py-5">
-            {GLOBAL_QUICK_FINDS.map((item) => {
-              const active = selectedQuickFinds.includes(item.search);
-              return (
+            </>
+          ) : (
+            <>
+              <div className="sticky top-0 z-10 border-b border-border bg-background px-5 py-4">
+                <h2 className="font-display text-lg text-foreground">What do you need?</h2>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Tap as many as apply — we&apos;ll show everything that matches.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 px-5 py-5">
+                {GLOBAL_QUICK_FINDS.map((item) => {
+                  const active = selectedQuickFinds.includes(item.search);
+                  return (
+                    <button
+                      key={item.search}
+                      type="button"
+                      onClick={() => toggleQuickFind(item.search)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
+                        active
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
+                      }`}
+                    >
+                      {active && <Check className="h-3.5 w-3.5" />}
+                      {item.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-background px-5 py-4">
                 <button
-                  key={item.search}
                   type="button"
-                  onClick={() => toggleQuickFind(item.search)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
-                    active
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
-                  }`}
+                  onClick={() => setSelectedQuickFinds([])}
+                  disabled={selectedQuickFinds.length === 0}
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
                 >
-                  {active && <Check className="h-3.5 w-3.5" />}
-                  {item.label}
+                  Clear
                 </button>
-              );
-            })}
-          </div>
-          <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-background px-5 py-4">
-            <button
-              type="button"
-              onClick={() => setSelectedQuickFinds([])}
-              disabled={selectedQuickFinds.length === 0}
-              className="text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
-            >
-              Clear
-            </button>
-            <button
-              type="button"
-              onClick={applyQuickFinds}
-              disabled={selectedQuickFinds.length === 0}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 sm:flex-none"
-            >
-              {selectedQuickFinds.length === 0
-                ? "Select at least one"
-                : `Show products (${selectedQuickFinds.length} selected)`}
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={applyQuickFinds}
+                  disabled={selectedQuickFinds.length === 0}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 sm:flex-none"
+                >
+                  {selectedQuickFinds.length === 0
+                    ? "Select at least one"
+                    : `Show products (${selectedQuickFinds.length} selected)`}
+                </button>
+              </div>
+            </>
+          )}
         </SheetContent>
       </Sheet>
     </SiteLayout>
