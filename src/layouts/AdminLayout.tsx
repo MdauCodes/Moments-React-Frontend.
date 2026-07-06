@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
   LayoutList,
   Package,
@@ -376,10 +376,23 @@ function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
+// AdminLayout is instantiated fresh inside every admin page (not a shared
+// route layout), so its <nav> DOM node is destroyed and recreated on every
+// navigation — resetting scroll to the top and forcing staff to re-scroll
+// down to reach lower nav items. This module-level value survives that
+// remount (persists for the SPA session) so scroll position carries across
+// page changes.
+let sidebarScrollTop = 0;
+
 export function AdminLayout({ title, actionLabel, onAction, onReload, children }: AdminLayoutProps) {
   const { user, logout, permissions } = useAdminAuth();
   const location = useLocation();
   const pathname = location.pathname;
+  const sidebarNavRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (sidebarNavRef.current) sidebarNavRef.current.scrollTop = sidebarScrollTop;
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const staffRole = resolveStaffRole(user);
@@ -459,7 +472,11 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           </button>
         </div>
 
-        <nav style={styles.nav}>
+        <nav
+          style={styles.nav}
+          ref={sidebarNavRef}
+          onScroll={(e) => { sidebarScrollTop = e.currentTarget.scrollTop; }}
+        >
           {navSections.map((section, sectionIdx) => {
             const visible = section.items.filter((item) => {
               if (!item.requiresAny) return true;
