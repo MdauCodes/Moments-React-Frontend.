@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
+import { ApiError } from "@/services/adminApi";
 import {
   adminResources,
   type SegmentDto,
@@ -171,6 +172,14 @@ function AdminCatalogPage() {
     } catch (err) {
       // Backend returns 409 with a message like "Cannot delete category: 3 subcategories still belong to it."
       toast.error(err instanceof Error ? err.message : "Delete failed");
+      // 404 means the row was already deleted elsewhere (another tab, another
+      // admin) and this page's list is just stale — refresh so the ghost row
+      // clears instead of sitting there forever confusing whoever's looking at it.
+      if (err instanceof ApiError && err.status === 404) {
+        if (level === "segment") await loadSegments();
+        else if (level === "category" && selectedSegmentId) await loadCategories(selectedSegmentId);
+        else if (level === "subcategory" && selectedCategoryId) await loadSubcategories(selectedCategoryId);
+      }
     } finally {
       setSaving(false);
     }
