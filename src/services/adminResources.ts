@@ -19,10 +19,10 @@ export type ProductDto = {
   stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "MADE_TO_ORDER";
   vatRate?: number; vatExempt?: boolean;
   subcategoryId?: string | null; subcategoryName?: string | null; categoryName?: string | null; segmentName?: string | null;
-  curatedTags?: TagDto[]; curatedTagIds?: string[];
+  curatedTags?: TagDto[]; curatedTagIds?: string[]; tagIds?: string[];
   variants?: Array<{ id?: string; label: string; sku?: string; price?: number; stock?: number }>;
 };
-export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries">;
+export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries" | "curatedTags" | "curatedTagIds">;
 export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; industryIds?: string[]; tagIds?: string[] };
 export type BulkClassifyResponse = { updatedCount: number; productIds: string[] };
 

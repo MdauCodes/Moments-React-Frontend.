@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
+import { ChevronDown } from "lucide-react";
 import { adminJson } from "@/services/adminApi";
-import { adminResources } from "@/services/adminResources";
+import {
+  adminResources,
+  type SegmentDto,
+  type CategoryDto,
+  type SubcategoryDto,
+  type IndustryDto,
+  type TagDto,
+} from "@/services/adminResources";
 import { api } from "@/services/api";
 import type { Product, ProductTag } from "@/data/products";
 import { categories } from "@/data/products";
@@ -44,6 +52,8 @@ export interface ProductFormValues {
   isNewArrival: boolean;
   isFastMoving: boolean;
   industryIds: string[]; // stored as strings client-side; sent as UUIDs to backend
+  tagIds: string[];
+  subcategoryId?: string | null;
   totalClicks: number;
   monthlyClicks: number;
   totalEnquiries: number;
@@ -82,6 +92,8 @@ export function emptyProductValues(): ProductFormValues {
     isNewArrival: false,
     isFastMoving: false,
     industryIds: [],
+    tagIds: [],
+    subcategoryId: null,
     totalClicks: 0,
     monthlyClicks: 0,
     totalEnquiries: 0,
@@ -122,6 +134,8 @@ export function productToFormValues(p: Product): ProductFormValues {
     isNewArrival: p.isNewArrival,
     isFastMoving: p.isFastMoving,
     industryIds: [...(p.industryIds ?? [])],
+    tagIds: [...(anyP.curatedTagIds ?? [])],
+    subcategoryId: anyP.subcategoryId ?? null,
     totalClicks: p.totalClicks,
     monthlyClicks: p.monthlyClicks,
     totalEnquiries: p.totalEnquiries,
@@ -201,6 +215,8 @@ function buildCreateRequest(values: ProductFormValues, productId?: string) {
     isNewArrival: values.isNewArrival,
     isFastMoving: values.isFastMoving,
     industryIds,
+    tagIds: values.tagIds ?? [],
+    subcategoryId: values.subcategoryId || undefined,
     material: values.material || undefined,
     finish: values.finish || undefined,
     basePrice: values.basePrice ?? undefined,
@@ -279,11 +295,10 @@ function validateProduct(values: ProductFormValues): string[] {
 
 const s: Record<string, CSSProperties> = {
   wrap: {
-    maxWidth: 1240,
-    display: "grid",
-    gridTemplateColumns: "minmax(0,1.35fr) minmax(320px,0.75fr)",
-    gap: 20,
-    alignItems: "start",
+    maxWidth: 900,
+    display: "flex",
+    flexDirection: "column",
+    gap: 18,
   },
   row: { display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr" },
   row3: { display: "grid", gap: 14, gridTemplateColumns: "1fr 1fr 1fr" },
@@ -338,8 +353,6 @@ const s: Record<string, CSSProperties> = {
     fontFamily: "var(--font-display)",
     letterSpacing: 0,
   },
-  mainCol: { display: "flex", flexDirection: "column", gap: 18, minWidth: 0 },
-  sideCol: { display: "flex", flexDirection: "column", gap: 18, minWidth: 0 },
   chipRow: { display: "flex", flexWrap: "wrap", gap: 8 },
   imgPreview: {
     width: "100%",
@@ -778,6 +791,37 @@ export interface ProductEditorProps {
   onCancel: () => void;
 }
 
+/** Top-level expand/collapse group — Product Details / Image / Classification. */
+function CollapsibleSection({
+  title,
+  subtitle,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  defaultOpen: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={s.card}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        style={{ ...s.cardHd, width: "100%", background: "transparent", border: 0, cursor: "pointer", padding: 0, textAlign: "left" }}
+      >
+        <div>
+          <div style={s.cardTitle}>{title}</div>
+          {subtitle && <span style={s.helper}>{subtitle}</span>}
+        </div>
+        <ChevronDown size={18} style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 0.15s", flexShrink: 0 }} />
+      </button>
+      {open && <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>{children}</div>}
+    </div>
+  );
+}
+
 export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
 
   const [values, setValues] = useState<ProductFormValues>(initial);
@@ -792,6 +836,57 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
   useEffect(() => {
     loadUoms();
   }, []);
+
+  // --- Classification (Subcategory / Industries / Tags) ---
+  const [segments, setSegments] = useState<SegmentDto[]>([]);
+  const [classifyCategories, setClassifyCategories] = useState<CategoryDto[]>([]);
+  const [classifySubcategories, setClassifySubcategories] = useState<SubcategoryDto[]>([]);
+  const [industries, setIndustries] = useState<IndustryDto[]>([]);
+  const [tags, setTags] = useState<TagDto[]>([]);
+  const [selectedSegmentId, setSelectedSegmentId] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("");
+
+  useEffect(() => {
+    adminResources.segments.list().then(setSegments).catch(() => undefined);
+    adminResources.industries.list().then(setIndustries).catch(() => undefined);
+    adminResources.tags.list().then(setTags).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSegmentId) { setClassifyCategories([]); return; }
+    adminResources.categories.list(selectedSegmentId).then(setClassifyCategories).catch(() => undefined);
+  }, [selectedSegmentId]);
+
+  useEffect(() => {
+    if (!selectedCategoryId) { setClassifySubcategories([]); return; }
+    adminResources.subcategories.list(selectedCategoryId).then(setClassifySubcategories).catch(() => undefined);
+  }, [selectedCategoryId]);
+
+  // Restore the Segment/Category selection for an already-classified product on load.
+  useEffect(() => {
+    if (!values.subcategoryId) return;
+    adminResources.subcategories.list().then((all) => {
+      const match = all.find((sub) => sub.id === values.subcategoryId);
+      if (match) {
+        setSelectedCategoryId(match.categoryId);
+        setSelectedSegmentId(match.segmentId ?? "");
+      }
+    }).catch(() => undefined);
+    // Only ever restore from the initially-loaded product, not on every keystroke.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleIndustry = (id: string) =>
+    setValues((v) => ({
+      ...v,
+      industryIds: v.industryIds.includes(id) ? v.industryIds.filter((x) => x !== id) : [...v.industryIds, id],
+    }));
+
+  const toggleTag = (id: string) =>
+    setValues((v) => ({
+      ...v,
+      tagIds: (v.tagIds ?? []).includes(id) ? (v.tagIds ?? []).filter((x) => x !== id) : [...(v.tagIds ?? []), id],
+    }));
 
   const isDirty = useMemo(() => JSON.stringify(values) !== JSON.stringify(initial), [initial, values]);
   const validationIssues = useMemo(() => validateProduct(values), [values]);
@@ -833,11 +928,9 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
   const pricingTiers = values.pricingTiers ?? [];
 
   return (
-    <form style={s.wrap} onSubmit={handleSubmit} data-admin-editor-grid>
+    <form style={s.wrap} onSubmit={handleSubmit}>
       <style>{`
-        [data-admin-editor-grid] { grid-template-columns: minmax(0,1.35fr) minmax(320px,0.75fr); }
         @media (max-width: 860px) {
-          [data-admin-editor-grid] { grid-template-columns: 1fr !important; }
           [data-admin-row] { grid-template-columns: 1fr !important; }
         }
         @media (max-width: 720px) {
@@ -871,9 +964,11 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
           </div>
         );
       })()}
-      {/* ── LEFT COLUMN ─────────────────────────────────────────────────── */}
-
-      <div style={s.mainCol}>
+      <CollapsibleSection
+        title="Product Details"
+        subtitle="Name, description, pricing, inventory, variants, keywords, homepage flags"
+        defaultOpen
+      >
         {/* Core details */}
         <div style={s.card}>
           <div style={s.cardHd}>
@@ -941,18 +1036,6 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
               )}
             </div>
           </div>
-        </div>
-
-        {/* Image */}
-        <div style={s.card}>
-          <div style={s.cardHd}>
-            <div style={s.cardTitle}>{reqLabel("Product image")}</div>
-          </div>
-          <ImagePicker
-            value={values.image}
-            onChange={(url) => set("image", url)}
-            invalid={submitted && !values.image}
-          />
         </div>
 
         {/* Pricing & Inventory ─ single card, no broken nesting */}
@@ -1361,10 +1444,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── RIGHT COLUMN ────────────────────────────────────────────────── */}
-      <div style={s.sideCol}>
         {/* Variants & spec */}
         <div style={s.card}>
           <div style={s.cardHd}>
@@ -1477,8 +1557,84 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
             </div>
           </div>
         </div>
+      </CollapsibleSection>
 
-        {/* Live preview */}
+      <CollapsibleSection title="Product Image" subtitle="Primary photo shown on the storefront" defaultOpen={false}>
+        <ImagePicker
+          value={values.image}
+          onChange={(url) => set("image", url)}
+          invalid={submitted && !values.image}
+        />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Classification"
+        subtitle="Subcategory, industries and tags — same data as Classify Products"
+        defaultOpen={false}
+      >
+        <div style={s.row} data-admin-row>
+          <div style={s.col}>
+            <label style={s.label}>Segment</label>
+            <select
+              style={s.select}
+              value={selectedSegmentId}
+              onChange={(e) => { setSelectedSegmentId(e.target.value); setSelectedCategoryId(""); }}
+            >
+              <option value="">Select segment…</option>
+              {segments.map((seg) => <option key={seg.id} value={seg.id}>{seg.name}</option>)}
+            </select>
+          </div>
+          <div style={s.col}>
+            <label style={s.label}>Category</label>
+            <select
+              style={s.select}
+              value={selectedCategoryId}
+              disabled={!selectedSegmentId}
+              onChange={(e) => setSelectedCategoryId(e.target.value)}
+            >
+              <option value="">Select category…</option>
+              {classifyCategories.map((cat) => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={s.col}>
+          <label style={s.label}>Subcategory</label>
+          <select
+            style={s.select}
+            value={values.subcategoryId ?? ""}
+            disabled={!selectedCategoryId}
+            onChange={(e) => set("subcategoryId", e.target.value || null)}
+          >
+            <option value="">Select subcategory…</option>
+            {classifySubcategories.map((sub) => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
+          </select>
+        </div>
+        <div style={s.col}>
+          <label style={s.label}>Industries</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+            {industries.map((ind) => (
+              <label key={ind.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, border: "1px solid var(--admin-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
+                <input type="checkbox" checked={values.industryIds.includes(ind.id)} onChange={() => toggleIndustry(ind.id)} />
+                {ind.name}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div style={s.col}>
+          <label style={s.label}>Tags</label>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+            {tags.length === 0 && <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>No tags yet — add one via Classify Products.</span>}
+            {tags.map((tag) => (
+              <label key={tag.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, border: "1px solid var(--admin-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
+                <input type="checkbox" checked={(values.tagIds ?? []).includes(tag.id)} onChange={() => toggleTag(tag.id)} />
+                {tag.name}
+              </label>
+            ))}
+          </div>
+        </div>
+      </CollapsibleSection>
+
+      {/* Live preview */}
         <div style={s.previewCard}>
           {values.image ? (
             <img src={values.image} alt="" style={s.previewImg} />
@@ -1537,7 +1693,6 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
             </button>
           </div>
         </div>
-      </div>
     </form>
   );
 }
