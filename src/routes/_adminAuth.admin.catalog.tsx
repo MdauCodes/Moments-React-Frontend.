@@ -229,18 +229,19 @@ function AdminCatalogPage() {
 
   // Second attempt, now with the admin's choice: either move the children
   // onto another row of the same level (reassignTo), or delete the whole
-  // empty-of-products subtree along with it (cascade). Products themselves
-  // are never touched by either path — the backend refuses cascade if any
-  // subcategory in the subtree still has products attached.
+  // subtree along with it (cascade). Products are never deleted by either
+  // path — cascade unassigns them (subcategory set to null) rather than
+  // taking them down with their parent.
   const resolveDelete = async (mode: "reassign" | "cascade") => {
     if (!pendingDelete) return;
     const { level, row } = pendingDelete;
     if (mode === "reassign" && !reassignTo) return;
+    const opts = mode === "reassign" ? { reassignTo } : { cascade: true };
     setSaving(true);
     try {
-      if (level === "segment") await adminResources.segments.remove(row.id, mode === "reassign" ? { reassignTo } : { cascade: true });
-      else if (level === "category") await adminResources.categories.remove(row.id, mode === "reassign" ? { reassignTo } : { cascade: true });
-      else await adminResources.subcategories.remove(row.id, { reassignTo }); // subcategory has no cascade — the "Delete everything" button is hidden for this level
+      if (level === "segment") await adminResources.segments.remove(row.id, opts);
+      else if (level === "category") await adminResources.categories.remove(row.id, opts);
+      else await adminResources.subcategories.remove(row.id, opts);
       await afterDelete(level, row);
       closePendingDelete();
     } catch (err) {
@@ -463,23 +464,22 @@ function AdminCatalogPage() {
                 </button>
               </label>
 
-              {pendingDelete.level !== "subcategory" && (
-                <div style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 10 }}>
-                  <p style={{ fontSize: 12.5, color: "var(--admin-muted)", margin: "0 0 8px" }}>
-                    Or delete it and every empty {childNoun(pendingDelete.level)} row under it in one go — blocked if
-                    any products are still attached further down the tree.
-                  </p>
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-danger"
-                    disabled={saving}
-                    onClick={() => void resolveDelete("cascade")}
-                  >
-                    {saving && <Loader2 size={14} className="animate-spin" />}
-                    Delete everything under it
-                  </button>
-                </div>
-              )}
+              <div style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 10 }}>
+                <p style={{ fontSize: 12.5, color: "var(--admin-muted)", margin: "0 0 8px" }}>
+                  {pendingDelete.level === "subcategory"
+                    ? "Or delete it anyway — its products are unassigned, not deleted, and can be re-filed to a subcategory later."
+                    : `Or delete it and every ${childNoun(pendingDelete.level)} row under it in one go — any products further down are unassigned, not deleted.`}
+                </p>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-danger"
+                  disabled={saving}
+                  onClick={() => void resolveDelete("cascade")}
+                >
+                  {saving && <Loader2 size={14} className="animate-spin" />}
+                  Delete everything under it
+                </button>
+              </div>
             </div>
           </div>
         </div>
