@@ -1,12 +1,13 @@
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 
-import { useState, useRef, useEffect } from "react";
-import { Menu, X, ChevronDown, Search, ShoppingBag, User, HelpCircle } from "lucide-react";
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingBag, User, HelpCircle } from "lucide-react";
 import logoUrl from "@/assets/moments-logo.png";
 import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { api, type Segment, type Category as TaxCategory, type Subcategory } from "@/services/api";
 
 /**
  * Commerce-first nav. Categories live inside the "Shop" dropdown so the
@@ -28,6 +29,34 @@ export function SiteHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchSeed, setSearchSeed] = useState("");
   const [accountOpen, setAccountOpen] = useState(false);
+
+  // Segment -> Category -> Subcategory taxonomy, driving the "Shop" mega-menu
+  // (desktop) and the drill-down accordion (mobile) below. Falls back to the
+  // legacy flat `categories` list until the admin has set these up.
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
+  const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
+  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
+  const [mobileOpenSegmentId, setMobileOpenSegmentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.all([api.getSegments(), api.getCategories(), api.getSubcategories()]).then(
+      ([segs, cats, subs]) => {
+        if (cancelled) return;
+        setSegments(segs);
+        setTaxCategories(cats);
+        setSubcategories(subs);
+        if (segs.length > 0) setActiveSegmentId((prev) => prev ?? segs[0].id);
+      },
+    ).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  const categoriesForActiveSegment = useMemo(
+    () => taxCategories.filter((c) => c.segmentId === activeSegmentId),
+    [taxCategories, activeSegmentId],
+  );
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
@@ -138,28 +167,93 @@ export function SiteHeader() {
 
               {shopOpen && (
                 <div
-                  className="absolute left-1/2 top-full z-50 w-72 -translate-x-1/2 pt-2"
+                  className={`absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2 ${segments.length > 0 ? "w-[46rem] max-w-[90vw]" : "w-72"}`}
                   onMouseEnter={openDropdown}
                   onMouseLeave={scheduleClose}
                 >
                   <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-xl ring-1 ring-black/5">
-                    <Link
-                      to="/products"
-                      onClick={() => setShopOpen(false)}
-                      className="block border-b border-border bg-cream/60 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-                    >
-                      All products →
-                    </Link>
-                    {categories.map((c) => (
-                      <Link
-                        key={c.slug}
-                        to={`/products?category=${c.slug}`}
-                        onClick={() => setShopOpen(false)}
-                        className="block border-b border-border/60 px-4 py-2.5 text-sm text-foreground/80 transition-colors last:border-b-0 hover:bg-secondary hover:text-foreground"
-                      >
-                        {c.name}
-                      </Link>
-                    ))}
+                    {segments.length > 0 ? (
+                      // Two-pane mega-menu: Segments as a left rail, the hovered
+                      // segment's Categories (as column headers) with their
+                      // Subcategories underneath on the right — same taxonomy
+                      // used on the products page's "Browse by category" panel.
+                      <div className="flex">
+                        <div className="w-52 shrink-0 border-r border-border bg-cream/40 py-2">
+                          <Link
+                            to="/products"
+                            onClick={() => setShopOpen(false)}
+                            className="block px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                          >
+                            All products →
+                          </Link>
+                          {segments.map((seg) => (
+                            <button
+                              key={seg.id}
+                              type="button"
+                              onMouseEnter={() => setActiveSegmentId(seg.id)}
+                              onClick={() => setActiveSegmentId(seg.id)}
+                              className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
+                                activeSegmentId === seg.id
+                                  ? "bg-secondary font-medium text-foreground"
+                                  : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+                              }`}
+                            >
+                              {seg.name}
+                              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex-1 p-5">
+                          {categoriesForActiveSegment.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                              {categoriesForActiveSegment.map((cat) => {
+                                const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
+                                if (catSubs.length === 0) return null;
+                                return (
+                                  <div key={cat.id}>
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground">{cat.name}</p>
+                                    <div className="mt-2 flex flex-col gap-1.5">
+                                      {catSubs.map((sub) => (
+                                        <Link
+                                          key={sub.id}
+                                          to={`/products?subcategoryId=${sub.id}`}
+                                          onClick={() => setShopOpen(false)}
+                                          className="text-sm text-foreground/70 transition-colors hover:text-primary"
+                                        >
+                                          {sub.name}
+                                        </Link>
+                                      ))}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No subcategories yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <Link
+                          to="/products"
+                          onClick={() => setShopOpen(false)}
+                          className="block border-b border-border bg-cream/60 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+                        >
+                          All products →
+                        </Link>
+                        {categories.map((c) => (
+                          <Link
+                            key={c.slug}
+                            to={`/products?category=${c.slug}`}
+                            onClick={() => setShopOpen(false)}
+                            className="block border-b border-border/60 px-4 py-2.5 text-sm text-foreground/80 transition-colors last:border-b-0 hover:bg-secondary hover:text-foreground"
+                          >
+                            {c.name}
+                          </Link>
+                        ))}
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -335,16 +429,64 @@ export function SiteHeader() {
                     >
                       All products
                     </Link>
-                    {categories.map((c) => (
-                      <Link
-                        key={c.slug}
-                        to={`/products?category=${c.slug}`}
-                        onClick={() => setOpen(false)}
-                        className="block rounded-md px-3 py-2.5 text-sm text-foreground/70 hover:bg-secondary"
-                      >
-                        {c.name}
-                      </Link>
-                    ))}
+                    {segments.length > 0 ? (
+                      // Same drill-in-place accordion as the products page's
+                      // "Browse by category" panel: tap a segment to expand its
+                      // categories/subcategories right below it, tap a
+                      // subcategory to navigate there and close the menu.
+                      segments.map((seg) => {
+                        const segCategories = taxCategories.filter((c) => c.segmentId === seg.id);
+                        const isSegOpen = mobileOpenSegmentId === seg.id;
+                        return (
+                          <div key={seg.id}>
+                            <button
+                              type="button"
+                              onClick={() => setMobileOpenSegmentId((prev) => (prev === seg.id ? null : seg.id))}
+                              className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2.5 text-left text-sm text-foreground/70 hover:bg-secondary"
+                            >
+                              {seg.name}
+                              <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${isSegOpen ? "rotate-180" : ""}`} />
+                            </button>
+                            {isSegOpen && segCategories.length > 0 && (
+                              <div className="ml-3 border-l border-border pl-3">
+                                {segCategories.map((cat) => {
+                                  const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
+                                  if (catSubs.length === 0) return null;
+                                  return (
+                                    <div key={cat.id} className="py-1">
+                                      <p className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/50">
+                                        {cat.name}
+                                      </p>
+                                      {catSubs.map((sub) => (
+                                        <Link
+                                          key={sub.id}
+                                          to={`/products?subcategoryId=${sub.id}`}
+                                          onClick={() => setOpen(false)}
+                                          className="block rounded-md px-3 py-2 text-sm text-foreground/70 hover:bg-secondary"
+                                        >
+                                          {sub.name}
+                                        </Link>
+                                      ))}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      categories.map((c) => (
+                        <Link
+                          key={c.slug}
+                          to={`/products?category=${c.slug}`}
+                          onClick={() => setOpen(false)}
+                          className="block rounded-md px-3 py-2.5 text-sm text-foreground/70 hover:bg-secondary"
+                        >
+                          {c.name}
+                        </Link>
+                      ))
+                    )}
                   </div>
                 )}
               </div>
