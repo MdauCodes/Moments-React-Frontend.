@@ -832,7 +832,10 @@ function ProductsPage() {
                 ))}
               </select>
             </div>
-            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
+            {/* flex-wrap + flex-grow (not a fixed-column grid) so a partial last
+                row stretches to fill the width instead of leaving a gap on the
+                right — the card count varies as industries are added/removed. */}
+            <div className="mt-3 hidden flex-wrap gap-2.5 sm:flex">
               {industries.map((ind) => {
                 const Icon = ind.icon;
                 return (
@@ -840,7 +843,7 @@ function ProductsPage() {
                     key={ind.id}
                     type="button"
                     onClick={() => toggleIndustry(ind.slug)}
-                    className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
+                    className="group flex min-w-56 flex-1 basis-56 items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
                   >
                     {Icon && (
                       <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15">

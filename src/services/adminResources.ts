@@ -152,7 +152,8 @@ export const adminResources = {
     list: () => adminJson<SegmentDto[]>("/api/v1/admin/segments"),
     create: (body: Partial<SegmentDto>) => adminJson<SegmentDto>("/api/v1/admin/segments", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<SegmentDto>) => adminJson<SegmentDto>(`/api/v1/admin/segments/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: string) => adminJson<void>(`/api/v1/admin/segments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    remove: (id: string, opts?: { reassignTo?: string; cascade?: boolean }) =>
+      adminJson<void>(`/api/v1/admin/segments/${encodeURIComponent(id)}${qs({ reassignTo: opts?.reassignTo, cascade: opts?.cascade })}`, { method: "DELETE" }),
   },
   categories: {
     list: (segmentId?: string) => adminJson<CategoryDto[]>(`/api/v1/admin/categories${qs({ segmentId })}`),
@@ -160,7 +161,8 @@ export const adminResources = {
       adminJson<CategoryDto>("/api/v1/admin/categories", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<{ segmentId: string; name: string; description?: string; sortOrder?: number }>) =>
       adminJson<CategoryDto>(`/api/v1/admin/categories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: string) => adminJson<void>(`/api/v1/admin/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    remove: (id: string, opts?: { reassignTo?: string; cascade?: boolean }) =>
+      adminJson<void>(`/api/v1/admin/categories/${encodeURIComponent(id)}${qs({ reassignTo: opts?.reassignTo, cascade: opts?.cascade })}`, { method: "DELETE" }),
   },
   subcategories: {
     list: (categoryId?: string) => adminJson<SubcategoryDto[]>(`/api/v1/admin/subcategories${qs({ categoryId })}`),
@@ -168,7 +170,8 @@ export const adminResources = {
       adminJson<SubcategoryDto>("/api/v1/admin/subcategories", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<{ categoryId: string; name: string; description?: string; sortOrder?: number }>) =>
       adminJson<SubcategoryDto>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: string) => adminJson<void>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    remove: (id: string, opts?: { reassignTo?: string }) =>
+      adminJson<void>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}${qs({ reassignTo: opts?.reassignTo })}`, { method: "DELETE" }),
   },
   products: {
     list: async (params: Record<string, string | number | boolean | undefined>) => unwrap(await adminJson<PageResponse<ProductDto> | ProductDto[]>(`/api/v1/admin/products${qs(params)}`)),

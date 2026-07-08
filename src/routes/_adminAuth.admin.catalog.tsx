@@ -35,6 +35,14 @@ function AdminCatalogPage() {
   const [editing, setEditing] = useState<LevelRow | null>(null);
   const [form, setForm] = useState(emptyForm);
 
+  // Set when a delete hits the backend's 409 "still has children" guard —
+  // drives the "delete everything under it, or move them elsewhere first?"
+  // resolution modal instead of just failing with a toast.
+  const [pendingDelete, setPendingDelete] = useState<{ level: Level; row: LevelRow; message: string } | null>(null);
+  const [reassignTo, setReassignTo] = useState("");
+  const [siblingOptions, setSiblingOptions] = useState<LevelRow[]>([]);
+  const [loadingSiblings, setLoadingSiblings] = useState(false);
+
   const loadSegments = async () => {
     setLoadingSegments(true);
     try {
@@ -142,35 +150,48 @@ function AdminCatalogPage() {
     }
   };
 
+  const afterDelete = async (level: Level, row: LevelRow) => {
+    if (level === "segment") {
+      toast.success("Segment deleted");
+      await loadSegments();
+      if (selectedSegmentId === row.id) {
+        setSelectedSegmentId(null);
+        setSelectedCategoryId(null);
+        setCategories([]);
+        setSubcategories([]);
+      }
+    } else if (level === "category") {
+      toast.success("Category deleted");
+      if (selectedSegmentId) await loadCategories(selectedSegmentId);
+      if (selectedCategoryId === row.id) {
+        setSelectedCategoryId(null);
+        setSubcategories([]);
+      }
+    } else {
+      toast.success("Subcategory deleted");
+      if (selectedCategoryId) await loadSubcategories(selectedCategoryId);
+    }
+  };
+
+  // Plain delete attempt. Empty rows (no children) succeed immediately.
+  // A 409 means children are still attached — instead of just failing, open
+  // the resolution modal so the admin can choose to move them elsewhere or
+  // delete the whole (empty-of-products) subtree in one go.
   const remove = async (level: Level, row: LevelRow) => {
     if (!isAdmin || !confirm(`Delete "${row.name}"?`)) return;
     setSaving(true);
     try {
-      if (level === "segment") {
-        await adminResources.segments.remove(row.id);
-        toast.success("Segment deleted");
-        await loadSegments();
-        if (selectedSegmentId === row.id) {
-          setSelectedSegmentId(null);
-          setSelectedCategoryId(null);
-          setCategories([]);
-          setSubcategories([]);
-        }
-      } else if (level === "category") {
-        await adminResources.categories.remove(row.id);
-        toast.success("Category deleted");
-        if (selectedSegmentId) await loadCategories(selectedSegmentId);
-        if (selectedCategoryId === row.id) {
-          setSelectedCategoryId(null);
-          setSubcategories([]);
-        }
-      } else {
-        await adminResources.subcategories.remove(row.id);
-        toast.success("Subcategory deleted");
-        if (selectedCategoryId) await loadSubcategories(selectedCategoryId);
-      }
+      if (level === "segment") await adminResources.segments.remove(row.id);
+      else if (level === "category") await adminResources.categories.remove(row.id);
+      else await adminResources.subcategories.remove(row.id);
+      await afterDelete(level, row);
     } catch (err) {
-      // Backend returns 409 with a message like "Cannot delete category: 3 subcategories still belong to it."
+      if (err instanceof ApiError && err.status === 409) {
+        setPendingDelete({ level, row, message: err.message });
+        setReassignTo("");
+        void loadSiblings(level, row.id);
+        return;
+      }
       toast.error(err instanceof Error ? err.message : "Delete failed");
       // 404 means the row was already deleted elsewhere (another tab, another
       // admin) and this page's list is just stale — refresh so the ghost row
@@ -185,7 +206,67 @@ function AdminCatalogPage() {
     }
   };
 
+  const loadSiblings = async (level: Level, excludeId: string) => {
+    setLoadingSiblings(true);
+    try {
+      const all =
+        level === "segment" ? await adminResources.segments.list()
+        : level === "category" ? await adminResources.categories.list()
+        : await adminResources.subcategories.list();
+      setSiblingOptions(all.filter((s) => s.id !== excludeId));
+    } catch {
+      setSiblingOptions([]);
+    } finally {
+      setLoadingSiblings(false);
+    }
+  };
+
+  const closePendingDelete = () => {
+    setPendingDelete(null);
+    setReassignTo("");
+    setSiblingOptions([]);
+  };
+
+  // Second attempt, now with the admin's choice: either move the children
+  // onto another row of the same level (reassignTo), or delete the whole
+  // empty-of-products subtree along with it (cascade). Products themselves
+  // are never touched by either path — the backend refuses cascade if any
+  // subcategory in the subtree still has products attached.
+  const resolveDelete = async (mode: "reassign" | "cascade") => {
+    if (!pendingDelete) return;
+    const { level, row } = pendingDelete;
+    if (mode === "reassign" && !reassignTo) return;
+    setSaving(true);
+    try {
+      if (level === "segment") await adminResources.segments.remove(row.id, mode === "reassign" ? { reassignTo } : { cascade: true });
+      else if (level === "category") await adminResources.categories.remove(row.id, mode === "reassign" ? { reassignTo } : { cascade: true });
+      else await adminResources.subcategories.remove(row.id, { reassignTo }); // subcategory has no cascade — the "Delete everything" button is hidden for this level
+      await afterDelete(level, row);
+      closePendingDelete();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Delete failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const modalTitle = modalLevel === "segment" ? "segment" : modalLevel === "category" ? "category" : "subcategory";
+
+  const childNoun = (level: Level) =>
+    level === "segment" ? "categories" : level === "category" ? "subcategories" : "products";
+
+  const siblingLabel = (level: Level, row: LevelRow): string => {
+    if (level === "category") {
+      const c = row as CategoryDto;
+      return c.segmentName ? `${c.segmentName} › ${c.name}` : c.name;
+    }
+    if (level === "subcategory") {
+      const sc = row as SubcategoryDto;
+      const breadcrumb = [sc.segmentName, sc.categoryName].filter(Boolean).join(" › ");
+      return breadcrumb ? `${breadcrumb} › ${sc.name}` : sc.name;
+    }
+    return row.name;
+  };
 
   return (
     <AdminLayout title="Catalog Structure" onReload={loadSegments}>
@@ -342,6 +423,65 @@ function AdminCatalogPage() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div className="admin-modal-backdrop">
+          <div className="admin-modal">
+            <div className="admin-toolbar">
+              <h2>Can&apos;t delete &quot;{pendingDelete.row.name}&quot; yet</h2>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={closePendingDelete}>Close</button>
+            </div>
+            <p style={{ fontSize: 13, color: "var(--admin-muted)", marginTop: 0 }}>{pendingDelete.message}</p>
+
+            <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+              <label>
+                <span className="admin-label">
+                  Move its {childNoun(pendingDelete.level)} to another {pendingDelete.level}, then delete it
+                </span>
+                <select
+                  className="admin-input"
+                  value={reassignTo}
+                  onChange={(e) => setReassignTo(e.target.value)}
+                  disabled={loadingSiblings}
+                >
+                  <option value="">{loadingSiblings ? "Loading…" : `Select a ${pendingDelete.level}…`}</option>
+                  {siblingOptions.map((s) => (
+                    <option key={s.id} value={s.id}>{siblingLabel(pendingDelete.level, s)}</option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-primary"
+                  style={{ marginTop: 8 }}
+                  disabled={saving || !reassignTo}
+                  onClick={() => void resolveDelete("reassign")}
+                >
+                  {saving && <Loader2 size={14} className="animate-spin" />}
+                  Move &amp; delete
+                </button>
+              </label>
+
+              {pendingDelete.level !== "subcategory" && (
+                <div style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 10 }}>
+                  <p style={{ fontSize: 12.5, color: "var(--admin-muted)", margin: "0 0 8px" }}>
+                    Or delete it and every empty {childNoun(pendingDelete.level)} row under it in one go — blocked if
+                    any products are still attached further down the tree.
+                  </p>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-danger"
+                    disabled={saving}
+                    onClick={() => void resolveDelete("cascade")}
+                  >
+                    {saving && <Loader2 size={14} className="animate-spin" />}
+                    Delete everything under it
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </AdminLayout>
