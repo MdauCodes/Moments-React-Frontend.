@@ -56,6 +56,8 @@ export type CourierType = "MATATU" | "PARCEL_SERVICE" | "BOLT_SEND" | "RIDER" | 
 export interface CustomerOrder {
   id?: string;
   reference: string;
+  invoiceNumber?: string | null;
+  paidAt?: string | null;
   status: CustomerOrderStatus;
   paymentStatus: CustomerPaymentStatus;
   paymentMethod: CheckoutPaymentMethod;
@@ -177,6 +179,8 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
   return {
     id: raw.id,
     reference: raw.reference,
+    invoiceNumber: raw.invoiceNumber ?? null,
+    paidAt: raw.paidAt ?? null,
     status: raw.status,
     paymentStatus: raw.paymentStatus ?? "PENDING",
     paymentMethod: raw.paymentMethod ?? "MPESA",

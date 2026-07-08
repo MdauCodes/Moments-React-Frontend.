@@ -1,6 +1,7 @@
 import { Printer, FileDown } from "lucide-react";
 import type { CustomerOrder } from "@/services/orderStore";
 import { downloadReceiptPdf } from "@/lib/pdf";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
@@ -19,10 +20,11 @@ interface PrintReceiptProps {
  * via jsPDF — no browser print dialog needed.
  */
 export function PrintReceipt({ order, hideTrigger = false }: PrintReceiptProps) {
+  const { businessKraPin } = useSiteConfig();
   const handlePrint = () => {
     if (typeof window !== "undefined") window.print();
   };
-  const handlePdf = () => downloadReceiptPdf(order);
+  const handlePdf = () => downloadReceiptPdf({ ...order, businessKraPin });
 
   return (
     <>

@@ -8,6 +8,7 @@ export interface SiteConfig {
   whatsappNumber: string;
   companyEmail: string;
   companyPhone: string;
+  businessKraPin: string;
 }
 
 const DEFAULTS: SiteConfig = {
@@ -17,6 +18,7 @@ const DEFAULTS: SiteConfig = {
   whatsappNumber: "254119556688",
   companyEmail: "info@momentspackaging.com",
   companyPhone: "0119 556 688",
+  businessKraPin: "",
 };
 
 const LS_KEY = "moments_maintenance_override";
@@ -78,6 +80,7 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
           whatsappNumber: data?.whatsappNumber ?? DEFAULTS.whatsappNumber,
           companyEmail: data?.companyEmail ?? DEFAULTS.companyEmail,
           companyPhone: data?.companyPhone ?? DEFAULTS.companyPhone,
+          businessKraPin: data?.businessKraPin ?? DEFAULTS.businessKraPin,
         });
       })
       .catch(() => {

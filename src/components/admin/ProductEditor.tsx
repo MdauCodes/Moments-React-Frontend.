@@ -822,9 +822,34 @@ function CollapsibleSection({
   );
 }
 
-export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
+// Scoped per product (or "new" for the create form) so an in-progress edit
+// survives navigating away to another admin tab, as long as the submit
+// button was never hit. sessionStorage (not localStorage) so it clears
+// itself once the browser tab actually closes, rather than lingering
+// indefinitely as a stale, confusing draft.
+function draftKeyFor(productId?: string): string {
+  return `admin-product-draft:${productId ?? "new"}`;
+}
 
-  const [values, setValues] = useState<ProductFormValues>(initial);
+export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
+  const draftKey = draftKeyFor(productId);
+
+  const [values, setValues] = useState<ProductFormValues>(() => {
+    try {
+      const raw = sessionStorage.getItem(draftKey);
+      if (raw) return { ...initial, ...JSON.parse(raw) };
+    } catch {
+      // corrupt/blocked storage — fall through to a clean form
+    }
+    return initial;
+  });
+  const [draftRestored, setDraftRestored] = useState(() => {
+    try {
+      return !!sessionStorage.getItem(draftKey);
+    } catch {
+      return false;
+    }
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -901,6 +926,27 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
     return () => window.removeEventListener("beforeunload", warn);
   }, [isDirty]);
 
+  // Auto-save the draft so navigating to another admin tab and back restores
+  // it — AdminLayout fully remounts this page on every route change, so
+  // component state alone doesn't survive that, only storage does.
+  useEffect(() => {
+    if (!isDirty) return;
+    const t = setTimeout(() => {
+      try {
+        sessionStorage.setItem(draftKey, JSON.stringify(values));
+      } catch {
+        // storage full/blocked — draft persistence just silently stops working
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [values, isDirty, draftKey]);
+
+  const discardDraft = () => {
+    try { sessionStorage.removeItem(draftKey); } catch {}
+    setValues(initial);
+    setDraftRestored(false);
+  };
+
   const set = <K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
 
@@ -917,6 +963,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
     try {
       const images = values.images.length ? values.images : [values.image];
       await onSubmit({ ...values, slug: values.slug || slugifyDraft(values.name), images });
+      try { sessionStorage.removeItem(draftKey); } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save product.");
     } finally {
@@ -941,6 +988,27 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
           [data-variant-row] { grid-template-columns: 1fr 1fr !important; }
         }
       `}</style>
+      {draftRestored && (
+        <div
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            background: "color-mix(in oklab, var(--admin-accent) 12%, var(--admin-surface))",
+            border: "1px solid color-mix(in oklab, var(--admin-accent) 40%, var(--admin-border))",
+            borderRadius: 10, padding: "10px 14px", fontSize: 12.5, color: "var(--admin-text)",
+          }}
+        >
+          <span>
+            <strong>Unsaved changes restored</strong> — picked up where you left off before navigating away.
+          </span>
+          <button
+            type="button"
+            onClick={discardDraft}
+            style={{ background: "transparent", border: 0, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--admin-accent)", whiteSpace: "nowrap" }}
+          >
+            Discard &amp; start fresh
+          </button>
+        </div>
+      )}
       {productId && (() => {
         const noImage = !values.image;
         const noPrice = !values.basePrice || values.basePrice <= 0;
@@ -1015,8 +1083,10 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                   aria-required="true"
                   aria-invalid={submitted && values.moq < 1 ? true : undefined}
                 />
-                {submitted && values.moq < 1 && (
+                {submitted && values.moq < 1 ? (
                   <span style={{ ...s.helper, color: "var(--admin-clay)" }}>MOQ must be at least 1.</span>
+                ) : (
+                  <span style={s.helper}>Smallest quantity a customer can order in one go.</span>
                 )}
               </div>
             </div>
@@ -1031,8 +1101,10 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                 aria-required="true"
                 aria-invalid={submitted && !values.description.trim() ? true : undefined}
               />
-              {submitted && !values.description.trim() && (
+              {submitted && !values.description.trim() ? (
                 <span style={{ ...s.helper, color: "var(--admin-clay)" }}>Description is required.</span>
+              ) : (
+                <span style={s.helper}>Shown on the product page — keep it short and specific (material, size, use case).</span>
               )}
             </div>
           </div>
@@ -1066,6 +1138,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                   onChange={(e) => set("basePrice", e.target.value ? Number(e.target.value) : undefined)}
                   placeholder="0"
                 />
+                <span style={s.helper}>The real, current selling price per unit.</span>
               </div>
               <div style={s.col}>
                 <label style={s.label}>Compare-at price (KES)</label>
@@ -1102,6 +1175,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                   <option value="LOW_STOCK">Low stock</option>
                   <option value="OUT_OF_STOCK">Out of stock</option>
                 </select>
+                <span style={s.helper}>"Made to order" hides the stock count from customers entirely.</span>
               </div>
               <div style={s.col}>
                 <label style={s.label}>VAT</label>
@@ -1133,6 +1207,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                   )}
                   {!values.vatExempt && <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>%</span>}
                 </label>
+                <span style={s.helper}>Defaults to Kenya's standard 16% — only change if this specific product is zero-rated or exempt.</span>
               </div>
             </div>
 
@@ -1146,6 +1221,9 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
               />
               <span style={s.switchLabel}>Track inventory levels for this product</span>
             </label>
+            <span style={{ ...s.helper, marginTop: -6 }}>
+              Turn off for made-to-order or unlimited-supply items where a stock count doesn't make sense.
+            </span>
 
             {(values.trackInventory ?? true) && (
               <div style={s.row} data-admin-row>
@@ -1158,6 +1236,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                     value={values.stock ?? 0}
                     onChange={(e) => set("stock", Number(e.target.value) || 0)}
                   />
+                  <span style={s.helper}>Actual units currently available to sell.</span>
                 </div>
                 <div style={s.col}>
                   <label style={s.label}>Low-stock threshold</label>
@@ -1198,6 +1277,9 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                 />
                 <span style={s.switchLabel}>Allow individual unit purchases</span>
               </label>
+              <span style={{ ...s.helper, marginTop: -6 }}>
+                Off means customers must buy a full tier (Packet, Carton…) below — no single-unit checkout.
+              </span>
 
               <div style={{ ...s.col, marginTop: 12 }}>
                 <label style={s.label}>Pricing tiers (units of measure)</label>
@@ -1458,6 +1540,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                 onChange={(next) => set("sizes", next)}
                 placeholder="e.g. Small (200×100×250mm), 8oz…"
               />
+              <span style={s.helper}>Press Enter after each size — shown as a picker on the product page.</span>
             </div>
             <div style={s.row} data-admin-row>
               <div style={s.col}>
@@ -1468,6 +1551,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                   onChange={(e) => set("material", e.target.value)}
                   placeholder="e.g. Kraft 120gsm"
                 />
+                <span style={s.helper}>Optional — appears in the product spec, helps customers compare options.</span>
               </div>
               <div style={s.col}>
                 <label style={s.label}>Finish</label>
@@ -1608,9 +1692,11 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
             <option value="">Select subcategory…</option>
             {classifySubcategories.map((sub) => <option key={sub.id} value={sub.id}>{sub.name}</option>)}
           </select>
+          <span style={s.helper}>Every product belongs to exactly one Subcategory — this fixes its Category and Segment.</span>
         </div>
         <div style={s.col}>
           <label style={s.label}>Industries</label>
+          <span style={s.helper}>Who buys it — pick as many as apply. Drives the "What does your business do?" filter.</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
             {industries.map((ind) => (
               <label key={ind.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, border: "1px solid var(--admin-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
@@ -1622,6 +1708,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
         </div>
         <div style={s.col}>
           <label style={s.label}>Tags</label>
+          <span style={s.helper}>Drives the "What do you need?" quick-find chips on the storefront.</span>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
             {tags.length === 0 && <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>No tags yet — add one via Classify Products.</span>}
             {tags.map((tag) => (
@@ -1682,6 +1769,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
               style={s.ghostBtn}
               onClick={() => {
                 if (isDirty && !confirm("Discard unsaved changes?")) return;
+                try { sessionStorage.removeItem(draftKey); } catch {}
                 onCancel();
               }}
               disabled={busy}

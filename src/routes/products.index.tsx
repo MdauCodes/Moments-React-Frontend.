@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronRight, ListFilter, Search, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, ListFilter, Search, X } from "lucide-react";
 import { z } from "zod";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
@@ -298,27 +298,15 @@ function ProductsPage() {
     }
   }, [subcategoryId, subcategories, taxCategories]);
 
-  const categoriesForSegment = useMemo(
-    () => taxCategories.filter((c) => c.segmentId === selectedSegmentId),
-    [taxCategories, selectedSegmentId],
-  );
-  const subcategoriesForCategory = useMemo(
-    () => subcategories.filter((s) => s.categoryId === selectedCategoryId),
-    [subcategories, selectedCategoryId],
-  );
-
   const selectSegment = (id: string) => {
     setSelectedSegmentId((prev) => (prev === id ? null : id));
     setSelectedCategoryId(null);
     setParam("subcategoryId", undefined);
   };
-  const selectTaxCategory = (id: string) => {
-    setSelectedCategoryId((prev) => (prev === id ? null : id));
-    setParam("subcategoryId", undefined);
-  };
-  const selectSubcategory = (id: string) => {
+  const selectSubcategory = (id: string, categoryId?: string | null) => {
     setParam("category", undefined); // mutually exclusive with the legacy flat category filter
     setParam("subcategoryId", subcategoryId === id ? undefined : id);
+    setSelectedCategoryId(subcategoryId === id ? null : (categoryId ?? null));
   };
 
   // Reset on filter change
@@ -604,31 +592,63 @@ function ProductsPage() {
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Browse by category
               </p>
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                {segments.map((seg) => (
-                  <ChipButton key={seg.id} active={selectedSegmentId === seg.id} onClick={() => selectSegment(seg.id)}>
-                    {seg.name}
-                  </ChipButton>
-                ))}
+              {/* Each segment is a disclosure row: clicking it expands its own
+                  categories/subcategories directly beneath it (indented, with
+                  a rail), instead of the old two-step chip-reveals-chip flow
+                  where it wasn't visually clear what belonged under what. */}
+              <div className="mt-2.5 flex flex-col gap-1.5">
+                {segments.map((seg) => {
+                  const segCategories = taxCategories.filter((c) => c.segmentId === seg.id);
+                  const isOpen = selectedSegmentId === seg.id;
+                  return (
+                    <div key={seg.id}>
+                      <button
+                        type="button"
+                        onClick={() => selectSegment(seg.id)}
+                        className={`flex w-full max-w-xs items-center justify-between gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                          isOpen
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
+                        }`}
+                      >
+                        <span>{seg.name}</span>
+                        <ChevronDown className={`h-3.5 w-3.5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {isOpen && segCategories.length > 0 && (
+                        <div className="ml-3 mt-1.5 space-y-2 border-l-2 border-border pl-3">
+                          {segCategories.map((cat) => {
+                            const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
+                            if (catSubs.length === 0) return null;
+                            return (
+                              <div key={cat.id}>
+                                <p
+                                  className={`text-[11px] font-semibold ${
+                                    selectedCategoryId === cat.id ? "text-primary" : "text-foreground/70"
+                                  }`}
+                                >
+                                  {cat.name}
+                                </p>
+                                <div className="mt-1 flex flex-wrap gap-1.5">
+                                  {catSubs.map((sub) => (
+                                    <ChipButton
+                                      key={sub.id}
+                                      active={subcategoryId === sub.id}
+                                      onClick={() => selectSubcategory(sub.id, cat.id)}
+                                      size="sm"
+                                    >
+                                      {sub.name}
+                                    </ChipButton>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              {selectedSegmentId && categoriesForSegment.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {categoriesForSegment.map((cat) => (
-                    <ChipButton key={cat.id} active={selectedCategoryId === cat.id} onClick={() => selectTaxCategory(cat.id)} size="sm">
-                      {cat.name}
-                    </ChipButton>
-                  ))}
-                </div>
-              )}
-              {selectedCategoryId && subcategoriesForCategory.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {subcategoriesForCategory.map((sub) => (
-                    <ChipButton key={sub.id} active={subcategoryId === sub.id} onClick={() => selectSubcategory(sub.id)} size="sm">
-                      {sub.name}
-                    </ChipButton>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 

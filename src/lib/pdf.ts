@@ -65,6 +65,7 @@ interface MastheadOpts {
   docType: string;
   reference?: string;
   issuedAt?: string | Date;
+  kraPin?: string | null;
 }
 
 /** Renders brass band, wordmark, doc-type label and hairline.
@@ -86,7 +87,8 @@ function masthead(doc: jsPDF, opts: MastheadOpts): number {
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
   doc.text(BRAND.tagline, 14, 22);
-  doc.text(`${BRAND.address}  ·  ${BRAND.phone}  ·  ${BRAND.email}  ·  ${BRAND.site}`, 14, 26.5);
+  const contactLine = `${BRAND.address}  ·  ${BRAND.phone}  ·  ${BRAND.email}  ·  ${BRAND.site}`;
+  doc.text(opts.kraPin ? `${contactLine}  ·  KRA PIN ${opts.kraPin}` : contactLine, 14, 26.5);
 
   // Doc type — right rail
   doc.setTextColor(...INK);
@@ -214,6 +216,8 @@ export interface ReceiptItem {
 
 export interface ReceiptOrder {
   reference: string;
+  invoiceNumber?: string | null;
+  businessKraPin?: string | null;
   createdAt: string;
   customerName: string;
   customerEmail: string;
@@ -246,9 +250,10 @@ export function downloadReceiptPdf(order: ReceiptOrder) {
   const paid = ["PAID", "COMPLETED", "SUCCESS"].includes((order.paymentStatus ?? "").toUpperCase());
 
   let y = masthead(doc, {
-    docType: "Invoice",
-    reference: order.reference,
+    docType: order.invoiceNumber ? "Tax Invoice" : "Pro-Forma Invoice",
+    reference: order.invoiceNumber ? `${order.reference}  ·  ${order.invoiceNumber}` : order.reference,
     issuedAt: order.createdAt,
+    kraPin: order.businessKraPin,
   });
   y += 4;
 
@@ -393,6 +398,14 @@ export function downloadReceiptPdf(order: ReceiptOrder) {
   doc.text(
     "This is a computer-generated invoice valid without a signature. " +
       "Retain for warranty claims, exchanges and returns within 14 days of delivery.",
+    14,
+    ty,
+    { maxWidth: pw - 28 },
+  );
+  ty += 7;
+  doc.text(
+    "This is a sales invoice issued directly by Moments Packaging. It is not yet transmitted through KRA's " +
+      "eTIMS system. Please retain your order confirmation and payment receipt for your records.",
     14,
     ty,
     { maxWidth: pw - 28 },

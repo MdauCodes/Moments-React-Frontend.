@@ -6,6 +6,7 @@ import { z } from "zod";
 import { SiteLayout } from "@/components/SiteLayout";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { downloadReceiptPdf } from "@/lib/pdf";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 const searchSchema = z.object({ ref: z.string() });
 
@@ -24,6 +25,7 @@ const BRAND = "#1a472a";
 function OrderConfirmationPage() {
   const [_searchParams] = useSearchParams();
   const ref = _searchParams.get("ref") ?? undefined;
+  const { businessKraPin } = useSiteConfig();
 
   const [order, setOrder] = useState<CustomerOrder | null>(null);
 
@@ -121,6 +123,8 @@ function OrderConfirmationPage() {
                 type="button"
                 onClick={() => downloadReceiptPdf({
                   reference: order.reference,
+                  invoiceNumber: order.invoiceNumber,
+                  businessKraPin,
                   createdAt: order.createdAt,
                   customerName: order.customerName,
                   customerEmail: order.customerEmail,
