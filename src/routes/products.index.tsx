@@ -596,16 +596,21 @@ function ProductsPage() {
                   categories/subcategories directly beneath it (indented, with
                   a rail), instead of the old two-step chip-reveals-chip flow
                   where it wasn't visually clear what belonged under what. */}
-              <div className="mt-2.5 flex flex-col gap-1.5">
+              {/* Grid, not a single column — a collapsed segment button is
+                  narrow, so a 1-column list left most of the panel's width
+                  empty. Multiple segments now sit side by side; an expanded
+                  one spans the full row width for its category/subcategory
+                  panel, and the grid continues below it. */}
+              <div className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                 {segments.map((seg) => {
                   const segCategories = taxCategories.filter((c) => c.segmentId === seg.id);
                   const isOpen = selectedSegmentId === seg.id;
                   return (
-                    <div key={seg.id}>
+                    <div key={seg.id} className={isOpen ? "sm:col-span-2 lg:col-span-3" : ""}>
                       <button
                         type="button"
                         onClick={() => selectSegment(seg.id)}
-                        className={`flex w-full max-w-xs items-center justify-between gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+                        className={`flex w-full items-center justify-between gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
                           isOpen
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
@@ -832,10 +837,7 @@ function ProductsPage() {
                 ))}
               </select>
             </div>
-            {/* flex-wrap + flex-grow (not a fixed-column grid) so a partial last
-                row stretches to fill the width instead of leaving a gap on the
-                right — the card count varies as industries are added/removed. */}
-            <div className="mt-3 hidden flex-wrap gap-2.5 sm:flex">
+            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
               {industries.map((ind) => {
                 const Icon = ind.icon;
                 return (
@@ -843,7 +845,7 @@ function ProductsPage() {
                     key={ind.id}
                     type="button"
                     onClick={() => toggleIndustry(ind.slug)}
-                    className="group flex min-w-56 flex-1 basis-56 items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
+                    className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
                   >
                     {Icon && (
                       <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15">
