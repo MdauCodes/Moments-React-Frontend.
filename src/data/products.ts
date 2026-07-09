@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 
 export const WHATSAPP_NUMBER = "254119556688";
+export const WHATSAPP_NUMBER_ALT = "254119556699";
 export const COMPANY_EMAIL = "info@momentspackaging.com";
 export const COMPANY_PHONE = "0119-55-66-88";
 export const COMPANY_PHONE_ALT = "0119-55-66-99";
@@ -817,6 +818,21 @@ export const products: Product[] = [
 
 export function whatsappLink(message: string) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+
+/**
+ * Picks between the two business WhatsApp lines shown in the footer, fresh
+ * on every call — used at the highest-traffic entry points (the floating
+ * WhatsApp button and the Contact page) so enquiries don't all pile onto
+ * one line. Not used site-wide: other WhatsApp links intentionally stay on
+ * the single primary number.
+ */
+export function randomWhatsAppNumber(): string {
+  return Math.random() < 0.5 ? WHATSAPP_NUMBER : WHATSAPP_NUMBER_ALT;
+}
+
+export function randomWhatsAppLink(message: string): string {
+  return `https://wa.me/${randomWhatsAppNumber()}?text=${encodeURIComponent(message)}`;
 }
 
 export function productOrderMessage(p: Product, size?: string, qty?: number) {

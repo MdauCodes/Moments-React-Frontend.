@@ -260,24 +260,46 @@ export function SiteFooter() {
         </div>
       </div>
 
-      {/* Bottom bar */}
-      <div className="border-t border-primary-foreground/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 text-xs text-primary-foreground/60 sm:flex-row lg:px-8">
-          <p>© {new Date().getFullYear()} Moments Packaging Kenya Ltd. All rights reserved.</p>
-          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <button type="button" onClick={() => setOpenPolicy("privacy")} className="hover:text-accent">
+      {/* Legal & support row — a separate, more prominent row (not buried in
+          the fine-print bottom bar) so these four pages are easy to find. */}
+      <div className="border-t border-primary-foreground/10 bg-black/10">
+        <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
+          <nav
+            aria-label="Legal and support"
+            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-center sm:justify-start"
+          >
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("privacy")}
+              className="text-sm font-medium text-primary-foreground hover:text-accent"
+            >
               Privacy Policy
             </button>
-            <button type="button" onClick={() => setOpenPolicy("terms")} className="hover:text-accent">
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("terms")}
+              className="text-sm font-medium text-primary-foreground hover:text-accent"
+            >
               Terms of Service
             </button>
-            <button type="button" onClick={() => setOpenPolicy("refunds")} className="hover:text-accent">
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("refunds")}
+              className="text-sm font-medium text-primary-foreground hover:text-accent"
+            >
               Refunds &amp; Returns
             </button>
-            <Link to="/contact" className="hover:text-accent">
-              Contact
+            <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
+              Contact Us
             </Link>
           </nav>
+        </div>
+      </div>
+
+      {/* Bottom bar */}
+      <div className="border-t border-primary-foreground/10">
+        <div className="mx-auto px-5 py-6 text-center text-xs text-primary-foreground/60 lg:px-8">
+          <p>© {new Date().getFullYear()} Moments Packaging Kenya Ltd. All rights reserved.</p>
         </div>
       </div>
 
