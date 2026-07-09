@@ -540,46 +540,46 @@ function CategoryRow() {
 
   return (
     <section style={{ background: "var(--cream)" }}>
-      <div className="max-w-7xl mx-auto md:grid md:grid-cols-4 flex flex-col">
-        {industries.map((ind, i) => (
-          <Link
-            key={ind.id}
-            to={`/products?industry=${ind.slug}`}
-            className="flex items-center"
-            style={{
-              padding: "14px 20px",
-              gap: "12px",
-              borderRight:
-                i < industries.length - 1 ? "1px solid color-mix(in oklab, var(--ink) 8%, transparent)" : "none",
-              borderBottom:
-                i < industries.length - 1 ? "1px solid color-mix(in oklab, var(--ink) 8%, transparent)" : "none",
-            }}
-          >
-            <span
-              className="grid place-items-center"
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "9px",
-                background: "color-mix(in oklab, var(--accent) 10%, transparent)",
-              }}
+      <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
+        {/* Independent bordered cards with a gap, not shared row/column
+            borders — shared-border index math breaks across responsive
+            column-count changes and row wraps. min-w-0 + truncate on the
+            text column is what actually stops long descriptions from
+            overflowing into the neighbouring card. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {industries.map((ind) => (
+            <Link
+              key={ind.id}
+              to={`/products?industry=${ind.slug}`}
+              className="flex items-center gap-3 rounded-xl border p-3.5 transition-colors hover:border-accent/40"
+              style={{ borderColor: "color-mix(in oklab, var(--ink) 10%, transparent)" }}
             >
-              <ind.icon style={{ color: "var(--accent)" }} strokeWidth={1.7} className="h-5 w-5" />
-            </span>
-            <span className="flex-1">
-              <span className="block" style={{ fontSize: "13px", fontWeight: 500, color: "var(--ink)" }}>
-                {ind.name}
-              </span>
               <span
-                className="block truncate"
-                style={{ fontSize: "10.5px", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
+                className="grid shrink-0 place-items-center"
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "9px",
+                  background: "color-mix(in oklab, var(--accent) 10%, transparent)",
+                }}
               >
-                {ind.description}
+                <ind.icon style={{ color: "var(--accent)" }} strokeWidth={1.7} className="h-5 w-5" />
               </span>
-            </span>
-            <ChevronRight className="h-4 w-4 ml-auto" style={{ color: "var(--accent)" }} />
-          </Link>
-        ))}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate" style={{ fontSize: "13px", fontWeight: 500, color: "var(--ink)" }}>
+                  {ind.name}
+                </span>
+                <span
+                  className="block truncate"
+                  style={{ fontSize: "10.5px", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
+                >
+                  {ind.description}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0" style={{ color: "var(--accent)" }} />
+            </Link>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -735,86 +735,96 @@ function CategoryGrid() {
     </section>
   );
 }
-// ── Promo carousel — auto-advancing, sits right below the hero banner ──
-const PROMO_SLIDES = [
-  {
-    key: "deals",
-    eyebrow: "Save today",
-    title: "Deals",
-    body: "Discounted packaging, while stock lasts.",
-    to: "/products?deals=true",
-    bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)",
-  },
-  {
-    key: "new",
-    eyebrow: "Just landed",
-    title: "New arrivals",
-    body: "The latest additions to the catalogue.",
-    to: "/products?newArrivals=true",
-    bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)",
-  },
-  {
-    key: "best",
-    eyebrow: "Customer favourites",
-    title: "Best sellers",
-    body: "What Kenyan businesses order most.",
-    to: "/products?fastMoving=true",
-    bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)",
-  },
+// ── Promo carousel — auto-advancing, sits right below the hero banner.
+// Shows real, clickable product cards (same ProductCard used everywhere
+// else on the site) for Deals / New Arrivals / Best Sellers, cycling
+// between the three every few seconds — not a static text banner. ──
+const CAROUSEL_TABS = [
+  { key: "deals", eyebrow: "Save today", title: "Deals", seeAllHref: "/products?deals=true", fetcher: () => api.getProducts({ isDiscount: true, size: 8 }) },
+  { key: "new", eyebrow: "Just landed", title: "New arrivals", seeAllHref: "/products?newArrivals=true", fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }) },
+  { key: "best", eyebrow: "Customer favourites", title: "Best sellers", seeAllHref: "/products?fastMoving=true", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
 ];
 
 function PromoCarousel() {
   const [active, setActive] = useState(0);
+  const [productsByTab, setProductsByTab] = useState<Record<number, Product[]>>({});
+  const [configuring, setConfiguring] = useState<Product | null>(null);
+  const [preTier, setPreTier] = useState<string | null>(null);
+  const handleConfigure = (p: Product, tierId?: string) => {
+    setPreTier(tierId ?? null);
+    setConfiguring(p);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    CAROUSEL_TABS.forEach((tab, i) => {
+      tab.fetcher()
+        .then((data) => { if (!cancelled) setProductsByTab((prev) => ({ ...prev, [i]: data })); })
+        .catch(() => { if (!cancelled) setProductsByTab((prev) => ({ ...prev, [i]: [] })); });
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setActive((i) => (i + 1) % PROMO_SLIDES.length);
-    }, 4500);
+      setActive((i) => (i + 1) % CAROUSEL_TABS.length);
+    }, 6000);
     return () => window.clearInterval(timer);
   }, []);
 
+  // Nothing to promote anywhere — skip the section rather than show three
+  // empty tabs.
+  const allLoaded = CAROUSEL_TABS.every((_, i) => productsByTab[i] !== undefined);
+  const allEmpty = allLoaded && CAROUSEL_TABS.every((_, i) => (productsByTab[i]?.length ?? 0) === 0);
+  if (allEmpty) return null;
+
+  const tab = CAROUSEL_TABS[active];
+  const products = productsByTab[active];
+
   return (
     <section className="bg-cream">
-      <div className="mx-auto max-w-7xl px-5 py-4 lg:px-8">
-        <div className="relative overflow-hidden rounded-2xl" style={{ height: "108px" }}>
-          {PROMO_SLIDES.map((slide, i) => (
+      <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">{tab.eyebrow}</p>
+            <h2 className="mt-1 font-display text-xl font-medium text-foreground sm:text-2xl">{tab.title}</h2>
+          </div>
+          <div className="flex items-center gap-3">
             <Link
-              key={slide.key}
-              to={slide.to}
-              className="absolute inset-0 flex items-center justify-between px-6 transition-opacity duration-700 sm:px-10"
-              style={{
-                background: slide.bg,
-                opacity: i === active ? 1 : 0,
-                pointerEvents: i === active ? "auto" : "none",
-              }}
+              to={tab.seeAllHref}
+              className="hidden items-center gap-1.5 text-sm font-medium text-foreground hover:text-accent sm:inline-flex"
             >
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">{slide.eyebrow}</p>
-                <p className="mt-1 font-display text-2xl font-medium text-white sm:text-3xl">{slide.title}</p>
-                <p className="mt-1 hidden text-sm text-white/70 sm:block">{slide.body}</p>
-              </div>
-              <span
-                className="inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold"
-                style={{ background: "#e8c878", color: "#0d3320" }}
-              >
-                Shop now <ArrowRight className="h-3.5 w-3.5" />
-              </span>
+              See all <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-          ))}
-          <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
-            {PROMO_SLIDES.map((slide, i) => (
-              <button
-                key={slide.key}
-                type="button"
-                aria-label={`Show ${slide.title} slide`}
-                onClick={() => setActive(i)}
-                className="h-1.5 rounded-full transition-all"
-                style={{ width: i === active ? "18px" : "6px", background: i === active ? "#e8c878" : "rgba(255,255,255,0.5)" }}
-              />
-            ))}
+            <div className="flex gap-1.5">
+              {CAROUSEL_TABS.map((t, i) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  aria-label={`Show ${t.title}`}
+                  onClick={() => setActive(i)}
+                  className="h-1.5 rounded-full transition-all"
+                  style={{ width: i === active ? "18px" : "6px", background: i === active ? "var(--accent)" : "color-mix(in oklab, var(--ink) 20%, transparent)" }}
+                />
+              ))}
+            </div>
           </div>
         </div>
+        <div className="mt-4 -mx-5 flex gap-3 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0">
+          {products === undefined
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="grid w-[45vw] shrink-0 sm:w-auto">
+                  <ProductCardSkeleton />
+                </div>
+              ))
+            : products.slice(0, 4).map((p) => (
+                <div key={p.id} className="grid w-[45vw] shrink-0 sm:w-auto">
+                  <ProductCard product={p} onConfigure={handleConfigure} />
+                </div>
+              ))}
+        </div>
       </div>
+      <ConfiguratorModal product={configuring} preSelectedTierId={preTier} onClose={() => setConfiguring(null)} />
     </section>
   );
 }
