@@ -1,6 +1,6 @@
 import { SiteLayout } from "@/components/SiteLayout";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { COMPANY_EMAIL, COMPANY_PHONE, whatsappLink } from "@/data/products";
+import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_PHONE_ALT, whatsappLink } from "@/data/products";
 import { MessageCircle, Mail } from "lucide-react";
 
 /**
@@ -133,7 +133,9 @@ function FaqPage() {
               <Mail className="h-4 w-4" /> {COMPANY_EMAIL}
             </a>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Or call {COMPANY_PHONE}</p>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Or call {COMPANY_PHONE} / {COMPANY_PHONE_ALT}
+          </p>
         </div>
       </div>
     </SiteLayout>
