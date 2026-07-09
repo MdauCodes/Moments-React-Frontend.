@@ -17,7 +17,7 @@ type SimpleNav = { to: string; label: string };
 
 const simpleNav: readonly SimpleNav[] = [
   { to: "/company-profile", label: "Company" },
-  { to: "/company-profile#sustainability", label: "Sustainability" },
+  { to: "/sustainability", label: "Sustainability" },
   { to: "/orders/track", label: "Track Order" },
   { to: "/products?deals=true", label: "Deals" },
 ];

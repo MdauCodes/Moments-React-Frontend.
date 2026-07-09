@@ -287,7 +287,7 @@ function Hero() {
               <Link to="/company-profile" className="hover:opacity-80">
                 Company
               </Link>
-              <Link to="/company-profile#sustainability" className="hover:opacity-80">
+              <Link to="/sustainability" className="hover:opacity-80">
                 Sustainability
               </Link>
               <Link to="/orders/track" className="hover:opacity-80">

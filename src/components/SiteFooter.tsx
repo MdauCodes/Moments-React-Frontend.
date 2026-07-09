@@ -90,7 +90,7 @@ export function SiteFooter() {
               </Link>
             </li>
             <li>
-              <Link to="/company-profile#sustainability" className="hover:text-accent">
+              <Link to="/sustainability" className="hover:text-accent">
                 Sustainability
               </Link>
             </li>

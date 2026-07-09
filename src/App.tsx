@@ -20,6 +20,7 @@ import CheckoutSuccessPage from "@/routes/checkout.success";
 import CheckoutFailedPage from "@/routes/checkout.failed";
 import CheckoutProcessingPage from "@/routes/checkout.processing";
 import CompanyProfilePage from "@/routes/company-profile";
+import SustainabilityPage from "@/routes/sustainability";
 import EnterpriseQuotePage from "@/routes/enterprise-quote";
 import IndustriesPage from "@/routes/industries";
 import LoginPage from "@/routes/login";
@@ -111,6 +112,7 @@ export default function App() {
                     <Route path="/checkout/failed" element={<CheckoutFailedPage />} />
                     <Route path="/checkout/processing" element={<CheckoutProcessingPage />} />
                     <Route path="/company-profile" element={<CompanyProfilePage />} />
+                    <Route path="/sustainability" element={<SustainabilityPage />} />
                     <Route path="/enterprise-quote" element={<EnterpriseQuotePage />} />
                     <Route path="/industries" element={<IndustriesPage />} />
                     <Route path="/login" element={<LoginPage />} />
