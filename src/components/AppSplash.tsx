@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import momentsBrandLogo from "@/assets/moments-logo.png";
+import momentsBrandLogo from "@/assets/moments_logo_without_background.png";
 
 /**
  * Branded app splash — forest-green stage with the Moments logo revealed

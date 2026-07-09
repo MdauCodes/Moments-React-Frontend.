@@ -2,7 +2,7 @@ import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingBag, User, HelpCircle } from "lucide-react";
-import logoUrl from "@/assets/moments-logo.png";
+import logoUrl from "@/assets/moments_logo_without_background.png";
 import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
 import { useCart } from "@/contexts/CartContext";
