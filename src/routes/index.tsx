@@ -718,57 +718,15 @@ function CategoryGrid() {
     </section>
   );
 }
-// ── Promo carousel — auto-advancing, sits right below the hero banner.
-// Shows real, clickable product cards (same ProductCard used everywhere
-// else on the site) for Deals / New Arrivals / Best Sellers, cycling
-// between the three every few seconds — not a static text banner. ──
+// ── Promo carousel — auto-advancing billboard-style ad banner, sits right
+// below the hero. Full-bleed product photo with a scrim + bold overlay
+// copy, like real ad creative — not a product-listing grid — cycling
+// through Deals / New Arrivals / Best Sellers every few seconds. ──
 const CAROUSEL_TABS = [
-  { key: "deals", eyebrow: "Save today", title: "Deals", seeAllHref: "/products?deals=true", fetcher: () => api.getProducts({ isDiscount: true, size: 8 }) },
-  { key: "new", eyebrow: "Just landed", title: "New arrivals", seeAllHref: "/products?newArrivals=true", fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }) },
-  { key: "best", eyebrow: "Customer favourites", title: "Best sellers", seeAllHref: "/products?fastMoving=true", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
+  { key: "deals", eyebrow: "Save today", title: "Deals", cta: "Shop the deal", seeAllHref: "/products?deals=true", bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)", fetcher: () => api.getProducts({ isDiscount: true, size: 8 }) },
+  { key: "new", eyebrow: "Just landed", title: "New arrivals", cta: "Shop new arrivals", seeAllHref: "/products?newArrivals=true", bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)", fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }) },
+  { key: "best", eyebrow: "Customer favourites", title: "Best sellers", cta: "Shop best sellers", seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
 ];
-
-/** Small thumbnail-style card for the promo carousel — deliberately much
- * smaller than the standard ProductCard (no tier picker/add-to-cart, just
- * enough to browse and tap through) so this section reads as a quick,
- * dense preview strip rather than a full product grid. */
-function MiniProductCard({ product }: { product: Product }) {
-  return (
-    <Link
-      to={`/products/${product.slug}`}
-      className="group block w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md sm:w-28"
-    >
-      <div className="aspect-square w-full overflow-hidden bg-secondary">
-        {product.primaryImageUrl && (
-          <img
-            src={product.primaryImageUrl}
-            alt={product.name}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-        )}
-      </div>
-      <div className="p-1.5">
-        <p className="line-clamp-2 text-[10.5px] font-medium leading-snug text-foreground">{product.name}</p>
-        {product.basePrice !== undefined && (
-          <p className="mt-0.5 text-[10px] text-muted-foreground">KES {product.basePrice.toLocaleString()}</p>
-        )}
-      </div>
-    </Link>
-  );
-}
-
-function MiniProductCardSkeleton() {
-  return (
-    <div className="w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-card sm:w-28">
-      <div className="shimmer aspect-square w-full" />
-      <div className="p-1.5">
-        <div className="shimmer h-2.5 w-4/5 rounded" />
-        <div className="shimmer mt-1 h-2 w-1/2 rounded" />
-      </div>
-    </div>
-  );
-}
 
 function PromoCarousel() {
   const [active, setActive] = useState(0);
@@ -792,48 +750,91 @@ function PromoCarousel() {
   }, []);
 
   // Nothing to promote anywhere — skip the section rather than show three
-  // empty tabs.
+  // empty tabs (and don't let the auto-skip effect below spin forever).
   const allLoaded = CAROUSEL_TABS.every((_, i) => productsByTab[i] !== undefined);
   const allEmpty = allLoaded && CAROUSEL_TABS.every((_, i) => (productsByTab[i]?.length ?? 0) === 0);
+
+  // If the tab we just landed on turns out to have nothing to advertise,
+  // skip straight past it instead of showing an empty banner.
+  useEffect(() => {
+    if (allEmpty) return;
+    const products = productsByTab[active];
+    if (products !== undefined && products.length === 0) {
+      setActive((i) => (i + 1) % CAROUSEL_TABS.length);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productsByTab, active, allEmpty]);
+
   if (allEmpty) return null;
 
   const tab = CAROUSEL_TABS[active];
   const products = productsByTab[active];
+  const featured = products?.[0];
 
   return (
     <section className="bg-cream">
       <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">{tab.eyebrow}</p>
-            <h2 className="mt-1 font-display text-xl font-medium text-foreground sm:text-2xl">{tab.title}</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link
-              to={tab.seeAllHref}
-              className="hidden items-center gap-1.5 text-sm font-medium text-foreground hover:text-accent sm:inline-flex"
+        <Link
+          to={featured ? `/products/${featured.slug}` : tab.seeAllHref}
+          className="group relative block h-64 overflow-hidden rounded-2xl sm:h-80 lg:h-96"
+          style={{ background: tab.bg }}
+        >
+          {featured?.primaryImageUrl && (
+            <img
+              src={featured.primaryImageUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-105"
+            />
+          )}
+          {/* Ad-style scrim: dark bottom-left for copy, open top-right to
+              let the product shot read as the hero image, not a thumbnail. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "linear-gradient(20deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.1) 62%, transparent 80%)",
+            }}
+          />
+
+          <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/90 sm:text-xs">
+              {tab.eyebrow}
+            </p>
+            <h2 className="mt-1 font-display text-4xl font-medium text-white sm:text-5xl lg:text-6xl">
+              {tab.title}
+            </h2>
+            {featured && (
+              <p className="mt-2 max-w-md text-sm text-white/85 sm:text-base">
+                {featured.name}
+                {featured.basePrice !== undefined && (
+                  <span className="text-white"> — KES {featured.basePrice.toLocaleString()}</span>
+                )}
+              </p>
+            )}
+            <span
+              className="mt-5 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
+              style={{ background: "#e8c878", color: "#0d3320" }}
             >
-              See all <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-            <div className="flex gap-1.5">
-              {CAROUSEL_TABS.map((t, i) => (
-                <button
-                  key={t.key}
-                  type="button"
-                  aria-label={`Show ${t.title}`}
-                  onClick={() => setActive(i)}
-                  className="h-1.5 rounded-full transition-all"
-                  style={{ width: i === active ? "18px" : "6px", background: i === active ? "var(--accent)" : "color-mix(in oklab, var(--ink) 20%, transparent)" }}
-                />
-              ))}
-            </div>
+              {tab.cta} <ArrowRight className="h-4 w-4" />
+            </span>
           </div>
-        </div>
-        <div className="mt-4 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-          {products === undefined
-            ? Array.from({ length: 8 }).map((_, i) => <MiniProductCardSkeleton key={i} />)
-            : products.slice(0, 8).map((p) => <MiniProductCard key={p.id} product={p} />)}
-        </div>
+
+          <div className="absolute bottom-6 right-6 flex gap-1.5 sm:bottom-10 sm:right-10">
+            {CAROUSEL_TABS.map((t, i) => (
+              <button
+                key={t.key}
+                type="button"
+                aria-label={`Show ${t.title}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setActive(i);
+                }}
+                className="h-1.5 rounded-full transition-all"
+                style={{ width: i === active ? "20px" : "6px", background: i === active ? "#e8c878" : "rgba(255,255,255,0.45)" }}
+              />
+            ))}
+          </div>
+        </Link>
       </div>
     </section>
   );

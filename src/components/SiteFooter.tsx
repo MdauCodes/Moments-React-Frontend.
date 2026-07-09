@@ -87,7 +87,7 @@ export function SiteFooter() {
             lives in one place instead of its own separate full-width row. */}
         <div>
           <Link to="/" aria-label="Moments Packaging Kenya — Home" className="inline-flex">
-            <img src={logoUrl} alt="Moments Packaging Kenya logo" width={160} height={40} className="h-12 w-auto" />
+            <img src={logoUrl} alt="Moments Packaging Kenya logo" width={160} height={40} className="h-24 w-auto" />
           </Link>
           <nav aria-label="Legal and support" className="mt-4 flex flex-col gap-2.5">
             <button

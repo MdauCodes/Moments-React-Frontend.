@@ -4,7 +4,7 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { SiteLayout } from "@/components/SiteLayout";
 import { useState, type FormEvent } from "react";
 import { randomWhatsAppLink } from "@/data/products";
-import { Check, Mail, MessageCircle, X } from "lucide-react";
+import { Check, Mail, MessageCircle } from "lucide-react";
 import { usePersona } from "@/contexts/PersonaContext";
 import { useCart, type CartItem } from "@/contexts/CartContext";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
@@ -25,7 +25,7 @@ const labelClass = "block text-sm font-medium text-foreground mb-1.5";
 
 function ContactPage() {
   const { persona } = usePersona();
-  const { items, removeItem: remove, clearCart: clear } = useCart();
+  const { items, clearCart: clear } = useCart();
   const isCorp = persona === "corporate";
 
   const location = useLocation();
@@ -139,59 +139,6 @@ function ContactPage() {
                     <Mail className="h-4 w-4" /> Email
                   </button>
                 </div>
-              </div>
-
-              <div className="my-6 h-px bg-border" />
-
-              {/* Products in enquiry */}
-              <div>
-                <h2 className="text-sm font-medium text-foreground">
-                  Products in your enquiry
-                </h2>
-                {basketProducts.length === 0 ? (
-                  <div className="mt-3 rounded-xl border border-dashed border-border bg-background/50 p-4">
-                    <p className="text-sm text-muted-foreground">No products selected yet.</p>
-                    <Link to="/products" className="mt-1 inline-block text-sm text-accent">
-                      Browse catalogue →
-                    </Link>
-                  </div>
-                ) : (
-                  <ul className="mt-3 space-y-2">
-                    {basketProducts.map((item) => (
-                      <li
-                        key={item.productId}
-                        className="flex items-center gap-3 rounded-xl border border-border bg-background/50 p-3"
-                      >
-                        <img
-                          src={item.primaryImageUrl}
-                          alt={item.productName}
-                          className="h-12 w-12 shrink-0 rounded-lg object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-foreground">
-                            {item.productName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Qty: {item.quantity} · Size: {item.size} · Finish: {item.finish}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => remove(item.productId)}
-                          className="rounded-md p-1 text-muted-foreground hover:bg-secondary"
-                          aria-label={`Remove ${item.productName}`}
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {basketProducts.length > 0 && (
-                  <Link to="/products" className="mt-2 inline-block text-xs text-accent">
-                    Edit basket
-                  </Link>
-                )}
               </div>
 
               <div className="my-6 h-px bg-border" />
