@@ -1,11 +1,13 @@
 
-import { COMPANY_EMAIL, COMPANY_PHONE } from "@/data/products";
+import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
 
 
 
-function RefundsPage() {
+/** Shared by the /refunds route and the footer's policy modal, so the
+ * content lives in exactly one place. */
+export function getRefundsContent() {
   const sections: LegalSection[] = [
     {
       id: "when-applies",
@@ -196,7 +198,7 @@ function RefundsPage() {
         <p>
           Moments Packaging Kenya Ltd
           <br />
-          Ukwala Road, opposite Salvation Army, OTC, Nairobi, Kenya
+          {COMPANY_ADDRESS}
           <br />
           Email: <a href={`mailto:${COMPANY_EMAIL}`}>{COMPANY_EMAIL}</a>
           <br />
@@ -207,25 +209,30 @@ function RefundsPage() {
     },
   ];
 
+  return {
+    title: "Refund & Returns Policy",
+    updated: "May 19, 2026",
+    intro: (
+      <>
+        Most of what we make is custom-printed for your brand, so refunds and returns work a
+        little differently than at a standard retail shop. Here&apos;s when a refund applies,
+        how to request one, and what to expect.
+      </>
+    ),
+    sections,
+    related: [
+      { to: "/", label: "Home" },
+      { to: "/terms", label: "Terms of Service" },
+      { to: "/privacy", label: "Privacy Policy" },
+    ],
+  };
+}
+
+function RefundsPage() {
+  const content = getRefundsContent();
   return (
     <SiteLayout>
-      <LegalPageLayout
-        title="Refund & Returns Policy"
-        updated="May 19, 2026"
-        intro={
-          <>
-            Most of what we make is custom-printed for your brand, so refunds and returns work a
-            little differently than at a standard retail shop. Here&apos;s when a refund applies,
-            how to request one, and what to expect.
-          </>
-        }
-        sections={sections}
-        related={[
-          { to: "/", label: "Home" },
-          { to: "/terms", label: "Terms of Service" },
-          { to: "/privacy", label: "Privacy Policy" },
-        ]}
-      />
+      <LegalPageLayout {...content} />
     </SiteLayout>
   );
 }

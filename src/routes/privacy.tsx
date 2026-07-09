@@ -1,11 +1,13 @@
 
-import { COMPANY_EMAIL, COMPANY_PHONE } from "@/data/products";
+import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
 
 
 
-function PrivacyPage() {
+/** Shared by the /privacy route and the footer's policy modal, so the
+ * content lives in exactly one place. */
+export function getPrivacyPolicyContent() {
   const sections: LegalSection[] = [
     {
       id: "who-we-are",
@@ -15,8 +17,8 @@ function PrivacyPage() {
           <p>
             Moments Packaging Kenya Ltd (&ldquo;Moments Packaging&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;)
             is the data controller responsible for personal information collected through{" "}
-            <strong>momentspackaging.com</strong>. We are based in Industrial Area, Nairobi (Ukwala
-            Road, opposite Salvation Army, OTC). This policy is issued in compliance with the{" "}
+            <strong>momentspackaging.com</strong>. We are based at {COMPANY_ADDRESS}. This policy
+            is issued in compliance with the{" "}
             <strong>Kenya Data Protection Act, 2019</strong> and its supporting regulations.
           </p>
           <p>
@@ -326,7 +328,7 @@ function PrivacyPage() {
         <p>
           Moments Packaging Kenya Ltd
           <br />
-          Ukwala Road, opposite Salvation Army, OTC, Nairobi, Kenya
+          {COMPANY_ADDRESS}
           <br />
           Email: <a href={`mailto:${COMPANY_EMAIL}`}>{COMPANY_EMAIL}</a>
           <br />
@@ -337,25 +339,30 @@ function PrivacyPage() {
     },
   ];
 
+  return {
+    title: "Privacy Policy",
+    updated: "May 19, 2026",
+    intro: (
+      <>
+        How Moments Packaging Kenya collects, uses, shares and protects your personal data when
+        you visit our site, request a quote, place an order, or message us — in line with the{" "}
+        <strong>Kenya Data Protection Act, 2019</strong>.
+      </>
+    ),
+    sections,
+    related: [
+      { to: "/", label: "Home" },
+      { to: "/terms", label: "Terms of Service" },
+      { to: "/refunds", label: "Refund & Returns Policy" },
+    ],
+  };
+}
+
+function PrivacyPage() {
+  const content = getPrivacyPolicyContent();
   return (
     <SiteLayout>
-      <LegalPageLayout
-        title="Privacy Policy"
-        updated="May 19, 2026"
-        intro={
-          <>
-            How Moments Packaging Kenya collects, uses, shares and protects your personal data when
-            you visit our site, request a quote, place an order, or message us — in line with the{" "}
-            <strong>Kenya Data Protection Act, 2019</strong>.
-          </>
-        }
-        sections={sections}
-        related={[
-          { to: "/", label: "Home" },
-          { to: "/terms", label: "Terms of Service" },
-          { to: "/refunds", label: "Refund & Returns Policy" },
-        ]}
-      />
+      <LegalPageLayout {...content} />
     </SiteLayout>
   );
 }

@@ -1,21 +1,22 @@
 
-import { COMPANY_EMAIL, COMPANY_PHONE } from "@/data/products";
+import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
 
 
 
-function TermsPage() {
+/** Shared by the /terms route and the footer's policy modal, so the content
+ * lives in exactly one place. */
+export function getTermsContent() {
   const sections: LegalSection[] = [
     {
       id: "who-we-are",
       title: "Who we are",
       body: (
         <p>
-          Moments Packaging Kenya Ltd is a Kenyan-registered business based in Industrial Area,
-          Nairobi. We design, print and deliver custom paper packaging — bags, boxes, cups,
-          mailers, labels and gifting packaging — to restaurants, retailers and brands across
-          Kenya.
+          Moments Packaging Kenya Ltd is a Kenyan-registered business based at {COMPANY_ADDRESS}.
+          We design, print and deliver custom paper packaging — bags, boxes, cups, mailers, labels
+          and gifting packaging — to restaurants, retailers and brands across Kenya.
         </p>
       ),
     },
@@ -58,41 +59,6 @@ function TermsPage() {
       ),
     },
     {
-      id: "artwork",
-      title: "Artwork approval",
-      body: (
-        <ul>
-          <li>
-            You are responsible for the accuracy of artwork, spelling, logos and colours you
-            supply.
-          </li>
-          <li>
-            We will send a digital proof for your approval before printing. Once you approve the
-            proof in writing (email or WhatsApp), the print run will go ahead as approved.
-          </li>
-          <li>
-            Colours on screen are approximate. Printed colours can vary slightly between batches
-            and paper stocks — this is normal in commercial printing and is not a defect.
-          </li>
-          <li>
-            You confirm you own or are licensed to use any logos, trademarks or images you supply.
-            We are not liable for third-party IP infringement caused by artwork you provide.
-          </li>
-        </ul>
-      ),
-    },
-    {
-      id: "production",
-      title: "Production & lead times",
-      body: (
-        <p>
-          Lead times shown on a product page are estimates from the date of artwork approval and
-          payment. Lead times may be longer for very large orders, complex finishes, or during
-          peak seasons. We will keep you updated on WhatsApp or email.
-        </p>
-      ),
-    },
-    {
       id: "delivery",
       title: "Delivery, pickup & own courier",
       body: (
@@ -102,8 +68,8 @@ function TermsPage() {
             rate shown at checkout.
           </li>
           <li>
-            <strong>Pickup:</strong> you can collect free of charge from our shop in Industrial
-            Area, Nairobi during business hours. We will WhatsApp you when the order is ready.
+            <strong>Pickup:</strong> you can collect free of charge from our premises at{" "}
+            {COMPANY_ADDRESS} during business hours. We will WhatsApp you when the order is ready.
           </li>
           <li>
             <strong>Own courier (Matatu, parcel service, etc.):</strong> when you choose this
@@ -221,7 +187,7 @@ function TermsPage() {
         <p>
           Moments Packaging Kenya Ltd
           <br />
-          Ukwala Road, opposite Salvation Army, OTC, Nairobi, Kenya
+          {COMPANY_ADDRESS}
           <br />
           Email: <a href={`mailto:${COMPANY_EMAIL}`}>{COMPANY_EMAIL}</a>
           <br />
@@ -232,25 +198,30 @@ function TermsPage() {
     },
   ];
 
+  return {
+    title: "Terms of Service",
+    updated: "May 19, 2026",
+    intro: (
+      <>
+        The terms that govern quotes, orders, payment, production, delivery and returns when
+        you buy custom-branded paper packaging from Moments Packaging Kenya. By placing an
+        order or using the site, you agree to these Terms.
+      </>
+    ),
+    sections,
+    related: [
+      { to: "/", label: "Home" },
+      { to: "/privacy", label: "Privacy Policy" },
+      { to: "/refunds", label: "Refund & Returns Policy" },
+    ],
+  };
+}
+
+function TermsPage() {
+  const content = getTermsContent();
   return (
     <SiteLayout>
-      <LegalPageLayout
-        title="Terms of Service"
-        updated="May 19, 2026"
-        intro={
-          <>
-            The terms that govern quotes, orders, payment, production, delivery and returns when
-            you buy custom-branded paper packaging from Moments Packaging Kenya. By placing an
-            order or using the site, you agree to these Terms.
-          </>
-        }
-        sections={sections}
-        related={[
-          { to: "/", label: "Home" },
-          { to: "/privacy", label: "Privacy Policy" },
-          { to: "/refunds", label: "Refund & Returns Policy" },
-        ]}
-      />
+      <LegalPageLayout {...content} />
     </SiteLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
-import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook } from "lucide-react";
+import { useState } from "react";
+import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook, X } from "lucide-react";
 import {
   COMPANY_EMAIL,
   COMPANY_PHONE,
@@ -12,17 +13,65 @@ import {
   FACEBOOK_URL,
   categories,
 } from "@/data/products";
+import { TikTokIcon } from "@/components/icons/TikTokIcon";
+import { getPrivacyPolicyContent } from "@/routes/privacy";
+import { getTermsContent } from "@/routes/terms";
+import { getRefundsContent } from "@/routes/refunds";
 
-// TikTok icon (not in lucide-react)
-function TikTokIcon({ className }: { className?: string }) {
+type PolicyKey = "privacy" | "terms" | "refunds";
+
+const POLICY_CONTENT: Record<PolicyKey, () => ReturnType<typeof getPrivacyPolicyContent>> = {
+  privacy: getPrivacyPolicyContent,
+  terms: getTermsContent,
+  refunds: getRefundsContent,
+};
+
+/** Footer link that opens a policy's full content in a modal instead of
+ * navigating away — so reading it doesn't cost your place on the page. */
+function PolicyModal({ policyKey, onClose }: { policyKey: PolicyKey; onClose: () => void }) {
+  const content = POLICY_CONTENT[policyKey]();
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5.8 20.1a6.34 6.34 0 0 0 10.86-4.43V8.66a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1.84-.09z" />
-    </svg>
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-background text-foreground sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="font-display text-xl font-medium">{content.title}</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Updated {content.updated}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <div className="overflow-y-auto px-5 py-5 sm:px-6">
+          <div className="text-sm leading-relaxed text-foreground/80">{content.intro}</div>
+          <div className="mt-6 space-y-6">
+            {content.sections.map((section) => (
+              <section key={section.id}>
+                <h3 className="font-display text-base font-semibold text-foreground">{section.title}</h3>
+                <div className="legal-prose mt-2 text-sm leading-relaxed text-foreground/80">{section.body}</div>
+              </section>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
 export function SiteFooter() {
+  const [openPolicy, setOpenPolicy] = useState<PolicyKey | null>(null);
+
   return (
     <footer
       className="mt-16 border-t border-border text-primary-foreground sm:mt-24"
@@ -40,10 +89,6 @@ export function SiteFooter() {
             </span>
             <span className="font-display text-xl">Moments Packaging</span>
           </div>
-          <p className="mt-4 max-w-md text-sm text-primary-foreground/70">
-            Custom-branded packaging for Kenya&apos;s restaurants, retailers and brands — bags, boxes, cups and more.
-            From a 100-bag pilot run to enterprise contracts — delivered nationwide.
-          </p>
         </div>
 
         {/* Shop col */}
@@ -143,10 +188,14 @@ export function SiteFooter() {
         <div>
           <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/60">Contact</h4>
           <ul className="mt-4 space-y-2 text-sm text-primary-foreground/80">
-            <li>
-              <a href="tel:+254119556688" className="flex items-center gap-2 hover:text-accent">
-                <Phone className="h-4 w-4 shrink-0" aria-hidden />
-                <span>0119-55-66-88 / 0119-55-66-99</span>
+            <li className="flex items-center gap-2">
+              <Phone className="h-4 w-4 shrink-0" aria-hidden />
+              <a href="tel:+254119556688" className="hover:text-accent">
+                {COMPANY_PHONE}
+              </a>
+              <span aria-hidden>/</span>
+              <a href="tel:+254119556699" className="hover:text-accent">
+                {COMPANY_PHONE_ALT}
               </a>
             </li>
             <li>
@@ -168,7 +217,7 @@ export function SiteFooter() {
             </li>
             <li className="flex items-start gap-2">
               <MapPin className="h-4 w-4 shrink-0 mt-0.5" aria-hidden />
-              <span>Weithaga Building, along Ukwala Road, OTC, Nairobi CBD</span>
+              <span>{COMPANY_ADDRESS}</span>
             </li>
           </ul>
           <div className="mt-5 flex items-center gap-2">
@@ -216,21 +265,23 @@ export function SiteFooter() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-5 py-6 text-xs text-primary-foreground/60 sm:flex-row lg:px-8">
           <p>© {new Date().getFullYear()} Moments Packaging Kenya Ltd. All rights reserved.</p>
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
-            <Link to="/privacy" className="hover:text-accent">
+            <button type="button" onClick={() => setOpenPolicy("privacy")} className="hover:text-accent">
               Privacy Policy
-            </Link>
-            <Link to="/terms" className="hover:text-accent">
+            </button>
+            <button type="button" onClick={() => setOpenPolicy("terms")} className="hover:text-accent">
               Terms of Service
-            </Link>
-            <Link to="/refunds" className="hover:text-accent">
+            </button>
+            <button type="button" onClick={() => setOpenPolicy("refunds")} className="hover:text-accent">
               Refunds &amp; Returns
-            </Link>
+            </button>
             <Link to="/contact" className="hover:text-accent">
               Contact
             </Link>
           </nav>
         </div>
       </div>
+
+      {openPolicy && <PolicyModal policyKey={openPolicy} onClose={() => setOpenPolicy(null)} />}
     </footer>
   );
 }

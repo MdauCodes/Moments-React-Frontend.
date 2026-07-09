@@ -23,6 +23,7 @@ import {
   CookingPot,
 } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
+import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import pdfAsset from "@/assets/company-profile/moments-company-profile.pdf";
 import coverImg from "@/assets/company-profile/cover.jpg";
 import visionImg from "@/assets/company-profile/vision-cups.jpg";
@@ -558,7 +559,7 @@ function CompanyProfilePage() {
                   {FACEBOOK_HANDLE}
                 </a>
               </ContactRow>
-              <ContactRow Icon={Globe} label="TikTok">
+              <ContactRow Icon={TikTokIcon} label="TikTok">
                 <a href={TIKTOK_URL} target="_blank" rel="noopener noreferrer" className="text-base hover:underline">
                   {TIKTOK_HANDLE}
                 </a>

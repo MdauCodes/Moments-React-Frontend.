@@ -1,13 +1,12 @@
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronRight, ListFilter, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { z } from "zod";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 import { api, type Segment, type Category as TaxCategory, type Subcategory, type Tag } from "@/services/api";
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
@@ -69,50 +68,38 @@ const INDUSTRY_QUICK_FINDS: Record<string, Array<{ label: string; search: string
   ],
 };
 
-// Always-visible, industry-agnostic quick-find chips — for a customer who
-// doesn't know (or doesn't care) which "industry" they fall under, just what
-// they need. Every term here is verified against real product names in the
-// catalogue (same audit that removed "cake", "bubble", "mailer" etc. for
-// returning wrong/no results — see INDUSTRY_QUICK_FINDS above for the
-// per-industry originals this list is deduplicated from).
-const GLOBAL_QUICK_FINDS: Array<{ label: string; search: string }> = [
-  { label: "Hot drinks & coffee",        search: "hot cup" },
-  { label: "Cold drinks & juice",        search: "cold cup" },
-  { label: "Takeaway & delivery",        search: "takeaway box" },
-  { label: "POS & receipt rolls",        search: "thermal roll" },
-  { label: "Cutlery",                    search: "cutlery" },
-  { label: "Straws & stirrers",          search: "straw" },
-  { label: "Cling film & wrapping",      search: "cling film" },
-  { label: "Shopping & boutique bags",   search: "twisted handle" },
-  { label: "Fresh produce packs",        search: "punnet" },
-  { label: "Gloves",                     search: "gloves" },
-  { label: "Face masks",                 search: "face mask" },
-  { label: "Jars & containers",          search: "jar" },
-  { label: "Reusable tote bags",         search: "non-woven" },
-  { label: "Hairnets",                   search: "hairnet" },
-  { label: "Grain & bulk sacks",         search: "panel sack" },
-  { label: "Produce net bags",           search: "net bag" },
-  { label: "Honey jars",                 search: "honey jar" },
-  { label: "Tapes & sealing",            search: "tape" },
-  { label: "Stretch & pallet wrap",      search: "stretch wrap" },
-  { label: "Foil & foil trays",          search: "aluminium foil" },
-  { label: "Plates",                     search: "plates" },
-  { label: "Bin liners",                 search: "garbage bag" },
-  { label: "Gift & premium bags",        search: "millinary" },
-  // Added after checking real per-industry product counts — Agriculture (86),
-  // Fashion & Apparel (64) and Health & Beauty (49) all had real inventory
-  // that wasn't represented above. Verified against live search results.
-  { label: "Farm & market sacks",        search: "khaki bags" },
-  { label: "Printed smart bags",         search: "smart bags" },
-  { label: "Brown handled bags",         search: "brown handled" },
-  { label: "Ice cream cups",             search: "ice cream cups" },
-  { label: "Wet wipes",                  search: "wet wipes" },
-  { label: "Manila envelopes",           search: "manila envelope" },
-  { label: "Foil tins",                  search: "foil tin" },
-];
 import type { Product, Industry } from "@/data/products";
 import { getStockInfo } from "@/lib/stock";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
+
+// Business-priority display order for the "Browse by industry" grid.
+// Anything not in this list (or a new industry the admin adds later) just
+// falls in after these, in whatever order the backend returned it.
+const INDUSTRY_PRIORITY = [
+  "food and beverage",
+  "baking",
+  "e-commerce and retail",
+  "beauty and personal care",
+  "pharmaceutical",
+  "agricultural and dairy",
+  "custom branding",
+];
+
+// Normalizes "&" vs "and" and stray whitespace so "Food & Beverage" matches
+// "food and beverage" in the priority list above.
+function normalizeIndustryName(name: string): string {
+  return name.trim().toLowerCase().replace(/&/g, "and").replace(/\s+/g, " ");
+}
+
+function sortByIndustryPriority(list: Industry[]): Industry[] {
+  return [...list].sort((a, b) => {
+    const ai = INDUSTRY_PRIORITY.indexOf(normalizeIndustryName(a.name));
+    const bi = INDUSTRY_PRIORITY.indexOf(normalizeIndustryName(b.name));
+    const ar = ai === -1 ? INDUSTRY_PRIORITY.length : ai;
+    const br = bi === -1 ? INDUSTRY_PRIORITY.length : bi;
+    return ar - br;
+  });
+}
 
 /**
  * Smart loading state for the catalogue.
@@ -144,6 +131,7 @@ type SortKey = (typeof sortOptions)[number];
 
 const searchSchema = z.object({
   category: z.string().optional(),
+  segmentId: z.string().optional(),
   subcategoryId: z.string().optional(),
   tagId: z.string().optional(),
   industry: z.string().optional(),
@@ -165,7 +153,7 @@ const ALL_PRICE_MAX = 500;
 function ProductsPage() {
   const [_searchParams, setSearchParams] = useSearchParams();
   const search = Object.fromEntries(_searchParams.entries());
-  const { category, subcategoryId, tagId, industry: industrySlug, q, sort = "newest" } = search;
+  const { category, segmentId, subcategoryId, tagId, industry: industrySlug, q, sort = "newest" } = search;
   const newArrivals = search.newArrivals === "true";
   const deals = search.deals === "true";
   const fastMoving = search.fastMoving === "true";
@@ -189,25 +177,6 @@ function ProductsPage() {
   const [moreProducts, setMoreProducts] = useState<Product[] | null>(null);
   const [query, setQuery] = useState(q ?? "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [quickFindOpen, setQuickFindOpen] = useState(false);
-  const [selectedQuickFinds, setSelectedQuickFinds] = useState<string[]>([]);
-
-  const toggleQuickFind = (term: string) => {
-    setSelectedQuickFinds((prev) =>
-      prev.includes(term) ? prev.filter((t) => t !== term) : [...prev, term],
-    );
-  };
-
-  const applyQuickFinds = () => {
-    setQuery(selectedQuickFinds.join(" "));
-    setQuickFindOpen(false);
-    // Results are async (debounced search + fetch) — retry the scroll a few
-    // times so it lands correctly once the grid has actually rendered,
-    // same fix as the company-profile hash-scroll (layout shifts as content
-    // loads in, so a single scroll attempt can land in the wrong place).
-    const scroll = () => document.getElementById("results-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    [100, 500, 1000].forEach((ms) => window.setTimeout(scroll, ms));
-  };
   const [configuring, setConfiguring] = useState<Product | null>(null);
   const [preTier, setPreTier] = useState<string | null>(null);
   const handleConfigure = (p: Product, tierId?: string) => {
@@ -258,7 +227,7 @@ function ProductsPage() {
   useEffect(() => {
     let cancelled = false;
     void api.getIndustries().then((data) => {
-      if (!cancelled) setIndustries(filterVisibleIndustries(data));
+      if (!cancelled) setIndustries(sortByIndustryPriority(filterVisibleIndustries(data)));
     });
     return () => { cancelled = true; };
   }, []);
@@ -297,6 +266,17 @@ function ProductsPage() {
       setSelectedSegmentId(sub.segmentId ?? taxCategories.find((c) => c.id === sub.categoryId)?.segmentId ?? null);
     }
   }, [subcategoryId, subcategories, taxCategories]);
+
+  // Deep link from a homepage "Shop by category" tile: expand that segment in
+  // the "Browse by category" panel and scroll it into view.
+  useEffect(() => {
+    if (!segmentId || subcategoryId) return;
+    if (!segments.some((s) => s.id === segmentId)) return;
+    setSelectedSegmentId(segmentId);
+    const scroll = () => document.getElementById("browse-by-category")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const timers = [100, 500].map((ms) => window.setTimeout(scroll, ms));
+    return () => timers.forEach(window.clearTimeout);
+  }, [segmentId, subcategoryId, segments]);
 
   const selectSegment = (id: string) => {
     setSelectedSegmentId((prev) => (prev === id ? null : id));
@@ -548,33 +528,6 @@ function ProductsPage() {
           </div>
         </div>
 
-        {/* Quick find trigger — opens a modal so the customer can pick several
-            needs at once, then jumps straight to matching products instead of
-            scrolling past rows of chips first. Copy leads with the benefit
-            (fast, shortlisted results) instead of asking the customer to
-            self-diagnose ("not sure what it's called?") — a clearer signal
-            of what tapping this actually does. */}
-        <button
-          type="button"
-          onClick={() => setQuickFindOpen(true)}
-          className="mt-5 flex w-full items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3.5 text-left transition-colors hover:border-primary/50 hover:bg-primary/10"
-        >
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
-            <ListFilter className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-foreground">
-              {selectedQuickFinds.length > 0
-                ? `${selectedQuickFinds.length} need${selectedQuickFinds.length === 1 ? "" : "s"} selected`
-                : "Find it in 2 taps"}
-            </span>
-            <span className="block text-xs text-muted-foreground">
-              {selectedQuickFinds.length > 0 ? "Tap to change your selection" : "Tap what you need — we'll shortlist matching products"}
-            </span>
-          </span>
-          <ChevronRight className="h-4 w-4 shrink-0 text-primary" />
-        </button>
-
         {/* Status toggles */}
         <div className="scrollbar-hide mt-3 flex items-center gap-2 overflow-x-auto pb-3">
           <ToggleChip active={!!newArrivals} onClick={() => toggle("newArrivals")}>New Arrivals</ToggleChip>
@@ -583,10 +536,64 @@ function ProductsPage() {
           <ToggleChip active={!!inStock} onClick={() => toggle("inStock")}>In stock</ToggleChip>
         </div>
 
+        {/* Browse by industry — shown first, above categories, when no filter
+            active and data is loaded. A card grid works fine on tablet/desktop,
+            but on a phone it pushes the actual product grid several screens
+            down — a compact dropdown gets to the same result (?industry=slug)
+            in the same footprint as any other filter control. */}
+        {!anyFilterActive && !isLoading && !searchResults && industries.length > 0 && (
+          <div className="mt-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Browse by industry
+            </p>
+            <div className="mt-3 sm:hidden">
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) setParam("industry", e.target.value);
+                }}
+                className="w-full rounded-full border border-foreground/20 bg-background px-4 py-2.5 text-sm text-foreground"
+              >
+                <option value="">Select your business type…</option>
+                {industries.map((ind) => (
+                  <option key={ind.id} value={ind.slug}>{ind.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
+              {industries.map((ind) => {
+                const Icon = ind.icon;
+                return (
+                  <button
+                    key={ind.id}
+                    type="button"
+                    onClick={() => toggleIndustry(ind.slug)}
+                    className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
+                  >
+                    {Icon && (
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">{ind.name}</p>
+                      {ind.description && (
+                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                          {ind.description}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Refinement bar — Segment/Category/Subcategory browsing (when available)
             lives here alongside the legacy flat category list, sort, and price,
             all in one panel so there's one place to refine, not two competing ones. */}
-        <div className="rounded-2xl border border-border bg-card p-4">
+        <div id="browse-by-category" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4">
           {segments.length > 0 && (
             <div className="mb-4 border-b border-border pb-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -627,8 +634,8 @@ function ProductsPage() {
                             return (
                               <div key={cat.id}>
                                 <p
-                                  className={`text-[11px] font-semibold ${
-                                    selectedCategoryId === cat.id ? "text-primary" : "text-foreground/70"
+                                  className={`text-sm font-bold ${
+                                    selectedCategoryId === cat.id ? "text-primary" : "text-foreground"
                                   }`}
                                 >
                                   {cat.name}
@@ -813,60 +820,6 @@ function ProductsPage() {
           </div>
         )}
 
-        {/* Browse by business type — shown when no filter active and data is loaded.
-            A card grid works fine on tablet/desktop, but on a phone it pushes the
-            actual product grid several screens down — a compact dropdown gets to
-            the same result (?industry=slug) in the same footprint as any other
-            filter control. */}
-        {!anyFilterActive && !isLoading && !searchResults && industries.length > 0 && (
-          <div className="mt-8">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              What does your business do?
-            </p>
-            <div className="mt-3 sm:hidden">
-              <select
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) setParam("industry", e.target.value);
-                }}
-                className="w-full rounded-full border border-foreground/20 bg-background px-4 py-2.5 text-sm text-foreground"
-              >
-                <option value="">Select your business type…</option>
-                {industries.map((ind) => (
-                  <option key={ind.id} value={ind.slug}>{ind.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
-              {industries.map((ind) => {
-                const Icon = ind.icon;
-                return (
-                  <button
-                    key={ind.id}
-                    type="button"
-                    onClick={() => toggleIndustry(ind.slug)}
-                    className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
-                  >
-                    {Icon && (
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15">
-                        <Icon className="h-4 w-4" />
-                      </span>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">{ind.name}</p>
-                      {ind.description && (
-                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                          {ind.description}
-                        </p>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Subtle banner: API unreachable / 404 → showing mock catalogue. */}
         {!searchResults && loadState === "fallback" && !isLoading && (
           <div className="mt-6 rounded-lg border border-border/60 bg-muted/40 px-4 py-2.5 text-xs text-muted-foreground">
@@ -1009,95 +962,6 @@ function ProductsPage() {
       </section>
 
       <ConfiguratorModal product={configuring} preSelectedTierId={preTier} onClose={() => setConfiguring(null)} />
-
-      <Sheet open={quickFindOpen} onOpenChange={setQuickFindOpen}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[85vh] overflow-y-auto rounded-t-2xl bg-background p-0 sm:mx-auto sm:max-w-2xl"
-        >
-          {tagsList.length > 0 ? (
-            // Real backend tags exist — this is now the one and only system.
-            // The legacy hardcoded keyword grid only shows up as a fallback
-            // for as long as the backend genuinely has zero tags.
-            <>
-              <div className="sticky top-0 z-10 border-b border-border bg-background px-5 py-4">
-                <h2 className="font-display text-lg text-foreground">What do you need?</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Tap one to see matching products.</p>
-              </div>
-              <div className="flex flex-wrap gap-2 px-5 py-5">
-                {tagsList.map((tag) => (
-                  <button
-                    key={tag.id}
-                    type="button"
-                    onClick={() => {
-                      setParam("tagId", tag.id);
-                      setQuickFindOpen(false);
-                      const scroll = () => document.getElementById("results-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      [100, 500, 1000].forEach((ms) => window.setTimeout(scroll, ms));
-                    }}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
-                      tagId === tag.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
-                    }`}
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="sticky top-0 z-10 border-b border-border bg-background px-5 py-4">
-                <h2 className="font-display text-lg text-foreground">What do you need?</h2>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Tap as many as apply — we&apos;ll show everything that matches.
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2 px-5 py-5">
-                {GLOBAL_QUICK_FINDS.map((item) => {
-                  const active = selectedQuickFinds.includes(item.search);
-                  return (
-                    <button
-                      key={item.search}
-                      type="button"
-                      onClick={() => toggleQuickFind(item.search)}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors ${
-                        active
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-foreground/20 bg-cream text-foreground hover:border-primary/40 hover:bg-primary/5"
-                      }`}
-                    >
-                      {active && <Check className="h-3.5 w-3.5" />}
-                      {item.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-border bg-background px-5 py-4">
-                <button
-                  type="button"
-                  onClick={() => setSelectedQuickFinds([])}
-                  disabled={selectedQuickFinds.length === 0}
-                  className="text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-40"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={applyQuickFinds}
-                  disabled={selectedQuickFinds.length === 0}
-                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-40 sm:flex-none"
-                >
-                  {selectedQuickFinds.length === 0
-                    ? "Select at least one"
-                    : `Show products (${selectedQuickFinds.length} selected)`}
-                </button>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </SiteLayout>
   );
 }

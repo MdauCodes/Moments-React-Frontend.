@@ -116,7 +116,6 @@ function ContactPage() {
                     : [
                         "Free quote, no obligation",
                         "Reply within 2 hours on WhatsApp",
-                        "MOQ from just 100 units",
                       ]
                   ).map((bullet) => (
                     <li key={bullet} className="flex items-start gap-3 text-sm text-foreground">

@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingBag, User, HelpCircle } from "lucide-react";
@@ -15,9 +15,12 @@ import { api, type Segment, type Category as TaxCategory, type Subcategory } fro
  */
 type SimpleNav = { to: string; label: string };
 
-const simpleNav: readonly SimpleNav[] = [
+// Order: Company, Sustainability, [Shop dropdown], Track Order, Deals.
+const navBeforeShop: readonly SimpleNav[] = [
   { to: "/company-profile", label: "Company" },
   { to: "/sustainability", label: "Sustainability" },
+];
+const navAfterShop: readonly SimpleNav[] = [
   { to: "/orders/track", label: "Track Order" },
   { to: "/products?deals=true", label: "Deals" },
 ];
@@ -63,8 +66,6 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const { itemCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
-  const { pathname } = useLocation();
-  const isCompanyProfile = pathname.startsWith("/company-profile");
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -132,7 +133,7 @@ export function SiteHeader() {
               alt="Moments Packaging Kenya logo"
               width={160}
               height={40}
-              className={isCompanyProfile ? "h-9 w-auto sm:h-10 lg:h-11" : "h-5 w-auto sm:h-6 lg:h-7"}
+              className="h-9 w-auto sm:h-10 lg:h-11"
             />
           </Link>
 
@@ -151,6 +152,16 @@ export function SiteHeader() {
           </button>
 
           <nav className="ml-auto hidden items-center gap-1 md:flex">
+            {navBeforeShop.map((n) => (
+              <Link
+                key={n.label}
+                to={n.to}
+                className="rounded-full px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground lg:px-4"
+              >
+                {n.label}
+              </Link>
+            ))}
+
             {/* Shop dropdown */}
             <div ref={dropdownRef} className="relative" onMouseEnter={openDropdown} onMouseLeave={scheduleClose}>
               <NavLink
@@ -259,8 +270,8 @@ export function SiteHeader() {
               )}
             </div>
 
-            {/* Deals + Enterprise */}
-            {simpleNav.map((n) => (
+            {/* Track Order + Deals */}
+            {navAfterShop.map((n) => (
               <Link
                 key={n.label}
                 to={n.to}
@@ -402,6 +413,16 @@ export function SiteHeader() {
         {open && (
           <div className="border-t border-border bg-background md:hidden">
             <div className="flex flex-col px-5 py-3">
+              {navBeforeShop.map((n) => (
+                <Link
+                  key={n.label}
+                  to={n.to}
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-3 text-sm font-medium text-foreground/80 hover:bg-secondary"
+                >
+                  {n.label}
+                </Link>
+              ))}
               <div>
                 <div className="flex items-center">
                   <Link
@@ -491,7 +512,7 @@ export function SiteHeader() {
                 )}
               </div>
 
-              {simpleNav.map((n) => (
+              {navAfterShop.map((n) => (
                 <Link
                   key={n.label}
                   to={n.to}

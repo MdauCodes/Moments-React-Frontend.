@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ReactNode, useEffect, useMemo, useState } from "react";
 
 import { ScrollText, Mail, Phone, ArrowUp } from "lucide-react";
-import { COMPANY_EMAIL, COMPANY_PHONE } from "@/data/products";
+import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_PHONE_ALT } from "@/data/products";
 import { cn } from "@/lib/utils";
 
 export interface LegalSection {
@@ -185,11 +185,18 @@ export function LegalPageLayout({
                   {COMPANY_EMAIL}
                 </a>
                 <a
-                  href={`tel:${COMPANY_PHONE.replace(/\s/g, "")}`}
+                  href={`tel:+254${COMPANY_PHONE.replace(/\D/g, "").slice(-9)}`}
                   className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
                 >
                   <Phone className="h-4 w-4" aria-hidden />
                   {COMPANY_PHONE}
+                </a>
+                <a
+                  href={`tel:+254${COMPANY_PHONE_ALT.replace(/\D/g, "").slice(-9)}`}
+                  className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium text-foreground transition hover:border-accent hover:text-accent"
+                >
+                  <Phone className="h-4 w-4" aria-hidden />
+                  {COMPANY_PHONE_ALT}
                 </a>
               </div>
             </section>

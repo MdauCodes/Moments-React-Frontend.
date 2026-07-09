@@ -45,6 +45,7 @@ export const COMPANY_EMAIL = "info@momentspackaging.com";
 export const COMPANY_PHONE = "0119-55-66-88";
 export const COMPANY_PHONE_ALT = "0119-55-66-99";
 export const COMPANY_PHONE_INTL = "+254 119 556 688";
+export const COMPANY_PHONE_ALT_INTL = "+254 119 556 699";
 export const COMPANY_ADDRESS = "Weithaga Building, along Ukwala Road, OTC, Nairobi CBD";
 export const INSTAGRAM_URL = "https://instagram.com/moments_packaging";
 export const INSTAGRAM_HANDLE = "@moments_packaging";

@@ -22,11 +22,11 @@ import catLabelsStickersImg from "@/assets/categories/cat-labels-stickers.jpg";
 import catFoodContainersImg from "@/assets/categories/cat-food-containers.jpg";
 import catGiftEventImg from "@/assets/categories/cat-gift-event.jpg";
 import catBeautyPharmaImg from "@/assets/categories/cat-beauty-pharma.jpg";
-import { ArrowRight, Search, ShoppingBag, Tag, Briefcase, Coffee, Package, Gift, ChevronRight, UtensilsCrossed, ShoppingCart, Sprout, Gem, PencilLine, CookingPot } from "lucide-react";
-import { Check } from "lucide-react";
-import { DotGrid, PaperTexture, ArcStroke, CornerLines, SignatureDivider } from "@/components/BrandDecor";
-import { api } from "@/services/api";
-import type { Product } from "@/data/products";
+import { ArrowRight, Search, ShoppingBag, ChevronRight } from "lucide-react";
+import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
+import { api, type Segment } from "@/services/api";
+import type { Product, Industry } from "@/data/products";
+import { filterVisibleIndustries } from "@/data/products";
 import cloudV3 from "@/assets/packaging-cloud-hero-v3.png";
 import cloudKraft from "@/assets/packaging-cloud-hero.png";
 import ecoCluster from "@/assets/company-profile/eco-packaging-cluster.png";
@@ -64,30 +64,8 @@ const TRUST_STATS = [
   { num: "M-Pesa", label: "Accepted at checkout", desktopOnly: true },
 ];
 
-// Each card links to a real, working /products filter — either a live
-// Industry slug or an exact CATEGORY_OPTIONS value (src/data/categoryOptions.ts).
-// Previously these carried a `search` object that was computed but never
-// actually applied to the Link, so every card landed on an unfiltered page.
-const CATEGORIES = [
-  { name: "Café & restaurant", desc: "Cups, boxes, sleeves", Icon: Coffee, to: "/products?industry=food-and-beverage" },
-  { name: "Retail & e-commerce", desc: "Mailers, carrier bags", Icon: Package, to: "/products?industry=retail-and-ecommerce" },
-  { name: "Events & gifting", desc: "Gift boxes, wrapping", Icon: Gift, to: "/products?industry=hospitality" },
-  { name: "Agriculture", desc: "Sacks, liners, kraft", Icon: Sprout, to: "/products?industry=agriculture" },
-  { name: "Cosmetics", desc: "Boxes, pouches, labels", Icon: Gem, to: "/products?industry=health-and-beauty" },
-  { name: "Stationery & General", desc: "Mailers, wraps", Icon: PencilLine, to: `/products?category=${encodeURIComponent("General")}` },
-  { name: "Kitchen Essentials", desc: "Food-safe containers", Icon: CookingPot, to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
-  { name: "Enterprise", desc: "10,000+ unit runs", Icon: Briefcase, to: "/enterprise-quote" },
-];
-
-// Global industry chips — mirrors the company-profile "industries" list
-const HERO_INDUSTRIES = [
-  { Icon: UtensilsCrossed, label: "Food & Beverage", to: "/products?industry=food-and-beverage" },
-  { Icon: ShoppingCart, label: "Wholesale & E-commerce", to: "/products?industry=retail-and-ecommerce" },
-  { Icon: Sprout, label: "Agriculture", to: "/products?industry=agriculture" },
-  { Icon: Gem, label: "Cosmetics", to: "/products?industry=health-and-beauty" },
-  { Icon: PencilLine, label: "Stationery & General", to: `/products?category=${encodeURIComponent("General")}` },
-  { Icon: CookingPot, label: "Kitchen Essentials", to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
-];
+// CategoryRow (the "who we serve" strip right under the hero) is driven by
+// real backend Industries — see CategoryRow below — not a hardcoded list.
 
 // ── First-visit splash ──
 function FirstVisitSplash() {
@@ -281,14 +259,14 @@ function Hero() {
               </span>
             </Link>
             <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
-              <Link to="/products" className="hover:opacity-80">
-                Shop
-              </Link>
               <Link to="/company-profile" className="hover:opacity-80">
                 Company
               </Link>
               <Link to="/sustainability" className="hover:opacity-80">
                 Sustainability
+              </Link>
+              <Link to="/products" className="hover:opacity-80">
+                Shop
               </Link>
               <Link to="/orders/track" className="hover:opacity-80">
                 Track Order
@@ -485,23 +463,6 @@ function Hero() {
                 <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.82)" }}>M-Pesa accepted at checkout</span>
               </div>
             </div>
-
-            {/* Global industries chip strip */}
-            <div
-              className="mt-6 flex flex-wrap gap-2"
-              style={{ maxWidth: "560px" }}
-            >
-              {HERO_INDUSTRIES.map((ind) => (
-                <Link
-                  key={ind.label}
-                  to={ind.to}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.06] px-3 py-1.5 text-[11px] font-medium text-white/85 backdrop-blur-sm transition-colors hover:border-accent/50 hover:bg-white/12 hover:text-white"
-                >
-                  <ind.Icon className="h-3.5 w-3.5" style={{ color: "#e8c878" }} strokeWidth={1.8} />
-                  {ind.label}
-                </Link>
-              ))}
-            </div>
           </div>
         </div>
 
@@ -534,10 +495,10 @@ function TrustBar() {
             className="text-center flex-1"
             style={{ borderRight: i < TRUST_STATS.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}
           >
-            <div className="font-display" style={{ fontSize: "22px", color: "var(--accent)" }}>
+            <div className="font-display" style={{ fontSize: "27px", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -552,10 +513,10 @@ function TrustBar() {
               borderBottom: i < arr.length - 2 ? "1px solid rgba(255,255,255,0.06)" : "none",
             }}
           >
-            <div className="font-display" style={{ fontSize: "17px", color: "var(--accent)" }}>
+            <div className="font-display" style={{ fontSize: "20px", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.45)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -563,23 +524,35 @@ function TrustBar() {
   );
 }
 
-// ── Category row ──
+// ── Category row — real backend Industries, not a hardcoded list ──
 function CategoryRow() {
+  const [industries, setIndustries] = useState<Industry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.getIndustries().then((data) => {
+      if (!cancelled) setIndustries(filterVisibleIndustries(data));
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  if (industries.length === 0) return null;
+
   return (
     <section style={{ background: "var(--cream)" }}>
       <div className="max-w-7xl mx-auto md:grid md:grid-cols-4 flex flex-col">
-        {CATEGORIES.map((c, i) => (
+        {industries.map((ind, i) => (
           <Link
-            key={c.name}
-            to={c.to}
+            key={ind.id}
+            to={`/products?industry=${ind.slug}`}
             className="flex items-center"
             style={{
               padding: "14px 20px",
               gap: "12px",
               borderRight:
-                i < CATEGORIES.length - 1 ? "1px solid color-mix(in oklab, var(--ink) 8%, transparent)" : "none",
+                i < industries.length - 1 ? "1px solid color-mix(in oklab, var(--ink) 8%, transparent)" : "none",
               borderBottom:
-                i < CATEGORIES.length - 1 ? "1px solid color-mix(in oklab, var(--ink) 8%, transparent)" : "none",
+                i < industries.length - 1 ? "1px solid color-mix(in oklab, var(--ink) 8%, transparent)" : "none",
             }}
           >
             <span
@@ -591,17 +564,17 @@ function CategoryRow() {
                 background: "color-mix(in oklab, var(--accent) 10%, transparent)",
               }}
             >
-              <c.Icon style={{ color: "var(--accent)" }} strokeWidth={1.7} className="h-5 w-5" />
+              <ind.icon style={{ color: "var(--accent)" }} strokeWidth={1.7} className="h-5 w-5" />
             </span>
             <span className="flex-1">
               <span className="block" style={{ fontSize: "13px", fontWeight: 500, color: "var(--ink)" }}>
-                {c.name}
+                {ind.name}
               </span>
               <span
-                className="block"
+                className="block truncate"
                 style={{ fontSize: "10.5px", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
               >
-                {c.desc}
+                {ind.description}
               </span>
             </span>
             <ChevronRight className="h-4 w-4 ml-auto" style={{ color: "var(--accent)" }} />
@@ -684,20 +657,41 @@ function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "b
   );
 }
 
-// ── Category image grid ──
-type CategoryTile = { label: string; image: string; to: string };
-const categoryTiles: CategoryTile[] = [
-  { label: "Paper bags", image: catPaperBagsImg, to: `/products?category=${encodeURIComponent("Bags")}` },
-  { label: "Boxes & cartons", image: catBoxesCartonsImg, to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
-  { label: "Cups & sleeves", image: catCupsSleevesImg, to: `/products?category=${encodeURIComponent("Cups & Lids")}` },
-  { label: "Mailers & pouches", image: catMailersPouchesImg, to: `/products?category=${encodeURIComponent("Mailers & Shipping")}` },
-  { label: "Labels & stickers", image: catLabelsStickersImg, to: `/products?category=${encodeURIComponent("Miscellaneous")}` },
-  { label: "Food containers", image: catFoodContainersImg, to: `/products?category=${encodeURIComponent("Containers & Trays")}` },
-  { label: "Gift & event", image: catGiftEventImg, to: `/products?category=${encodeURIComponent("Gifting & Retail")}` },
-  { label: "Beauty & pharma", image: catBeautyPharmaImg, to: "/products?industry=health-and-beauty" },
+// ── Category image grid — real backend Segments, images picked by best-fit
+// keyword match against the existing photo set (swap in dedicated segment
+// photos later; this just makes sure every segment shows something sensible
+// today instead of a hardcoded, drifting-from-the-backend tile list). ──
+const SEGMENT_IMAGE_POOL = [
+  catPaperBagsImg, catBoxesCartonsImg, catCupsSleevesImg, catMailersPouchesImg,
+  catLabelsStickersImg, catFoodContainersImg, catGiftEventImg, catBeautyPharmaImg,
 ];
 
+function imageForSegment(name: string, fallbackIndex: number): string {
+  const n = name.toLowerCase();
+  if (n.includes("bag") || n.includes("sack")) return catPaperBagsImg;
+  if (n.includes("wooden")) return catBoxesCartonsImg;
+  if (n.includes("drink") || n.includes("cup")) return catCupsSleevesImg;
+  if (n.includes("agricult")) return catMailersPouchesImg;
+  if (n.includes("general") || n.includes("stationer")) return catLabelsStickersImg;
+  if (n.includes("food") || n.includes("tableware") || n.includes("cutlery") || n.includes("kitchen") || n.includes("dairy")) return catFoodContainersImg;
+  if (n.includes("branding") || n.includes("gift")) return catGiftEventImg;
+  if (n.includes("cosmetic") || n.includes("pharma") || n.includes("hygiene")) return catBeautyPharmaImg;
+  return SEGMENT_IMAGE_POOL[fallbackIndex % SEGMENT_IMAGE_POOL.length];
+}
+
 function CategoryGrid() {
+  const [segments, setSegments] = useState<Segment[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.getSegments().then((data) => {
+      if (!cancelled) setSegments(data);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
+  if (segments.length === 0) return null;
+
   return (
     <section className="relative overflow-hidden bg-cream">
       <PaperTexture opacity={0.06} />
@@ -718,21 +712,21 @@ function CategoryGrid() {
           </Link>
         </div>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-4 md:grid-cols-4">
-          {categoryTiles.map((tile) => (
+          {segments.map((seg, i) => (
             <Link
-              key={tile.label}
-              to={tile.to}
+              key={seg.id}
+              to={`/products?segmentId=${seg.id}`}
               className="group relative overflow-hidden rounded-2xl aspect-square sm:aspect-[4/3] block"
             >
               <img
-                src={tile.image}
-                alt={tile.label}
+                src={imageForSegment(seg.name, i)}
+                alt={seg.name}
                 loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
               <span className="absolute bottom-3 left-3 right-3 font-display text-sm font-semibold text-white sm:text-base">
-                {tile.label}
+                {seg.name}
               </span>
             </Link>
           ))}
@@ -741,63 +735,84 @@ function CategoryGrid() {
     </section>
   );
 }
-
-// ── Audiences we serve ──
-const audienceColumns = [
+// ── Promo carousel — auto-advancing, sits right below the hero banner ──
+const PROMO_SLIDES = [
   {
-    Icon: Gift,
-    role: "Individuals",
-    blurb: "Weddings, birthdays, anniversaries and personal gifting — order what you need, no minimums.",
-    examples: ["Wedding favours", "Birthday gift boxes", "One-off event packs"],
+    key: "deals",
+    eyebrow: "Save today",
+    title: "Deals",
+    body: "Discounted packaging, while stock lasts.",
+    to: "/products?deals=true",
+    bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)",
   },
   {
-    Icon: ShoppingBag,
-    role: "Small businesses & shops",
-    blurb: "Cafés, restaurants, retail and online sellers — quality packaging on a turnaround that fits your week.",
-    examples: ["Takeaway cups & boxes", "Branded carrier bags", "E-commerce mailers"],
+    key: "new",
+    eyebrow: "Just landed",
+    title: "New arrivals",
+    body: "The latest additions to the catalogue.",
+    to: "/products?newArrivals=true",
+    bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)",
   },
   {
-    Icon: Package,
-    role: "Companies & enterprise",
-    blurb: "Volume orders, contracts and procurement — formal quotes and a dedicated contact for every rollout.",
-    examples: ["10,000+ unit runs", "National brand rollouts", "Scheduled deliveries"],
+    key: "best",
+    eyebrow: "Customer favourites",
+    title: "Best sellers",
+    body: "What Kenyan businesses order most.",
+    to: "/products?fastMoving=true",
+    bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)",
   },
 ];
 
-function AudiencesWeServe() {
+function PromoCarousel() {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setActive((i) => (i + 1) % PROMO_SLIDES.length);
+    }, 4500);
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
-    <section className="relative overflow-hidden bg-cream">
-      <DotGrid opacity={0.04} size={14} />
-      <ArcStroke className="-right-32 top-1/2 h-80 w-80 -translate-y-1/2" color="kraft" opacity={0.06} />
-      <div className="relative mx-auto max-w-6xl px-5 py-14 sm:py-20 lg:px-8">
-        <div className="max-w-2xl">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-accent">Who we pack for</p>
-          <h2 className="mt-2 font-display text-3xl font-medium text-foreground sm:text-4xl">
-            Whether you&apos;re an individual, a small business, or a large enterprise — we serve all of you.
-          </h2>
-          <p className="mt-3 text-sm text-muted-foreground sm:text-base">
-            One catalogue, one production line, three kinds of customers. Same quality, same craft — scaled to whatever
-            you&apos;re ordering.
-          </p>
-        </div>
-        <div className="mt-10 grid gap-8 border-t border-border pt-10 sm:grid-cols-3 sm:gap-6">
-          {audienceColumns.map((col) => (
-            <div key={col.role} className="flex flex-col">
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
-                <col.Icon className="h-5 w-5" strokeWidth={1.75} />
+    <section className="bg-cream">
+      <div className="mx-auto max-w-7xl px-5 py-4 lg:px-8">
+        <div className="relative overflow-hidden rounded-2xl" style={{ height: "108px" }}>
+          {PROMO_SLIDES.map((slide, i) => (
+            <Link
+              key={slide.key}
+              to={slide.to}
+              className="absolute inset-0 flex items-center justify-between px-6 transition-opacity duration-700 sm:px-10"
+              style={{
+                background: slide.bg,
+                opacity: i === active ? 1 : 0,
+                pointerEvents: i === active ? "auto" : "none",
+              }}
+            >
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/60">{slide.eyebrow}</p>
+                <p className="mt-1 font-display text-2xl font-medium text-white sm:text-3xl">{slide.title}</p>
+                <p className="mt-1 hidden text-sm text-white/70 sm:block">{slide.body}</p>
+              </div>
+              <span
+                className="inline-flex shrink-0 items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold"
+                style={{ background: "#e8c878", color: "#0d3320" }}
+              >
+                Shop now <ArrowRight className="h-3.5 w-3.5" />
               </span>
-              <h3 className="mt-4 font-display text-lg font-semibold text-foreground">{col.role}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{col.blurb}</p>
-              <ul className="mt-4 space-y-1.5 border-t border-border/60 pt-4">
-                {col.examples.map((ex) => (
-                  <li key={ex} className="flex items-start gap-2 text-xs text-foreground/75">
-                    <Check className="mt-0.5 h-3 w-3 shrink-0 text-accent" />
-                    <span>{ex}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            </Link>
           ))}
+          <div className="absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 gap-1.5">
+            {PROMO_SLIDES.map((slide, i) => (
+              <button
+                key={slide.key}
+                type="button"
+                aria-label={`Show ${slide.title} slide`}
+                onClick={() => setActive(i)}
+                className="h-1.5 rounded-full transition-all"
+                style={{ width: i === active ? "18px" : "6px", background: i === active ? "#e8c878" : "rgba(255,255,255,0.5)" }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -814,6 +829,7 @@ function HomePage() {
         <AddToHomeScreenPrompt />
         <main className="flex-1 pb-16 md:pb-0">
           <Hero />
+          <PromoCarousel />
           <CategoryRow />
           <GuaranteeBand />
           <ProductRow
@@ -838,7 +854,6 @@ function HomePage() {
           />
           <CategoryGrid />
           <TestimonialsSection />
-          <AudiencesWeServe />
           <LatestBlogsStrip />
         </main>
         <SiteFooter />
