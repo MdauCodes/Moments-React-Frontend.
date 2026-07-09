@@ -98,7 +98,7 @@ function HomeNav() {
             alt="Moments Packaging Kenya logo"
             width={160}
             height={40}
-            className="h-[72px] w-auto sm:h-20 lg:h-[88px]"
+            className="h-9 w-auto sm:h-10 lg:h-11"
           />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
@@ -768,73 +768,95 @@ function PromoCarousel() {
   if (allEmpty) return null;
 
   const tab = CAROUSEL_TABS[active];
-  const products = productsByTab[active];
-  const featured = products?.[0];
+  const products = productsByTab[active] ?? [];
+  const showcase = products.slice(0, 4);
 
   return (
     <section className="bg-cream">
       <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
-        <Link
-          to={featured ? `/products/${featured.slug}` : tab.seeAllHref}
-          className="group relative block h-64 overflow-hidden rounded-2xl sm:h-80 lg:h-96"
-          style={{ background: tab.bg }}
-        >
-          {featured?.primaryImageUrl && (
-            <img
-              src={featured.primaryImageUrl}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-90 transition-transform duration-700 group-hover:scale-105"
-            />
-          )}
-          {/* Ad-style scrim: dark bottom-left for copy, open top-right to
-              let the product shot read as the hero image, not a thumbnail. */}
+        {/* Elegant promotional module: themed dark panel with bold copy on
+            one side and several elevated product cards showcased on the
+            other — reads as a proper "deal of the day" promo, not a single
+            billboard image or a cramped row of thumbnails. */}
+        <div className="relative overflow-hidden rounded-2xl" style={{ background: tab.bg }}>
           <div
-            className="absolute inset-0"
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.06]"
             style={{
-              background:
-                "linear-gradient(20deg, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.55) 38%, rgba(0,0,0,0.1) 62%, transparent 80%)",
+              backgroundImage: "radial-gradient(circle at 20% 20%, white 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
             }}
           />
-
-          <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/90 sm:text-xs">
-              {tab.eyebrow}
-            </p>
-            <h2 className="mt-1 font-display text-4xl font-medium text-white sm:text-5xl lg:text-6xl">
-              {tab.title}
-            </h2>
-            {featured && (
-              <p className="mt-2 max-w-md text-sm text-white/85 sm:text-base">
-                {featured.name}
-                {featured.basePrice !== undefined && (
-                  <span className="text-white"> — KES {featured.basePrice.toLocaleString()}</span>
-                )}
+          <div className="relative grid gap-8 p-6 sm:p-10 lg:grid-cols-[300px_1fr] lg:items-center lg:gap-12">
+            {/* Copy */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/90">{tab.eyebrow}</p>
+              <h2 className="mt-2 font-display text-4xl font-medium text-white sm:text-5xl">{tab.title}</h2>
+              <p className="mt-3 max-w-xs text-sm text-white/80">
+                A handful of picks worth a look, refreshed regularly.
               </p>
-            )}
-            <span
-              className="mt-5 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
-              style={{ background: "#e8c878", color: "#0d3320" }}
-            >
-              {tab.cta} <ArrowRight className="h-4 w-4" />
-            </span>
-          </div>
+              <Link
+                to={tab.seeAllHref}
+                className="mt-6 inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-transform hover:-translate-y-0.5"
+                style={{ background: "#e8c878", color: "#0d3320" }}
+              >
+                {tab.cta} <ArrowRight className="h-4 w-4" />
+              </Link>
+              <div className="mt-6 flex gap-1.5">
+                {CAROUSEL_TABS.map((t, i) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    aria-label={`Show ${t.title}`}
+                    onClick={() => setActive(i)}
+                    className="h-1.5 rounded-full transition-all"
+                    style={{ width: i === active ? "20px" : "6px", background: i === active ? "#e8c878" : "rgba(255,255,255,0.35)" }}
+                  />
+                ))}
+              </div>
+            </div>
 
-          <div className="absolute bottom-6 right-6 flex gap-1.5 sm:bottom-10 sm:right-10">
-            {CAROUSEL_TABS.map((t, i) => (
-              <button
-                key={t.key}
-                type="button"
-                aria-label={`Show ${t.title}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setActive(i);
-                }}
-                className="h-1.5 rounded-full transition-all"
-                style={{ width: i === active ? "20px" : "6px", background: i === active ? "#e8c878" : "rgba(255,255,255,0.45)" }}
-              />
-            ))}
+            {/* Product showcase */}
+            <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0">
+              {showcase.length === 0
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="w-36 shrink-0 overflow-hidden rounded-xl bg-white/95 shadow-lg sm:w-auto">
+                      <div className="shimmer aspect-square w-full" />
+                      <div className="p-3">
+                        <div className="shimmer h-3 w-4/5 rounded" />
+                        <div className="shimmer mt-2 h-2.5 w-1/2 rounded" />
+                      </div>
+                    </div>
+                  ))
+                : showcase.map((p) => (
+                    <Link
+                      key={p.id}
+                      to={`/products/${p.slug}`}
+                      className="group w-36 shrink-0 overflow-hidden rounded-xl bg-white shadow-lg transition-transform hover:-translate-y-1 sm:w-auto"
+                    >
+                      <div className="aspect-square w-full overflow-hidden bg-secondary">
+                        {p.primaryImageUrl && (
+                          <img
+                            src={p.primaryImageUrl}
+                            alt={p.name}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className="line-clamp-1 text-xs font-medium text-foreground sm:text-sm">{p.name}</p>
+                        {p.basePrice !== undefined && (
+                          <p className="mt-0.5 text-xs font-semibold" style={{ color: "#0d3320" }}>
+                            KES {p.basePrice.toLocaleString()}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+            </div>
           </div>
-        </Link>
+        </div>
       </div>
     </section>
   );
