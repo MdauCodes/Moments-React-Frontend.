@@ -221,42 +221,16 @@ function Hero() {
           }}
         >
           <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
-            <Link to="/" aria-label="Moments Packaging (K) Limited — Home" className="flex items-center gap-2 sm:gap-3">
-              <span
-                aria-hidden
-                style={{
-                  display: "inline-block",
-                  width: "112px",
-                  height: "26px",
-                  background: "#a8e0a0",
-                  WebkitMaskImage: `url(${logoUrl})`,
-                  maskImage: `url(${logoUrl})`,
-                  WebkitMaskSize: "contain",
-                  maskSize: "contain",
-                  WebkitMaskRepeat: "no-repeat",
-                  maskRepeat: "no-repeat",
-                  WebkitMaskPosition: "left center",
-                  maskPosition: "left center",
-                }}
-                className="sm:!w-[128px] sm:!h-[30px]"
+            <Link to="/" aria-label="Moments Packaging Kenya — Home" className="flex shrink-0 items-center">
+              {/* Same plain logo image used everywhere else on the site
+                  (header on every other page) — not a recoloured mask. */}
+              <img
+                src={logoUrl}
+                alt="Moments Packaging Kenya logo"
+                width={160}
+                height={40}
+                className="h-9 w-auto sm:h-10 lg:h-11"
               />
-              <span
-                className="inline-block"
-                style={{
-                  fontSize: "10px",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.92)",
-                  borderLeft: "1px solid rgba(255,255,255,0.35)",
-                  paddingLeft: "10px",
-                  lineHeight: 1.15,
-                  fontWeight: 600,
-                }}
-              >
-                Packaging
-                <br />
-                (K) Limited
-              </span>
             </Link>
             <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
               <Link to="/company-profile" className="hover:opacity-80">
@@ -745,15 +719,51 @@ const CAROUSEL_TABS = [
   { key: "best", eyebrow: "Customer favourites", title: "Best sellers", seeAllHref: "/products?fastMoving=true", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
 ];
 
+/** Small thumbnail-style card for the promo carousel — deliberately much
+ * smaller than the standard ProductCard (no tier picker/add-to-cart, just
+ * enough to browse and tap through) so this section reads as a quick,
+ * dense preview strip rather than a full product grid. */
+function MiniProductCard({ product }: { product: Product }) {
+  return (
+    <Link
+      to={`/products/${product.slug}`}
+      className="group block w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-card transition-shadow hover:shadow-md sm:w-28"
+    >
+      <div className="aspect-square w-full overflow-hidden bg-secondary">
+        {product.primaryImageUrl && (
+          <img
+            src={product.primaryImageUrl}
+            alt={product.name}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        )}
+      </div>
+      <div className="p-1.5">
+        <p className="line-clamp-2 text-[10.5px] font-medium leading-snug text-foreground">{product.name}</p>
+        {product.basePrice !== undefined && (
+          <p className="mt-0.5 text-[10px] text-muted-foreground">KES {product.basePrice.toLocaleString()}</p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function MiniProductCardSkeleton() {
+  return (
+    <div className="w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-card sm:w-28">
+      <div className="shimmer aspect-square w-full" />
+      <div className="p-1.5">
+        <div className="shimmer h-2.5 w-4/5 rounded" />
+        <div className="shimmer mt-1 h-2 w-1/2 rounded" />
+      </div>
+    </div>
+  );
+}
+
 function PromoCarousel() {
   const [active, setActive] = useState(0);
   const [productsByTab, setProductsByTab] = useState<Record<number, Product[]>>({});
-  const [configuring, setConfiguring] = useState<Product | null>(null);
-  const [preTier, setPreTier] = useState<string | null>(null);
-  const handleConfigure = (p: Product, tierId?: string) => {
-    setPreTier(tierId ?? null);
-    setConfiguring(p);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -810,21 +820,12 @@ function PromoCarousel() {
             </div>
           </div>
         </div>
-        <div className="mt-4 -mx-5 flex gap-3 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0">
+        <div className="mt-4 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto px-5 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           {products === undefined
-            ? Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="grid w-[45vw] shrink-0 sm:w-auto">
-                  <ProductCardSkeleton />
-                </div>
-              ))
-            : products.slice(0, 4).map((p) => (
-                <div key={p.id} className="grid w-[45vw] shrink-0 sm:w-auto">
-                  <ProductCard product={p} onConfigure={handleConfigure} />
-                </div>
-              ))}
+            ? Array.from({ length: 8 }).map((_, i) => <MiniProductCardSkeleton key={i} />)
+            : products.slice(0, 8).map((p) => <MiniProductCard key={p.id} product={p} />)}
         </div>
       </div>
-      <ConfiguratorModal product={configuring} preSelectedTierId={preTier} onClose={() => setConfiguring(null)} />
     </section>
   );
 }

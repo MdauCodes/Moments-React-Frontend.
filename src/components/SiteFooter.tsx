@@ -14,6 +14,7 @@ import {
   categories,
 } from "@/data/products";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
+import logoUrl from "@/assets/moments_logo_without_background.png";
 import { getPrivacyPolicyContent } from "@/routes/privacy";
 import { getTermsContent } from "@/routes/terms";
 import { getRefundsContent } from "@/routes/refunds";
@@ -83,11 +84,12 @@ export function SiteFooter() {
       <div className="mx-auto grid gap-8 px-5 py-12 sm:grid-cols-2 sm:gap-10 sm:py-16 md:grid-cols-3 lg:grid-cols-5 max-w-7xl lg:px-8">
         {/* Brand col */}
         <div>
-          <div className="flex items-center gap-2">
-            <span className="grid h-10 w-10 place-items-center rounded-md bg-primary-foreground/10 font-display text-xl text-primary-foreground">
-              m
-            </span>
-            <span className="font-display text-xl">Moments Packaging</span>
+          {/* Same logo image used everywhere else on the site, not a
+              lettermark — given a light backing since the actual logo's
+              dark-green wordmark would otherwise disappear against this
+              dark footer background. */}
+          <div className="inline-flex rounded-lg bg-white/95 px-3 py-2">
+            <img src={logoUrl} alt="Moments Packaging Kenya logo" width={160} height={40} className="h-8 w-auto" />
           </div>
         </div>
 
@@ -266,7 +268,7 @@ export function SiteFooter() {
         <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
           <nav
             aria-label="Legal and support"
-            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-center sm:justify-start"
+            className="flex flex-col items-center gap-3 text-center sm:items-start"
           >
             <button
               type="button"
