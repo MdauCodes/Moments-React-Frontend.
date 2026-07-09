@@ -14,6 +14,45 @@
 
 import { jsPDF } from "jspdf";
 import autoTable, { type RowInput, type UserOptions } from "jspdf-autotable";
+import logoUrl from "@/assets/moments_logo_without_background.png";
+
+// ── Logo — loaded once, converted to a PNG data URL so jsPDF can embed it ──────
+interface LogoData {
+  dataUrl: string;
+  aspect: number; // width / height
+}
+let logoPromise: Promise<LogoData | null> | null = null;
+
+function loadLogo(): Promise<LogoData | null> {
+  if (!logoPromise) {
+    logoPromise = new Promise((resolve) => {
+      if (typeof window === "undefined" || typeof Image === "undefined") {
+        resolve(null);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(img, 0, 0);
+          resolve({ dataUrl: canvas.toDataURL("image/png"), aspect: img.naturalWidth / img.naturalHeight });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = logoUrl;
+    });
+  }
+  return logoPromise;
+}
 
 // ── Brand constants ───────────────────────────────────────────────────────────
 const BRAND = {
@@ -61,14 +100,24 @@ const fmtDT = (d: string | Date) =>
 
 // ── Shared chrome helpers ─────────────────────────────────────────────────────
 
+interface MetaRow {
+  label: string;
+  value: string;
+}
+
 interface MastheadOpts {
   docType: string;
+  /** Stripe-style label/value rows under the title — used by the invoice/
+   *  receipt. Falls back to the old single-line Ref/Issued layout when
+   *  omitted, so the other three document types are unaffected. */
+  meta?: MetaRow[];
   reference?: string;
   issuedAt?: string | Date;
   kraPin?: string | null;
+  logo?: LogoData | null;
 }
 
-/** Renders brass band, wordmark, doc-type label and hairline.
+/** Renders brass band, doc-type title, metadata/wordmark and hairline.
  *  Returns Y immediately after the hairline. */
 function masthead(doc: jsPDF, opts: MastheadOpts): number {
   const pw = doc.internal.pageSize.getWidth();
@@ -77,40 +126,71 @@ function masthead(doc: jsPDF, opts: MastheadOpts): number {
   doc.setFillColor(...ACCENT);
   doc.rect(0, 0, pw, 5, "F");
 
-  // Wordmark — left rail
-  doc.setTextColor(...INK);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.text(BRAND.name.toUpperCase(), 14, 17);
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  doc.text(BRAND.tagline, 14, 22);
-  const contactLine = `${BRAND.address}  ·  ${BRAND.phone}  ·  ${BRAND.email}  ·  ${BRAND.site}`;
-  doc.text(opts.kraPin ? `${contactLine}  ·  KRA PIN ${opts.kraPin}` : contactLine, 14, 26.5);
-
-  // Doc type — right rail
-  doc.setTextColor(...INK);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.text(opts.docType.toUpperCase(), pw - 14, 17, { align: "right" });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.5);
-  doc.setTextColor(...MUTED);
-  if (opts.reference) {
-    doc.text(`Ref  ${opts.reference}`, pw - 14, 22, { align: "right" });
+  // Logo — top-right, real company mark
+  const logoH = 12;
+  if (opts.logo) {
+    const logoW = logoH * opts.logo.aspect;
+    doc.addImage(opts.logo.dataUrl, "PNG", pw - 14 - logoW, 9, logoW, logoH);
   }
-  doc.text(`Issued  ${opts.issuedAt ? fmtDT(opts.issuedAt) : fmtDT(new Date())}`, pw - 14, 26.5, { align: "right" });
+
+  let bottomY: number;
+
+  if (opts.meta) {
+    // Bold title top-left, label/value metadata rows beneath it — mirrors a
+    // standard invoice layout (title, then Invoice number / Date / etc).
+    doc.setTextColor(...INK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(19);
+    doc.text(opts.docType, 14, 19);
+
+    let my = 26;
+    doc.setFontSize(8.5);
+    opts.meta.forEach((row) => {
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(...MUTED);
+      doc.text(row.label, 14, my);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...INK);
+      doc.text(row.value, 48, my);
+      my += 4.6;
+    });
+    bottomY = Math.max(my + 1.5, logoH + 13);
+  } else {
+    // Legacy single-line layout for dispatch/report/statement docs.
+    doc.setTextColor(...INK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text(BRAND.name.toUpperCase(), 14, 17);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text(BRAND.tagline, 14, 22);
+    const contactLine = `${BRAND.address}  ·  ${BRAND.phone}  ·  ${BRAND.email}  ·  ${BRAND.site}`;
+    doc.text(opts.kraPin ? `${contactLine}  ·  KRA PIN ${opts.kraPin}` : contactLine, 14, 26.5);
+
+    doc.setTextColor(...INK);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text(opts.docType.toUpperCase(), pw - 14, 17, { align: "right" });
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(...MUTED);
+    if (opts.reference) {
+      doc.text(`Ref  ${opts.reference}`, pw - 14, 22, { align: "right" });
+    }
+    doc.text(`Issued  ${opts.issuedAt ? fmtDT(opts.issuedAt) : fmtDT(new Date())}`, pw - 14, 26.5, { align: "right" });
+    bottomY = 33;
+  }
 
   // Hairline
   doc.setDrawColor(...HAIRLINE);
   doc.setLineWidth(0.3);
-  doc.line(14, 33, pw - 14, 33);
+  doc.line(14, bottomY, pw - 14, bottomY);
 
   doc.setTextColor(...INK);
-  return 36;
+  return bottomY + 3;
 }
 
 function sectionLabel(doc: jsPDF, text: string, x: number, y: number) {
@@ -127,22 +207,6 @@ function hline(doc: jsPDF, y: number, color: [number, number, number] = HAIRLINE
   doc.setDrawColor(...color);
   doc.setLineWidth(lw);
   doc.line(14, y, pw - 14, y);
-}
-
-function statusPill(doc: jsPDF, label: string, x: number, y: number, paid: boolean) {
-  const pw = 48;
-  const fill: [number, number, number] = paid ? [232, 245, 235] : [255, 245, 225];
-  const border: [number, number, number] = paid ? [100, 180, 110] : [200, 150, 60];
-  const text: [number, number, number] = paid ? SUCCESS : [140, 90, 0];
-  doc.setFillColor(...fill);
-  doc.setDrawColor(...border);
-  doc.roundedRect(x - pw / 2, y - 5.5, pw, 7, 1.5, 1.5, "FD");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(7.5);
-  doc.setTextColor(...text);
-  doc.text(label.toUpperCase(), x, y - 0.5, { align: "center" });
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...INK);
 }
 
 function kpiCard(doc: jsPDF, x: number, y: number, w: number, h: number, label: string, value: string) {
@@ -219,6 +283,7 @@ export interface ReceiptOrder {
   invoiceNumber?: string | null;
   businessKraPin?: string | null;
   createdAt: string;
+  paidAt?: string | null;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -243,57 +308,80 @@ export interface ReceiptOrder {
   items: ReceiptItem[];
 }
 
-export function downloadReceiptPdf(order: ReceiptOrder) {
+export async function downloadReceiptPdf(order: ReceiptOrder) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
+  const logo = await loadLogo();
 
   const paid = ["PAID", "COMPLETED", "SUCCESS"].includes((order.paymentStatus ?? "").toUpperCase());
+  const mpesaRef = order.receiptNumber ?? order.paymentReference;
+  const docType = paid ? "Receipt" : order.invoiceNumber ? "Tax Invoice" : "Pro-Forma Invoice";
 
-  let y = masthead(doc, {
-    docType: order.invoiceNumber ? "Tax Invoice" : "Pro-Forma Invoice",
-    reference: order.invoiceNumber ? `${order.reference}  ·  ${order.invoiceNumber}` : order.reference,
-    issuedAt: order.createdAt,
-    kraPin: order.businessKraPin,
-  });
-  y += 4;
+  const meta: MetaRow[] = [{ label: "Invoice number", value: order.invoiceNumber ?? order.reference }];
+  if (paid) {
+    meta.push({ label: "Receipt number", value: mpesaRef ?? order.reference });
+    meta.push({ label: "Date paid", value: fmtDate(order.paidAt ?? order.createdAt) });
+  } else {
+    meta.push({ label: "Date of issue", value: fmtDate(order.createdAt) });
+  }
+  if (order.businessKraPin) meta.push({ label: "KRA PIN", value: order.businessKraPin });
 
-  // Status pill — top right
-  statusPill(doc, paid ? "Payment Received" : (order.paymentStatus ?? "Pending"), pw - 14 - 24, y + 2, paid);
+  let y = masthead(doc, { docType, meta, logo });
+  y += 3;
 
-  // ── Party info ────────────────────────────────────────────────────────────
-  sectionLabel(doc, "Bill To", 14, y);
-  sectionLabel(doc, "Ship To", pw / 2, y);
+  // ── From / Bill to ────────────────────────────────────────────────────────
+  sectionLabel(doc, "From", 14, y);
+  sectionLabel(doc, "Bill To", pw / 2, y);
   y += 5;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
-  doc.text(order.customerName, 14, y);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.text(order.shippingAddress || "—", pw / 2, y);
+  doc.text(BRAND.name, 14, y);
+  doc.text(order.customerName, pw / 2, y);
   y += 5;
 
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...MUTED);
-  doc.text(order.customerEmail, 14, y);
-  doc.text([order.city, order.county, order.postalCode, "Kenya"].filter(Boolean).join(", "), pw / 2, y);
+  doc.text(BRAND.address, 14, y);
+  doc.text(order.customerEmail, pw / 2, y);
   y += 5;
-  doc.text(order.customerPhone, 14, y);
+  doc.text(BRAND.phone, 14, y);
+  doc.text(order.customerPhone, pw / 2, y);
+  y += 5;
+  doc.text(BRAND.email, 14, y);
+  doc.text(order.shippingAddress || "—", pw / 2, y);
+  y += 5;
+  const shipLocation = [order.city, order.county, order.postalCode, "Kenya"].filter(Boolean).join(", ");
+  doc.text(shipLocation, pw / 2, y);
   if (order.fulfillmentType) {
     const label = order.fulfillmentType.replace(/_/g, " ");
     const detail = order.courierServiceName ? ` — ${order.courierServiceName}` : "";
+    y += 5;
     doc.text(`Delivery: ${label}${detail}`, pw / 2, y);
   }
   doc.setTextColor(...INK);
-  y += 3;
+  y += 5;
 
   if (order.promoCode) {
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
-    doc.text(`Promo code applied: ${order.promoCode}`, 14, y + 3);
+    doc.text(`Promo code applied: ${order.promoCode}`, 14, y);
     doc.setTextColor(...INK);
     y += 5;
   }
+
+  // ── Amount statement — the headline figure, like a trusted invoice/receipt ──
+  y += 3;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(...(paid ? SUCCESS : INK));
+  const amountLine = paid
+    ? `${fmt(order.total)} paid on ${fmtDate(order.paidAt ?? order.createdAt)}`
+    : `${fmt(order.total)} due`;
+  doc.text(amountLine, 14, y);
+  doc.setTextColor(...INK);
+  y += 6;
 
   // ── Items table ───────────────────────────────────────────────────────────
   const vatRate = order.vatRate != null ? Math.round(order.vatRate * 100) : 16;
@@ -356,34 +444,47 @@ export function downloadReceiptPdf(order: ReceiptOrder) {
   ty += 2;
   totRow(`TOTAL  (${order.currency ?? "KES"})`, fmt(order.total), true);
 
-  // ── Payment details box ───────────────────────────────────────────────────
-  ty += 5;
-  doc.setDrawColor(...HAIRLINE);
-  doc.setFillColor(...PAPER);
-  doc.roundedRect(14, ty, pw - 28, 26, 2, 2, "FD");
-  sectionLabel(doc, "Payment Details", 18, ty + 6.5);
-
-  doc.setFontSize(9);
-  doc.setTextColor(...INK);
-  const col2x = pw / 2;
-  const mpesaRef = order.receiptNumber ?? order.paymentReference;
-
-  doc.text(`Method:  ${(order.paymentMethod ?? "—").replace(/_/g, " ")}`, 18, ty + 13);
-  doc.text("Status:  ", 18, ty + 19);
-  doc.setFont("helvetica", "bold");
-  doc.setTextColor(...(paid ? SUCCESS : DANGER));
-  doc.text(order.paymentStatus ?? "Pending", 30, ty + 19);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(...INK);
-
-  if (mpesaRef) {
-    doc.text(`M-Pesa receipt:  ${mpesaRef}`, col2x, ty + 13);
+  // ── Payment history ───────────────────────────────────────────────────────
+  ty += 6;
+  if (paid) {
+    sectionLabel(doc, "Payment History", 14, ty);
+    autoTable(doc, {
+      ...TABLE_DEFAULTS,
+      startY: ty + 3,
+      head: [["Payment method", "Date", "Amount paid", "Receipt number"]],
+      body: [
+        [
+          (order.paymentMethod ?? "—").replace(/_/g, " "),
+          fmtDate(order.paidAt ?? order.createdAt),
+          fmt(order.total),
+          mpesaRef ?? "—",
+        ],
+      ] as RowInput[],
+      columnStyles: {
+        2: { halign: "right" },
+        3: { halign: "right" },
+      },
+    });
+    ty = (doc as any).lastAutoTable?.finalY ?? ty + 18;
+  } else {
+    doc.setDrawColor(...HAIRLINE);
+    doc.setFillColor(...PAPER);
+    doc.roundedRect(14, ty, pw - 28, 20, 2, 2, "FD");
+    sectionLabel(doc, "Payment Details", 18, ty + 6.5);
+    doc.setFontSize(9);
+    doc.setTextColor(...INK);
+    doc.text(`Method:  ${(order.paymentMethod ?? "—").replace(/_/g, " ")}`, 18, ty + 13);
+    doc.text("Status:  ", pw / 2, ty + 13);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...DANGER);
+    doc.text(order.paymentStatus ?? "Pending", pw / 2 + 12, ty + 13);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...INK);
+    ty += 28;
   }
-  doc.text(`Order date:  ${fmtDT(order.createdAt)}`, col2x, ty + 19);
-
-  ty += 34;
 
   // ── Thank-you ─────────────────────────────────────────────────────────────
+  ty += 8;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10.5);
   doc.text("Thank you for choosing Moments Packaging Kenya.", 14, ty);
@@ -396,7 +497,7 @@ export function downloadReceiptPdf(order: ReceiptOrder) {
   });
   ty += 7;
   doc.text(
-    "This is a computer-generated invoice valid without a signature. " +
+    `This is a computer-generated ${docType.toLowerCase()} valid without a signature. ` +
       "Retain for warranty claims, exchanges and returns within 14 days of delivery.",
     14,
     ty,
@@ -404,14 +505,19 @@ export function downloadReceiptPdf(order: ReceiptOrder) {
   );
   ty += 7;
   doc.text(
-    "This is a sales invoice issued directly by Moments Packaging. It is not yet transmitted through KRA's " +
+    "This document is issued directly by Moments Packaging. It is not yet transmitted through KRA's " +
       "eTIMS system. Please retain your order confirmation and payment receipt for your records.",
     14,
     ty,
     { maxWidth: pw - 28 },
   );
 
-  save(doc, `invoice-${order.reference}.pdf`, `${BRAND.name}  ·  Invoice ${order.reference}  ·  ${BRAND.site}`);
+  const filePrefix = docType === "Receipt" ? "receipt" : "invoice";
+  save(
+    doc,
+    `${filePrefix}-${order.reference}.pdf`,
+    `${BRAND.name}  ·  ${docType} ${order.reference}  ·  ${BRAND.site}`,
+  );
 }
 
 // ── 2. Dispatch packing checklist ─────────────────────────────────────────────
@@ -439,13 +545,15 @@ export interface DispatchOrderLike {
   items: DispatchItem[];
 }
 
-export function downloadDispatchChecklistPdf(order: DispatchOrderLike) {
+export async function downloadDispatchChecklistPdf(order: DispatchOrderLike) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
+  const logo = await loadLogo();
 
   let y = masthead(doc, {
     docType: "Dispatch Checklist",
     reference: order.reference,
+    logo,
   });
   y += 4;
 
@@ -602,15 +710,19 @@ export interface OrdersListRow {
   promoCode?: string | null;
 }
 
-export function downloadOrdersListPdf(rows: OrdersListRow[], meta: { filterLabel?: string; dateRange?: string } = {}) {
+export async function downloadOrdersListPdf(
+  rows: OrdersListRow[],
+  meta: { filterLabel?: string; dateRange?: string } = {},
+) {
   const doc = new jsPDF({
     unit: "mm",
     format: "a4",
     orientation: "landscape",
   });
   const pw = doc.internal.pageSize.getWidth();
+  const logo = await loadLogo();
 
-  let y = masthead(doc, { docType: "Orders Report" });
+  let y = masthead(doc, { docType: "Orders Report", logo });
   y += 3;
 
   // Filter label
@@ -675,11 +787,12 @@ export interface StatementCustomer {
   lastOrderAt?: string | null;
 }
 
-export function downloadCustomerStatementPdf(customer: StatementCustomer, orders: OrdersListRow[]) {
+export async function downloadCustomerStatementPdf(customer: StatementCustomer, orders: OrdersListRow[]) {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
+  const logo = await loadLogo();
 
-  let y = masthead(doc, { docType: "Customer Statement" });
+  let y = masthead(doc, { docType: "Customer Statement", logo });
   y += 4;
 
   // ── Identity ──────────────────────────────────────────────────────────────

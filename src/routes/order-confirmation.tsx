@@ -126,6 +126,7 @@ function OrderConfirmationPage() {
                   invoiceNumber: order.invoiceNumber,
                   businessKraPin,
                   createdAt: order.createdAt,
+                  paidAt: order.paidAt,
                   customerName: order.customerName,
                   customerEmail: order.customerEmail,
                   customerPhone: order.customerPhone,
