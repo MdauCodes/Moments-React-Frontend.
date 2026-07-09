@@ -82,15 +82,39 @@ export function SiteFooter() {
       }}
     >
       <div className="mx-auto grid gap-8 px-5 py-12 sm:grid-cols-2 sm:gap-10 sm:py-16 md:grid-cols-3 lg:grid-cols-5 max-w-7xl lg:px-8">
-        {/* Brand col */}
+        {/* Brand col — logo (links home) with the legal/support pages
+            stacked right below it, so the page finder for those four pages
+            lives in one place instead of its own separate full-width row. */}
         <div>
-          {/* Same logo image used everywhere else on the site, not a
-              lettermark — given a light backing since the actual logo's
-              dark-green wordmark would otherwise disappear against this
-              dark footer background. */}
-          <div className="inline-flex rounded-lg bg-white/95 px-3 py-2">
+          <Link to="/" aria-label="Moments Packaging Kenya — Home" className="inline-flex">
             <img src={logoUrl} alt="Moments Packaging Kenya logo" width={160} height={40} className="h-8 w-auto" />
-          </div>
+          </Link>
+          <nav aria-label="Legal and support" className="mt-4 flex flex-col gap-2.5">
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("privacy")}
+              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
+            >
+              Privacy Policy
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("terms")}
+              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
+            >
+              Terms of Service
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("refunds")}
+              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
+            >
+              Refunds &amp; Returns
+            </button>
+            <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
+              Contact Us
+            </Link>
+          </nav>
         </div>
 
         {/* Shop col */}
@@ -259,42 +283,6 @@ export function SiteFooter() {
               <span className="rounded-full border border-primary-foreground/20 px-2.5 py-1">Cash on Delivery</span>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Legal & support row — a separate, more prominent row (not buried in
-          the fine-print bottom bar) so these four pages are easy to find. */}
-      <div className="border-t border-primary-foreground/10 bg-black/10">
-        <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
-          <nav
-            aria-label="Legal and support"
-            className="flex flex-col items-center gap-3 text-center sm:items-start"
-          >
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("privacy")}
-              className="text-sm font-medium text-primary-foreground hover:text-accent"
-            >
-              Privacy Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("terms")}
-              className="text-sm font-medium text-primary-foreground hover:text-accent"
-            >
-              Terms of Service
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("refunds")}
-              className="text-sm font-medium text-primary-foreground hover:text-accent"
-            >
-              Refunds &amp; Returns
-            </button>
-            <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
-              Contact Us
-            </Link>
-          </nav>
         </div>
       </div>
 
