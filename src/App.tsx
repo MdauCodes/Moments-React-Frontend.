@@ -9,6 +9,7 @@ import { PersonaProvider } from "@/contexts/PersonaContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SITE_LOCK_ENABLED } from "@/config/siteLock";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 import HomePage from "@/routes/index";
@@ -95,6 +96,7 @@ import AdminUsersPage from "@/routes/_adminAuth.admin.users";
 export default function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <SiteConfigProvider>
         <AuthProvider>
           <CartProvider>
