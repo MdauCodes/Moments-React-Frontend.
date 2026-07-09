@@ -97,7 +97,11 @@
   --secondary: oklch(0.93 0.025 75);
   --secondary-foreground: oklch(0.25 0.03 60);
   --muted: oklch(0.94 0.018 80);
-  --muted-foreground: oklch(0.45 0.025 65);
+  /* Darkened from 0.45 — the old value read as too-faint grey against the
+     light cream/white surfaces used everywhere (descriptions, labels,
+     timestamps), a global readability complaint. Still lighter than
+     --foreground (0.18) so it stays visually secondary. */
+  --muted-foreground: oklch(0.36 0.025 65);
   --accent: oklch(0.62 0.16 35);
   --accent-foreground: oklch(0.99 0.01 85);
   --destructive: oklch(0.577 0.245 27.325);

@@ -20,7 +20,7 @@ function SustainabilityPage() {
             <h1 className="mt-3 font-display text-3xl font-medium text-white sm:text-4xl lg:text-5xl">
               Packaging with Purpose.
             </h1>
-            <p className="mx-auto mt-2 max-w-2xl text-base italic text-white/80">Growing with Responsibility.</p>
+            <p className="mx-auto mt-2 max-w-2xl text-base italic text-white/88">Growing with Responsibility.</p>
             <div className="mx-auto mt-4 flex w-fit items-center gap-3">
               <span className="block h-px w-12" style={{ background: GOLD }} />
               <Recycle className="h-4 w-4" style={{ color: GOLD }} />
@@ -74,7 +74,7 @@ function SustainabilityPage() {
                   <p.Icon className="h-4.5 w-4.5" strokeWidth={1.6} />
                 </span>
                 <h3 className="mt-3 font-display text-base font-semibold text-white">{p.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-white/70">{p.body}</p>
+                <p className="mt-1.5 text-sm leading-relaxed text-white/85">{p.body}</p>
               </div>
             ))}
           </div>
@@ -83,7 +83,7 @@ function SustainabilityPage() {
             className="mx-auto mt-10 max-w-4xl rounded-2xl border p-6 text-center"
             style={{ borderColor: `${GOLD}33`, background: FOREST }}
           >
-            <p className="text-sm leading-relaxed text-white/80">
+            <p className="text-sm leading-relaxed text-white/88">
               Every package we produce carries an opportunity to make a positive impact. When you see the sprouting leaf
               and ♻️ recycling symbol in our logo, we invite you to see more than a brand — our commitment to protecting
               natural resources, embracing sustainable innovation and promoting packaging solutions that support a
@@ -114,7 +114,7 @@ function SustainabilityPage() {
                 loading="lazy"
               />
             </a>
-            <p className="mt-3 text-center text-xs text-white/60">Tap the poster to view full size.</p>
+            <p className="mt-3 text-center text-xs text-white/80">Tap the poster to view full size.</p>
           </div>
         </div>
       </section>

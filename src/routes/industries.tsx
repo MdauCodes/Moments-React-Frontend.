@@ -85,7 +85,7 @@ function IndustriesPage() {
               <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl">
                 Don't see your industry? We probably still pack for it.
               </h3>
-              <p className="mt-3 max-w-xl text-primary-foreground/75 sm:mt-4">
+              <p className="mt-3 max-w-xl text-primary-foreground/88 sm:mt-4">
                 Tell us what you sell. We'll recommend formats, sizes and pricing within 24 hours.
               </p>
             </div>

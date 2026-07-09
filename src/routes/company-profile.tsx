@@ -191,7 +191,7 @@ function CompanyProfilePage() {
             >
               Quality packaging <span className="text-white/90">for every moment.</span>
             </p>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-white/75">
+            <p className="mt-5 max-w-lg text-base leading-relaxed text-white/85">
               We help Kenyan brands present, protect and promote their products through innovative, high-quality and
               cost-effective packaging — delivered countrywide.
             </p>
@@ -227,7 +227,7 @@ function CompanyProfilePage() {
                   >
                     <b.Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
                   </span>
-                  <span className="whitespace-pre-line text-[10px] font-semibold uppercase tracking-[0.15em] text-white/80">
+                  <span className="whitespace-pre-line text-[10px] font-semibold uppercase tracking-[0.15em] text-white/88">
                     {b.label}
                   </span>
                 </div>
@@ -274,7 +274,7 @@ function CompanyProfilePage() {
             reliability, convenience and excellent customer service, we deliver innovative packaging countrywide while
             helping brands create memorable moments through great presentation.
           </p>
-          <p className="mt-4 text-base leading-relaxed text-white/70">
+          <p className="mt-4 text-base leading-relaxed text-white/85">
             <span className="font-semibold" style={{ color: GOLD_SOFT }}>
               The meaning behind our logo:
             </span>{" "}
@@ -291,7 +291,7 @@ function CompanyProfilePage() {
             and responsible disposal of packaging materials. Together, these elements symbolize our promise to provide
             packaging solutions that respect both people and the planet.
           </p>
-          <p className="mt-4 text-base leading-relaxed text-white/70">
+          <p className="mt-4 text-base leading-relaxed text-white/85">
             Packaging is more than a container — it is a powerful marketing tool that creates lasting first impressions,
             enhances brand visibility and influences purchasing decisions.
           </p>
@@ -365,7 +365,7 @@ function CompanyProfilePage() {
                   <v.Icon className="h-4.5 w-4.5" strokeWidth={1.6} />
                 </span>
                 <h3 className="mt-4 font-display text-base font-semibold text-white">{v.title}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-white/65">{v.body}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-white/82">{v.body}</p>
               </div>
             ))}
           </div>
@@ -427,7 +427,7 @@ function CompanyProfilePage() {
                     <span className="mt-1 h-2.5 w-2.5 shrink-0 rotate-45" style={{ background: GOLD }} />
                     <div>
                       <p className="text-sm font-semibold text-white">{pt.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-white/65">{pt.body}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-white/82">{pt.body}</p>
                     </div>
                   </div>
                 ))}
@@ -491,7 +491,7 @@ function CompanyProfilePage() {
                   </p>
                   <h3 className="mt-3 font-display text-2xl font-semibold text-white sm:text-3xl">{c.title}</h3>
                   <div className="mt-3 h-px w-12" style={{ background: GOLD }} />
-                  <p className="mt-4 text-sm leading-relaxed text-white/75">{c.blurb}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-white/85">{c.blurb}</p>
                   <Link
                     to={c.href}
                     className="mt-5 inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/5"
@@ -528,7 +528,7 @@ function CompanyProfilePage() {
                   <a href="tel:+254119556688" className="hover:underline">
                     {DISPLAY_PHONE}
                   </a>
-                  <span className="text-white/40"> / </span>
+                  <span className="text-white/60"> / </span>
                   <a href="tel:+254119556699" className="hover:underline">
                     {DISPLAY_PHONE_ALT}
                   </a>

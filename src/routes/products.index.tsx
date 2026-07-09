@@ -284,9 +284,16 @@ function ProductsPage() {
     setParam("subcategoryId", undefined);
   };
   const selectSubcategory = (id: string, categoryId?: string | null) => {
+    const turningOn = subcategoryId !== id;
     setParam("category", undefined); // mutually exclusive with the legacy flat category filter
-    setParam("subcategoryId", subcategoryId === id ? undefined : id);
-    setSelectedCategoryId(subcategoryId === id ? null : (categoryId ?? null));
+    setParam("subcategoryId", turningOn ? id : undefined);
+    setSelectedCategoryId(turningOn ? (categoryId ?? null) : null);
+    if (turningOn) {
+      // Results load async (debounced fetch) — retry the scroll a few times
+      // so it lands correctly once the grid has actually re-rendered.
+      const scroll = () => document.getElementById("results-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      [100, 500, 1000].forEach((ms) => window.setTimeout(scroll, ms));
+    }
   };
 
   // Reset on filter change
@@ -681,6 +688,10 @@ function ProductsPage() {
                     const sub = id ? subcategories.find((s) => s.id === id) : undefined;
                     setSelectedCategoryId(sub?.categoryId ?? null);
                     setSelectedSegmentId(sub?.segmentId ?? null);
+                    if (id) {
+                      const scroll = () => document.getElementById("results-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      [100, 500, 1000].forEach((ms) => window.setTimeout(scroll, ms));
+                    }
                   }}
                   className="rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
                 >

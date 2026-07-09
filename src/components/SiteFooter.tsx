@@ -93,7 +93,7 @@ export function SiteFooter() {
 
         {/* Shop col */}
         <div>
-          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/60">Shop</h4>
+          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Shop</h4>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
               <Link to="/products" className="hover:text-accent">
@@ -117,7 +117,7 @@ export function SiteFooter() {
 
         {/* Explore col */}
         <div>
-          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/60">Explore</h4>
+          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Explore</h4>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
               <Link to="/industries" className="hover:text-accent">
@@ -154,7 +154,7 @@ export function SiteFooter() {
 
         {/* Support col */}
         <div>
-          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/60">Support</h4>
+          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Support</h4>
           <ul className="mt-4 space-y-2 text-sm">
             <li>
               <Link to="/faq" className="hover:text-accent">
@@ -186,8 +186,8 @@ export function SiteFooter() {
 
         {/* Contact col */}
         <div>
-          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/60">Contact</h4>
-          <ul className="mt-4 space-y-2 text-sm text-primary-foreground/80">
+          <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Contact</h4>
+          <ul className="mt-4 space-y-2 text-sm text-primary-foreground/90">
             <li className="flex items-center gap-2">
               <Phone className="h-4 w-4 shrink-0" aria-hidden />
               <a href="tel:+254119556688" className="hover:text-accent">
@@ -250,8 +250,8 @@ export function SiteFooter() {
             </a>
           </div>
           <div className="mt-6">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-primary-foreground/50">We accept</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-primary-foreground/70">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-primary-foreground/75">We accept</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-primary-foreground/85">
               <span className="rounded-full border border-primary-foreground/20 px-2.5 py-1">M-Pesa</span>
               <span className="rounded-full border border-primary-foreground/20 px-2.5 py-1">Bank Transfer</span>
               <span className="rounded-full border border-primary-foreground/20 px-2.5 py-1">Cash on Delivery</span>
@@ -298,7 +298,7 @@ export function SiteFooter() {
 
       {/* Bottom bar */}
       <div className="border-t border-primary-foreground/10">
-        <div className="mx-auto px-5 py-6 text-center text-xs text-primary-foreground/60 lg:px-8">
+        <div className="mx-auto px-5 py-6 text-center text-xs text-primary-foreground/80 lg:px-8">
           <p>© {new Date().getFullYear()} Moments Packaging Kenya Ltd. All rights reserved.</p>
         </div>
       </div>

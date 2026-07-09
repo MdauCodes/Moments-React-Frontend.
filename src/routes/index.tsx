@@ -246,7 +246,7 @@ function Hero() {
                   fontSize: "10px",
                   letterSpacing: "0.18em",
                   textTransform: "uppercase",
-                  color: "rgba(255,255,255,0.85)",
+                  color: "rgba(255,255,255,0.92)",
                   borderLeft: "1px solid rgba(255,255,255,0.35)",
                   paddingLeft: "10px",
                   lineHeight: 1.15,
@@ -370,7 +370,7 @@ function Hero() {
               style={{
                 fontSize: "10px",
                 letterSpacing: "0.18em",
-                color: "rgba(255,255,255,0.55)",
+                color: "rgba(255,255,255,0.8)",
                 marginBottom: "18px",
               }}
             >
@@ -397,7 +397,7 @@ function Hero() {
               style={{
                 fontSize: "14px",
                 lineHeight: 1.7,
-                color: "rgba(255,255,255,0.72)",
+                color: "rgba(255,255,255,0.88)",
                 maxWidth: "400px",
                 margin: "22px 0 30px",
               }}
@@ -460,7 +460,7 @@ function Hero() {
                   className="inline-block rounded-full"
                   style={{ width: "6px", height: "6px", background: "#00A651" }}
                 />
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.82)" }}>M-Pesa accepted at checkout</span>
+                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
               </div>
             </div>
           </div>
@@ -498,7 +498,7 @@ function TrustBar() {
             <div className="font-display" style={{ fontSize: "27px", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.65)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -516,7 +516,7 @@ function TrustBar() {
             <div className="font-display" style={{ fontSize: "20px", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>

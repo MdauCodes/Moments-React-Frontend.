@@ -85,17 +85,17 @@ export function LegalPageLayout({
           className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full bg-accent/20 blur-3xl"
         />
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-16 sm:pb-20 sm:pt-20 lg:px-8">
-          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-primary-foreground/70">
+          <div className="flex items-center gap-3 text-xs uppercase tracking-[0.3em] text-primary-foreground/85">
             <ScrollText className="h-4 w-4" aria-hidden />
             <span>{eyebrow}</span>
           </div>
           <h1 className="mt-5 max-w-3xl font-display text-4xl leading-[1.05] tracking-tight sm:text-6xl">
             {title}
           </h1>
-          <div className="mt-6 max-w-2xl text-sm leading-relaxed text-primary-foreground/80 sm:text-base">
+          <div className="mt-6 max-w-2xl text-sm leading-relaxed text-primary-foreground/90 sm:text-base">
             {intro}
           </div>
-          <div className="mt-8 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.18em] text-primary-foreground/70">
+          <div className="mt-8 flex flex-wrap items-center gap-3 text-xs uppercase tracking-[0.18em] text-primary-foreground/85">
             <span className="rounded-full border border-primary-foreground/25 bg-primary-foreground/5 px-3 py-1.5">
               Updated {updated}
             </span>

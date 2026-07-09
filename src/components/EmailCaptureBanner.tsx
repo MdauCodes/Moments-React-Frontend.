@@ -69,7 +69,7 @@ export function EmailCaptureBanner({ onVisibilityChange }: EmailCaptureBannerPro
         <>
           <p className="text-sm">
             Get packaging tips and exclusive offers — straight to your inbox.{" "}
-            <span className="text-[11px] text-primary-foreground/70">
+            <span className="text-[11px] text-primary-foreground/85">
               By subscribing you agree to our{" "}
               <a href="/privacy" className="underline">Privacy Policy</a>.
             </span>
@@ -83,10 +83,10 @@ export function EmailCaptureBanner({ onVisibilityChange }: EmailCaptureBannerPro
                 placeholder="your@email.com"
                 maxLength={255}
                 disabled={loading}
-                className="w-full rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-4 py-2 text-sm text-primary-foreground placeholder:text-primary-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary-foreground/30 sm:w-[220px]"
+                className="w-full rounded-full border border-primary-foreground/20 bg-primary-foreground/10 px-4 py-2 text-sm text-primary-foreground placeholder:text-primary-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary-foreground/30 sm:w-[220px]"
               />
               {error && (
-                <span className="mt-1 text-[11px] text-primary-foreground/80">{error}</span>
+                <span className="mt-1 text-[11px] text-primary-foreground/90">{error}</span>
               )}
             </div>
             <button
@@ -109,7 +109,7 @@ export function EmailCaptureBanner({ onVisibilityChange }: EmailCaptureBannerPro
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss"
-            className="ml-2 cursor-pointer text-xl text-primary-foreground/60 hover:text-primary-foreground"
+            className="ml-2 cursor-pointer text-xl text-primary-foreground/75 hover:text-primary-foreground"
           >
             ×
           </button>
