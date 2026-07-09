@@ -80,6 +80,61 @@ function FirstVisitSplash() {
   return <AppSplash />;
 }
 
+// ── Home nav — a real sticky top-level element (not absolutely overlaid
+// inside the hero) so it stays visible for the whole page scroll, matching
+// SiteHeader's behaviour on every other page. Logo is 2x the size used
+// elsewhere per request, so it needs its own solid background rather than
+// the hero's old transparent-over-image treatment. ──
+function HomeNav() {
+  return (
+    <nav
+      className="sticky top-0 z-40 border-b border-white/10 backdrop-blur-md"
+      style={{ background: "color-mix(in oklab, var(--forest) 94%, black)" }}
+    >
+      <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3 lg:px-8">
+        <Link to="/" aria-label="Moments Packaging Kenya — Home" className="flex shrink-0 items-center">
+          <img
+            src={logoUrl}
+            alt="Moments Packaging Kenya logo"
+            width={160}
+            height={40}
+            className="h-[72px] w-auto sm:h-20 lg:h-[88px]"
+          />
+        </Link>
+        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
+          <Link to="/company-profile" className="hover:opacity-80">
+            Company
+          </Link>
+          <Link to="/sustainability" className="hover:opacity-80">
+            Sustainability
+          </Link>
+          <Link to="/products" className="hover:opacity-80">
+            Shop
+          </Link>
+          <Link to="/orders/track" className="hover:opacity-80">
+            Track Order
+          </Link>
+          <Link to="/products?deals=true" style={{ color: "#e8c878" }} className="hover:opacity-80">
+            Deals
+          </Link>
+        </div>
+        <div className="flex items-center gap-4 text-white">
+          <Link to="/products" aria-label="Search products" className="hover:opacity-80">
+            <Search className="h-5 w-5" />
+          </Link>
+          <Link to="/cart" aria-label="Cart" className="relative hover:opacity-80">
+            <ShoppingBag className="h-5 w-5" />
+            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full" style={{ background: "#e8c878" }} />
+          </Link>
+          <Link to="/login" className="hidden md:inline text-sm hover:opacity-80">
+            Sign in
+          </Link>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
 // ── Hero ──
 function Hero() {
   return (
@@ -212,66 +267,15 @@ function Hero() {
           }}
         />
 
-        {/* Navigation */}
-        <nav
-          className="absolute left-0 right-0 top-0"
-          style={{
-            zIndex: 30,
-            background: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%)",
-          }}
-        >
-          <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 lg:px-8">
-            <Link to="/" aria-label="Moments Packaging Kenya — Home" className="flex shrink-0 items-center">
-              {/* Same plain logo image used everywhere else on the site
-                  (header on every other page) — not a recoloured mask. */}
-              <img
-                src={logoUrl}
-                alt="Moments Packaging Kenya logo"
-                width={160}
-                height={40}
-                className="h-9 w-auto sm:h-10 lg:h-11"
-              />
-            </Link>
-            <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
-              <Link to="/company-profile" className="hover:opacity-80">
-                Company
-              </Link>
-              <Link to="/sustainability" className="hover:opacity-80">
-                Sustainability
-              </Link>
-              <Link to="/products" className="hover:opacity-80">
-                Shop
-              </Link>
-              <Link to="/orders/track" className="hover:opacity-80">
-                Track Order
-              </Link>
-              <Link to="/products?deals=true"
-                style={{ color: "#e8c878" }}
-                className="hover:opacity-80"
-              >
-                Deals
-              </Link>
-            </div>
-            <div className="flex items-center gap-4 text-white">
-              <Link to="/products" aria-label="Search products" className="hover:opacity-80">
-                <Search className="h-5 w-5" />
-              </Link>
-              <Link to="/cart" aria-label="Cart" className="relative hover:opacity-80">
-                <ShoppingBag className="h-5 w-5" />
-                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full" style={{ background: "#e8c878" }} />
-              </Link>
-              <Link to="/login" className="hidden md:inline text-sm hover:opacity-80">
-                Sign in
-              </Link>
-            </div>
-          </div>
-        </nav>
-
-        {/* Announcement bar */}
+        {/* Announcement bar — nav used to overlay here too (absolute, top:0)
+            but it's now HomeNav, a real sticky element rendered above this
+            whole section so it persists for the entire page scroll, not
+            just while the hero is in view. This bar is now the top-most
+            absolutely-positioned layer within the hero itself. */}
         <div
           className="absolute left-0 right-0"
           style={{
-            top: "62px",
+            top: 0,
             zIndex: 20,
             background:
               "linear-gradient(90deg, color-mix(in oklab, var(--forest) 96%, black) 0%, var(--forest) 50%, color-mix(in oklab, var(--forest) 92%, black) 100%)",
@@ -337,7 +341,12 @@ function Hero() {
         <div className="relative md:absolute md:inset-0 mx-auto max-w-7xl px-5 lg:px-8" style={{ zIndex: 4 }}>
           <div
             className="md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%]"
-            style={{ paddingTop: "150px", paddingBottom: "60px" }}
+            /* paddingTop was 150px to clear the nav that used to overlay the
+               top of this section (absolute) — nav is now HomeNav, sticky
+               and external, so the hero starts right below it in normal
+               flow. Only the announcement bar (still overlaid, ~40px) needs
+               clearing now. Re-tune if the vertical balance looks off. */
+            style={{ paddingTop: "56px", paddingBottom: "48px" }}
           >
             <p
               className="uppercase font-medium"
@@ -839,6 +848,7 @@ function HomePage() {
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
         <AddToHomeScreenPrompt />
         <main className="flex-1 pb-16 md:pb-0">
+          <HomeNav />
           <Hero />
           <PromoCarousel />
           <CategoryRow />
