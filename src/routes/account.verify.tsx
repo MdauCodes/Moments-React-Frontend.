@@ -20,6 +20,7 @@ const inputCls = "w-full rounded-xl border border-border bg-background px-4 py-3
 function VerifyEmailPage() {
   const [_searchParams] = useSearchParams();
   const emailFromQuery = _searchParams.get("email") ?? "";
+  const returnUrl = _searchParams.get("returnUrl") ?? undefined;
 
   const navigate = useNavigate();
   const [email, setEmail] = useState(emailFromQuery);
@@ -51,7 +52,7 @@ function VerifyEmailPage() {
         window.localStorage.setItem("mpk_rt", refreshToken);
       }
       toast.success("Email verified");
-      navigate("/account/dashboard");
+      navigate(returnUrl ?? "/account/dashboard");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed");
     } finally {

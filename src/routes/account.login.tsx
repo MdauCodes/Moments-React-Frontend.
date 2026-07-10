@@ -1,4 +1,4 @@
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 
 import { useState, type FormEvent } from "react";
 import { InlineProgress } from "@/components/InlineProgress";
@@ -18,7 +18,13 @@ const inputCls =
 function LoginPage() {
   const { login } = useAuth();
   const [_searchParams] = useSearchParams();
-  const redirect = _searchParams.get("redirect") ?? undefined;
+  const location = useLocation();
+  // ProtectedRoute sends the page the customer was trying to reach via
+  // router state; a bare ?redirect= query param is kept as a fallback for
+  // any direct link that sets it that way instead.
+  const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl
+    ?? _searchParams.get("redirect")
+    ?? undefined;
 
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -35,7 +41,7 @@ function LoginPage() {
       const dest =
         roles.includes("ROLE_ADMIN") || roles.includes("ROLE_STAFF")
           ? "/admin/dashboard"
-          : (redirect ?? "/account/dashboard");
+          : (returnUrl ?? "/account/dashboard");
       navigate(dest);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
@@ -84,7 +90,11 @@ function LoginPage() {
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           New to Moments?{" "}
-          <Link to="/account/register" className="text-accent hover:underline">
+          <Link
+            to="/account/register"
+            state={returnUrl ? { returnUrl } : undefined}
+            className="text-accent hover:underline"
+          >
             Create an account
           </Link>
         </p>

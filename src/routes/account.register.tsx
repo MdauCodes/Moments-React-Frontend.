@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 
 import { InlineProgress } from "@/components/InlineProgress";
 import { useState, type FormEvent } from "react";
@@ -15,6 +15,8 @@ const inputCls = "w-full rounded-xl border border-border bg-background px-4 py-3
 
 function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl;
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -45,7 +47,8 @@ function RegisterPage() {
         throw new Error((err as { message?: string }).message ?? "Registration failed");
       }
       toast.success("Account created — check your email for the verification code.");
-      navigate(`/account/verify?email=${encodeURIComponent(email.trim())}`);
+      const verifyUrl = `/account/verify?email=${encodeURIComponent(email.trim())}`;
+      navigate(returnUrl ? `${verifyUrl}&returnUrl=${encodeURIComponent(returnUrl)}` : verifyUrl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -92,7 +95,10 @@ function RegisterPage() {
           </button>
         </form>
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Already have an account? <Link to="/account/login" className="text-accent hover:underline">Sign in</Link>
+          Already have an account?{" "}
+          <Link to="/account/login" state={returnUrl ? { returnUrl } : undefined} className="text-accent hover:underline">
+            Sign in
+          </Link>
         </p>
       </section>
     </SiteLayout>
