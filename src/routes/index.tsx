@@ -37,7 +37,7 @@ import segCosmeticsImg from "@/assets/categories/cosmetics.png";
 import segAgricultureImg from "@/assets/categories/agriculture.png";
 import segDairyImg from "@/assets/categories/Dairy.png";
 import segPharmacyImg from "@/assets/categories/Pharmacy.png";
-import { ArrowRight, Search, ShoppingBag, ChevronRight } from "lucide-react";
+import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
@@ -417,46 +417,34 @@ function Hero() {
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                to="/business-account"
-                className="inline-flex items-center justify-center text-white font-medium"
-                style={{
-                  background: "rgba(255,255,255,0.09)",
-                  border: "1px solid rgba(255,255,255,0.22)",
-                  backdropFilter: "blur(8px)",
-                  borderRadius: "10px",
-                  padding: "13px 26px",
-                  fontSize: "14px",
-                }}
-              >
-                Create / Get Business Account
-              </Link>
             </div>
 
-            {/* Business Account benefit chips */}
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span
-                className="inline-flex items-center rounded-full"
-                style={{ gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "5px 12px", fontSize: "11px", color: "rgba(255,255,255,0.9)" }}
-              >
-                <span className="inline-block rounded-full" style={{ width: "5px", height: "5px", background: "#e8c878" }} />
-                Welcome discount code
-              </span>
-              <span
-                className="inline-flex items-center rounded-full"
-                style={{ gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "5px 12px", fontSize: "11px", color: "rgba(255,255,255,0.9)" }}
-              >
-                <span className="inline-block rounded-full" style={{ width: "5px", height: "5px", background: "#e8c878" }} />
-                Order history tracking
-              </span>
-              <span
-                className="inline-flex items-center rounded-full"
-                style={{ gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "5px 12px", fontSize: "11px", color: "rgba(255,255,255,0.9)" }}
-              >
-                <span className="inline-block rounded-full" style={{ width: "5px", height: "5px", background: "#e8c878" }} />
-                Trade credit — coming soon
-              </span>
-            </div>
+            {/* Business Account promo — one self-explanatory banner (icon +
+                headline + benefit + arrow) rather than a plain button plus a
+                row of disconnected chips, which read as confusing/empty. */}
+            <Link
+              to="/business-account"
+              className="mt-4 flex max-w-sm items-center justify-between gap-3 rounded-xl transition-transform hover:-translate-y-0.5 md:max-w-[420px]"
+              style={{
+                background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
+                border: "1px solid rgba(232,200,120,0.35)",
+                padding: "12px 16px",
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
+                  style={{ background: "rgba(232,200,120,0.18)" }}
+                >
+                  <Briefcase className="h-4 w-4" style={{ color: "#e8c878" }} />
+                </span>
+                <div>
+                  <p className="text-[13px] font-semibold text-white">Get a free Business Account</p>
+                  <p className="text-[11px] text-white/70">Welcome discount code + order history tracking</p>
+                </div>
+              </div>
+              <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#e8c878" }} />
+            </Link>
 
             {/* Secondary CTA row */}
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -865,11 +853,13 @@ function PromoCarousel() {
               </div>
             </div>
 
-            {/* Product showcase */}
-            <div className="-mx-6 flex gap-4 overflow-x-auto px-6 pb-1 sm:mx-0 sm:grid sm:grid-cols-4 sm:gap-5 sm:overflow-visible sm:px-0">
+            {/* Product showcase — flex, not a 4-column grid, so a tab with fewer
+                than 4 products doesn't leave dead empty columns (cards stay a
+                fixed width and left-align instead of stretching to fill). */}
+            <div className="-mx-6 flex flex-wrap gap-4 overflow-x-auto px-6 pb-1 sm:mx-0 sm:gap-5 sm:overflow-visible sm:px-0">
               {showcase.length === 0
                 ? Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="w-36 shrink-0 overflow-hidden rounded-xl bg-white/95 shadow-lg sm:w-auto">
+                    <div key={i} className="w-36 shrink-0 overflow-hidden rounded-xl bg-white/95 shadow-lg sm:w-40">
                       <div className="shimmer aspect-square w-full" />
                       <div className="p-3">
                         <div className="shimmer h-3 w-4/5 rounded" />
@@ -881,7 +871,7 @@ function PromoCarousel() {
                     <Link
                       key={p.id}
                       to={`/products/${p.slug}`}
-                      className="group w-36 shrink-0 overflow-hidden rounded-xl bg-white shadow-lg transition-transform hover:-translate-y-1 sm:w-auto"
+                      className="group w-36 shrink-0 overflow-hidden rounded-xl bg-white shadow-lg transition-transform hover:-translate-y-1 sm:w-40"
                     >
                       <div className="aspect-square w-full overflow-hidden bg-secondary">
                         {p.primaryImageUrl && (

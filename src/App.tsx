@@ -76,6 +76,7 @@ import AdminCustomersPage from "@/routes/_adminAuth.admin.customers";
 import AdminCustomerDetailPage from "@/routes/_adminAuth.admin.customers.$id";
 import AdminBusinessAccountsPage from "@/routes/_adminAuth.admin.business-accounts";
 import AdminBusinessAccountDetailPage from "@/routes/_adminAuth.admin.business-accounts.$id";
+import AdminCreditAccountsPage from "@/routes/_adminAuth.admin.credit-accounts";
 import AdminDeliveryZonesPage from "@/routes/_adminAuth.admin.delivery-zones";
 import AdminEnquiriesPage from "@/routes/_adminAuth.admin.enquiries";
 import AdminEnquiriesNewPage from "@/routes/_adminAuth.admin.enquiries.new";
@@ -176,6 +177,7 @@ export default function App() {
                       <Route path="/admin/customers/:id" element={<AdminCustomerDetailPage />} />
                       <Route path="/admin/business-accounts" element={<AdminBusinessAccountsPage />} />
                       <Route path="/admin/business-accounts/:id" element={<AdminBusinessAccountDetailPage />} />
+                      <Route path="/admin/credit-accounts" element={<AdminCreditAccountsPage />} />
                       <Route path="/admin/delivery-zones" element={<AdminDeliveryZonesPage />} />
                       <Route path="/admin/enquiries" element={<AdminEnquiriesPage />} />
                       <Route path="/admin/enquiries/new" element={<AdminEnquiriesNewPage />} />
