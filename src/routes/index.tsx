@@ -22,6 +22,21 @@ import catLabelsStickersImg from "@/assets/categories/cat-labels-stickers.jpg";
 import catFoodContainersImg from "@/assets/categories/cat-food-containers.jpg";
 import catGiftEventImg from "@/assets/categories/cat-gift-event.jpg";
 import catBeautyPharmaImg from "@/assets/categories/cat-beauty-pharma.jpg";
+// Segment photos — filenames match backend Segment.name exactly (see SEGMENT_IMAGES below).
+import segFoodPackagingImg from "@/assets/categories/food packaging segment photo.jpeg";
+import segDisposableTablewareImg from "@/assets/categories/disposable tablesware.png";
+import segCutleryImg from "@/assets/categories/cutlery.png";
+import segDrinksPackagingImg from "@/assets/categories/drinks packaging.png";
+import segKitchenTableImg from "@/assets/categories/kitchen and table.png";
+import segWoodenAccessoriesImg from "@/assets/categories/wooden accessories.png";
+import segHygieneImg from "@/assets/categories/hygiene.png";
+import segBagsSacksImg from "@/assets/categories/bags and sacks.png";
+import segGeneralSuppliesImg from "@/assets/categories/general supplies.png";
+import segCustomBrandingImg from "@/assets/categories/stickers and labels.png";
+import segCosmeticsImg from "@/assets/categories/cosmetics.png";
+import segAgricultureImg from "@/assets/categories/agriculture.png";
+import segDairyImg from "@/assets/categories/Dairy.png";
+import segPharmacyImg from "@/assets/categories/Pharmacy.png";
 import { ArrowRight, Search, ShoppingBag, ChevronRight } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
@@ -640,26 +655,35 @@ function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "b
   );
 }
 
-// ── Category image grid — real backend Segments, images picked by best-fit
-// keyword match against the existing photo set (swap in dedicated segment
-// photos later; this just makes sure every segment shows something sensible
-// today instead of a hardcoded, drifting-from-the-backend tile list). ──
-const SEGMENT_IMAGE_POOL = [
+// ── Category image grid — dedicated photo per backend Segment, keyed by exact
+// segment name. Falls back to the old generic pool only for a segment the
+// backend adds later that doesn't have a named photo yet. ──
+const SEGMENT_IMAGES: Record<string, string> = {
+  "food packaging": segFoodPackagingImg,
+  "disposable tableware": segDisposableTablewareImg,
+  "cutlery": segCutleryImg,
+  "drinks packaging": segDrinksPackagingImg,
+  "kitchen and table accessories": segKitchenTableImg,
+  "wooden accessories": segWoodenAccessoriesImg,
+  "hygiene essentials": segHygieneImg,
+  "bags and sacks": segBagsSacksImg,
+  "general supplies and stationeries": segGeneralSuppliesImg,
+  "custom branding": segCustomBrandingImg,
+  "cosmetics": segCosmeticsImg,
+  "agriculture": segAgricultureImg,
+  "dairy": segDairyImg,
+  "pharmacy": segPharmacyImg,
+};
+
+const SEGMENT_IMAGE_FALLBACK_POOL = [
   catPaperBagsImg, catBoxesCartonsImg, catCupsSleevesImg, catMailersPouchesImg,
   catLabelsStickersImg, catFoodContainersImg, catGiftEventImg, catBeautyPharmaImg,
 ];
 
 function imageForSegment(name: string, fallbackIndex: number): string {
-  const n = name.toLowerCase();
-  if (n.includes("bag") || n.includes("sack")) return catPaperBagsImg;
-  if (n.includes("wooden")) return catBoxesCartonsImg;
-  if (n.includes("drink") || n.includes("cup")) return catCupsSleevesImg;
-  if (n.includes("agricult")) return catMailersPouchesImg;
-  if (n.includes("general") || n.includes("stationer")) return catLabelsStickersImg;
-  if (n.includes("food") || n.includes("tableware") || n.includes("cutlery") || n.includes("kitchen") || n.includes("dairy")) return catFoodContainersImg;
-  if (n.includes("branding") || n.includes("gift")) return catGiftEventImg;
-  if (n.includes("cosmetic") || n.includes("pharma") || n.includes("hygiene")) return catBeautyPharmaImg;
-  return SEGMENT_IMAGE_POOL[fallbackIndex % SEGMENT_IMAGE_POOL.length];
+  const match = SEGMENT_IMAGES[name.trim().toLowerCase()];
+  if (match) return match;
+  return SEGMENT_IMAGE_FALLBACK_POOL[fallbackIndex % SEGMENT_IMAGE_FALLBACK_POOL.length];
 }
 
 function CategoryGrid() {
