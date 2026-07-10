@@ -6,6 +6,12 @@ export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
+export type BusinessAccountDto = {
+  id: string; businessName: string; kraPin: string; location: string; road: string; buildingAddress: string;
+  industryId?: string | null; industryName?: string | null; contactPersonName: string; contactPersonRole?: string | null;
+  phone: string; status: "ACTIVE" | "SUSPENDED"; welcomeCode?: string | null; createdAt: string;
+  orderCount?: number | null; totalSpend?: number | null;
+};
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -141,6 +147,13 @@ export const adminResources = {
     create: (body: Partial<IndustryDto>) => adminJson<IndustryDto>("/api/v1/admin/industries", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<IndustryDto>) => adminJson<IndustryDto>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  businessAccounts: {
+    list: (params: { q?: string; page?: number; size?: number }) =>
+      adminJson<PageResponse<BusinessAccountDto>>(`/api/v1/admin/business-accounts${qs(params)}`),
+    get: (id: string) => adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}`),
+    setStatus: (id: string, status: "ACTIVE" | "SUSPENDED") =>
+      adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}/status${qs({ status })}`, { method: "PATCH" }),
   },
   tags: {
     list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),

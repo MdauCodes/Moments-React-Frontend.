@@ -41,6 +41,7 @@ import CareersPage from "@/routes/careers";
 import BecomeAPartnerPage from "@/routes/become-a-partner";
 import ProductsIndexPage from "@/routes/products.index";
 import ProductSlugPage from "@/routes/products.$slug";
+import BusinessAccountInfoPage from "@/routes/business-account";
 
 // ── Account pages ───────────────────────────────────────────────────────────
 import AccountLoginPage from "@/routes/account.login";
@@ -54,6 +55,7 @@ import AccountOrderDetailPage from "@/routes/account.orders.$reference";
 import AccountProfilePage from "@/routes/account.profile";
 import AccountReferralsPage from "@/routes/account.referrals";
 import AccountWishlistPage from "@/routes/account.wishlist";
+import AccountBusinessPage from "@/routes/account.business";
 
 // ── Admin auth pages (no auth required) ────────────────────────────────────
 import AdminLoginPage from "@/routes/admin.login";
@@ -72,6 +74,8 @@ import AdminChangePasswordPage from "@/routes/_adminAuth.admin.change-password";
 import AdminClassifyProductsPage from "@/routes/_adminAuth.admin.classify-products";
 import AdminCustomersPage from "@/routes/_adminAuth.admin.customers";
 import AdminCustomerDetailPage from "@/routes/_adminAuth.admin.customers.$id";
+import AdminBusinessAccountsPage from "@/routes/_adminAuth.admin.business-accounts";
+import AdminBusinessAccountDetailPage from "@/routes/_adminAuth.admin.business-accounts.$id";
 import AdminDeliveryZonesPage from "@/routes/_adminAuth.admin.delivery-zones";
 import AdminEnquiriesPage from "@/routes/_adminAuth.admin.enquiries";
 import AdminEnquiriesNewPage from "@/routes/_adminAuth.admin.enquiries.new";
@@ -134,6 +138,7 @@ export default function App() {
                     <Route path="/become-a-partner" element={<BecomeAPartnerPage />} />
                     <Route path="/products" element={<ProductsIndexPage />} />
                     <Route path="/products/:slug" element={<ProductSlugPage />} />
+                    <Route path="/business-account" element={<BusinessAccountInfoPage />} />
 
                     {/* Account */}
                     <Route path="/account/login" element={<AccountLoginPage />} />
@@ -147,6 +152,7 @@ export default function App() {
                     <Route path="/account/profile" element={<AccountProfilePage />} />
                     <Route path="/account/referrals" element={<AccountReferralsPage />} />
                     <Route path="/account/wishlist" element={<AccountWishlistPage />} />
+                    <Route path="/account/business" element={<AccountBusinessPage />} />
 
                     {/* Admin — no auth */}
                     <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -167,6 +173,8 @@ export default function App() {
                       <Route path="/admin/classify-products" element={<AdminClassifyProductsPage />} />
                       <Route path="/admin/customers" element={<AdminCustomersPage />} />
                       <Route path="/admin/customers/:id" element={<AdminCustomerDetailPage />} />
+                      <Route path="/admin/business-accounts" element={<AdminBusinessAccountsPage />} />
+                      <Route path="/admin/business-accounts/:id" element={<AdminBusinessAccountDetailPage />} />
                       <Route path="/admin/delivery-zones" element={<AdminDeliveryZonesPage />} />
                       <Route path="/admin/enquiries" element={<AdminEnquiriesPage />} />
                       <Route path="/admin/enquiries/new" element={<AdminEnquiriesNewPage />} />

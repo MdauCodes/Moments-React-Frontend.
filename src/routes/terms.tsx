@@ -127,6 +127,43 @@ export function getTermsContent() {
       ),
     },
     {
+      id: "business-accounts",
+      title: "Business Accounts",
+      body: (
+        <>
+          <p>
+            Any registered customer may open a free Business Account by providing basic details —
+            registered business name, KRA PIN, location, road and building address, phone number,
+            and a contact person with their designation. Opening one is instant and does not
+            require our approval.
+          </p>
+          <ul>
+            <li>
+              Opening a Business Account issues a single-use welcome discount code, valid only on
+              that account and redeemable once against a future order. It does not itself grant any
+              ongoing discount, credit terms, or special pricing.
+            </li>
+            <li>
+              We use the information you provide, together with your order history on the account,
+              to understand your business's purchasing pattern. This is not shared or sold to third
+              parties, and is used only for verification and, where you choose to apply, for
+              assessing eligibility for trade credit.
+            </li>
+            <li>
+              A Business Account is a separate, later application from a trade credit (buy-on-account)
+              facility. Trade credit requires additional documentation and a credit assessment, and
+              is granted at our discretion.
+            </li>
+            <li>
+              We may suspend a Business Account, or request further verification of the details
+              provided, at any time — for example if information appears inaccurate or the account
+              is being misused.
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
       id: "acceptable-use",
       title: "Acceptable use",
       body: (

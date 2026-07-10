@@ -862,6 +862,35 @@ function PromoCarousel() {
   );
 }
 
+// ── Business Account callout — compact CTA promoting the free trade profile,
+// styled like the become-a-partner.tsx CTA box rather than a new pattern. ──
+function BusinessAccountCallout() {
+  return (
+    <section className="bg-background">
+      <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
+        <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
+          <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For businesses</p>
+          <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
+            Ordering for your business? Open a free Business Account.
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Earn a welcome discount code, build your order history, and be first in line when trade
+            credit accounts launch.
+          </p>
+          <div className="mt-5">
+            <Link
+              to="/business-account"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Learn more <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 // ── Page ──
 function HomePage() {
   return (
@@ -876,6 +905,7 @@ function HomePage() {
           <PromoCarousel />
           <CategoryRow />
           <GuaranteeBand />
+          <BusinessAccountCallout />
           <ProductRow
             eyebrow="Featured products"
             title="Popular this week"

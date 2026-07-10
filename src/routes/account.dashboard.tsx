@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut } from "lucide-react";
+import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -48,11 +48,12 @@ function DashboardPage() {
           </button>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Tile to="/account/orders" icon={Receipt} label="Orders" value={orders?.length ?? "—"} />
           <Tile to="/account/wishlist" icon={Heart} label="Wishlist" value={wishlistCount} />
           <Tile to="/cart" icon={ShoppingBag} label="Cart" value="View" />
           <Tile to="/account/profile" icon={MapPin} label="Addresses" value={profile?.addresses?.length ?? 0} />
+          <Tile to="/account/business" icon={Briefcase} label="Business Account" value="View" />
         </div>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -142,7 +143,7 @@ function Tile({
   label,
   value,
 }: {
-  to: "/account/orders" | "/account/wishlist" | "/cart" | "/account/profile";
+  to: "/account/orders" | "/account/wishlist" | "/cart" | "/account/profile" | "/account/business";
   icon: typeof ShoppingBag;
   label: string;
   value: string | number;

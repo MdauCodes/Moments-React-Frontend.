@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Boxes,
   HelpCircle,
+  Briefcase,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -118,6 +119,7 @@ const navSections: NavSection[] = [
     label: "Audience",
     items: [
       { label: "Customers", to: "/admin/customers", icon: Users, requiresAny: [PERM.CUSTOMER_VIEW] },
+      { label: "Business Accounts", to: "/admin/business-accounts", icon: Briefcase, requiresAny: [PERM.CUSTOMER_VIEW] },
       { label: "Enquiries", to: "/admin/enquiries", icon: LayoutList, requiresAny: [PERM.ENQUIRY_VIEW] },
       { label: "Reviews", to: "/admin/reviews", icon: Star, requiresAny: [PERM.REVIEW_MODERATE] },
     ],

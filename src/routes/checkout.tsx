@@ -16,9 +16,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, authFetch } from "@/contexts/AuthContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
 import { fetchDeliveryZones, type DeliveryZone } from "@/services/deliveryZoneService";
+import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 
@@ -89,6 +90,44 @@ function CheckoutModal() {
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
   const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
+
+  // Promo code
+  const [promoCode, setPromoCode] = useState("");
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discount: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+
+  async function applyPromoCode() {
+    const code = promoCode.trim();
+    if (!code) return;
+    setPromoChecking(true);
+    setPromoError(null);
+    try {
+      const res = await authFetch(apiUrl("/api/v1/checkout/validate-promo"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotal: cartTotal }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedPromo({ code: data.code ?? code.toUpperCase(), discount: data.discountAmount ?? 0 });
+        toast.success("Promo code applied");
+      } else {
+        setAppliedPromo(null);
+        setPromoError(data.message ?? "Invalid promo code");
+      }
+    } catch {
+      setPromoError("Couldn't check that code right now — try again");
+    } finally {
+      setPromoChecking(false);
+    }
+  }
+
+  function removePromoCode() {
+    setAppliedPromo(null);
+    setPromoCode("");
+    setPromoError(null);
+  }
 
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [selectedZone, setSelectedZone] = useState<DeliveryZone | null>(null);
@@ -227,6 +266,7 @@ function CheckoutModal() {
           paymentMethod: paymentGateway,
           fulfillmentType: fulfillment,
           idempotencyKey: idempotencyKey.current,
+          promoCode: appliedPromo?.code,
           ...(fulfillment === "OWN_COURIER" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -318,7 +358,7 @@ function CheckoutModal() {
   if (items.length === 0 && payState === "idle") return null;
 
   const shippingFee = fulfillment === "ZONE_DELIVERY" && selectedZone ? selectedZone.feeAmount : 0;
-  const total = cartTotal + shippingFee;
+  const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0);
   const shippingLabel =
     fulfillment === "PICKUP"
       ? "Pickup at shop"
@@ -709,9 +749,40 @@ function CheckoutModal() {
                         </li>
                       ))}
                     </ul>
+
+                    <div className="mt-4 border-t border-border pt-3">
+                      {appliedPromo ? (
+                        <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
+                          <span className="font-medium text-accent">{appliedPromo.code} applied</span>
+                          <button type="button" onClick={removePromoCode} className="text-muted-foreground hover:text-foreground">
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            value={promoCode}
+                            onChange={(e) => setPromoCode(e.target.value)}
+                            placeholder="Promo code"
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
+                          />
+                          <button
+                            type="button"
+                            onClick={applyPromoCode}
+                            disabled={promoChecking || !promoCode.trim()}
+                            className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+                          >
+                            {promoChecking ? "…" : "Apply"}
+                          </button>
+                        </div>
+                      )}
+                      {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
+                    </div>
+
                     <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
                       <Row label="Subtotal" value={fmt(cartTotal)} />
                       <Row label={shippingLabel} value={shippingValue} />
+                      {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
                       <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
                         <dt>Total</dt>
                         <dd className="tabular-nums">{fmt(total)}</dd>
