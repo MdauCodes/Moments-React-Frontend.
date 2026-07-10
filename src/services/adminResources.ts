@@ -12,6 +12,19 @@ export type BusinessAccountDto = {
   phone: string; status: "ACTIVE" | "SUSPENDED"; welcomeCode?: string | null; createdAt: string;
   orderCount?: number | null; totalSpend?: number | null;
 };
+export type PromoCodeDto = {
+  id: string;
+  code: string;
+  discountType: "PERCENT" | "FIXED_AMOUNT";
+  discountValue: number;
+  minOrderAmount?: number | null;
+  maxUses?: number | null;
+  usedCount: number;
+  expiresAt?: string | null;
+  active: boolean;
+  /** Set only on an auto-issued Business Account welcome code — not admin-settable. */
+  restrictedToUserId?: string | null;
+};
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -154,6 +167,12 @@ export const adminResources = {
     get: (id: string) => adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}`),
     setStatus: (id: string, status: "ACTIVE" | "SUSPENDED") =>
       adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}/status${qs({ status })}`, { method: "PATCH" }),
+  },
+  promoCodes: {
+    list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),
+    create: (body: Partial<PromoCodeDto>) => adminJson<PromoCodeDto>("/api/v1/admin/promo-codes", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<PromoCodeDto>) => adminJson<PromoCodeDto>(`/api/v1/admin/promo-codes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/promo-codes/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tags: {
     list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),

@@ -92,6 +92,8 @@ function BusinessAccountView({
     <div className="mt-10">
       {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
 
+      <ProgressCard orderCount={account.orderCount ?? 0} totalSpend={account.totalSpend ?? 0} />
+
       <div className="mt-6 rounded-2xl border border-border bg-card p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -124,6 +126,33 @@ function BusinessAccountView({
           <Row label="Contact person" value={account.contactPersonName} />
           <Row label="Designation" value={account.contactPersonRole ?? "—"} />
         </dl>
+      </div>
+    </div>
+  );
+}
+
+function fmtKes(n: number) {
+  return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+}
+
+function ProgressCard({ orderCount, totalSpend }: { orderCount: number; totalSpend: number }) {
+  return (
+    <div className="mt-6 rounded-2xl border border-border bg-card p-6">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Trade credit — coming soon
+      </p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Every order you place on this account builds toward eligibility once trade credit applications open.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-4">
+        <div>
+          <p className="font-display text-2xl">{orderCount}</p>
+          <p className="text-xs text-muted-foreground">Order{orderCount === 1 ? "" : "s"} placed</p>
+        </div>
+        <div>
+          <p className="font-display text-2xl">{fmtKes(totalSpend)}</p>
+          <p className="text-xs text-muted-foreground">Total spend</p>
+        </div>
       </div>
     </div>
   );

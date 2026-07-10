@@ -21,6 +21,9 @@ export interface BusinessAccount {
   /** Auto-issued on creation — a single-use promo code redeemable only by this account. */
   welcomeCode?: string | null;
   createdAt: string;
+  /** Early signal toward future trade-credit eligibility — not a live credit feature yet. */
+  orderCount?: number | null;
+  totalSpend?: number | null;
 }
 
 export interface BusinessAccountInput {

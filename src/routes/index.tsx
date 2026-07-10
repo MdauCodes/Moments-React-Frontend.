@@ -418,7 +418,7 @@ function Hero() {
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
-                to="/enterprise-quote"
+                to="/business-account"
                 className="inline-flex items-center justify-center text-white font-medium"
                 style={{
                   background: "rgba(255,255,255,0.09)",
@@ -429,8 +429,33 @@ function Hero() {
                   fontSize: "14px",
                 }}
               >
-                Enterprise quote
+                Create / Get Business Account
               </Link>
+            </div>
+
+            {/* Business Account benefit chips */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span
+                className="inline-flex items-center rounded-full"
+                style={{ gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "5px 12px", fontSize: "11px", color: "rgba(255,255,255,0.9)" }}
+              >
+                <span className="inline-block rounded-full" style={{ width: "5px", height: "5px", background: "#e8c878" }} />
+                Welcome discount code
+              </span>
+              <span
+                className="inline-flex items-center rounded-full"
+                style={{ gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "5px 12px", fontSize: "11px", color: "rgba(255,255,255,0.9)" }}
+              >
+                <span className="inline-block rounded-full" style={{ width: "5px", height: "5px", background: "#e8c878" }} />
+                Order history tracking
+              </span>
+              <span
+                className="inline-flex items-center rounded-full"
+                style={{ gap: "6px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", padding: "5px 12px", fontSize: "11px", color: "rgba(255,255,255,0.9)" }}
+              >
+                <span className="inline-block rounded-full" style={{ width: "5px", height: "5px", background: "#e8c878" }} />
+                Trade credit — coming soon
+              </span>
             </div>
 
             {/* Secondary CTA row */}

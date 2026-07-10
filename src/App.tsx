@@ -84,6 +84,7 @@ import AdminIndustriesPage from "@/routes/_adminAuth.admin.industries";
 import AdminInventoryPage from "@/routes/_adminAuth.admin.inventory";
 import AdminOrdersPage from "@/routes/_adminAuth.admin.orders";
 import AdminOrderDetailPage from "@/routes/_adminAuth.admin.orders.$id";
+import AdminPromoCodesPage from "@/routes/_adminAuth.admin.promo-codes";
 import AdminPaymentsPage from "@/routes/_adminAuth.admin.payments";
 import AdminProductsIndexPage from "@/routes/_adminAuth.admin.products.index";
 import AdminProductEditPage from "@/routes/_adminAuth.admin.products.$id";
@@ -183,6 +184,7 @@ export default function App() {
                       <Route path="/admin/inventory" element={<AdminInventoryPage />} />
                       <Route path="/admin/orders" element={<AdminOrdersPage />} />
                       <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
+                      <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />
                       <Route path="/admin/payments" element={<AdminPaymentsPage />} />
                       <Route path="/admin/products" element={<AdminProductsIndexPage />} />
                       <Route path="/admin/products/new" element={<AdminProductNewPage />} />
