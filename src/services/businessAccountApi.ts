@@ -5,10 +5,22 @@
 import { apiUrl } from "@/config/api";
 import { authFetch } from "@/contexts/AuthContext";
 
+export type BusinessType = "SOLE_PROPRIETOR" | "SME" | "LIMITED_COMPANY" | "PARTNERSHIP" | "OTHER";
+
+export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  SOLE_PROPRIETOR: "Sole Proprietorship",
+  SME: "SME",
+  LIMITED_COMPANY: "Limited Company",
+  PARTNERSHIP: "Partnership",
+  OTHER: "Other",
+};
+
 export interface BusinessAccount {
   id: string;
   businessName: string;
-  kraPin: string;
+  businessType?: BusinessType | null;
+  /** Optional at this stage — only required later for a trade credit application. */
+  kraPin?: string | null;
   location: string;
   road: string;
   buildingAddress: string;
@@ -28,7 +40,8 @@ export interface BusinessAccount {
 
 export interface BusinessAccountInput {
   businessName: string;
-  kraPin: string;
+  businessType?: BusinessType;
+  kraPin?: string;
   location: string;
   road: string;
   buildingAddress: string;

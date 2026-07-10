@@ -9,13 +9,20 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
-import { businessAccountApi, type BusinessAccount, type BusinessAccountInput } from "@/services/businessAccountApi";
+import {
+  businessAccountApi,
+  BUSINESS_TYPE_LABELS,
+  type BusinessAccount,
+  type BusinessAccountInput,
+  type BusinessType,
+} from "@/services/businessAccountApi";
 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
 
 const blankForm: BusinessAccountInput = {
   businessName: "",
+  businessType: undefined,
   kraPin: "",
   location: "",
   road: "",
@@ -117,7 +124,8 @@ function BusinessAccountView({
         </div>
 
         <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
-          <Row label="KRA PIN" value={account.kraPin} />
+          <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
+          <Row label="KRA PIN" value={account.kraPin || "Not provided yet"} />
           <Row label="Industry" value={account.industryName ?? "—"} />
           <Row label="Location" value={account.location} />
           <Row label="Road" value={account.road} />
@@ -179,7 +187,12 @@ function WelcomeCodeCard({ code }: { code: string }) {
         </button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        Enter this at checkout for a discount on your first order. One-time use, valid only on this account.
+        Enter this at checkout for a discount on orders of Ksh 5,000 or more. One-time use, valid only on this
+        account, for 30 days from today. See the{" "}
+        <Link to="/terms#welcome-offer" className="text-accent hover:underline">
+          full offer terms
+        </Link>
+        .
       </p>
     </div>
   );
@@ -207,7 +220,8 @@ function BusinessAccountForm({
     initial
       ? {
           businessName: initial.businessName,
-          kraPin: initial.kraPin,
+          businessType: initial.businessType ?? undefined,
+          kraPin: initial.kraPin ?? "",
           location: initial.location,
           road: initial.road,
           buildingAddress: initial.buildingAddress,
@@ -242,20 +256,34 @@ function BusinessAccountForm({
     <form onSubmit={submit} className="mt-10 overflow-hidden rounded-2xl border border-border bg-card">
       {!initial && (
         <div className="border-b border-border bg-secondary/40 px-6 py-4">
-          <p className="text-sm font-medium text-foreground">Business Account application</p>
+          <p className="text-sm font-medium text-foreground">Tell us about your business</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            The details below identify your business on every order you place — please provide accurate,
-            verifiable information.
+            Takes about a minute. Whether you're a sole trader, an SME or a registered company —
+            this account is for you.
           </p>
         </div>
       )}
 
       <FormSection icon={Briefcase} title="Business details">
-        <Field label="Registered business name">
-          <input required className={inputCls} value={form.businessName} onChange={(e) => update("businessName", e.target.value)} />
+        <Field label="Business name">
+          <input required className={inputCls} value={form.businessName} onChange={(e) => update("businessName", e.target.value)} placeholder="What you trade as" />
         </Field>
-        <Field label="KRA PIN">
-          <input required className={inputCls} value={form.kraPin} onChange={(e) => update("kraPin", e.target.value)} placeholder="P0XXXXXXXXX" />
+        <Field label="Business type">
+          <Select value={form.businessType ?? ""} onValueChange={(v) => update("businessType", v as BusinessType)}>
+            <SelectTrigger className={inputCls}>
+              <SelectValue placeholder="Select one" />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(BUSINESS_TYPE_LABELS) as BusinessType[]).map((t) => (
+                <SelectItem key={t} value={t}>
+                  {BUSINESS_TYPE_LABELS[t]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="KRA PIN (optional)" helper="Only needed later if you apply for trade credit.">
+          <input className={inputCls} value={form.kraPin} onChange={(e) => update("kraPin", e.target.value)} placeholder="P0XXXXXXXXX" />
         </Field>
         <Field label="Industry">
           <Select value={form.industryId} onValueChange={(v) => update("industryId", v)}>
@@ -301,9 +329,13 @@ function BusinessAccountForm({
 
       <div className="flex flex-col-reverse items-start gap-3 border-t border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
-          Free to open — earns a one-time welcome discount code. Read our{" "}
+          Free to open — earns a one-time welcome discount code. Read the{" "}
           <Link to="/terms#business-accounts" className="text-accent hover:underline">
             Business Account terms
+          </Link>{" "}
+          and{" "}
+          <Link to="/terms#welcome-offer" className="text-accent hover:underline">
+            welcome offer terms
           </Link>
           .
         </p>
@@ -312,7 +344,7 @@ function BusinessAccountForm({
           disabled={saving}
           className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:w-auto"
         >
-          {saving && <InlineProgress size="sm" />} {initial ? "Save changes" : "Submit application"}
+          {saving && <InlineProgress size="sm" />} {initial ? "Save changes" : "Open Business Account"}
         </button>
       </div>
     </form>
@@ -341,11 +373,12 @@ function FormSection({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, helper, children }: { label: string; helper?: string; children: React.ReactNode }) {
   return (
     <div>
       <label className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</label>
       {children}
+      {helper && <p className="mt-1 text-[11px] text-muted-foreground">{helper}</p>}
     </div>
   );
 }

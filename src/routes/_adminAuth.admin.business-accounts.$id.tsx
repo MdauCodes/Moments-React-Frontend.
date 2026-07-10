@@ -4,7 +4,15 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
-import { adminResources, type BusinessAccountDto } from "@/services/adminResources";
+import { adminResources, type BusinessAccountDto, type BusinessType } from "@/services/adminResources";
+
+const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  SOLE_PROPRIETOR: "Sole Proprietorship",
+  SME: "SME",
+  LIMITED_COMPANY: "Limited Company",
+  PARTNERSHIP: "Partnership",
+  OTHER: "Other",
+};
 
 function AdminBusinessAccountDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,7 +67,8 @@ function AdminBusinessAccountDetailPage() {
           <div className="admin-panel" style={{ padding: 18 }}>
             <div className="admin-label">Business details</div>
             <dl style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14, marginTop: 12, fontSize: 13 }}>
-              <Row label="KRA PIN" value={account.kraPin} />
+              <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
+              <Row label="KRA PIN" value={account.kraPin || "Not provided yet"} />
               <Row label="Industry" value={account.industryName ?? "—"} />
               <Row label="Location" value={account.location} />
               <Row label="Road" value={account.road} />

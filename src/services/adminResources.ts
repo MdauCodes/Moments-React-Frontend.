@@ -6,8 +6,10 @@ export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
+export type BusinessType = "SOLE_PROPRIETOR" | "SME" | "LIMITED_COMPANY" | "PARTNERSHIP" | "OTHER";
 export type BusinessAccountDto = {
-  id: string; businessName: string; kraPin: string; location: string; road: string; buildingAddress: string;
+  id: string; businessName: string; businessType?: BusinessType | null; kraPin?: string | null;
+  location: string; road: string; buildingAddress: string;
   industryId?: string | null; industryName?: string | null; contactPersonName: string; contactPersonRole?: string | null;
   phone: string; status: "ACTIVE" | "SUSPENDED"; welcomeCode?: string | null; createdAt: string;
   orderCount?: number | null; totalSpend?: number | null;

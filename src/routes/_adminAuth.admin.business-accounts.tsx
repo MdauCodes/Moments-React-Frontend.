@@ -95,7 +95,7 @@ function AdminBusinessAccountsPage() {
                         <div><b>{r.businessName}</b></div>
                         <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{r.phone}</div>
                       </td>
-                      <td>{r.kraPin}</td>
+                      <td>{r.kraPin || "—"}</td>
                       <td>{r.contactPersonName}</td>
                       <td><StatusBadge status={r.status} /></td>
                       <td>

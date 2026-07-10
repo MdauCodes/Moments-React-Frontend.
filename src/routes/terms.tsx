@@ -132,10 +132,12 @@ export function getTermsContent() {
       body: (
         <>
           <p>
-            Any registered customer may open a free Business Account by providing basic details —
-            registered business name, KRA PIN, location, road and building address, phone number,
-            and a contact person with their designation. Opening one is instant and does not
-            require our approval.
+            Any registered customer may open a free Business Account — sole proprietorships, SMEs
+            and registered companies alike — by providing basic details: business name, business
+            type, location, road and building address, phone number, and a contact person with
+            their designation. Your KRA PIN is optional at this stage; we only require it later if
+            you apply for a trade credit account. Opening a Business Account is instant and does
+            not require our approval.
           </p>
           <ul>
             <li>
@@ -151,8 +153,8 @@ export function getTermsContent() {
             </li>
             <li>
               A Business Account is a separate, later application from a trade credit (buy-on-account)
-              facility. Trade credit requires additional documentation and a credit assessment, and
-              is granted at our discretion.
+              facility. Trade credit requires additional documentation — including your KRA PIN — and
+              a credit assessment, and is granted at our discretion.
             </li>
             <li>
               We may suspend a Business Account, or request further verification of the details
@@ -161,6 +163,24 @@ export function getTermsContent() {
             </li>
           </ul>
         </>
+      ),
+    },
+    {
+      id: "welcome-offer",
+      title: "Welcome offer terms",
+      body: (
+        <ul>
+          <li>This offer is valid on orders of KES 5,000 or more.</li>
+          <li>Limited to one redemption per customer.</li>
+          <li>This offer cannot be combined with any other promotions, discounts, or special offers.</li>
+          <li>Customers must be registered with Moments Packaging (K) Ltd and logged into their account to redeem the offer.</li>
+          <li>Guest users are not eligible to use this discount.</li>
+          <li>The offer is valid for 30 days from the date of registration and sign-in on the Moments Packaging website.</li>
+          <li>The offer is available exclusively for orders placed through the Moments Packaging website and does not apply to purchases made through other sales channels.</li>
+          <li>Offer is available on eligible products only and is subject to product availability.</li>
+          <li>The offer has no cash value and cannot be exchanged for cash or transferred to another customer.</li>
+          <li>While stocks last.</li>
+        </ul>
       ),
     },
     {
