@@ -30,7 +30,7 @@ function OrderConfirmationPage() {
   const [order, setOrder] = useState<CustomerOrder | null>(null);
 
   useEffect(() => {
-    orderStore.getStatus(ref ?? "").then((res) => setOrder(res.order));
+    orderStore.getFullOrder(ref ?? "").then((res) => setOrder(res.order));
   }, [ref]);
 
   const receipt = order?.paymentReference ?? order?.receiptNumber;

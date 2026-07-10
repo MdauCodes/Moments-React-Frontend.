@@ -440,8 +440,9 @@ export async function downloadReceiptPdf(order: ReceiptOrder) {
   const isCourier = (order.fulfillmentType ?? "") === "OWN_COURIER";
   totRow("Delivery", isCourier ? "To be confirmed" : order.shippingFee === 0 ? "Free" : fmt(order.shippingFee));
 
-  hline(doc, ty - 1, INK, 0.4);
-  ty += 2;
+  ty += 1.5;
+  hline(doc, ty, INK, 0.4);
+  ty += 5;
   totRow(`TOTAL  (${order.currency ?? "KES"})`, fmt(order.total), true);
 
   // ── Payment history ───────────────────────────────────────────────────────

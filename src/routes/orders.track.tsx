@@ -2,11 +2,13 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { InlineProgress } from "@/components/InlineProgress";
 import { useEffect, useState, type FormEvent } from "react";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, FileDown, Search } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
+import { downloadReceiptPdf } from "@/lib/pdf";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -227,6 +229,46 @@ function ByEmailTab() {
 }
 
 function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?: boolean }) {
+  const { businessKraPin } = useSiteConfig();
+
+  async function handleDownload() {
+    const { order: full } = await orderStore.getFullOrder(order.reference);
+    const o = full ?? order;
+    downloadReceiptPdf({
+      reference: o.reference,
+      invoiceNumber: o.invoiceNumber,
+      businessKraPin,
+      createdAt: o.createdAt,
+      paidAt: o.paidAt,
+      customerName: o.customerName,
+      customerEmail: o.customerEmail,
+      customerPhone: o.customerPhone,
+      shippingAddress: o.shippingAddress,
+      city: o.city,
+      county: o.county,
+      currency: o.currency,
+      subtotal: o.subtotal,
+      shippingFee: o.shippingFee,
+      total: o.total,
+      paymentMethod: o.paymentMethod,
+      paymentStatus: o.paymentStatus,
+      paymentReference: o.paymentReference,
+      receiptNumber: o.receiptNumber,
+      fulfillmentType: o.fulfillmentType,
+      courierServiceName: o.courierServiceName,
+      items: o.items.map((it) => ({
+        productName: it.productName,
+        size: it.size,
+        material: it.material,
+        finish: it.finish,
+        sku: it.sku,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        lineTotal: it.lineTotal,
+      })),
+    });
+  }
+
   return (
     <article className={compact ? "" : "mt-8 rounded-2xl border border-border bg-card p-6"}>
       {!compact && (
@@ -235,9 +277,18 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
             <p className="text-xs uppercase tracking-widest text-muted-foreground">Order</p>
             <h2 className="font-display text-2xl">{order.reference}</h2>
           </div>
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground">
-            {order.status.replace(/_/g, " ")}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground">
+              {order.status.replace(/_/g, " ")}
+            </span>
+            <button
+              type="button"
+              onClick={handleDownload}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+            >
+              <FileDown className="h-3.5 w-3.5" /> Receipt
+            </button>
+          </div>
         </div>
       )}
 
@@ -251,6 +302,16 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
         )}
         {order.trackingNumber && <div><dt className="text-muted-foreground">Tracking #</dt><dd>{order.trackingNumber}</dd></div>}
       </dl>
+
+      {compact && (
+        <button
+          type="button"
+          onClick={handleDownload}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+        >
+          <FileDown className="h-3.5 w-3.5" /> Download receipt
+        </button>
+      )}
 
       {order.fulfillmentType === "OWN_COURIER" && (order.courierServiceName || order.courierType || order.courierStageOrOffice) && (
         <div className="mt-4 rounded-xl border border-border bg-background/60 p-3 text-sm">

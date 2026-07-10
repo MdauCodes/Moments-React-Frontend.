@@ -393,13 +393,48 @@ export const orderStore = {
       const order = normalizeTrackingDto(live);
       const all = readAll();
       const idx = all.findIndex((o) => o.reference === order.reference);
-      if (idx >= 0) all[idx] = order;
-      else all.unshift(order);
+      if (idx >= 0) {
+        // Merge into the existing local record instead of overwriting it —
+        // the public tracking endpoint deliberately redacts PII (masked
+        // email, no phone/address/unit price) since anyone with just the
+        // reference can hit it. Blindly replacing a fuller checkout-time
+        // record with the redacted one would destroy data this browser
+        // already has a right to see (its own order).
+        const existing = all[idx];
+        all[idx] = {
+          ...existing,
+          status: order.status,
+          paymentStatus: order.paymentStatus,
+          trackingEvents: order.trackingEvents?.length ? order.trackingEvents : existing.trackingEvents,
+          customerEmail: existing.customerEmail || order.customerEmail,
+          customerPhone: existing.customerPhone || order.customerPhone,
+          shippingAddress: existing.shippingAddress || order.shippingAddress,
+          city: existing.city || order.city,
+          items: existing.items?.length ? existing.items : order.items,
+          total: order.total || existing.total,
+        };
+      } else {
+        all.unshift(order);
+      }
       writeAll(all);
-      return { order, source: "live" };
+      return { order: idx >= 0 ? all[idx] : order, source: "live" };
     }
     const found = readAll().find((o) => o.reference === reference) ?? null;
     return { order: found, source: "mock" };
+  },
+
+  /**
+   * Full order detail for building an invoice/receipt PDF. Prefers this
+   * browser's own local record (written by placeOrder/getPaymentStatus at
+   * checkout — full pricing, address, phone) over the public tracking
+   * endpoint, which is deliberately redacted. Falls back to the tracking
+   * endpoint when there's no local record — e.g. a different device.
+   */
+  async getFullOrder(reference: string): Promise<{ order: CustomerOrder | null; source: "cached" | "live" | "mock" }> {
+    const cached = readAll().find((o) => o.reference === reference);
+    if (cached) return { order: cached, source: "cached" };
+    const { order, source } = await this.getStatus(reference);
+    return { order, source };
   },
 
   /** Guest lookup — reference + email or phone. */
