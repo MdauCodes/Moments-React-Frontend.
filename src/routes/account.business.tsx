@@ -293,7 +293,7 @@ function BusinessProfileCard({ account }: { account: BusinessAccount }) {
       </div>
       <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
-        <Row label="KRA PIN" value={account.kraPin || "Not provided yet"} />
+        {account.kraPin && <Row label="KRA PIN" value={account.kraPin} />}
         <Row label="Industry" value={account.industryName ?? "—"} />
         <Row label="Location" value={account.location} />
         <Row label="Road" value={account.road} />
@@ -421,9 +421,6 @@ function BusinessAccountForm({
               ))}
             </SelectContent>
           </Select>
-        </Field>
-        <Field label="KRA PIN (optional)" helper="Only needed later if you apply for trade credit.">
-          <input className={inputCls} value={form.kraPin} onChange={(e) => update("kraPin", e.target.value)} placeholder="P0XXXXXXXXX" />
         </Field>
         <Field label="Industry">
           <Select value={form.industryId} onValueChange={(v) => update("industryId", v)}>

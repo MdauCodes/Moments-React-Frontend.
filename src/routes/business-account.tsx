@@ -53,7 +53,7 @@ function BusinessAccountInfoPage() {
         <div className="mt-10 rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
           <h2 className="font-display text-xl text-foreground">Ready to open yours?</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            Takes about a minute — business name, KRA PIN, address and a contact person.
+            Takes about a minute — business name, address and a contact person.
           </p>
           <div className="mt-5">
             <Link
