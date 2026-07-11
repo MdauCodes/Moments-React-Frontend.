@@ -101,6 +101,8 @@ export interface PlaceOrderInput {
   shippingFee: number;
   paymentMethod: CheckoutPaymentMethod;
   promoCode?: string;
+  /** Sole Merchant rewards points to redeem against this order. */
+  redeemPoints?: number;
   sessionId?: string;
   fulfillmentType?: FulfillmentType;
   courierType?: CourierType;
@@ -259,6 +261,7 @@ export const orderStore = {
     if (input.customer.postalCode) body.postalCode = input.customer.postalCode;
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;
+    if (input.redeemPoints) body.redeemPoints = input.redeemPoints;
     if (input.sessionId) body.sessionId = input.sessionId;
 
     let res: Response;

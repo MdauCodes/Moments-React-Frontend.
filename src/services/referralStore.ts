@@ -33,6 +33,13 @@ export interface ReferralEntry {
   createdAt: string;
 }
 
+export interface RewardsTier {
+  tierName: string;
+  minLifetimePoints: number;
+  discountPercent: number;
+  perkDescription?: string;
+}
+
 async function getJson<T>(path: string, auth = false): Promise<T | null> {
   try {
     const res = await apiFetch(path, { auth, session: true });
@@ -88,5 +95,17 @@ export const referralStore = {
       reward: r.reward != null ? Number(r.reward) : undefined,
       createdAt: r.createdAt ?? new Date().toISOString(),
     }));
+  },
+
+  /** Resolved VIP tier — null if no tier configured/qualified yet. */
+  async getMyTier(): Promise<RewardsTier | null> {
+    const data = await getJson<any>("/api/v1/customer/referral/tier", true);
+    if (!data) return null;
+    return {
+      tierName: data.tierName,
+      minLifetimePoints: Number(data.minLifetimePoints ?? 0),
+      discountPercent: Number(data.discountPercent ?? 0),
+      perkDescription: data.perkDescription,
+    };
   },
 };

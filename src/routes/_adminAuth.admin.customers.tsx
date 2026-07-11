@@ -122,6 +122,7 @@ function AdminCustomersPage() {
               <thead>
                 <tr>
                   <th>Customer</th>
+                  <th>Account</th>
                   <th>Segment</th>
                   <th>Orders</th>
                   <th>Lifetime value</th>
@@ -133,15 +134,21 @@ function AdminCustomersPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8}><div className="admin-empty">Loading customers…</div></td></tr>
+                  <tr><td colSpan={9}><div className="admin-empty">Loading customers…</div></td></tr>
                 ) : !data || data.rows.length === 0 ? (
-                  <tr><td colSpan={8}><div className="admin-empty">No customers match your filters.</div></td></tr>
+                  <tr><td colSpan={9}><div className="admin-empty">No customers match your filters.</div></td></tr>
                 ) : (
                   data.rows.map((c) => (
                     <tr key={c.id}>
                       <td>
                         <div><b>{c.name}</b></div>
                         <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{c.email} · {c.phone}</div>
+                      </td>
+                      <td>
+                        <div>{c.accountType === "BUSINESS" ? "Business" : "Sole Merchant"}</div>
+                        {c.rewardsPoints != null && (
+                          <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{c.rewardsPoints} pts</div>
+                        )}
                       </td>
                       <td><span className="admin-label">{c.segment}</span></td>
                       <td>{c.ordersCount}</td>

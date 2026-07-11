@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase } from "lucide-react";
+import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase, Gift } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,7 +53,11 @@ function DashboardPage() {
           <Tile to="/account/wishlist" icon={Heart} label="Wishlist" value={wishlistCount} />
           <Tile to="/cart" icon={ShoppingBag} label="Cart" value="View" />
           <Tile to="/account/profile" icon={MapPin} label="Addresses" value={profile?.addresses?.length ?? 0} />
-          <Tile to="/account/business" icon={Briefcase} label="Business Account" value="View" />
+          {user?.accountType === "BUSINESS" ? (
+            <Tile to="/account/business" icon={Briefcase} label="Business Account" value="View" />
+          ) : (
+            <Tile to="/account/merchant" icon={Gift} label="Rewards" value="View" />
+          )}
         </div>
 
         <div className="mt-10 grid gap-6 lg:grid-cols-3">
@@ -124,10 +128,10 @@ function DashboardPage() {
               </div>
             )}
             <Link
-              to="/account/referrals"
+              to={user?.accountType === "BUSINESS" ? "/account/referrals" : "/account/merchant"}
               className="mt-5 inline-flex w-full items-center justify-between rounded-xl border border-border bg-secondary/30 px-4 py-3 text-sm hover:bg-secondary"
             >
-              <span className="font-semibold">Refer & earn credit</span>
+              <span className="font-semibold">Refer & earn points</span>
               <ArrowRight className="h-4 w-4 text-accent" />
             </Link>
           </div>
@@ -143,7 +147,7 @@ function Tile({
   label,
   value,
 }: {
-  to: "/account/orders" | "/account/wishlist" | "/cart" | "/account/profile" | "/account/business";
+  to: "/account/orders" | "/account/wishlist" | "/cart" | "/account/profile" | "/account/business" | "/account/merchant";
   icon: typeof ShoppingBag;
   label: string;
   value: string | number;

@@ -42,6 +42,7 @@ import BecomeAPartnerPage from "@/routes/become-a-partner";
 import ProductsIndexPage from "@/routes/products.index";
 import ProductSlugPage from "@/routes/products.$slug";
 import BusinessAccountInfoPage from "@/routes/business-account";
+import SoleMerchantAccountInfoPage from "@/routes/sole-merchant-account";
 
 // ── Account pages ───────────────────────────────────────────────────────────
 import AccountLoginPage from "@/routes/account.login";
@@ -56,6 +57,7 @@ import AccountProfilePage from "@/routes/account.profile";
 import AccountReferralsPage from "@/routes/account.referrals";
 import AccountWishlistPage from "@/routes/account.wishlist";
 import AccountBusinessPage from "@/routes/account.business";
+import AccountMerchantPage from "@/routes/account.merchant";
 
 // ── Admin auth pages (no auth required) ────────────────────────────────────
 import AdminLoginPage from "@/routes/admin.login";
@@ -86,6 +88,7 @@ import AdminInventoryPage from "@/routes/_adminAuth.admin.inventory";
 import AdminOrdersPage from "@/routes/_adminAuth.admin.orders";
 import AdminOrderDetailPage from "@/routes/_adminAuth.admin.orders.$id";
 import AdminPromoCodesPage from "@/routes/_adminAuth.admin.promo-codes";
+import AdminRewardsTiersPage from "@/routes/_adminAuth.admin.rewards-tiers";
 import AdminPaymentsPage from "@/routes/_adminAuth.admin.payments";
 import AdminProductsIndexPage from "@/routes/_adminAuth.admin.products.index";
 import AdminProductEditPage from "@/routes/_adminAuth.admin.products.$id";
@@ -141,6 +144,7 @@ export default function App() {
                     <Route path="/products" element={<ProductsIndexPage />} />
                     <Route path="/products/:slug" element={<ProductSlugPage />} />
                     <Route path="/business-account" element={<BusinessAccountInfoPage />} />
+                    <Route path="/sole-merchant-account" element={<SoleMerchantAccountInfoPage />} />
 
                     {/* Account */}
                     <Route path="/account/login" element={<AccountLoginPage />} />
@@ -155,6 +159,7 @@ export default function App() {
                     <Route path="/account/referrals" element={<AccountReferralsPage />} />
                     <Route path="/account/wishlist" element={<AccountWishlistPage />} />
                     <Route path="/account/business" element={<AccountBusinessPage />} />
+                    <Route path="/account/merchant" element={<AccountMerchantPage />} />
 
                     {/* Admin — no auth */}
                     <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -187,6 +192,7 @@ export default function App() {
                       <Route path="/admin/orders" element={<AdminOrdersPage />} />
                       <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
                       <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />
+                      <Route path="/admin/rewards-tiers" element={<AdminRewardsTiersPage />} />
                       <Route path="/admin/payments" element={<AdminPaymentsPage />} />
                       <Route path="/admin/products" element={<AdminProductsIndexPage />} />
                       <Route path="/admin/products/new" element={<AdminProductNewPage />} />

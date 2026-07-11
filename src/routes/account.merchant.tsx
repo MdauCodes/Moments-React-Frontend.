@@ -1,0 +1,458 @@
+import { Link } from "react-router-dom";
+
+import { useEffect, useState } from "react";
+import {
+  Gift,
+  Copy,
+  Check,
+  Share2,
+  Users,
+  Package,
+  ArrowRight,
+  LayoutGrid,
+  Settings as SettingsIcon,
+  Award,
+} from "lucide-react";
+import { toast } from "sonner";
+import { SiteLayout } from "@/components/SiteLayout";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { orderStore, type CustomerOrder } from "@/services/orderStore";
+import {
+  referralStore,
+  type ReferralStatus,
+  type ReferralWallet,
+  type ReferralTransaction,
+  type ReferralEntry,
+  type RewardsTier,
+} from "@/services/referralStore";
+
+function fmtKes(n: number) {
+  return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+}
+
+function AccountMerchantPage() {
+  return (
+    <ProtectedRoute>
+      <SiteLayout>
+        <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
+          <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
+          <h1 className="mt-1 font-display text-3xl sm:text-4xl">Sole Merchant Account</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Earn points on every order, share your referral link, and redeem points for discounts.
+          </p>
+          <MerchantDashboardBody />
+        </section>
+      </SiteLayout>
+    </ProtectedRoute>
+  );
+}
+
+// ── Dashboard shell — same Stripe-style pattern as account.business.tsx ──────
+
+type TabKey = "overview" | "rewards" | "orders" | "settings";
+
+const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
+  { key: "overview", label: "Overview", icon: LayoutGrid },
+  { key: "rewards", label: "Rewards & Referrals", icon: Award },
+  { key: "orders", label: "Orders", icon: Package },
+  { key: "settings", label: "Settings", icon: SettingsIcon },
+];
+
+function MerchantDashboardBody() {
+  const [tab, setTab] = useState<TabKey>("overview");
+  const [status, setStatus] = useState<ReferralStatus | null>(null);
+  const [wallet, setWallet] = useState<ReferralWallet | null>(null);
+  const [tier, setTier] = useState<RewardsTier | null>(null);
+  const [txs, setTxs] = useState<ReferralTransaction[]>([]);
+  const [refs, setRefs] = useState<ReferralEntry[]>([]);
+  const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const s = await referralStore.getStatus();
+      if (cancelled) return;
+      setStatus(s);
+      if (s.featureUnlocked && s.programEnabled) {
+        const [w, t, tr, r] = await Promise.all([
+          referralStore.getWallet(),
+          referralStore.getMyTier(),
+          referralStore.getTransactions(),
+          referralStore.getReferrals(),
+        ]);
+        if (cancelled) return;
+        setWallet(w);
+        setTier(t);
+        setTxs(tr);
+        setRefs(r);
+      }
+      setLoading(false);
+    })();
+    orderStore.listMine(0, 20).then((r) => setOrders(r.rows));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading) {
+    return <p className="mt-10 text-sm text-muted-foreground">Loading…</p>;
+  }
+
+  const live = status?.featureUnlocked && status?.programEnabled;
+
+  if (!live) {
+    return (
+      <div className="mt-10 rounded-2xl border border-dashed border-border bg-secondary/20 p-8 text-center">
+        <p className="font-display text-lg">Rewards program — coming soon</p>
+        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+          {status?.message ?? "We're polishing the rewards programme. Check back soon."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <DashboardTopStrip wallet={wallet} tier={tier} orderCount={orders?.length} />
+
+      <div className="flex flex-col lg:flex-row">
+        <DashboardNav tab={tab} onChange={setTab} />
+        <div className="min-w-0 flex-1 border-t border-border p-5 sm:p-6 lg:border-l lg:border-t-0">
+          {tab === "overview" && (
+            <OverviewTab wallet={wallet} tier={tier} txs={txs} onSeeAllRewards={() => setTab("rewards")} />
+          )}
+          {tab === "rewards" && <RewardsTab wallet={wallet} txs={txs} refs={refs} />}
+          {tab === "orders" && <OrdersTab orders={orders} />}
+          {tab === "settings" && <SettingsTab />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DashboardTopStrip({
+  wallet,
+  tier,
+  orderCount,
+}: {
+  wallet: ReferralWallet | null;
+  tier: RewardsTier | null;
+  orderCount?: number;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+          <Gift className="h-4 w-4" />
+        </span>
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="text-[15px] font-semibold leading-tight text-foreground">Sole Merchant</p>
+            {tier && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                {tier.tierName}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">Rewards account</p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-6 sm:gap-8">
+        <TopStat label="Points balance" value={String(wallet?.balance ?? 0)} />
+        <TopStat label="Points value" value={fmtKes(wallet?.balance ?? 0)} />
+        <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
+      </div>
+    </div>
+  );
+}
+
+function TopStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
+  return (
+    <nav className="flex gap-1 overflow-x-auto border-t border-border p-2 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:border-t-0 lg:p-3">
+      {NAV_ITEMS.map((item) => {
+        const active = tab === item.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => onChange(item.key)}
+            className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
+              active
+                ? "border-accent bg-secondary/70 font-medium text-foreground"
+                : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+            }`}
+          >
+            <item.icon className="h-4 w-4 shrink-0" />
+            {item.label}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
+function Section({
+  icon: Icon,
+  title,
+  action,
+  children,
+  tint,
+}: {
+  icon?: typeof Package;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  tint?: "accent";
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-5 ${tint === "accent" ? "border-accent/25 bg-accent/[0.03]" : "border-border bg-background/40"}`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        </div>
+        {action}
+      </div>
+      <div className="mt-3.5">{children}</div>
+    </div>
+  );
+}
+
+// ── Overview tab ─────────────────────────────────────────────────────────────
+
+function OverviewTab({
+  wallet,
+  tier,
+  txs,
+  onSeeAllRewards,
+}: {
+  wallet: ReferralWallet | null;
+  tier: RewardsTier | null;
+  txs: ReferralTransaction[];
+  onSeeAllRewards: () => void;
+}) {
+  const recent = txs.slice(0, 3);
+  return (
+    <div className="space-y-5">
+      <Section icon={Award} title="Points balance" tint="accent">
+        <div className="flex items-baseline gap-1.5">
+          <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
+          <p className="text-sm text-muted-foreground">points · worth {fmtKes(wallet?.balance ?? 0)}</p>
+        </div>
+        {tier ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier —{" "}
+            {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-muted-foreground">Keep earning points to unlock a VIP tier.</p>
+        )}
+      </Section>
+
+      <Section
+        icon={Package}
+        title="Recent activity"
+        action={
+          <button
+            type="button"
+            onClick={onSeeAllRewards}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+          >
+            View all <ArrowRight className="h-3 w-3" />
+          </button>
+        }
+      >
+        <div className="space-y-2">
+          {recent.length === 0 && <p className="text-sm text-muted-foreground">No activity yet — place an order to start earning.</p>}
+          {recent.map((t) => <TransactionRow key={t.id} tx={t} />)}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ── Rewards & Referrals tab ───────────────────────────────────────────────────
+
+function RewardsTab({
+  wallet,
+  txs,
+  refs,
+}: {
+  wallet: ReferralWallet | null;
+  txs: ReferralTransaction[];
+  refs: ReferralEntry[];
+}) {
+  const [copied, setCopied] = useState(false);
+  const code = wallet?.referralCode ?? "";
+  const shareUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/account/register?ref=${encodeURIComponent(code)}` : "";
+
+  async function copyCode() {
+    if (!code) return;
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    toast.success("Code copied");
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function shareLink() {
+    if (!shareUrl) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Moments Packaging", text: `Use my code ${code} for a discount`, url: shareUrl });
+      } catch {
+        /* cancelled */
+      }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Share link copied");
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <Section icon={Gift} title="Your referral code" tint="accent">
+        <div className="flex flex-wrap items-center gap-3">
+          <code className="rounded-lg bg-secondary px-4 py-2.5 font-mono text-lg font-bold tracking-widest text-foreground">
+            {code || "—"}
+          </code>
+          <button
+            type="button"
+            onClick={copyCode}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold hover:bg-secondary"
+          >
+            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+          <button
+            type="button"
+            onClick={shareLink}
+            className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            <Share2 className="h-3.5 w-3.5" /> Share link
+          </button>
+        </div>
+        {shareUrl && <p className="mt-2.5 break-all text-xs text-muted-foreground">{shareUrl}</p>}
+      </Section>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Section icon={Package} title="Points history">
+          {txs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No transactions yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {txs.map((t) => <TransactionRow key={t.id} tx={t} />)}
+            </div>
+          )}
+        </Section>
+
+        <Section icon={Users} title="Your referrals">
+          {refs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Share your code to start earning.</p>
+          ) : (
+            <div className="space-y-2">
+              {refs.map((r) => (
+                <div key={r.id} className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm">
+                  <div>
+                    <p className="font-medium text-foreground">{r.refereeName ?? r.refereeEmail ?? "Anonymous"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(r.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })} · {r.status}
+                    </p>
+                  </div>
+                  {r.reward != null && (
+                    <span className="font-mono text-sm font-semibold tabular-nums text-accent">+{r.reward}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Section>
+      </div>
+    </div>
+  );
+}
+
+function TransactionRow({ tx }: { tx: ReferralTransaction }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm">
+      <div>
+        <p className="font-medium text-foreground">{tx.type.replace(/_/g, " ")}</p>
+        {tx.description && <p className="text-xs text-muted-foreground">{tx.description}</p>}
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{new Date(tx.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}</p>
+      </div>
+      <span className={`font-mono text-sm font-semibold tabular-nums ${tx.amount >= 0 ? "text-accent" : "text-destructive"}`}>
+        {tx.amount >= 0 ? "+" : ""}
+        {tx.amount}
+      </span>
+    </div>
+  );
+}
+
+// ── Orders tab ───────────────────────────────────────────────────────────────
+
+function OrdersTab({ orders }: { orders: CustomerOrder[] | null }) {
+  const totalSpend = orders?.reduce((s, o) => s + o.total, 0) ?? 0;
+  return (
+    <Section icon={Package} title={`Orders${orders ? ` (${orders.length})` : ""}`}>
+      <div className="mb-4 flex items-baseline gap-1.5 border-b border-border pb-4 text-sm">
+        <span className="font-mono font-semibold tabular-nums text-foreground">{fmtKes(totalSpend)}</span>
+        <span className="text-xs text-muted-foreground">lifetime spend</span>
+      </div>
+      <div className="space-y-2">
+        {orders === null && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {orders !== null && orders.length === 0 && <p className="text-sm text-muted-foreground">No orders placed yet.</p>}
+        {orders?.map((o) => (
+          <Link
+            key={o.reference}
+            to={`/account/orders/${encodeURIComponent(o.reference)}`}
+            className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm hover:bg-secondary/40"
+          >
+            <div>
+              <p className="font-mono text-[13px] font-medium text-foreground">{o.reference}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(o.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-mono text-[13px] font-medium tabular-nums text-foreground">{fmtKes(o.total)}</p>
+              <p className="text-xs text-muted-foreground">{o.status.replace(/_/g, " ")}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ── Settings tab ───────────────────────────────────────────────────────────────
+
+function SettingsTab() {
+  return (
+    <Section icon={SettingsIcon} title="Account settings">
+      <p className="text-sm text-muted-foreground">
+        Manage your name, email, phone and saved addresses from your profile page.
+      </p>
+      <Link
+        to="/account/profile"
+        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary"
+      >
+        Edit profile <ArrowRight className="h-3.5 w-3.5" />
+      </Link>
+    </Section>
+  );
+}
+
+export default AccountMerchantPage;

@@ -7,6 +7,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   roles: string[];
+  accountType?: "SOLE_MERCHANT" | "BUSINESS";
 }
 
 interface AuthContextValue {
@@ -50,6 +51,7 @@ function decodeJwt(token: string | null): AuthUser | null {
       firstName: payload.firstName,
       lastName: payload.lastName ?? "",
       roles: Array.isArray(payload.roles) ? payload.roles : [],
+      accountType: payload.accountType,
     };
   } catch {
     return null;

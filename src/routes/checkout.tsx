@@ -20,6 +20,7 @@ import { useAuth, authFetch } from "@/contexts/AuthContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
 import { fetchDeliveryZones, type DeliveryZone } from "@/services/deliveryZoneService";
 import { businessAccountApi } from "@/services/businessAccountApi";
+import { referralStore } from "@/services/referralStore";
 import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
@@ -172,6 +173,57 @@ function CheckoutModal() {
     welcomeCodeDismissed.current = true;
   }
 
+  // Sole Merchant rewards points redemption
+  const [pointsBalance, setPointsBalance] = useState<number | null>(null);
+  const [redeemInput, setRedeemInput] = useState("");
+  const [appliedRedemption, setAppliedRedemption] = useState<{ points: number; discount: number } | null>(null);
+  const [redeemChecking, setRedeemChecking] = useState(false);
+  const [redeemError, setRedeemError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.accountType !== "SOLE_MERCHANT") return;
+    referralStore.getWallet().then((w) => setPointsBalance(w?.balance ?? 0)).catch(() => {});
+  }, [isAuthenticated, user?.accountType]);
+
+  async function applyPointsRedemption() {
+    const points = parseInt(redeemInput, 10);
+    if (!points || points <= 0) {
+      setRedeemError("Enter how many points to redeem");
+      return;
+    }
+    setRedeemChecking(true);
+    setRedeemError(null);
+    try {
+      const preliminaryTotal = cartTotal + shippingFee - (appliedPromo?.discount ?? 0);
+      const res = await authFetch(apiUrl("/api/v1/customer/referral/redeem/preview"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points, orderTotal: preliminaryTotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRedeemError(data.message ?? "Couldn't redeem those points");
+        return;
+      }
+      setAppliedRedemption({ points, discount: data.appliedDiscountKes ?? 0 });
+      if (data.capped) {
+        toast.info(`Capped at the maximum redeemable for this order: KES ${data.appliedDiscountKes}`);
+      } else {
+        toast.success("Points applied");
+      }
+    } catch {
+      setRedeemError("Couldn't check that right now — try again");
+    } finally {
+      setRedeemChecking(false);
+    }
+  }
+
+  function removePointsRedemption() {
+    setAppliedRedemption(null);
+    setRedeemInput("");
+    setRedeemError(null);
+  }
+
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [selectedZone, setSelectedZone] = useState<DeliveryZone | null>(null);
   const [zoneSearch, setZoneSearch] = useState("");
@@ -310,6 +362,7 @@ function CheckoutModal() {
           fulfillmentType: fulfillment,
           idempotencyKey: idempotencyKey.current,
           promoCode: appliedPromo?.code,
+          redeemPoints: appliedRedemption?.points,
           ...(fulfillment === "OWN_COURIER" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -401,7 +454,7 @@ function CheckoutModal() {
   if (items.length === 0 && payState === "idle") return null;
 
   const shippingFee = fulfillment === "ZONE_DELIVERY" && selectedZone ? selectedZone.feeAmount : 0;
-  const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0);
+  const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0) - (appliedRedemption?.discount ?? 0);
   const shippingLabel =
     fulfillment === "PICKUP"
       ? "Pickup at shop"
@@ -824,10 +877,47 @@ function CheckoutModal() {
                       {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
                     </div>
 
+                    {pointsBalance !== null && pointsBalance > 0 && (
+                      <div className="mt-3 border-t border-border pt-3">
+                        {appliedRedemption ? (
+                          <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
+                            <span className="font-medium text-accent">
+                              {appliedRedemption.points} points redeemed
+                            </span>
+                            <button type="button" onClick={removePointsRedemption} className="text-muted-foreground hover:text-foreground">
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={pointsBalance}
+                              value={redeemInput}
+                              onChange={(e) => setRedeemInput(e.target.value)}
+                              placeholder={`Redeem points (balance: ${pointsBalance})`}
+                              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
+                            />
+                            <button
+                              type="button"
+                              onClick={applyPointsRedemption}
+                              disabled={redeemChecking || !redeemInput.trim()}
+                              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+                            >
+                              {redeemChecking ? "…" : "Apply"}
+                            </button>
+                          </div>
+                        )}
+                        {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
+                      </div>
+                    )}
+
                     <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
                       <Row label="Subtotal" value={fmt(cartTotal)} />
                       <Row label={shippingLabel} value={shippingValue} />
                       {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
+                      {appliedRedemption && <Row label="Points redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
                       <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
                         <dt>Total</dt>
                         <dd className="tabular-nums">{fmt(total)}</dd>

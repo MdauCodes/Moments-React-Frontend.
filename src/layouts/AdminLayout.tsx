@@ -27,6 +27,7 @@ import {
   Briefcase,
   TicketPercent,
   Landmark,
+  Gift,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -105,6 +106,7 @@ const navSections: NavSection[] = [
     items: [
       { label: "Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
     ],
   },
   {

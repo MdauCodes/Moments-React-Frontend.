@@ -32,6 +32,15 @@ export type PromoCodeDto = {
   /** Set only on an auto-issued Business Account welcome code — not admin-settable. */
   restrictedToUserId?: string | null;
 };
+export type RewardsTierConfigDto = {
+  id: string;
+  tierName: string;
+  minLifetimePoints: number;
+  discountPercent: number;
+  perkDescription?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+};
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -182,6 +191,12 @@ export const adminResources = {
     create: (body: Partial<PromoCodeDto>) => adminJson<PromoCodeDto>("/api/v1/admin/promo-codes", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<PromoCodeDto>) => adminJson<PromoCodeDto>(`/api/v1/admin/promo-codes/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/promo-codes/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  rewardsTiers: {
+    list: () => adminJson<RewardsTierConfigDto[]>("/api/v1/admin/referral/rewards-tiers"),
+    create: (body: Partial<RewardsTierConfigDto>) => adminJson<RewardsTierConfigDto>("/api/v1/admin/referral/rewards-tiers", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<RewardsTierConfigDto>) => adminJson<RewardsTierConfigDto>(`/api/v1/admin/referral/rewards-tiers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/referral/rewards-tiers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tags: {
     list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),
