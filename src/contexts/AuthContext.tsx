@@ -193,7 +193,8 @@ export async function authFetch(
   onAuthFailed?: () => void,
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  if (accessTokenMem) headers.set("Authorization", `Bearer ${accessTokenMem}`);
+  const token = getAccessToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
   let res = await fetch(input, { ...init, headers });
   if (res.status !== 401 || !refresh) return res;
   const newToken = await refresh();
