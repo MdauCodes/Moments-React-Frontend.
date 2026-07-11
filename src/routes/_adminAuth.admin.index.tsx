@@ -2,12 +2,13 @@ import { Link } from "react-router-dom";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Boxes, CheckCircle2, PackageCheck, Plus, Send, ShoppingCart, Users as UsersIcon } from "lucide-react";
+import { ArrowRight, Boxes, Briefcase, CheckCircle2, PackageCheck, Plus, Send, ShoppingCart, Users as UsersIcon } from "lucide-react";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { MockBanner, formatKes } from "@/components/admin/commerceUi";
 import { getDashboardStats, type DashboardResult } from "@/services/commerceApi";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
+import { adminResources } from "@/services/adminResources";
 import { PERM } from "@/lib/permissions";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
 
@@ -23,6 +24,7 @@ export function AdminDashboardPage() {
   const { orders, refresh } = useAdminOrders();
   const [stats, setStats] = useState<ApiStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [bizAccountCount, setBizAccountCount] = useState<number | null>(null);
 
   // Permission shortcuts
   const showRevenue = hasPermission(PERM.ANALYTICS_VIEW);
@@ -33,6 +35,7 @@ export function AdminDashboardPage() {
   const showDispatchBlock = hasPermission(PERM.ORDER_DISPATCH);
   const showMyAssigned = hasPermission(PERM.ORDER_VIEW) && !hasPermission(PERM.ORDER_MANAGE_ALL);
   const showStaffOverview = hasPermission(PERM.USER_VIEW);
+  const showBusinessAccounts = hasPermission(PERM.CUSTOMER_VIEW);
   const showQuickActions =
     hasPermission(PERM.USER_CREATE) || hasPermission(PERM.PRODUCT_MANAGE) || hasPermission(PERM.ORDER_MANAGE_ALL);
 
@@ -50,6 +53,16 @@ export function AdminDashboardPage() {
       .finally(() => { if (!cancelled) setLoadingStats(false); });
     return () => { cancelled = true; };
   }, [needStats]);
+
+  useEffect(() => {
+    if (!showBusinessAccounts) return;
+    let cancelled = false;
+    adminResources.businessAccounts
+      .list({ page: 0, size: 1 })
+      .then((res) => { if (!cancelled) setBizAccountCount(res.totalElements ?? 0); })
+      .catch(() => { if (!cancelled) setBizAccountCount(null); });
+    return () => { cancelled = true; };
+  }, [showBusinessAccounts]);
 
   const queueCounts = useMemo(() => ({
     paid: orders.filter((o) => o.status === "PAID").length,
@@ -150,6 +163,27 @@ export function AdminDashboardPage() {
             </div>
           )}
 
+          {showBusinessAccounts && (
+            <div className="admin-panel" style={{ padding: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                <Briefcase size={16} />
+                <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>Business accounts</h2>
+              </div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 28 }}>
+                  {bizAccountCount === null ? "—" : bizAccountCount}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--admin-muted)" }}>opened to date</div>
+              </div>
+              <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--admin-muted)" }}>
+                Trade profiles, welcome codes and credit readiness — the foundation for trade credit accounts (coming soon).
+              </p>
+              <div style={{ marginTop: 10 }}>
+                <Link to="/admin/business-accounts" className="admin-btn admin-btn-ghost">Manage business accounts</Link>
+              </div>
+            </div>
+          )}
+
           {showStaffOverview && (
             <div className="admin-panel" style={{ padding: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -190,7 +224,7 @@ export function AdminDashboardPage() {
 
           {/* Truly minimal account — nothing matched any permission block */}
           {!tiles.length && !showPaymentBlock && !showPrepBlock && !showDispatchBlock && !showMyAssigned
-            && !showTopProducts && !showStaffOverview && !showQuickActions && (
+            && !showTopProducts && !showStaffOverview && !showQuickActions && !showBusinessAccounts && (
             <div className="admin-panel" style={{ padding: 24, textAlign: "center" }}>
               <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 20 }}>Welcome</h2>
               <p style={{ marginTop: 8, color: "var(--admin-muted)", fontSize: 13 }}>

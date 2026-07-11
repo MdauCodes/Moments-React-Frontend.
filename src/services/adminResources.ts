@@ -7,12 +7,17 @@ export type BlogStatus = "DRAFT" | "PUBLISHED";
 
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
 export type BusinessType = "SOLE_PROPRIETOR" | "SME" | "LIMITED_COMPANY" | "PARTNERSHIP" | "OTHER";
+export type CreditReadinessDto = {
+  score: number; label: "Building" | "Promising" | "Strong";
+  orderCountPoints: number; spendPoints: number; accountAgePoints: number; recencyPoints: number;
+  orderCountMax: number; spendMax: number; accountAgeMax: number; recencyMax: number;
+};
 export type BusinessAccountDto = {
   id: string; businessName: string; businessType?: BusinessType | null; kraPin?: string | null;
   location: string; road: string; buildingAddress: string;
   industryId?: string | null; industryName?: string | null; contactPersonName: string; contactPersonRole?: string | null;
   phone: string; status: "ACTIVE" | "SUSPENDED"; welcomeCode?: string | null; createdAt: string;
-  orderCount?: number | null; totalSpend?: number | null;
+  orderCount?: number | null; totalSpend?: number | null; creditReadiness?: CreditReadinessDto | null;
 };
 export type PromoCodeDto = {
   id: string;
@@ -167,6 +172,8 @@ export const adminResources = {
     list: (params: { q?: string; page?: number; size?: number }) =>
       adminJson<PageResponse<BusinessAccountDto>>(`/api/v1/admin/business-accounts${qs(params)}`),
     get: (id: string) => adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}`),
+    update: (id: string, body: Partial<BusinessAccountDto> & { industryId?: string | null }) =>
+      adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     setStatus: (id: string, status: "ACTIVE" | "SUSPENDED") =>
       adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}/status${qs({ status })}`, { method: "PATCH" }),
   },

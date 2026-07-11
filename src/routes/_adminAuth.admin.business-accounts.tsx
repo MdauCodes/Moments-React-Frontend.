@@ -3,9 +3,17 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { adminResources, type BusinessAccountDto } from "@/services/adminResources";
+import { adminResources, type BusinessAccountDto, type BusinessType } from "@/services/adminResources";
 
 const PAGE_SIZE = 20;
+
+const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  SOLE_PROPRIETOR: "Sole Proprietorship",
+  SME: "SME",
+  LIMITED_COMPANY: "Limited Company",
+  PARTNERSHIP: "Partnership",
+  OTHER: "Other",
+};
 
 function StatusBadge({ status }: { status: BusinessAccountDto["status"] }) {
   const tone = status === "ACTIVE"
@@ -18,6 +26,7 @@ function StatusBadge({ status }: { status: BusinessAccountDto["status"] }) {
     }}>{status}</span>
   );
 }
+
 
 function AdminBusinessAccountsPage() {
   const [rows, setRows] = useState<BusinessAccountDto[]>([]);
@@ -77,7 +86,7 @@ function AdminBusinessAccountsPage() {
               <thead>
                 <tr>
                   <th>Business</th>
-                  <th>KRA PIN</th>
+                  <th>Type</th>
                   <th>Contact person</th>
                   <th>Status</th>
                   <th />
@@ -95,7 +104,7 @@ function AdminBusinessAccountsPage() {
                         <div><b>{r.businessName}</b></div>
                         <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{r.phone}</div>
                       </td>
-                      <td>{r.kraPin || "—"}</td>
+                      <td>{r.businessType ? BUSINESS_TYPE_LABELS[r.businessType] : "—"}</td>
                       <td>{r.contactPersonName}</td>
                       <td><StatusBadge status={r.status} /></td>
                       <td>
