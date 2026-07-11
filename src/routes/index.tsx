@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
 import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
+import { BusinessAccountPromoModal } from "@/components/BusinessAccountPromoModal";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
@@ -935,6 +936,7 @@ function HomePage() {
   return (
     <>
       <FirstVisitSplash />
+      <BusinessAccountPromoModal />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
         <AddToHomeScreenPrompt />
