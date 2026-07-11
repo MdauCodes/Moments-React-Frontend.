@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteConfigProvider } from "@/contexts/SiteConfigContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthModalProvider } from "@/contexts/AuthModalContext";
+import { AuthModal } from "@/components/AuthModal";
 import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
@@ -108,6 +110,7 @@ export default function App() {
       <ScrollToTop />
       <SiteConfigProvider>
         <AuthProvider>
+          <AuthModalProvider>
           <CartProvider>
             <WishlistProvider>
               <AdminAuthProvider>
@@ -221,10 +224,12 @@ export default function App() {
                   </Routes>
                   <Toaster />
                   {SITE_LOCK_ENABLED && <SiteLockOverlay />}
+                  <AuthModal />
                 </PersonaProvider>
               </AdminAuthProvider>
             </WishlistProvider>
           </CartProvider>
+          </AuthModalProvider>
         </AuthProvider>
       </SiteConfigProvider>
     </BrowserRouter>

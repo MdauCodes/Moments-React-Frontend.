@@ -7,6 +7,7 @@ import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import { api, type Segment, type Category as TaxCategory, type Subcategory } from "@/services/api";
 
 /**
@@ -66,6 +67,7 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const { itemCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
+  const { openLogin } = useAuthModal();
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -313,7 +315,7 @@ export function SiteHeader() {
                   aria-label="Account"
                   onClick={() => {
                     if (!isAuthenticated) {
-                      navigate("/account/login");
+                      openLogin();
                     } else {
                       setAccountOpen((v) => !v);
                     }
@@ -328,6 +330,13 @@ export function SiteHeader() {
                       <div className="border-b border-border px-4 py-3 font-display text-sm text-foreground">
                         Hi {user?.firstName ?? "there"}
                       </div>
+                      <Link
+                        to={user?.accountType === "BUSINESS" ? "/account/business" : "/account/merchant"}
+                        onClick={() => setAccountOpen(false)}
+                        className="block px-4 py-2.5 text-sm text-foreground/80 hover:bg-secondary hover:text-foreground"
+                      >
+                        {user?.accountType === "BUSINESS" ? "Business Dashboard" : "Rewards Dashboard"}
+                      </Link>
                       <Link
                         to="/account/orders"
                         onClick={() => setAccountOpen(false)}
@@ -536,6 +545,13 @@ export function SiteHeader() {
                 <div className="mt-2 border-t border-border pt-2">
                   <p className="px-3 py-1.5 text-xs text-muted-foreground">Hi {user?.firstName ?? "there"}</p>
                   <Link
+                    to={user?.accountType === "BUSINESS" ? "/account/business" : "/account/merchant"}
+                    onClick={() => setOpen(false)}
+                    className="block rounded-md px-3 py-2.5 text-sm text-foreground/80 hover:bg-secondary"
+                  >
+                    {user?.accountType === "BUSINESS" ? "Business Dashboard" : "Rewards Dashboard"}
+                  </Link>
+                  <Link
                     to="/account/orders"
                     onClick={() => setOpen(false)}
                     className="block rounded-md px-3 py-2.5 text-sm text-foreground/80 hover:bg-secondary"
@@ -569,13 +585,16 @@ export function SiteHeader() {
                   </button>
                 </div>
               ) : (
-                <Link
-                  to="/account/login"
-                  onClick={() => setOpen(false)}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    openLogin();
+                  }}
                   className="mt-2 inline-flex items-center gap-2 rounded-md border border-border px-3 py-3 text-sm text-foreground/80 hover:bg-secondary"
                 >
                   <User className="h-4 w-4" /> Sign in
-                </Link>
+                </button>
               )}
             </div>
           </div>

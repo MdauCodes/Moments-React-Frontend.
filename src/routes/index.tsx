@@ -5,7 +5,8 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
 import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
-import { BusinessAccountPromoModal } from "@/components/BusinessAccountPromoModal";
+import { WelcomeStarterModal } from "@/components/WelcomeStarterModal";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
@@ -102,6 +103,7 @@ function FirstVisitSplash() {
 // elsewhere per request, so it needs its own solid background rather than
 // the hero's old transparent-over-image treatment. ──
 function HomeNav() {
+  const { openLogin } = useAuthModal();
   return (
     <nav
       className="sticky top-0 z-40 border-b border-white/10 backdrop-blur-md"
@@ -142,9 +144,13 @@ function HomeNav() {
             <ShoppingBag className="h-5 w-5" />
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full" style={{ background: "#e8c878" }} />
           </Link>
-          <Link to="/login" className="hidden md:inline text-sm hover:opacity-80">
+          <button
+            type="button"
+            onClick={() => openLogin()}
+            className="hidden md:inline text-sm hover:opacity-80"
+          >
             Sign in
-          </Link>
+          </button>
         </div>
       </div>
     </nav>
@@ -936,7 +942,7 @@ function HomePage() {
   return (
     <>
       <FirstVisitSplash />
-      <BusinessAccountPromoModal />
+      <WelcomeStarterModal />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
         <AddToHomeScreenPrompt />
