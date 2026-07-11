@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import {
   Briefcase,
   Copy,
-  CheckCircle2,
+  Check,
   MapPin,
   User,
   TrendingUp,
@@ -35,7 +35,7 @@ import {
 } from "@/services/businessAccountApi";
 
 const inputCls =
-  "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
+  "w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
 
 const blankForm: BusinessAccountInput = {
   businessName: "",
@@ -88,7 +88,9 @@ function BusinessAccountBody() {
   return <BusinessAccountForm industries={industries} onCreated={setAccount} />;
 }
 
-// ── Dashboard shell ──────────────────────────────────────────────────────────
+// ── Dashboard shell — one unified panel, internal nav rail, Stripe-style
+// density: tabular-nums metrics, thin dividers instead of stacked cards,
+// muted chrome that stays out of the way of the data. ──────────────────────
 
 type TabKey = "overview" | "orders" | "credit" | "documents" | "settings";
 
@@ -99,6 +101,10 @@ const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid; soon?: b
   { key: "documents", label: "Documents", icon: FileText, soon: true },
   { key: "settings", label: "Settings", icon: SettingsIcon },
 ];
+
+function fmtKes(n: number) {
+  return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+}
 
 function BusinessDashboard({
   account,
@@ -117,13 +123,12 @@ function BusinessDashboard({
   }, []);
 
   return (
-    <div className="mt-10">
-      <DashboardHeader account={account} />
+    <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+      <DashboardTopStrip account={account} orderCount={orders?.length} />
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[200px_1fr]">
+      <div className="flex flex-col lg:flex-row">
         <DashboardNav tab={tab} onChange={setTab} />
-
-        <div>
+        <div className="min-w-0 flex-1 border-t border-border p-5 sm:p-6 lg:border-l lg:border-t-0">
           {tab === "overview" && (
             <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
           )}
@@ -139,18 +144,19 @@ function BusinessDashboard({
   );
 }
 
-function DashboardHeader({ account }: { account: BusinessAccount }) {
+function DashboardTopStrip({ account, orderCount }: { account: BusinessAccount; orderCount?: number }) {
+  const score = account.creditReadiness?.score;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-6">
+    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4 sm:px-6">
       <div className="flex items-center gap-3">
-        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
-          <Briefcase className="h-6 w-6" />
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+          <Briefcase className="h-4 w-4" />
         </span>
         <div>
-          <p className="font-display text-xl">{account.businessName}</p>
-          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <p className="text-[15px] font-semibold leading-tight text-foreground">{account.businessName}</p>
             <span
-              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
+              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 account.status === "ACTIVE"
                   ? "bg-emerald-500/10 text-emerald-600"
                   : "bg-destructive/10 text-destructive"
@@ -159,23 +165,35 @@ function DashboardHeader({ account }: { account: BusinessAccount }) {
               <span className="h-1.5 w-1.5 rounded-full bg-current" />
               {account.status === "ACTIVE" ? "Active" : "Suspended"}
             </span>
-            {account.businessType && <span>{BUSINESS_TYPE_LABELS[account.businessType]}</span>}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "Business"} · Opened{" "}
+            {new Date(account.createdAt).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}
           </p>
         </div>
       </div>
-      {account.welcomeCode && (
-        <div className="rounded-xl border border-accent/30 bg-accent/5 px-4 py-2 text-right">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-accent">Welcome code</p>
-          <p className="font-display text-lg leading-tight">{account.welcomeCode}</p>
-        </div>
-      )}
+
+      <div className="flex items-center gap-6 sm:gap-8">
+        <TopStat label="Readiness" value={score !== undefined ? `${score}/100` : "—"} />
+        <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
+        <TopStat label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
+      </div>
+    </div>
+  );
+}
+
+function TopStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">{value}</p>
     </div>
   );
 }
 
 function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
   return (
-    <nav className="flex gap-1.5 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0">
+    <nav className="flex gap-1 overflow-x-auto border-t border-border p-2 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:border-t-0 lg:p-3">
       {NAV_ITEMS.map((item) => {
         const active = tab === item.key;
         return (
@@ -183,20 +201,16 @@ function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
             key={item.key}
             type="button"
             onClick={() => onChange(item.key)}
-            className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-xl px-3.5 py-2.5 text-left text-sm font-medium transition-colors ${
+            className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
               active
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                ? "border-accent bg-secondary/70 font-medium text-foreground"
+                : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
             }`}
           >
             <item.icon className="h-4 w-4 shrink-0" />
             {item.label}
             {item.soon && (
-              <span
-                className={`ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${
-                  active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-secondary text-muted-foreground"
-                }`}
-              >
+              <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Soon
               </span>
             )}
@@ -207,11 +221,41 @@ function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
   );
 }
 
-// ── Overview tab ─────────────────────────────────────────────────────────────
+// ── Section primitive — replaces the old "everything is a rounded-2xl card"
+// pattern with a lighter, denser block matching the shell it now lives in. ──
 
-function fmtKes(n: number) {
-  return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+function Section({
+  icon: Icon,
+  title,
+  action,
+  children,
+  tint,
+}: {
+  icon?: typeof Package;
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  tint?: "muted" | "accent";
+}) {
+  return (
+    <div
+      className={`rounded-lg border p-5 ${
+        tint === "accent" ? "border-accent/25 bg-accent/[0.03]" : "border-border bg-background/40"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        </div>
+        {action}
+      </div>
+      <div className="mt-3.5">{children}</div>
+    </div>
+  );
 }
+
+// ── Overview tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({
   account,
@@ -224,15 +268,13 @@ function OverviewTab({
 }) {
   const recent = orders?.slice(0, 3) ?? null;
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {account.creditReadiness && <CreditReadinessCard readiness={account.creditReadiness} compact />}
 
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-accent" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent orders</p>
-          </div>
+      <Section
+        icon={Package}
+        title="Recent orders"
+        action={
           <button
             type="button"
             onClick={onSeeAllOrders}
@@ -240,15 +282,16 @@ function OverviewTab({
           >
             View all <ArrowRight className="h-3 w-3" />
           </button>
-        </div>
-        <div className="mt-4 space-y-3">
+        }
+      >
+        <div className="space-y-2">
           {recent === null && <p className="text-sm text-muted-foreground">Loading…</p>}
           {recent !== null && recent.length === 0 && (
             <p className="text-sm text-muted-foreground">No orders placed yet on this account.</p>
           )}
           {recent?.map((o) => <OrderRow key={o.reference} order={o} />)}
         </div>
-      </div>
+      </Section>
 
       {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
     </div>
@@ -259,25 +302,19 @@ function OverviewTab({
 
 function OrdersTab({ orders, totalSpend }: { orders: CustomerOrder[] | null; totalSpend: number }) {
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="grid grid-cols-2 gap-4 border-b border-border pb-5">
-        <div>
-          <p className="font-display text-2xl">{orders?.length ?? "—"}</p>
-          <p className="text-xs text-muted-foreground">Orders on this account</p>
-        </div>
-        <div>
-          <p className="font-display text-2xl">{fmtKes(totalSpend)}</p>
-          <p className="text-xs text-muted-foreground">Lifetime spend</p>
-        </div>
+    <Section icon={Package} title={`Orders on this account${orders ? ` (${orders.length})` : ""}`}>
+      <div className="mb-4 flex items-baseline gap-1.5 border-b border-border pb-4 text-sm">
+        <span className="font-mono font-semibold tabular-nums text-foreground">{fmtKes(totalSpend)}</span>
+        <span className="text-xs text-muted-foreground">lifetime spend</span>
       </div>
-      <div className="mt-4 space-y-3">
+      <div className="space-y-2">
         {orders === null && <p className="text-sm text-muted-foreground">Loading…</p>}
         {orders !== null && orders.length === 0 && (
           <p className="text-sm text-muted-foreground">No orders placed yet on this account.</p>
         )}
         {orders?.map((o) => <OrderRow key={o.reference} order={o} />)}
       </div>
-    </div>
+    </Section>
   );
 }
 
@@ -285,16 +322,16 @@ function OrderRow({ order }: { order: CustomerOrder }) {
   return (
     <Link
       to={`/account/orders/${encodeURIComponent(order.reference)}`}
-      className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm hover:bg-secondary/40"
+      className="flex items-center justify-between gap-3 rounded-md border border-border bg-card px-3.5 py-2.5 text-sm hover:bg-secondary/40"
     >
       <div>
-        <p className="font-medium">{order.reference}</p>
+        <p className="font-mono text-[13px] font-medium text-foreground">{order.reference}</p>
         <p className="text-xs text-muted-foreground">
           {new Date(order.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
         </p>
       </div>
       <div className="text-right">
-        <p className="font-medium">{fmtKes(order.total)}</p>
+        <p className="font-mono text-[13px] font-medium tabular-nums text-foreground">{fmtKes(order.total)}</p>
         <p className="text-xs text-muted-foreground">{order.status.replace(/_/g, " ")}</p>
       </div>
     </Link>
@@ -312,30 +349,32 @@ const CREDIT_FEATURES = [
 
 function TradeCreditTab({ readiness }: { readiness: CreditReadiness | null }) {
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-dashed border-accent/40 bg-accent/5 p-6 text-center">
-        <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-accent/15 text-accent">
-          <Lock className="h-4 w-4" />
+    <div className="space-y-5">
+      <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-secondary/20 p-5">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground">
+          <Lock className="h-3.5 w-3.5" />
         </span>
-        <p className="mt-3 font-display text-lg">Trade Credit — coming soon</p>
-        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
-          Applications aren't open yet. When they are, your Business Account and order history — including the
-          readiness score below — will be the starting point.
-        </p>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Trade Credit — coming soon</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Applications aren't open yet. When they are, your Business Account and order history — including the
+            readiness score below — will be the starting point.
+          </p>
+        </div>
       </div>
 
       {readiness && <CreditReadinessCard readiness={readiness} />}
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {CREDIT_FEATURES.map((f) => (
-          <div key={f.title} className="rounded-2xl border border-border bg-card p-5 opacity-80">
+          <div key={f.title} className="rounded-lg border border-border bg-background/40 p-4">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold">{f.title}</p>
+              <p className="text-[13px] font-semibold text-foreground">{f.title}</p>
               <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Soon
               </span>
             </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">{f.desc}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{f.desc}</p>
           </div>
         ))}
       </div>
@@ -354,24 +393,26 @@ const DOCUMENT_TYPES = [
 
 function DocumentsTab() {
   return (
-    <div className="space-y-6">
-      <div className="rounded-2xl border border-dashed border-border bg-secondary/30 p-6 text-center">
-        <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-secondary text-muted-foreground">
-          <Lock className="h-4 w-4" />
+    <div className="space-y-5">
+      <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-secondary/20 p-5">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground">
+          <Lock className="h-3.5 w-3.5" />
         </span>
-        <p className="mt-3 font-display text-lg">Document uploads — coming soon</p>
-        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
-          Nothing to submit yet. Once trade credit applications open, you'll upload these here — no need to
-          send anything over email or WhatsApp.
-        </p>
+        <div>
+          <p className="text-sm font-semibold text-foreground">Document uploads — coming soon</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Nothing to submit yet. Once trade credit applications open, you'll upload these here — no need to
+            send anything over email or WhatsApp.
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         {DOCUMENT_TYPES.map((d) => (
-          <div key={d.title} className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5 opacity-80">
-            <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+          <div key={d.title} className="flex items-start gap-3 rounded-lg border border-border bg-background/40 p-4">
+            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <div>
-              <p className="text-sm font-semibold">{d.title}</p>
+              <p className="text-[13px] font-semibold text-foreground">{d.title}</p>
               <p className="mt-1 text-xs text-muted-foreground">{d.desc}</p>
             </div>
           </div>
@@ -408,21 +449,20 @@ function SettingsTab({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-accent" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Business profile</p>
-        </div>
+    <Section
+      icon={User}
+      title="Business profile"
+      action={
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary"
+          className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
         >
           Edit
         </button>
-      </div>
-      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+      }
+    >
+      <dl className="grid gap-3.5 text-sm sm:grid-cols-2">
         <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
         {account.kraPin && <Row label="KRA PIN" value={account.kraPin} />}
         <Row label="Industry" value={account.industryName ?? "—"} />
@@ -433,7 +473,7 @@ function SettingsTab({
         <Row label="Contact person" value={account.contactPersonName} />
         <Row label="Designation" value={account.contactPersonRole ?? "—"} />
       </dl>
-    </div>
+    </Section>
   );
 }
 
@@ -461,38 +501,40 @@ function CreditReadinessCard({ readiness, compact }: { readiness: CreditReadines
   const barColor = READINESS_BAR_COLOR[readiness.label];
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6">
+    <div className="rounded-lg border border-border bg-background/40 p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-accent" />
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
             Trade credit readiness
           </p>
         </div>
-        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{readiness.label}</span>
+        <span className="rounded-full bg-secondary px-2.5 py-0.5 text-[11px] font-semibold text-foreground">
+          {readiness.label}
+        </span>
       </div>
 
-      <div className="mt-4 flex items-baseline gap-2">
-        <p className="font-display text-4xl">{readiness.score}</p>
+      <div className="mt-3 flex items-baseline gap-1.5">
+        <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{readiness.score}</p>
         <p className="text-sm text-muted-foreground">/ 100</p>
       </div>
-      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
         <div className={`h-full rounded-full ${barColor}`} style={{ width: `${readiness.score}%` }} />
       </div>
-      <p className="mt-3 text-sm text-muted-foreground">{READINESS_LABEL_COPY[readiness.label]}</p>
+      <p className="mt-2.5 text-xs text-muted-foreground">{READINESS_LABEL_COPY[readiness.label]}</p>
 
       {!compact && (
         <>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 border-t border-border pt-4 sm:grid-cols-2">
             {factors.map((f) => (
               <div key={f.label}>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">{f.label}</span>
-                  <span className="font-medium">
+                  <span className="font-mono font-medium tabular-nums text-foreground">
                     {f.points}/{f.max}
                   </span>
                 </div>
-                <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-secondary">
                   <div
                     className="h-full rounded-full bg-accent/70"
                     style={{ width: `${f.max > 0 ? (f.points / f.max) * 100 : 0}%` }}
@@ -502,7 +544,7 @@ function CreditReadinessCard({ readiness, compact }: { readiness: CreditReadines
             ))}
           </div>
 
-          <div className="mt-5 flex items-start gap-2 rounded-xl bg-secondary/50 p-3 text-xs text-muted-foreground">
+          <div className="mt-4 flex items-start gap-2 rounded-md bg-secondary/40 p-3 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>
               This is an informational estimate only — not a credit score, and it doesn't automatically approve or
@@ -517,26 +559,28 @@ function CreditReadinessCard({ readiness, compact }: { readiness: CreditReadines
 }
 
 function WelcomeCodeCard({ code }: { code: string }) {
+  const [copied, setCopied] = useState(false);
   function copy() {
-    navigator.clipboard.writeText(code).then(() => toast.success("Code copied"));
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      toast.success("Code copied");
+      setTimeout(() => setCopied(false), 1500);
+    });
   }
   return (
-    <div className="rounded-2xl border border-accent/30 bg-accent/5 p-6">
-      <div className="flex items-center gap-2 text-accent">
-        <CheckCircle2 className="h-4 w-4" />
-        <p className="text-xs font-semibold uppercase tracking-wider">Your welcome code</p>
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <p className="font-display text-2xl">{code}</p>
+    <Section icon={Check} title="Your welcome code" tint="accent">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-mono text-lg font-semibold tracking-wide text-foreground">{code}</p>
         <button
           type="button"
           onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
+          className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-semibold hover:bg-secondary"
         >
-          <Copy className="h-3.5 w-3.5" /> Copy
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground">
+      <p className="mt-2.5 text-xs text-muted-foreground">
         Enter this at checkout for a discount on orders of Ksh 5,000 or more. One-time use, valid only on this
         account, for 30 days from today. See the{" "}
         <Link to="/terms#welcome-offer" className="text-accent hover:underline">
@@ -544,7 +588,7 @@ function WelcomeCodeCard({ code }: { code: string }) {
         </Link>
         .
       </p>
-    </div>
+    </Section>
   );
 }
 
@@ -552,7 +596,7 @@ function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5">{value}</dd>
+      <dd className="mt-0.5 text-foreground">{value}</dd>
     </div>
   );
 }
@@ -602,8 +646,12 @@ function BusinessAccountForm({
     }
   }
 
+  const wrapperCls = initial
+    ? "overflow-hidden rounded-lg border border-border"
+    : "mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm";
+
   return (
-    <form onSubmit={submit} className="mt-10 overflow-hidden rounded-2xl border border-border bg-card">
+    <form onSubmit={submit} className={wrapperCls}>
       {!initial && (
         <div className="border-b border-border bg-secondary/40 px-6 py-4">
           <p className="text-sm font-medium text-foreground">Tell us about your business</p>
