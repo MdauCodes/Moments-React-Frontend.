@@ -19,6 +19,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth, authFetch } from "@/contexts/AuthContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
 import { fetchDeliveryZones, type DeliveryZone } from "@/services/deliveryZoneService";
+import { businessAccountApi } from "@/services/businessAccountApi";
 import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
@@ -96,12 +97,43 @@ function CheckoutModal() {
   const [promoChecking, setPromoChecking] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
+  const [autoApplied, setAutoApplied] = useState(false);
+  // Business Account welcome code — auto-tried once the cart crosses its
+  // minimum, but never overrides a code the customer typed in themselves,
+  // and stays fully editable/removable so they can swap in a better one.
+  const [welcomeCode, setWelcomeCode] = useState<string | null>(null);
+  const welcomeCodeDismissed = useRef(false);
 
-  async function applyPromoCode() {
-    const code = promoCode.trim();
-    if (!code) return;
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    businessAccountApi
+      .getMine()
+      .then((acc) => {
+        if (acc?.status === "ACTIVE" && acc.welcomeCode) setWelcomeCode(acc.welcomeCode);
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
+
+  // Silently (no toast/error) try the welcome code as soon as it qualifies —
+  // the backend's own min-order-amount check is the source of truth for
+  // "up to Ksh 5,000 or above", so nothing is hardcoded here. Re-checks on
+  // every cart change so it also un-applies itself if the cart drops back
+  // below the minimum — but never touches a code the customer typed in.
+  useEffect(() => {
+    if (!welcomeCode || welcomeCodeDismissed.current) return;
+    if (appliedPromo && !autoApplied) return; // a manually-applied code wins, leave it alone
+    if (promoCode.trim() && !appliedPromo) return; // customer is mid-typing their own code
+    void tryApplyPromoCode(welcomeCode, { silent: true }).then((ok) => {
+      setAutoApplied(ok);
+      if (!ok) setAppliedPromo((prev) => (prev?.code === welcomeCode ? null : prev));
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [welcomeCode, cartTotal]);
+
+  async function tryApplyPromoCode(code: string, opts: { silent?: boolean } = {}): Promise<boolean> {
+    if (!code) return false;
     setPromoChecking(true);
-    setPromoError(null);
+    if (!opts.silent) setPromoError(null);
     try {
       const res = await authFetch(apiUrl("/api/v1/checkout/validate-promo"), {
         method: "POST",
@@ -111,22 +143,33 @@ function CheckoutModal() {
       const data = await res.json();
       if (data.valid) {
         setAppliedPromo({ code: data.code ?? code.toUpperCase(), discount: data.discountAmount ?? 0 });
-        toast.success("Promo code applied");
-      } else {
+        if (!opts.silent) toast.success("Promo code applied");
+        return true;
+      }
+      if (!opts.silent) {
         setAppliedPromo(null);
         setPromoError(data.message ?? "Invalid promo code");
       }
+      return false;
     } catch {
-      setPromoError("Couldn't check that code right now — try again");
+      if (!opts.silent) setPromoError("Couldn't check that code right now — try again");
+      return false;
     } finally {
       setPromoChecking(false);
     }
+  }
+
+  async function applyPromoCode() {
+    setAutoApplied(false);
+    await tryApplyPromoCode(promoCode.trim());
   }
 
   function removePromoCode() {
     setAppliedPromo(null);
     setPromoCode("");
     setPromoError(null);
+    setAutoApplied(false);
+    welcomeCodeDismissed.current = true;
   }
 
   const [zones, setZones] = useState<DeliveryZone[]>([]);
@@ -753,9 +796,11 @@ function CheckoutModal() {
                     <div className="mt-4 border-t border-border pt-3">
                       {appliedPromo ? (
                         <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
-                          <span className="font-medium text-accent">{appliedPromo.code} applied</span>
+                          <span className="font-medium text-accent">
+                            {appliedPromo.code} applied{autoApplied ? " automatically" : ""}
+                          </span>
                           <button type="button" onClick={removePromoCode} className="text-muted-foreground hover:text-foreground">
-                            Remove
+                            Use a different code
                           </button>
                         </div>
                       ) : (
