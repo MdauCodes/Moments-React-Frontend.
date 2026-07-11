@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Briefcase, Copy, CheckCircle2, MapPin, User } from "lucide-react";
+import { Briefcase, Copy, CheckCircle2, MapPin, User, TrendingUp, Package, ArrowRight, Info } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -9,12 +9,14 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
+import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import {
   businessAccountApi,
   BUSINESS_TYPE_LABELS,
   type BusinessAccount,
   type BusinessAccountInput,
   type BusinessType,
+  type CreditReadiness,
 } from "@/services/businessAccountApi";
 
 const inputCls =
@@ -37,7 +39,7 @@ function AccountBusinessPage() {
   return (
     <ProtectedRoute>
       <SiteLayout>
-        <section className="mx-auto max-w-3xl px-5 py-12 lg:px-8 lg:py-16">
+        <section className="mx-auto max-w-5xl px-5 py-12 lg:px-8 lg:py-16">
           <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
           <h1 className="mt-1 font-display text-3xl sm:text-4xl">Business Account</h1>
           <p className="mt-2 text-sm text-muted-foreground">
@@ -81,6 +83,11 @@ function BusinessAccountView({
   onUpdated: (a: BusinessAccount) => void;
 }) {
   const [editing, setEditing] = useState(false);
+  const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
+
+  useEffect(() => {
+    orderStore.listMine(0, 5).then((r) => setOrders(r.rows));
+  }, []);
 
   if (editing) {
     return (
@@ -97,44 +104,54 @@ function BusinessAccountView({
 
   return (
     <div className="mt-10">
-      {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
+      <DashboardHeader account={account} onEdit={() => setEditing(true)} />
 
-      <ProgressCard orderCount={account.orderCount ?? 0} totalSpend={account.totalSpend ?? 0} />
-
-      <div className="mt-6 rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
-              <Briefcase className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="font-display text-lg">{account.businessName}</p>
-              <p className="text-xs text-muted-foreground">
-                {account.status === "ACTIVE" ? "Active" : "Suspended"}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary"
-          >
-            Edit
-          </button>
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <div className="space-y-6 lg:col-span-2">
+          {account.creditReadiness && <CreditReadinessCard readiness={account.creditReadiness} />}
+          <OrderActivityCard orders={orders} totalSpend={account.totalSpend ?? 0} />
+          <BusinessProfileCard account={account} />
         </div>
 
-        <dl className="mt-6 grid gap-3 text-sm sm:grid-cols-2">
-          <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
-          <Row label="KRA PIN" value={account.kraPin || "Not provided yet"} />
-          <Row label="Industry" value={account.industryName ?? "—"} />
-          <Row label="Location" value={account.location} />
-          <Row label="Road" value={account.road} />
-          <Row label="Building / address" value={account.buildingAddress} />
-          <Row label="Phone" value={account.phone} />
-          <Row label="Contact person" value={account.contactPersonName} />
-          <Row label="Designation" value={account.contactPersonRole ?? "—"} />
-        </dl>
+        <div className="space-y-6">
+          {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function DashboardHeader({ account, onEdit }: { account: BusinessAccount; onEdit: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center gap-3">
+        <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+          <Briefcase className="h-6 w-6" />
+        </span>
+        <div>
+          <p className="font-display text-xl">{account.businessName}</p>
+          <p className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
+                account.status === "ACTIVE"
+                  ? "bg-emerald-500/10 text-emerald-600"
+                  : "bg-destructive/10 text-destructive"
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {account.status === "ACTIVE" ? "Active" : "Suspended"}
+            </span>
+            {account.businessType && <span>{BUSINESS_TYPE_LABELS[account.businessType]}</span>}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary"
+      >
+        Edit profile
+      </button>
     </div>
   );
 }
@@ -143,25 +160,148 @@ function fmtKes(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 }
 
-function ProgressCard({ orderCount, totalSpend }: { orderCount: number; totalSpend: number }) {
+const READINESS_LABEL_COPY: Record<CreditReadiness["label"], string> = {
+  Building: "You're just getting started — keep ordering to build your history.",
+  Promising: "You're building a solid order history toward trade credit eligibility.",
+  Strong: "You have a strong order history — a great position once trade credit applications open.",
+};
+
+const READINESS_BAR_COLOR: Record<CreditReadiness["label"], string> = {
+  Building: "bg-amber-500",
+  Promising: "bg-accent",
+  Strong: "bg-emerald-500",
+};
+
+function CreditReadinessCard({ readiness }: { readiness: CreditReadiness }) {
+  const factors: { label: string; points: number; max: number }[] = [
+    { label: "Order frequency", points: readiness.orderCountPoints, max: readiness.orderCountMax },
+    { label: "Lifetime spend", points: readiness.spendPoints, max: readiness.spendMax },
+    { label: "Account age", points: readiness.accountAgePoints, max: readiness.accountAgeMax },
+    { label: "Recent activity", points: readiness.recencyPoints, max: readiness.recencyMax },
+  ];
+  const barColor = READINESS_BAR_COLOR[readiness.label];
+
   return (
-    <div className="mt-6 rounded-2xl border border-border bg-card p-6">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        Trade credit — coming soon
-      </p>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Every order you place on this account builds toward eligibility once trade credit applications open.
-      </p>
-      <div className="mt-4 grid grid-cols-2 gap-4">
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-accent" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Trade credit readiness
+          </p>
+        </div>
+        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{readiness.label}</span>
+      </div>
+
+      <div className="mt-4 flex items-baseline gap-2">
+        <p className="font-display text-4xl">{readiness.score}</p>
+        <p className="text-sm text-muted-foreground">/ 100</p>
+      </div>
+      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${readiness.score}%` }} />
+      </div>
+      <p className="mt-3 text-sm text-muted-foreground">{READINESS_LABEL_COPY[readiness.label]}</p>
+
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {factors.map((f) => (
+          <div key={f.label}>
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{f.label}</span>
+              <span className="font-medium">
+                {f.points}/{f.max}
+              </span>
+            </div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className="h-full rounded-full bg-accent/70"
+                style={{ width: `${f.max > 0 ? (f.points / f.max) * 100 : 0}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-5 flex items-start gap-2 rounded-xl bg-secondary/50 p-3 text-xs text-muted-foreground">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+        <p>
+          This is an informational estimate only — not a credit score, and it doesn't automatically approve or deny
+          anything. Trade credit applications (coming soon) will still require documents and a human review.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function OrderActivityCard({ orders, totalSpend }: { orders: CustomerOrder[] | null; totalSpend: number }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Package className="h-4 w-4 text-accent" />
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Order activity</p>
+        </div>
+        <Link to="/account/orders" className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
+          View all <ArrowRight className="h-3 w-3" />
+        </Link>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-4 border-b border-border pb-5">
         <div>
-          <p className="font-display text-2xl">{orderCount}</p>
-          <p className="text-xs text-muted-foreground">Order{orderCount === 1 ? "" : "s"} placed</p>
+          <p className="font-display text-2xl">{orders?.length ?? "—"}</p>
+          <p className="text-xs text-muted-foreground">Recent orders</p>
         </div>
         <div>
           <p className="font-display text-2xl">{fmtKes(totalSpend)}</p>
-          <p className="text-xs text-muted-foreground">Total spend</p>
+          <p className="text-xs text-muted-foreground">Lifetime spend on this account</p>
         </div>
       </div>
+
+      <div className="mt-4 space-y-3">
+        {orders === null && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {orders !== null && orders.length === 0 && (
+          <p className="text-sm text-muted-foreground">No orders placed yet on this account.</p>
+        )}
+        {orders?.map((o) => (
+          <Link
+            key={o.reference}
+            to={`/account/orders/${encodeURIComponent(o.reference)}`}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3 text-sm hover:bg-secondary/40"
+          >
+            <div>
+              <p className="font-medium">{o.reference}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(o.createdAt).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "numeric" })}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-medium">{fmtKes(o.total)}</p>
+              <p className="text-xs text-muted-foreground">{o.status.replace(/_/g, " ")}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BusinessProfileCard({ account }: { account: BusinessAccount }) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="flex items-center gap-2">
+        <User className="h-4 w-4 text-accent" />
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Business profile</p>
+      </div>
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
+        <Row label="KRA PIN" value={account.kraPin || "Not provided yet"} />
+        <Row label="Industry" value={account.industryName ?? "—"} />
+        <Row label="Location" value={account.location} />
+        <Row label="Road" value={account.road} />
+        <Row label="Building / address" value={account.buildingAddress} />
+        <Row label="Phone" value={account.phone} />
+        <Row label="Contact person" value={account.contactPersonName} />
+        <Row label="Designation" value={account.contactPersonRole ?? "—"} />
+      </dl>
     </div>
   );
 }

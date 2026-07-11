@@ -15,6 +15,20 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   OTHER: "Other",
 };
 
+/** Transparent, informational readiness signal — not a real credit score, never used to auto-approve. */
+export interface CreditReadiness {
+  score: number;
+  label: "Building" | "Promising" | "Strong";
+  orderCountPoints: number;
+  spendPoints: number;
+  accountAgePoints: number;
+  recencyPoints: number;
+  orderCountMax: number;
+  spendMax: number;
+  accountAgeMax: number;
+  recencyMax: number;
+}
+
 export interface BusinessAccount {
   id: string;
   businessName: string;
@@ -36,6 +50,7 @@ export interface BusinessAccount {
   /** Early signal toward future trade-credit eligibility — not a live credit feature yet. */
   orderCount?: number | null;
   totalSpend?: number | null;
+  creditReadiness?: CreditReadiness | null;
 }
 
 export interface BusinessAccountInput {
