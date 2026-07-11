@@ -33,7 +33,7 @@ const ACCOUNT_TYPES: {
     icon: Briefcase,
     title: "Business Account",
     desc: "For registered companies, SMEs and trade buyers.",
-    perks: ["Welcome discount code", "Order history for your business", "First in line for trade credit"],
+    perks: ["Welcome bonus points + order history for your business", "Earn points & referral rewards too", "First in line for trade credit"],
   },
 ];
 

@@ -1,12 +1,12 @@
 import { Link } from "react-router-dom";
 import { SiteLayout } from "@/components/SiteLayout";
-import { Briefcase, TicketPercent, TrendingUp, ShieldCheck } from "lucide-react";
+import { Briefcase, Gift, TrendingUp, ShieldCheck } from "lucide-react";
 
 const BENEFITS = [
   {
-    Icon: TicketPercent,
-    title: "A welcome discount code",
-    desc: "Opening an account earns you a one-time code for a discount on your first order.",
+    Icon: Gift,
+    title: "Welcome bonus + rewards points",
+    desc: "Earn a welcome bonus on signup, then points on every order — redeemable for real discounts, plus referral rewards.",
   },
   {
     Icon: TrendingUp,

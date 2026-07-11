@@ -16,11 +16,13 @@ import {
   FileText,
   Settings as SettingsIcon,
   Lock,
+  Award,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { InlineProgress } from "@/components/InlineProgress";
+import { RewardsReferralsSection } from "@/components/RewardsReferralsSection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
@@ -92,11 +94,12 @@ function BusinessAccountBody() {
 // density: tabular-nums metrics, thin dividers instead of stacked cards,
 // muted chrome that stays out of the way of the data. ──────────────────────
 
-type TabKey = "overview" | "orders" | "credit" | "documents" | "settings";
+type TabKey = "overview" | "orders" | "rewards" | "credit" | "documents" | "settings";
 
 const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid; soon?: boolean }[] = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
   { key: "orders", label: "Orders", icon: Package },
+  { key: "rewards", label: "Rewards & Referrals", icon: Award },
   { key: "credit", label: "Trade Credit", icon: Landmark, soon: true },
   { key: "documents", label: "Documents", icon: FileText, soon: true },
   { key: "settings", label: "Settings", icon: SettingsIcon },
@@ -133,6 +136,7 @@ function BusinessDashboard({
             <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
           )}
           {tab === "orders" && <OrdersTab orders={orders} totalSpend={account.totalSpend ?? 0} />}
+          {tab === "rewards" && <RewardsReferralsSection />}
           {tab === "credit" && <TradeCreditTab readiness={account.creditReadiness ?? null} />}
           {tab === "documents" && <DocumentsTab />}
           {tab === "settings" && (

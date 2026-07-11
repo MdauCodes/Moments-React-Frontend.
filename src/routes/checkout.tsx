@@ -181,9 +181,9 @@ function CheckoutModal() {
   const [redeemError, setRedeemError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.accountType !== "SOLE_MERCHANT") return;
+    if (!isAuthenticated) return;
     referralStore.getWallet().then((w) => setPointsBalance(w?.balance ?? 0)).catch(() => {});
-  }, [isAuthenticated, user?.accountType]);
+  }, [isAuthenticated]);
 
   async function applyPointsRedemption() {
     const points = parseInt(redeemInput, 10);
