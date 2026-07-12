@@ -78,42 +78,59 @@ export function WelcomeStarterModal() {
           <button
             type="button"
             onClick={() => pick(() => openRegister({ accountType: "SOLE_MERCHANT" }))}
-            className="flex w-full items-center gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
+            className="flex w-full items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
           >
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
               <Gift className="h-4.5 w-4.5" />
             </span>
             <span>
               <span className="block text-sm font-semibold text-foreground">I'm an individual — Sole Merchant</span>
-              <span className="block text-xs text-muted-foreground">Free account, welcome points, rewards on every order.</span>
+              <span className="mt-1 block space-y-0.5">
+                {["Welcome bonus points on signup", "Earn points on every order", "Referral rewards & VIP tiers"].map((p) => (
+                  <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                    <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
+                    {p}
+                  </span>
+                ))}
+              </span>
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-            className="flex w-full items-center gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
+            className="flex w-full items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
           >
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
               <Briefcase className="h-4.5 w-4.5" />
             </span>
             <span>
               <span className="block text-sm font-semibold text-foreground">I'm ordering for a business</span>
-              <span className="block text-xs text-muted-foreground">Order history, rewards, first in line for trade credit.</span>
+              <span className="mt-1 block space-y-0.5">
+                {["Welcome bonus points + order history for your business", "Earn points & referral rewards too", "First in line for trade credit"].map((p) => (
+                  <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                    <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
+                    {p}
+                  </span>
+                ))}
+              </span>
             </span>
           </button>
 
           <button
             type="button"
             onClick={dismiss}
-            className="flex w-full items-center gap-3 rounded-xl border border-dashed border-border p-3.5 text-left transition-colors hover:bg-secondary/30"
+            className="flex w-full items-start gap-3 rounded-xl border border-dashed border-border p-3.5 text-left transition-colors hover:bg-secondary/30"
           >
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
               <ShoppingBag className="h-4.5 w-4.5" />
             </span>
             <span>
               <span className="block text-sm font-semibold text-foreground">Just browsing</span>
-              <span className="block text-xs text-muted-foreground">Buy and track your order — no account needed.</span>
+              <span className="block text-xs text-muted-foreground">
+                Buy and track your order — no account needed. You'll miss out on welcome points, order rewards,
+                saved order history and referral perks.
+              </span>
             </span>
           </button>
         </div>

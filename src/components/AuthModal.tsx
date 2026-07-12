@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
-import { X, Gift, Briefcase, Check, MailCheck } from "lucide-react";
+import { X, Gift, Briefcase, Check, MailCheck, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal, type ModalAccountType } from "@/contexts/AuthModalContext";
@@ -17,18 +17,21 @@ const ACCOUNT_TYPES: {
   icon: typeof Gift;
   title: string;
   desc: string;
+  perks: string[];
 }[] = [
   {
     value: "SOLE_MERCHANT",
     icon: Gift,
     title: "Sole Merchant Account",
-    desc: "Individuals — earn welcome points, order points & referral rewards.",
+    desc: "Individuals ordering for themselves or their own small business.",
+    perks: ["Welcome bonus points on signup", "Earn points on every order", "Referral rewards & VIP tiers"],
   },
   {
     value: "BUSINESS",
     icon: Briefcase,
     title: "Business Account",
-    desc: "Companies & SMEs — order history, rewards, trade credit pipeline.",
+    desc: "Registered companies, SMEs and trade buyers.",
+    perks: ["Welcome bonus points + order history for your business", "Earn points & referral rewards too", "First in line for trade credit"],
   },
 ];
 
@@ -205,7 +208,7 @@ function RegisterStep() {
               key={t.value}
               type="button"
               onClick={() => setAccountType(t.value)}
-              className="flex w-full items-center gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
+              className="flex w-full items-start gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
             >
               <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
                 <t.icon className="h-4 w-4" />
@@ -213,10 +216,32 @@ function RegisterStep() {
               <span>
                 <span className="block text-sm font-semibold text-foreground">{t.title}</span>
                 <span className="block text-xs text-muted-foreground">{t.desc}</span>
+                <span className="mt-1.5 block space-y-0.5">
+                  {t.perks.map((p) => (
+                    <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                      <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
+                      {p}
+                    </span>
+                  ))}
+                </span>
               </span>
             </button>
           ))}
         </div>
+
+        <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-dashed border-border bg-secondary/20 p-3">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
+            <ShoppingBag className="h-3.5 w-3.5" />
+          </span>
+          <div>
+            <p className="text-xs font-semibold text-foreground">Rather just browse?</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              You can still buy and track an order with no account — you just miss out on welcome points, order
+              rewards, saved order history and referral perks.
+            </p>
+          </div>
+        </div>
+
         <p className="mt-5 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <button type="button" onClick={() => openLogin({ returnUrl })} className="text-accent hover:underline">
