@@ -21,6 +21,7 @@ function VerifyEmailPage() {
   const [_searchParams] = useSearchParams();
   const emailFromQuery = _searchParams.get("email") ?? "";
   const returnUrl = _searchParams.get("returnUrl") ?? undefined;
+  const accountType = _searchParams.get("accountType") ?? undefined;
 
   const navigate = useNavigate();
   const [email, setEmail] = useState(emailFromQuery);
@@ -51,8 +52,13 @@ function VerifyEmailPage() {
       if (refreshToken && typeof window !== "undefined") {
         window.localStorage.setItem("mpk_rt", refreshToken);
       }
-      toast.success("Email verified");
-      navigate(returnUrl ?? "/account/dashboard");
+      if (!returnUrl && accountType === "BUSINESS") {
+        toast.success("Email verified — let's set up your business profile.");
+        navigate("/account/business");
+      } else {
+        toast.success("Email verified");
+        navigate(returnUrl ?? "/account/dashboard");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed");
     } finally {

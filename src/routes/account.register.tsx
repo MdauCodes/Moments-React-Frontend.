@@ -86,8 +86,9 @@ function RegisterPage() {
         throw new Error((err as { message?: string }).message ?? "Registration failed");
       }
       toast.success("Account created — check your email for the verification code.");
-      const verifyUrl = `/account/verify?email=${encodeURIComponent(email.trim())}`;
-      navigate(returnUrl ? `${verifyUrl}&returnUrl=${encodeURIComponent(returnUrl)}` : verifyUrl);
+      let verifyUrl = `/account/verify?email=${encodeURIComponent(email.trim())}&accountType=${accountType}`;
+      if (returnUrl) verifyUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
+      navigate(verifyUrl);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -149,7 +150,11 @@ function RegisterPage() {
           &larr; Change account type
         </button>
         <h1 className="mt-2 font-display text-3xl">{chosen.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Faster checkout and order history.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {accountType === "BUSINESS"
+            ? "Step 1 of 2 — your sign-in details. You'll add your business profile (name, KRA PIN, contact info) right after this."
+            : "Takes about a minute — that's it, you're in."}
+        </p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>

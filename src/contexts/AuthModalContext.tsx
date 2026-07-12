@@ -18,13 +18,14 @@ interface AuthModalState {
   returnUrl?: string;
   preselectAccountType?: ModalAccountType;
   pendingEmail?: string;
+  pendingAccountType?: ModalAccountType;
   referralCode?: string;
 }
 
 interface AuthModalContextValue extends AuthModalState {
   openLogin: (opts?: OpenLoginOpts) => void;
   openRegister: (opts?: OpenRegisterOpts) => void;
-  goToVerify: (email: string) => void;
+  goToVerify: (email: string, accountType?: ModalAccountType) => void;
   close: () => void;
 }
 
@@ -48,8 +49,8 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const goToVerify = useCallback((email: string) => {
-    setState((prev) => ({ ...prev, mode: "verify", pendingEmail: email }));
+  const goToVerify = useCallback((email: string, accountType?: ModalAccountType) => {
+    setState((prev) => ({ ...prev, mode: "verify", pendingEmail: email, pendingAccountType: accountType }));
   }, []);
 
   const close = useCallback(() => {

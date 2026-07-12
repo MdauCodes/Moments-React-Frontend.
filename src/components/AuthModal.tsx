@@ -186,7 +186,7 @@ function RegisterStep() {
         throw new Error((err as { message?: string }).message ?? "Registration failed");
       }
       toast.success("Account created — check your email for the verification code.");
-      goToVerify(email.trim());
+      goToVerify(email.trim(), accountType ?? undefined);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -237,7 +237,11 @@ function RegisterStep() {
         </button>
       )}
       <h2 className="mt-2 font-display text-2xl text-foreground">{chosen.title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Takes about a minute.</p>
+      <p className="mt-1 text-sm text-muted-foreground">
+        {accountType === "BUSINESS"
+          ? "Step 1 of 2 — your sign-in details. You'll add your business profile (name, KRA PIN, contact info) right after this."
+          : "Takes about a minute — that's it, you're in."}
+      </p>
       <form onSubmit={handleSubmit} className="mt-5 space-y-3">
         <div className="grid grid-cols-2 gap-2.5">
           <div>
@@ -275,7 +279,7 @@ function RegisterStep() {
 }
 
 function VerifyStep() {
-  const { pendingEmail, returnUrl, openLogin, close } = useAuthModal();
+  const { pendingEmail, pendingAccountType, returnUrl, openLogin, close } = useAuthModal();
   const navigate = useNavigate();
   const [email, setEmail] = useState(pendingEmail ?? "");
   const [otp, setOtp] = useState("");
@@ -305,9 +309,16 @@ function VerifyStep() {
       if (refreshToken && typeof window !== "undefined") {
         window.localStorage.setItem("mpk_rt", refreshToken);
       }
-      toast.success("Email verified");
       close();
-      if (returnUrl) navigate(returnUrl);
+      if (returnUrl) {
+        toast.success("Email verified");
+        navigate(returnUrl);
+      } else if (pendingAccountType === "BUSINESS") {
+        toast.success("Email verified — let's set up your business profile.");
+        navigate("/account/business");
+      } else {
+        toast.success("Email verified");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Verification failed");
     } finally {
