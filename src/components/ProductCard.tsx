@@ -124,12 +124,12 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
         <div className="absolute left-2 top-2 flex flex-wrap gap-1 sm:left-3 sm:top-3">
           {isTracked && (
             <span
-              className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-white sm:px-2.5 sm:py-1 sm:text-[10px] ${
+              className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider sm:px-2.5 sm:py-1 sm:text-[10px] ${
                 stock.state === "out_of_stock"
-                  ? "bg-red-600"
+                  ? "bg-secondary text-muted-foreground"
                   : stock.state === "low_stock"
-                    ? "bg-amber-500"
-                    : "bg-green-600"
+                    ? "bg-amber-500 text-white"
+                    : "bg-green-600 text-white"
               }`}
             >
               {stock.state === "out_of_stock" ? "Out of Stock" : stock.state === "low_stock" ? stock.label : "In Stock"}
