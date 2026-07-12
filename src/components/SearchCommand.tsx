@@ -1,10 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Search, X, ArrowRight, Clock, Sparkles } from "lucide-react";
+import { Search, X, ArrowRight, Clock, Sparkles, Mic, MicOff } from "lucide-react";
+import { toast } from "sonner";
 import { api } from "@/services/api";
 import { industries as allIndustries } from "@/data/products";
 import type { Product } from "@/data/products";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 const RECENTS_KEY = "moments.recentSearches.v1";
 const MAX_RECENTS = 6;
@@ -54,6 +56,10 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const { isSupported, isListening, start, stop } = useSpeechRecognition({
+    onTranscript: (text) => setQuery(text),
+    onError: (message) => toast.error(message),
+  });
 
   useEffect(() => {
     if (open) {
@@ -162,6 +168,21 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
             autoComplete="off"
             spellCheck={false}
           />
+          {isSupported && (
+            <button
+              type="button"
+              onClick={isListening ? stop : start}
+              aria-label={isListening ? "Stop voice search" : "Search by voice"}
+              aria-pressed={isListening}
+              className={`grid h-9 w-9 place-items-center rounded-full transition-colors ${
+                isListening
+                  ? "animate-pulse bg-accent/15 text-accent"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+              }`}
+            >
+              {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}

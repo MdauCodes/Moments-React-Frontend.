@@ -495,6 +495,40 @@
   }
 }
 
+/* ---- Accessibility toolbar preferences ----
+   Applied via classList.toggle on <html> by AccessibilityContext. Overriding
+   the raw --background/--foreground/etc custom properties (rather than the
+   --color-* Tailwind aliases) is enough because @theme inline above already
+   maps every Tailwind color utility to these same variables. */
+:root { --a11y-font-scale: 1; }
+html { font-size: calc(16px * var(--a11y-font-scale)); }
+
+.a11y-reduce-motion *,
+.a11y-reduce-motion *::before,
+.a11y-reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+.a11y-underline-links a { text-decoration: underline; text-underline-offset: 2px; }
+
+.a11y-readable-spacing body { line-height: 1.7; letter-spacing: 0.01em; }
+.a11y-readable-spacing p, .a11y-readable-spacing li { line-height: 1.8; }
+
+.a11y-high-contrast {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0 0 0);
+  --muted-foreground: oklch(0.15 0 0);
+  --border: oklch(0 0 0);
+  --primary: oklch(0 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.92 0 0);
+  --card: oklch(1 0 0);
+}
+.a11y-high-contrast a { text-decoration: underline; }
+
 /* ---- Print receipts (Phase 6) ----
    When printing, hide everything except .mpk-print-area so the PrintReceipt
    block IS the printed page. The component stays display:none on screen and

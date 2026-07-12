@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteConfigProvider } from "@/contexts/SiteConfigContext";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
+import { AccessibilityToolbar } from "@/components/AccessibilityToolbar";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
 import { AuthModal } from "@/components/AuthModal";
@@ -108,6 +110,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <SiteConfigProvider>
+        <AccessibilityProvider>
         <AuthProvider>
           <AuthModalProvider>
           <CartProvider>
@@ -223,12 +226,14 @@ export default function App() {
                   <Toaster />
                   {SITE_LOCK_ENABLED && <SiteLockOverlay />}
                   <AuthModal />
+                  <AccessibilityToolbar />
                 </PersonaProvider>
               </AdminAuthProvider>
             </WishlistProvider>
           </CartProvider>
           </AuthModalProvider>
         </AuthProvider>
+        </AccessibilityProvider>
       </SiteConfigProvider>
     </BrowserRouter>
   );
