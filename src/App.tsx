@@ -34,6 +34,7 @@ import OrdersTrackPage from "@/routes/orders.track";
 import PrivacyPage from "@/routes/privacy";
 import TermsPage from "@/routes/terms";
 import RefundsPage from "@/routes/refunds";
+import AccessibilityPolicyPage from "@/routes/accessibility-policy";
 import StaffPage from "@/routes/staff";
 import StyleGuidePage from "@/routes/style-guide";
 import BlogIndexPage from "@/routes/blog.index";
@@ -137,6 +138,7 @@ export default function App() {
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/refunds" element={<RefundsPage />} />
+                    <Route path="/accessibility-policy" element={<AccessibilityPolicyPage />} />
                     <Route path="/staff" element={<StaffPage />} />
                     <Route path="/style-guide" element={<StyleGuidePage />} />
                     <Route path="/blog" element={<BlogIndexPage />} />

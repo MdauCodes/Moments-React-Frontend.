@@ -18,13 +18,15 @@ import logoUrl from "@/assets/moments_logo_without_background.png";
 import { getPrivacyPolicyContent } from "@/routes/privacy";
 import { getTermsContent } from "@/routes/terms";
 import { getRefundsContent } from "@/routes/refunds";
+import { getAccessibilityPolicyContent } from "@/routes/accessibility-policy";
 
-type PolicyKey = "privacy" | "terms" | "refunds";
+type PolicyKey = "privacy" | "terms" | "refunds" | "accessibility";
 
 const POLICY_CONTENT: Record<PolicyKey, () => ReturnType<typeof getPrivacyPolicyContent>> = {
   privacy: getPrivacyPolicyContent,
   terms: getTermsContent,
   refunds: getRefundsContent,
+  accessibility: getAccessibilityPolicyContent,
 };
 
 /** Footer link that opens a policy's full content in a modal instead of
@@ -110,6 +112,13 @@ export function SiteFooter() {
               className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
             >
               Refunds &amp; Returns
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("accessibility")}
+              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
+            >
+              Accessibility
             </button>
             <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Contact Us

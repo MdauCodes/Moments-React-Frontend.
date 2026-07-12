@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Accessibility, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { useAccessibility, FONT_SCALE_MIN, FONT_SCALE_MAX } from "@/contexts/AccessibilityContext";
 
@@ -153,6 +153,14 @@ export function AccessibilityToolbar() {
               <span className="text-xs text-muted-foreground">{prefs.readableSpacing ? "On" : "Off"}</span>
             </button>
           </div>
+
+          <Link
+            to="/accessibility-policy"
+            onClick={() => setOpen(false)}
+            className="mt-3 block text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Read our Accessibility Policy
+          </Link>
         </div>
       )}
     </div>

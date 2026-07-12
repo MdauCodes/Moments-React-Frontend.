@@ -270,6 +270,7 @@ export function getTermsContent() {
       { to: "/", label: "Home" },
       { to: "/privacy", label: "Privacy Policy" },
       { to: "/refunds", label: "Refund & Returns Policy" },
+      { to: "/accessibility-policy", label: "Accessibility Policy" },
     ],
   };
 }

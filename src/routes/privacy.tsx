@@ -353,6 +353,7 @@ export function getPrivacyPolicyContent() {
       { to: "/", label: "Home" },
       { to: "/terms", label: "Terms of Service" },
       { to: "/refunds", label: "Refund & Returns Policy" },
+      { to: "/accessibility-policy", label: "Accessibility Policy" },
     ],
   };
 }

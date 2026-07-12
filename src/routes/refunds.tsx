@@ -224,6 +224,7 @@ export function getRefundsContent() {
       { to: "/", label: "Home" },
       { to: "/terms", label: "Terms of Service" },
       { to: "/privacy", label: "Privacy Policy" },
+      { to: "/accessibility-policy", label: "Accessibility Policy" },
     ],
   };
 }
