@@ -39,10 +39,9 @@ export function getPrivacyPolicyContent() {
           <ul>
             <li>
               <strong>Account registration &amp; login</strong> (<code>/account/register</code>,{" "}
-              <code>/account/login</code>, <code>/account/verify</code>,{" "}
-              <code>/account/forgot-password</code>, <code>/account/reset-password</code>): full
-              name, email address, phone number, password (stored hashed), and email verification
-              code.
+              <code>/account/login</code>, <code>/account/forgot-password</code>,{" "}
+              <code>/account/reset-password</code>): full name, email address, phone number, and
+              password (stored hashed).
             </li>
             <li>
               <strong>Profile</strong> (<code>/account/profile</code>): business name, default

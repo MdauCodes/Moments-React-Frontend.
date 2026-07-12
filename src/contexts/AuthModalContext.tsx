@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
-export type AuthModalMode = null | "login" | "register" | "verify";
+export type AuthModalMode = null | "login" | "register";
 export type ModalAccountType = "SOLE_MERCHANT" | "BUSINESS";
 
 interface OpenLoginOpts {
@@ -17,15 +17,12 @@ interface AuthModalState {
   mode: AuthModalMode;
   returnUrl?: string;
   preselectAccountType?: ModalAccountType;
-  pendingEmail?: string;
-  pendingAccountType?: ModalAccountType;
   referralCode?: string;
 }
 
 interface AuthModalContextValue extends AuthModalState {
   openLogin: (opts?: OpenLoginOpts) => void;
   openRegister: (opts?: OpenRegisterOpts) => void;
-  goToVerify: (email: string, accountType?: ModalAccountType) => void;
   close: () => void;
 }
 
@@ -49,17 +46,13 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const goToVerify = useCallback((email: string, accountType?: ModalAccountType) => {
-    setState((prev) => ({ ...prev, mode: "verify", pendingEmail: email, pendingAccountType: accountType }));
-  }, []);
-
   const close = useCallback(() => {
     setState(initialState);
   }, []);
 
   const value = useMemo<AuthModalContextValue>(
-    () => ({ ...state, openLogin, openRegister, goToVerify, close }),
-    [state, openLogin, openRegister, goToVerify, close],
+    () => ({ ...state, openLogin, openRegister, close }),
+    [state, openLogin, openRegister, close],
   );
 
   return <AuthModalContext.Provider value={value}>{children}</AuthModalContext.Provider>;

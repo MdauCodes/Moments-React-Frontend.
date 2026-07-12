@@ -20,6 +20,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
+  setSession: (accessToken: string, refreshTokenValue?: string) => void;
 }
 
 const RT_KEY = "mpk_rt";
@@ -144,6 +145,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return decodeJwt(data.accessToken) ?? (data.user as AuthUser) ?? null;
   };
 
+  const setSession = (token: string, refreshTokenValue?: string) => {
+    setAccessToken(token);
+    if (refreshTokenValue) {
+      try {
+        window.localStorage.setItem(RT_KEY, refreshTokenValue);
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
   const logout = async () => {
     const rt = typeof window !== "undefined" ? window.localStorage.getItem(RT_KEY) : null;
     try {
@@ -174,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     refreshToken,
+    setSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

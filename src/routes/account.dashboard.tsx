@@ -32,6 +32,7 @@ function DashboardPage() {
 
   const defaultAddress = (profile?.addresses ?? []).find((a) => a.isDefault) ?? profile?.addresses?.[0];
   return (
+    <ProtectedRoute>
     <SiteLayout>
       <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -138,6 +139,7 @@ function DashboardPage() {
         </div>
       </section>
     </SiteLayout>
+    </ProtectedRoute>
   );
 }
 

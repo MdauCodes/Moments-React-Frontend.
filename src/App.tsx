@@ -52,7 +52,6 @@ import AccountRegisterPage from "@/routes/account.register";
 import AccountDashboardPage from "@/routes/account.dashboard";
 import AccountForgotPasswordPage from "@/routes/account.forgot-password";
 import AccountResetPasswordPage from "@/routes/account.reset-password";
-import AccountVerifyPage from "@/routes/account.verify";
 import AccountOrdersPage from "@/routes/account.orders";
 import AccountOrderDetailPage from "@/routes/account.orders.$reference";
 import AccountProfilePage from "@/routes/account.profile";
@@ -155,7 +154,6 @@ export default function App() {
                     <Route path="/account/dashboard" element={<AccountDashboardPage />} />
                     <Route path="/account/forgot-password" element={<AccountForgotPasswordPage />} />
                     <Route path="/account/reset-password" element={<AccountResetPasswordPage />} />
-                    <Route path="/account/verify" element={<AccountVerifyPage />} />
                     <Route path="/account/orders" element={<AccountOrdersPage />} />
                     <Route path="/account/orders/:reference" element={<AccountOrderDetailPage />} />
                     <Route path="/account/profile" element={<AccountProfilePage />} />

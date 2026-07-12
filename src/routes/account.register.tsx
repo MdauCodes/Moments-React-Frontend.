@@ -2,12 +2,13 @@ import { Link, useNavigate, useLocation, useSearchParams } from "react-router-do
 
 import { InlineProgress } from "@/components/InlineProgress";
 import { useState, type FormEvent } from "react";
-import { Gift, Briefcase, Check } from "lucide-react";
+import { Gift, Briefcase, Check, ShoppingBag } from "lucide-react";
 
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { useAuth } from "@/contexts/AuthContext";
 import { apiUrl } from "@/config/api";
 
 type AccountType = "SOLE_MERCHANT" | "BUSINESS";
@@ -40,6 +41,7 @@ const ACCOUNT_TYPES: {
 function RegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { setSession } = useAuth();
   const [searchParams] = useSearchParams();
   const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl;
   const referralCode = searchParams.get("ref") ?? undefined;
@@ -81,14 +83,23 @@ function RegisterPage() {
           ...(referralCode ? { referralCode } : {}),
         }),
       });
+      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error((err as { message?: string }).message ?? "Registration failed");
+        throw new Error((data as { message?: string }).message ?? "Registration failed");
       }
-      toast.success("Account created — check your email for the verification code.");
-      let verifyUrl = `/account/verify?email=${encodeURIComponent(email.trim())}&accountType=${accountType}`;
-      if (returnUrl) verifyUrl += `&returnUrl=${encodeURIComponent(returnUrl)}`;
-      navigate(verifyUrl);
+      const accessToken = (data as { accessToken?: string }).accessToken;
+      const refreshTokenValue = (data as { refreshToken?: string }).refreshToken;
+      if (accessToken) setSession(accessToken, refreshTokenValue);
+      if (returnUrl) {
+        toast.success("Account created — you're in.");
+        navigate(returnUrl);
+      } else if (accountType === "BUSINESS") {
+        toast.success("Account created — let's set up your business profile.");
+        navigate("/account/business");
+      } else {
+        toast.success("Account created — you're in.");
+        navigate("/account/dashboard");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -126,6 +137,20 @@ function RegisterPage() {
               </button>
             ))}
           </div>
+
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-dashed border-border bg-secondary/20 p-4">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
+              <ShoppingBag className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-foreground">Rather just browse?</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                You can still buy and track an order with no account — you just miss out on welcome points, order
+                rewards, saved order history and referral perks.
+              </p>
+            </div>
+          </div>
+
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link to="/account/login" state={returnUrl ? { returnUrl } : undefined} className="text-accent hover:underline">
@@ -152,17 +177,20 @@ function RegisterPage() {
         <h1 className="mt-2 font-display text-3xl">{chosen.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {accountType === "BUSINESS"
-            ? "Step 1 of 2 — your sign-in details. You'll add your business profile (name, KRA PIN, contact info) right after this."
+            ? "Your details as the account holder. You'll add your business profile (name, KRA PIN, contact info) right after this."
             : "Takes about a minute — that's it, you're in."}
         </p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {accountType === "BUSINESS" ? "You, the account holder" : "Your details"}
+          </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1.5 block text-sm font-medium">First name</label>
+              <label className="mb-1.5 block text-sm font-medium">Your first name</label>
               <input required className={inputCls} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
             </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Last name</label>
+              <label className="mb-1.5 block text-sm font-medium">Your last name</label>
               <input required className={inputCls} value={lastName} onChange={(e) => setLastName(e.target.value)} />
             </div>
           </div>
