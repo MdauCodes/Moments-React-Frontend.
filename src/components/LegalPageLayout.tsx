@@ -224,7 +224,7 @@ export function LegalPageLayout({
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Back to top"
-          className="fixed bottom-24 right-4 z-40 grid h-11 w-11 place-items-center rounded-full border border-border bg-background/95 text-foreground shadow-lg backdrop-blur transition hover:border-accent hover:text-accent sm:bottom-28 sm:right-6"
+          className="fixed bottom-36 right-4 z-40 grid h-11 w-11 place-items-center rounded-full border border-border bg-background/95 text-foreground shadow-lg backdrop-blur transition hover:border-accent hover:text-accent md:bottom-28 md:right-6"
         >
           <ArrowUp className="h-4 w-4" aria-hidden />
         </button>

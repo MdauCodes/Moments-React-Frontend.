@@ -61,7 +61,7 @@ export function AccessibilityToolbar() {
     }`;
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
+    <div className="fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6">
       <button
         ref={triggerRef}
         type="button"
@@ -69,9 +69,9 @@ export function AccessibilityToolbar() {
         aria-label="Accessibility options"
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/20 transition-transform hover:scale-105"
+        className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/20 transition-transform hover:scale-105 md:h-16 md:w-16"
       >
-        <Accessibility className="h-5 w-5" />
+        <Accessibility className="h-5 w-5 md:h-7 md:w-7" />
       </button>
 
       {open && (
