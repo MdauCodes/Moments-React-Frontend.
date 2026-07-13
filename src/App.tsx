@@ -93,6 +93,8 @@ import AdminOrdersPage from "@/routes/_adminAuth.admin.orders";
 import AdminOrderDetailPage from "@/routes/_adminAuth.admin.orders.$id";
 import AdminPromoCodesPage from "@/routes/_adminAuth.admin.promo-codes";
 import AdminRewardsTiersPage from "@/routes/_adminAuth.admin.rewards-tiers";
+import AdminRewardsReportPage from "@/routes/_adminAuth.admin.rewards-report";
+import AdminFeatureGuidePage from "@/routes/_adminAuth.admin.feature-guide";
 import AdminPaymentsPage from "@/routes/_adminAuth.admin.payments";
 import AdminProductsIndexPage from "@/routes/_adminAuth.admin.products.index";
 import AdminProductEditPage from "@/routes/_adminAuth.admin.products.$id";
@@ -199,6 +201,8 @@ export default function App() {
                       <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
                       <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />
                       <Route path="/admin/rewards-tiers" element={<AdminRewardsTiersPage />} />
+                      <Route path="/admin/rewards-report" element={<AdminRewardsReportPage />} />
+                      <Route path="/admin/feature-guide" element={<AdminFeatureGuidePage />} />
                       <Route path="/admin/payments" element={<AdminPaymentsPage />} />
                       <Route path="/admin/products" element={<AdminProductsIndexPage />} />
                       <Route path="/admin/products/new" element={<AdminProductNewPage />} />

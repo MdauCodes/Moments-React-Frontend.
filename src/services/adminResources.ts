@@ -41,6 +41,14 @@ export type RewardsTierConfigDto = {
   isActive: boolean;
   sortOrder: number;
 };
+export type RewardsSummaryDto = {
+  totalPointsEarned: number;
+  totalPointsRedeemed: number;
+  netPointsOutstanding: number;
+  kesValueRedeemed: number;
+  kesValueOutstanding: number;
+  creditsPerKes: number;
+};
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -197,6 +205,9 @@ export const adminResources = {
     create: (body: Partial<RewardsTierConfigDto>) => adminJson<RewardsTierConfigDto>("/api/v1/admin/referral/rewards-tiers", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<RewardsTierConfigDto>) => adminJson<RewardsTierConfigDto>(`/api/v1/admin/referral/rewards-tiers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/referral/rewards-tiers/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  rewardsSummary: {
+    get: () => adminJson<RewardsSummaryDto>("/api/v1/admin/referral/summary"),
   },
   tags: {
     list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),

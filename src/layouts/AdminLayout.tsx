@@ -28,6 +28,8 @@ import {
   TicketPercent,
   Landmark,
   Gift,
+  TrendingUp,
+  BookOpen,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -107,6 +109,7 @@ const navSections: NavSection[] = [
       { label: "Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
     ],
   },
   {
@@ -143,6 +146,12 @@ const navSections: NavSection[] = [
       { label: "Roles", to: "/admin/roles", icon: ShieldCheck, requiresAny: [PERM.USER_MANAGE_ROLES] },
       { label: "Audit Logs", to: "/admin/audit-logs", icon: FileText, requiresAny: [PERM.AUDIT_VIEW] },
       { label: "Settings", to: "/admin/settings", icon: Settings, requiresAny: [PERM.SETTINGS_MANAGE] },
+    ],
+  },
+  {
+    label: "Help",
+    items: [
+      { label: "Feature Guide", to: "/admin/feature-guide", icon: BookOpen },
     ],
   },
 ];
