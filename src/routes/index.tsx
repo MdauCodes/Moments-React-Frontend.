@@ -39,7 +39,7 @@ import segCosmeticsImg from "@/assets/categories/cosmetics.png";
 import segAgricultureImg from "@/assets/categories/agriculture.png";
 import segDairyImg from "@/assets/categories/Dairy.png";
 import segPharmacyImg from "@/assets/categories/Pharmacy.png";
-import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase } from "lucide-react";
+import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
@@ -426,32 +426,57 @@ function Hero() {
               </Link>
             </div>
 
-            {/* Business Account promo — one self-explanatory banner (icon +
-                headline + benefit + arrow) rather than a plain button plus a
-                row of disconnected chips, which read as confusing/empty. */}
-            <Link
-              to="/business-account"
-              className="mt-4 flex max-w-sm items-center justify-between gap-3 rounded-xl transition-transform hover:-translate-y-0.5 md:max-w-[420px]"
-              style={{
-                background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
-                border: "1px solid rgba(232,200,120,0.35)",
-                padding: "12px 16px",
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full"
-                  style={{ background: "rgba(232,200,120,0.18)" }}
-                >
-                  <Briefcase className="h-4 w-4" style={{ color: "#e8c878" }} />
-                </span>
-                <div>
-                  <p className="text-[13px] font-semibold text-white">Get a free Business Account</p>
-                  <p className="text-[11px] text-white/70">Welcome discount code + order history tracking</p>
+            {/* Account-type promo — both real account types get equal billing
+                here (guests are already covered by "Browse all packaging"
+                above), matching the same two paths the starter modal offers. */}
+            <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
+              <Link
+                to="/sole-merchant-account"
+                className="flex items-center justify-between gap-2.5 rounded-xl transition-transform hover:-translate-y-0.5"
+                style={{
+                  background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
+                  border: "1px solid rgba(232,200,120,0.35)",
+                  padding: "12px 14px",
+                }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
+                    style={{ background: "rgba(232,200,120,0.18)" }}
+                  >
+                    <Gift className="h-4 w-4" style={{ color: "#e8c878" }} />
+                  </span>
+                  <div>
+                    <p className="text-[13px] font-semibold text-white">Sole Merchant Account</p>
+                    <p className="text-[11px] text-white/70">Welcome bonus + rewards</p>
+                  </div>
                 </div>
-              </div>
-              <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#e8c878" }} />
-            </Link>
+                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#e8c878" }} />
+              </Link>
+              <Link
+                to="/business-account"
+                className="flex items-center justify-between gap-2.5 rounded-xl transition-transform hover:-translate-y-0.5"
+                style={{
+                  background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
+                  border: "1px solid rgba(232,200,120,0.35)",
+                  padding: "12px 14px",
+                }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
+                    style={{ background: "rgba(232,200,120,0.18)" }}
+                  >
+                    <Briefcase className="h-4 w-4" style={{ color: "#e8c878" }} />
+                  </span>
+                  <div>
+                    <p className="text-[13px] font-semibold text-white">Business Account</p>
+                    <p className="text-[11px] text-white/70">Welcome bonus + order history</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#e8c878" }} />
+              </Link>
+            </div>
 
             {/* Secondary CTA row */}
             <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -908,28 +933,50 @@ function PromoCarousel() {
   );
 }
 
-// ── Business Account callout — compact CTA promoting the free trade profile,
-// styled like the become-a-partner.tsx CTA box rather than a new pattern. ──
-function BusinessAccountCallout() {
+// ── Account types callout — compact CTA promoting both real account types
+// (Sole Merchant + Business), styled like the become-a-partner.tsx CTA box
+// rather than a new pattern. Guests are already served by the product grid
+// around this section, so this block is only about the two account paths. ──
+function AccountTypesCallout() {
   return (
     <section className="bg-background">
       <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
-        <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
-          <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For businesses</p>
-          <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
-            Ordering for your business? Open a free Business Account.
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Earn a welcome discount code, build your order history, and be first in line when trade
-            credit accounts launch.
-          </p>
-          <div className="mt-5">
-            <Link
-              to="/business-account"
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              Learn more <ArrowRight className="h-4 w-4" />
-            </Link>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For individuals</p>
+            <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
+              Open a free Sole Merchant Account.
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Earn a welcome bonus, points on every order, and referral rewards — redeemable for
+              real discounts at checkout.
+            </p>
+            <div className="mt-5">
+              <Link
+                to="/sole-merchant-account"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Learn more <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
+            <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For businesses</p>
+            <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
+              Ordering for your business? Open a free Business Account.
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Earn a welcome bonus, build your order history, and be first in line when trade
+              credit accounts launch.
+            </p>
+            <div className="mt-5">
+              <Link
+                to="/business-account"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Learn more <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -952,7 +999,7 @@ function HomePage() {
           <PromoCarousel />
           <CategoryRow />
           <GuaranteeBand />
-          <BusinessAccountCallout />
+          <AccountTypesCallout />
           <ProductRow
             eyebrow="Featured products"
             title="Popular this week"
