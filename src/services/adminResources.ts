@@ -49,6 +49,16 @@ export type RewardsSummaryDto = {
   kesValueOutstanding: number;
   creditsPerKes: number;
 };
+export type ReferralTierConfigDto = {
+  id: string;
+  tierName: string;
+  minOrderAmount: number;
+  maxOrderAmount?: number | null;
+  referrerCredits: number;
+  refereeCredits: number;
+  isActive: boolean;
+  sortOrder: number;
+};
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -208,6 +218,12 @@ export const adminResources = {
   },
   rewardsSummary: {
     get: () => adminJson<RewardsSummaryDto>("/api/v1/admin/referral/summary"),
+  },
+  referralTiers: {
+    list: () => adminJson<ReferralTierConfigDto[]>("/api/v1/admin/referral/tiers"),
+    create: (body: Partial<ReferralTierConfigDto>) => adminJson<ReferralTierConfigDto>("/api/v1/admin/referral/tiers", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<ReferralTierConfigDto>) => adminJson<ReferralTierConfigDto>(`/api/v1/admin/referral/tiers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/referral/tiers/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   tags: {
     list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),

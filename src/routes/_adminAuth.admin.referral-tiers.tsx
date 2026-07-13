@@ -3,56 +3,63 @@ import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
-import { adminResources, type RewardsTierConfigDto } from "@/services/adminResources";
+import { adminResources, type ReferralTierConfigDto } from "@/services/adminResources";
 
 type FormState = {
   tierName: string;
-  minLifetimePoints: string;
-  discountPercent: string;
-  perkDescription: string;
+  minOrderAmount: string;
+  maxOrderAmount: string;
+  referrerCredits: string;
+  refereeCredits: string;
   isActive: boolean;
   sortOrder: string;
 };
 
 const empty: FormState = {
   tierName: "",
-  minLifetimePoints: "",
-  discountPercent: "",
-  perkDescription: "",
+  minOrderAmount: "0",
+  maxOrderAmount: "",
+  referrerCredits: "",
+  refereeCredits: "",
   isActive: true,
   sortOrder: "0",
 };
 
-function AdminRewardsTiersPage() {
+function fmtKes(n: number) {
+  return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+}
+
+function AdminReferralTiersPage() {
   const { isAdmin } = useAuth();
-  const [rows, setRows] = useState<RewardsTierConfigDto[]>([]);
+  const [rows, setRows] = useState<ReferralTierConfigDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<RewardsTierConfigDto | null>(null);
+  const [editing, setEditing] = useState<ReferralTierConfigDto | null>(null);
   const [form, setForm] = useState<FormState>(empty);
 
   const load = async () => {
     setLoading(true);
     try {
-      setRows(await adminResources.rewardsTiers.list());
+      setRows(await adminResources.referralTiers.list());
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load rewards tiers");
+      toast.error(err instanceof Error ? err.message : "Failed to load referral tiers");
     } finally {
       setLoading(false);
     }
   };
   useEffect(() => { void load(); }, []);
 
-  function begin(row?: RewardsTierConfigDto) {
+  function begin(row?: ReferralTierConfigDto) {
     setEditing(row ?? null);
     setForm(
       row
         ? {
             tierName: row.tierName,
-            minLifetimePoints: String(row.minLifetimePoints),
-            discountPercent: String(row.discountPercent),
-            perkDescription: row.perkDescription ?? "",
+            minOrderAmount: String(row.minOrderAmount),
+            maxOrderAmount: row.maxOrderAmount != null ? String(row.maxOrderAmount) : "",
+            referrerCredits: String(row.referrerCredits),
+            refereeCredits: String(row.refereeCredits),
             isActive: row.isActive,
             sortOrder: String(row.sortOrder),
           }
@@ -65,19 +72,20 @@ function AdminRewardsTiersPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      const body: Partial<RewardsTierConfigDto> = {
+      const body: Partial<ReferralTierConfigDto> = {
         tierName: form.tierName.trim(),
-        minLifetimePoints: Number(form.minLifetimePoints),
-        discountPercent: Number(form.discountPercent),
-        perkDescription: form.perkDescription.trim() || undefined,
+        minOrderAmount: Number(form.minOrderAmount) || 0,
+        maxOrderAmount: form.maxOrderAmount.trim() ? Number(form.maxOrderAmount) : undefined,
+        referrerCredits: Number(form.referrerCredits) || 0,
+        refereeCredits: Number(form.refereeCredits) || 0,
         isActive: form.isActive,
         sortOrder: Number(form.sortOrder) || 0,
       };
       if (editing) {
-        await adminResources.rewardsTiers.update(editing.id, body);
+        await adminResources.referralTiers.update(editing.id, body);
         toast.success("Tier updated");
       } else {
-        await adminResources.rewardsTiers.create(body);
+        await adminResources.referralTiers.create(body);
         toast.success("Tier created");
       }
       setOpen(false);
@@ -89,11 +97,11 @@ function AdminRewardsTiersPage() {
     }
   }
 
-  async function remove(row: RewardsTierConfigDto) {
+  async function remove(row: ReferralTierConfigDto) {
     if (!isAdmin || !confirm(`Delete tier ${row.tierName}?`)) return;
     setSaving(true);
     try {
-      await adminResources.rewardsTiers.remove(row.id);
+      await adminResources.referralTiers.remove(row.id);
       toast.success("Tier deleted");
       await load();
     } catch (err) {
@@ -104,22 +112,22 @@ function AdminRewardsTiersPage() {
   }
 
   return (
-    <AdminLayout title="Rewards Tiers" actionLabel="New tier" onAction={() => begin()}>
+    <AdminLayout title="Referral Payout Tiers" actionLabel="New tier" onAction={() => begin()}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>
-            <b>What this controls:</b> a VIP status ladder for every account (Sole Merchant and
-            Business both qualify equally). We compute a customer's <b>lifetime points earned</b>{" "}
-            — a number that only ever goes up, even after they redeem points — and match it
-            against these tiers to resolve their current VIP level and discount %. This does not
-            award any points itself; it just unlocks a status once someone crosses a threshold.
-            Separate from <b>Referral Payout Tiers</b>, which pays out points per referred order.
+            <b>What this controls:</b> when a referred friend's first paid order lands, we look up
+            which tier their order value falls into, then pay out <b>both</b> people — the referrer
+            gets "referrer credits", the new customer (referee) gets "referee credits". This is the
+            actual "give &amp; get" reward. Separate from <b>Rewards Tiers</b>, which is the VIP
+            ladder based on lifetime points, not a per-order payout.
           </p>
           {!loading && rows.length === 0 && (
             <p style={{ marginTop: 10, color: "#b45309", fontWeight: 600 }}>
-              No tiers exist yet — nobody currently sees a VIP badge or tier discount, even though
-              points are being earned behind the scenes. Create at least one tier below to activate
-              this.
+              No tiers exist yet — this means referrals are currently NOT paying out at all. Every
+              referred signup is stuck "pending" forever because there's nothing to match an order
+              against. Create at least one tier below (e.g. a single catch-all: min KES 0, no max)
+              to activate payouts.
             </p>
           )}
         </div>
@@ -129,9 +137,9 @@ function AdminRewardsTiersPage() {
             <thead>
               <tr>
                 <th>Tier</th>
-                <th>Min. lifetime points</th>
-                <th>Discount</th>
-                <th>Perk</th>
+                <th>Order value range</th>
+                <th>Referrer gets</th>
+                <th>Referee gets</th>
                 <th>Status</th>
                 <th />
               </tr>
@@ -145,9 +153,9 @@ function AdminRewardsTiersPage() {
                 rows.map((r) => (
                   <tr key={r.id}>
                     <td><b>{r.tierName}</b></td>
-                    <td>{r.minLifetimePoints}</td>
-                    <td>{r.discountPercent}%</td>
-                    <td>{r.perkDescription || "—"}</td>
+                    <td>{fmtKes(r.minOrderAmount)} – {r.maxOrderAmount != null ? fmtKes(r.maxOrderAmount) : "no limit"}</td>
+                    <td>{r.referrerCredits.toLocaleString()} pts</td>
+                    <td>{r.refereeCredits.toLocaleString()} pts</td>
                     <td>
                       <span style={{
                         display: "inline-flex", padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600,
@@ -187,39 +195,51 @@ function AdminRewardsTiersPage() {
                     className="admin-input"
                     value={form.tierName}
                     onChange={(e) => setForm({ ...form, tierName: e.target.value })}
-                    placeholder="Silver, Gold, Platinum…"
+                    placeholder="Standard, Big order, …"
                   />
                 </label>
                 <label>
-                  <span className="admin-label">Minimum lifetime points</span>
+                  <span className="admin-label">Minimum order value (KES)</span>
                   <input
                     required
                     type="number"
                     min={0}
                     className="admin-input"
-                    value={form.minLifetimePoints}
-                    onChange={(e) => setForm({ ...form, minLifetimePoints: e.target.value })}
+                    value={form.minOrderAmount}
+                    onChange={(e) => setForm({ ...form, minOrderAmount: e.target.value })}
                   />
                 </label>
                 <label>
-                  <span className="admin-label">Discount %</span>
+                  <span className="admin-label">Maximum order value (KES, optional)</span>
+                  <input
+                    type="number"
+                    min={0}
+                    className="admin-input"
+                    value={form.maxOrderAmount}
+                    onChange={(e) => setForm({ ...form, maxOrderAmount: e.target.value })}
+                    placeholder="Leave blank for no upper limit"
+                  />
+                </label>
+                <label>
+                  <span className="admin-label">Referrer gets (points)</span>
                   <input
                     required
                     type="number"
                     min={0}
-                    max={100}
                     className="admin-input"
-                    value={form.discountPercent}
-                    onChange={(e) => setForm({ ...form, discountPercent: e.target.value })}
+                    value={form.referrerCredits}
+                    onChange={(e) => setForm({ ...form, referrerCredits: e.target.value })}
                   />
                 </label>
                 <label>
-                  <span className="admin-label">Perk description (optional)</span>
+                  <span className="admin-label">Referee gets (points)</span>
                   <input
+                    required
+                    type="number"
+                    min={0}
                     className="admin-input"
-                    value={form.perkDescription}
-                    onChange={(e) => setForm({ ...form, perkDescription: e.target.value })}
-                    placeholder="e.g. Free shipping on every order"
+                    value={form.refereeCredits}
+                    onChange={(e) => setForm({ ...form, refereeCredits: e.target.value })}
                   />
                 </label>
                 <label>
@@ -253,4 +273,4 @@ function AdminRewardsTiersPage() {
   );
 }
 
-export default AdminRewardsTiersPage;
+export default AdminReferralTiersPage;

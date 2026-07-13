@@ -115,6 +115,19 @@ function AdminPromoCodesPage() {
   return (
     <AdminLayout title="Promo Codes" actionLabel="New code" onAction={() => begin()}>
       <div className="admin-page-stack">
+        <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
+          <p>
+            <b>What this controls:</b> manually-created discount codes a customer types in at
+            checkout — a percent or fixed KES amount off, with an optional minimum order value,
+            usage cap and expiry date. This is separate from the points/rewards system: a code
+            here is a one-off marketing tool, not tied to a customer's earned points balance.
+          </p>
+          <p style={{ marginTop: 8 }}>
+            One code type is created automatically, not here: every new Business Account gets a
+            one-time welcome code the moment it's created (shown as "restricted to" that specific
+            customer below) — you can view it but shouldn't need to create these manually.
+          </p>
+        </div>
         <div className="admin-panel" data-admin-table-scroll>
           <table className="admin-table">
             <thead>
