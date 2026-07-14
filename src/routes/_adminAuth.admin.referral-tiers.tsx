@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Loader2, Pencil, Trash2, Sparkles } from "lucide-react";
+import { Loader2, Pencil, Trash2, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -44,7 +44,8 @@ function usePulse() {
 
 function AdminReferralTiersPage() {
   const { isAdmin } = useAuth();
-  const [mode, setMode] = useState<"auto" | "manual">("manual");
+  const [mode, setMode] = useState<"auto" | "manual">("auto");
+  const [expandedBand, setExpandedBand] = useState<string | null>(null);
   const [summary, setSummary] = useState<MarginSummaryDto | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [rows, setRows] = useState<ReferralTierConfigDto[]>([]);
@@ -348,41 +349,82 @@ function AdminReferralTiersPage() {
                 <table className="admin-table">
                   <thead>
                     <tr>
-                      <th>Tier name</th><th>Min (KES)</th><th>Max (KES)</th>
+                      <th /><th>Tier name</th><th>Min (KES)</th><th>Max (KES)</th>
                       <th>Margin</th><th>Reward pool</th><th>Referrer</th><th>Referee</th>
                       <th>Profit retained</th><th />
                     </tr>
                   </thead>
                   <tbody>
-                    {bandResults.map((b) => (
-                      <tr key={b.id} style={{ opacity: pulsing.has(b.id) ? 0.5 : 1, transition: "opacity 200ms" }}>
-                        <td>
-                          <input className="admin-input" style={{ width: 110 }} value={b.tierName}
-                            onChange={(e) => updateBand(b.id, { tierName: e.target.value })} />
-                        </td>
-                        <td>
-                          <input className="admin-input" style={{ width: 90 }} type="number" value={b.minOrderAmount}
-                            onChange={(e) => updateBand(b.id, { minOrderAmount: Number(e.target.value) })} />
-                        </td>
-                        <td>
-                          <input className="admin-input" style={{ width: 90 }} type="number" placeholder="no limit"
-                            value={b.maxOrderAmount ?? ""}
-                            onChange={(e) => updateBand(b.id, { maxOrderAmount: e.target.value === "" ? null : Number(e.target.value) })} />
-                        </td>
-                        <td>{fmtKes(b.marginKes)}</td>
-                        <td><b>{fmtKes(b.rewardPoolKes)}</b></td>
-                        <td>{b.referrerCredits.toLocaleString()} pts</td>
-                        <td>{b.refereeCredits.toLocaleString()} pts</td>
-                        <td style={{ color: b.remainingProfitPercent < 0 ? "#dc2626" : "#15803d", fontWeight: 600 }}>
-                          {b.remainingProfitPercent.toFixed(1)}% ({fmtKes(b.remainingProfitKes)})
-                        </td>
-                        <td>
-                          <button className="admin-btn admin-btn-ghost" onClick={() => removeBand(b.id)}>
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {bandResults.map((b) => {
+                      const isExpanded = expandedBand === b.id;
+                      const referrerKes = b.referrerCredits / creditsPerKes;
+                      const refereeKes = b.refereeCredits / creditsPerKes;
+                      const referrerPercentOfOrder = b.representativeOrderValue > 0 ? (referrerKes / b.representativeOrderValue) * 100 : 0;
+                      const refereePercentOfOrder = b.representativeOrderValue > 0 ? (refereeKes / b.representativeOrderValue) * 100 : 0;
+                      return (
+                        <>
+                          <tr key={b.id} style={{ opacity: pulsing.has(b.id) ? 0.5 : 1, transition: "opacity 200ms" }}>
+                            <td>
+                              <button className="admin-btn admin-btn-ghost" style={{ padding: "4px 6px" }}
+                                onClick={() => setExpandedBand(isExpanded ? null : b.id)}
+                                title="Show what a customer actually gets">
+                                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                              </button>
+                            </td>
+                            <td>
+                              <input className="admin-input" style={{ width: 110 }} value={b.tierName}
+                                onChange={(e) => updateBand(b.id, { tierName: e.target.value })} />
+                            </td>
+                            <td>
+                              <input className="admin-input" style={{ width: 90 }} type="number" value={b.minOrderAmount}
+                                onChange={(e) => updateBand(b.id, { minOrderAmount: Number(e.target.value) })} />
+                            </td>
+                            <td>
+                              <input className="admin-input" style={{ width: 90 }} type="number" placeholder="no limit"
+                                value={b.maxOrderAmount ?? ""}
+                                onChange={(e) => updateBand(b.id, { maxOrderAmount: e.target.value === "" ? null : Number(e.target.value) })} />
+                            </td>
+                            <td>{fmtKes(b.marginKes)}</td>
+                            <td><b>{fmtKes(b.rewardPoolKes)}</b></td>
+                            <td>{b.referrerCredits.toLocaleString()} pts</td>
+                            <td>{b.refereeCredits.toLocaleString()} pts</td>
+                            <td style={{ color: b.remainingProfitPercent < 0 ? "#dc2626" : "#15803d", fontWeight: 600 }}>
+                              {b.remainingProfitPercent.toFixed(1)}% ({fmtKes(b.remainingProfitKes)})
+                            </td>
+                            <td>
+                              <button className="admin-btn admin-btn-ghost" onClick={() => removeBand(b.id)}>
+                                <Trash2 size={14} />
+                              </button>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={10} style={{ background: "rgba(0,0,0,0.02)", padding: "14px 20px" }}>
+                                <div style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 8 }}>
+                                  What this means for a customer, at a typical order of ~{fmtKes(b.representativeOrderValue)} in this band:
+                                </div>
+                                <div style={{ display: "flex", gap: 32, flexWrap: "wrap" }}>
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: 13 }}>Referrer (the one who shared the link)</div>
+                                    <div style={{ fontSize: 13 }}>
+                                      {b.referrerCredits.toLocaleString()} pts = <b>{fmtKes(referrerKes)}</b> off a future order
+                                      (~{referrerPercentOfOrder.toFixed(1)}% of an order this size)
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: 13 }}>Referee (the new customer)</div>
+                                    <div style={{ fontSize: 13 }}>
+                                      {b.refereeCredits.toLocaleString()} pts = <b>{fmtKes(refereeKes)}</b> off a future order
+                                      (~{refereePercentOfOrder.toFixed(1)}% of an order this size)
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
