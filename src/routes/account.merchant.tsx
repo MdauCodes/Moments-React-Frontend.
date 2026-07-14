@@ -40,7 +40,7 @@ function AccountMerchantPage() {
           <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
           <h1 className="mt-1 font-display text-3xl sm:text-4xl">Individual Shopper Account</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Earn points on every order, share your referral link, and redeem points for discounts.
+            Earn Reward Coupons on every order, share your referral link, and redeem Reward Coupons for discounts.
           </p>
           <MerchantDashboardBody />
         </section>
@@ -167,8 +167,8 @@ function DashboardTopStrip({
       </div>
 
       <div className="flex items-center gap-6 sm:gap-8">
-        <TopStat label="Points balance" value={String(wallet?.balance ?? 0)} />
-        <TopStat label="Points value" value={fmtKes(wallet?.balance ?? 0)} />
+        <TopStat label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} />
+        <TopStat label="Reward Coupons value" value={fmtKes(wallet?.balance ?? 0)} />
         <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
       </div>
     </div>
@@ -254,10 +254,10 @@ function OverviewTab({
   const recent = txs.slice(0, 3);
   return (
     <div className="space-y-5">
-      <Section icon={Award} title="Points balance" tint="accent">
+      <Section icon={Award} title="Reward Coupons balance" tint="accent">
         <div className="flex items-baseline gap-1.5">
           <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
-          <p className="text-sm text-muted-foreground">points · worth {fmtKes(wallet?.balance ?? 0)}</p>
+          <p className="text-sm text-muted-foreground">Reward Coupons · worth {fmtKes(wallet?.balance ?? 0)}</p>
         </div>
         {tier ? (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -265,7 +265,7 @@ function OverviewTab({
             {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
           </p>
         ) : (
-          <p className="mt-2 text-xs text-muted-foreground">Keep earning points to unlock a VIP tier.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Keep earning Reward Coupons to unlock a VIP tier.</p>
         )}
       </Section>
 
@@ -369,7 +369,7 @@ function RewardsTab({
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Section icon={Package} title="Points history">
+        <Section icon={Package} title="Reward Coupons history">
           {txs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No transactions yet.</p>
           ) : (

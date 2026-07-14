@@ -67,7 +67,7 @@ export function EmailVerificationCard({
           <p className="text-sm font-semibold">Email verified</p>
         </div>
         <p className="mt-1.5 text-xs text-muted-foreground">
-          You can redeem points without limit and recover your account by email if you ever forget your password.
+          You can redeem Reward Coupons without limit and recover your account by email if you ever forget your password.
         </p>
       </div>
     );
@@ -81,8 +81,8 @@ export function EmailVerificationCard({
       </div>
       <p className="mt-1.5 text-xs text-muted-foreground">
         {freeRedemptionsRemaining == null || freeRedemptionsRemaining > 0
-          ? `You can still redeem points ${freeRedemptionsRemaining != null ? `${freeRedemptionsRemaining} more time${freeRedemptionsRemaining === 1 ? "" : "s"} ` : ""}without verifying — but an unverified account can't recover access via "forgot password" if you lose it, and your points could be at risk. Verifying takes under a minute.`
-          : "You've used your free redemptions — verify your email now to keep redeeming points for discounts."}
+          ? `You can still redeem Reward Coupons ${freeRedemptionsRemaining != null ? `${freeRedemptionsRemaining} more time${freeRedemptionsRemaining === 1 ? "" : "s"} ` : ""}without verifying — but an unverified account can't recover access via "forgot password" if you lose it, and your Reward Coupons could be at risk. Verifying takes under a minute.`
+          : "You've used your free redemptions — verify your email now to keep redeeming Reward Coupons for discounts."}
       </p>
 
       {!otpSent ? (

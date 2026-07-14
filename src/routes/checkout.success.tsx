@@ -80,7 +80,7 @@ function SuccessPage() {
                 <div>
                   <p className="text-sm font-semibold text-foreground">Want to track this order and earn rewards?</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    Create a free account to save your order history and start earning points on every purchase.
+                    Create a free account to save your order history and start earning Reward Coupons on every purchase.
                   </p>
                   <button
                     type="button"

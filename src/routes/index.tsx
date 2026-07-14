@@ -948,7 +948,7 @@ function AccountTypesCallout() {
               Open a free Individual Shopper Account.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Earn a welcome bonus, points on every order, and referral rewards — redeemable for
+              Earn a welcome bonus, Reward Coupons on every order, and referral rewards — redeemable for
               real discounts at checkout.
             </p>
             <div className="mt-5">

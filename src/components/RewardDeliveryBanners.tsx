@@ -73,7 +73,7 @@ export function RewardDeliveryBanners({ stickyTopClassName = "top-16 sm:top-20" 
       >
         <span className="flex items-center gap-2 text-xs font-medium text-foreground">
           <Gift className="h-4 w-4 shrink-0 text-accent" />
-          Create a free account or log in — this order could be earning you points toward real discounts.
+          Create a free account or log in — this order could be earning you Reward Coupons toward real discounts.
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-accent" />
       </button>

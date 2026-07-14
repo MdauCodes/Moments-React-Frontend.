@@ -132,7 +132,7 @@ function DashboardPage() {
               to={user?.accountType === "BUSINESS" ? "/account/referrals" : "/account/merchant"}
               className="mt-5 inline-flex w-full items-center justify-between rounded-xl border border-border bg-secondary/30 px-4 py-3 text-sm hover:bg-secondary"
             >
-              <span className="font-semibold">Refer & earn points</span>
+              <span className="font-semibold">Refer & earn Reward Coupons</span>
               <ArrowRight className="h-4 w-4 text-accent" />
             </Link>
           </div>

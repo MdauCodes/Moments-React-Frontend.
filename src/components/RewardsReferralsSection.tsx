@@ -102,10 +102,10 @@ export function RewardsReferralsSection() {
 
   return (
     <div className="space-y-5">
-      <Section icon={Award} title="Points balance" tint="accent">
+      <Section icon={Award} title="Reward Coupons balance" tint="accent">
         <div className="flex items-baseline gap-1.5">
           <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
-          <p className="text-sm text-muted-foreground">points</p>
+          <p className="text-sm text-muted-foreground">Reward Coupons</p>
         </div>
         {tier ? (
           <p className="mt-2 text-xs text-muted-foreground">
@@ -113,7 +113,7 @@ export function RewardsReferralsSection() {
             {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
           </p>
         ) : (
-          <p className="mt-2 text-xs text-muted-foreground">Keep earning points to unlock a VIP tier.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Keep earning Reward Coupons to unlock a VIP tier.</p>
         )}
       </Section>
 
@@ -151,7 +151,7 @@ export function RewardsReferralsSection() {
       )}
 
       <div className="grid gap-5 sm:grid-cols-2">
-        <Section icon={Package} title="Points history">
+        <Section icon={Package} title="Reward Coupons history">
           {txs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No transactions yet.</p>
           ) : (
@@ -194,7 +194,7 @@ export function RewardsReferralsSection() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Redeem points for a discount at{" "}
+        Redeem Reward Coupons for a discount at{" "}
         <Link to="/cart" className="text-accent hover:underline">
           checkout
         </Link>

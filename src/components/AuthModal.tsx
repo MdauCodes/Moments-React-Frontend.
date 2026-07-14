@@ -24,14 +24,14 @@ const ACCOUNT_TYPES: {
     icon: Gift,
     title: "Individual Shopper Account",
     desc: "Individuals ordering for themselves or their own small business.",
-    perks: ["Welcome bonus points on signup", "Earn points on every order", "Referral rewards & VIP tiers"],
+    perks: ["Welcome bonus Reward Coupons on signup", "Earn Reward Coupons on every order", "Referral rewards & VIP tiers"],
   },
   {
     value: "BUSINESS",
     icon: Briefcase,
     title: "Business Account",
     desc: "Registered companies, SMEs and trade buyers.",
-    perks: ["Welcome bonus points + order history for your business", "Earn points & referral rewards too", "First in line for trade credit"],
+    perks: ["Welcome bonus Reward Coupons + order history for your business", "Earn Reward Coupons & referral rewards too", "First in line for trade credit"],
   },
 ];
 
@@ -281,8 +281,8 @@ function RegisterStep() {
           <div>
             <p className="text-xs font-semibold text-foreground">Rather just browse?</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              You can still buy and track an order with no account — you just miss out on welcome points, order
-              rewards, saved order history and referral perks.
+              You can still buy and track an order with no account — you just miss out on welcome Reward Coupons,
+              order rewards, saved order history and referral perks.
             </p>
           </div>
         </div>

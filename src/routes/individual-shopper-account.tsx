@@ -5,13 +5,13 @@ import { Gift, Sparkles, TrendingUp, Users } from "lucide-react";
 const BENEFITS = [
   {
     Icon: Sparkles,
-    title: "Welcome bonus points",
-    desc: "Open your account and earn welcome points immediately — redeemable for a discount on any order.",
+    title: "Welcome bonus Reward Coupons",
+    desc: "Open your account and earn welcome Reward Coupons immediately — redeemable for a discount on any order.",
   },
   {
     Icon: TrendingUp,
     title: "Earn on every order",
-    desc: "Points accrue on every paid order, plus bonuses for leaving product reviews.",
+    desc: "Reward Coupons accrue on every paid order, plus bonuses for leaving product reviews.",
   },
   {
     Icon: Users,
@@ -33,7 +33,7 @@ function IndividualShopperAccountInfoPage() {
             Open an Individual Shopper Account
           </h1>
           <p className="mt-4 text-muted-foreground">
-            Free, self-service, and open to anyone ordering from Moments Packaging — earn points on every
+            Free, self-service, and open to anyone ordering from Moments Packaging — earn Reward Coupons on every
             order and redeem them for real discounts.
           </p>
         </div>

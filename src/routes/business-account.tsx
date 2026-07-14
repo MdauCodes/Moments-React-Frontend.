@@ -5,8 +5,8 @@ import { Briefcase, Gift, TrendingUp, ShieldCheck } from "lucide-react";
 const BENEFITS = [
   {
     Icon: Gift,
-    title: "Welcome bonus + rewards points",
-    desc: "Earn a welcome bonus on signup, then points on every order — redeemable for real discounts, plus referral rewards.",
+    title: "Welcome bonus + Reward Coupons",
+    desc: "Earn a welcome bonus on signup, then Reward Coupons on every order — redeemable for real discounts, plus referral rewards.",
   },
   {
     Icon: TrendingUp,

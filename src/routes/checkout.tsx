@@ -196,7 +196,7 @@ function CheckoutModal() {
     if (prevPromoCodeRef.current !== currentCode && appliedRedemption) {
       setAppliedRedemption(null);
       setRedeemInput("");
-      toast.info("Your promo code changed — please re-apply your points redemption.");
+      toast.info("Your promo code changed — please re-apply your Reward Coupons redemption.");
     }
     prevPromoCodeRef.current = currentCode;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -205,7 +205,7 @@ function CheckoutModal() {
   async function applyPointsRedemption() {
     const points = parseInt(redeemInput, 10);
     if (!points || points <= 0) {
-      setRedeemError("Enter how many points to redeem");
+      setRedeemError("Enter how many Reward Coupons to redeem");
       return;
     }
     setRedeemChecking(true);
@@ -219,14 +219,14 @@ function CheckoutModal() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setRedeemError(data.message ?? "Couldn't redeem those points");
+        setRedeemError(data.message ?? "Couldn't redeem those Reward Coupons");
         return;
       }
       setAppliedRedemption({ points, discount: data.appliedDiscountKes ?? 0 });
       if (data.capped) {
         toast.info(`Capped at the maximum redeemable for this order: KES ${data.appliedDiscountKes}`);
       } else {
-        toast.success("Points applied");
+        toast.success("Reward Coupons applied");
       }
     } catch {
       setRedeemError("Couldn't check that right now — try again");
@@ -902,7 +902,7 @@ function CheckoutModal() {
                         {appliedRedemption ? (
                           <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
                             <span className="font-medium text-accent">
-                              {appliedRedemption.points} points redeemed
+                              {appliedRedemption.points} Reward Coupons redeemed
                             </span>
                             <button type="button" onClick={removePointsRedemption} className="text-muted-foreground hover:text-foreground">
                               Remove
@@ -916,7 +916,7 @@ function CheckoutModal() {
                               max={pointsBalance}
                               value={redeemInput}
                               onChange={(e) => setRedeemInput(e.target.value)}
-                              placeholder={`Redeem points (balance: ${pointsBalance})`}
+                              placeholder={`Redeem Reward Coupons (balance: ${pointsBalance})`}
                               className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
                             />
                             <button
@@ -937,7 +937,7 @@ function CheckoutModal() {
                       <Row label="Subtotal" value={fmt(cartTotal)} />
                       <Row label={shippingLabel} value={shippingValue} />
                       {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
-                      {appliedRedemption && <Row label="Points redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
+                      {appliedRedemption && <Row label="Reward Coupons redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
                       <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
                         <dt>Total</dt>
                         <dd className="tabular-nums">{fmt(total)}</dd>
