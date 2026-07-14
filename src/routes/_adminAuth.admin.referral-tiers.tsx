@@ -108,6 +108,10 @@ function AdminReferralTiersPage() {
     [bands, tuning, blendedGp, creditsPerKes],
   );
 
+  // Minimum profit floor set at/above the actual catalog margin — structurally zero reward on every band.
+  const floorExceedsMargin = summary?.blendedGrossProfitPercent != null && tuning.minimumProfitPercent >= blendedGp;
+  // Zero-reward bands even though the floor itself isn't the (sole) issue — e.g. a very small order value.
+  const zeroRewardBands = bandResults.filter((b) => b.rewardPoolKes === 0);
   // Bands where the business would actually LOSE profit after paying the reward — blocking.
   const unsafeBands = bandResults.filter((b) => b.remainingProfitPercent < 0);
   // Bands that are technically safe but very thin — warned, not blocked.
@@ -138,6 +142,18 @@ function AdminReferralTiersPage() {
       toast.dismiss("invalid-range-bands");
     }
   }, [invalidRangeBands.map((b) => b.id).join(",")]);
+
+  useEffect(() => {
+    if (floorExceedsMargin) {
+      toast.error(
+        `Minimum profit floor (${tuning.minimumProfitPercent}%) is at or above the blended catalog margin ` +
+        `(${blendedGp.toFixed(1)}%) — no reward can ever be paid on any band. Lower the floor to fix this.`,
+        { id: "floor-exceeds-margin", duration: Infinity },
+      );
+    } else {
+      toast.dismiss("floor-exceeds-margin");
+    }
+  }, [floorExceedsMargin, tuning.minimumProfitPercent, blendedGp]);
 
   function applyPreset(name: "decent" | "generous") {
     setTuning((t) => ({ ...t, ...PRESETS[name] }));
@@ -189,7 +205,7 @@ function AdminReferralTiersPage() {
     toast.success("Bands generated — still fully editable below");
   }
 
-  const canSeed = unsafeBands.length === 0 && invalidRangeBands.length === 0 && bandResults.length > 0;
+  const canSeed = unsafeBands.length === 0 && invalidRangeBands.length === 0 && bandResults.length > 0 && !floorExceedsMargin;
 
   async function seedIntoSystem() {
     if (!canSeed) return;
@@ -384,6 +400,27 @@ function AdminReferralTiersPage() {
                     }} />
                 </label>
               </div>
+              {floorExceedsMargin && (
+                <div style={{
+                  marginTop: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12.5,
+                  background: "rgba(220,38,38,0.08)", color: "#b91c1c",
+                }}>
+                  <b>No reward will ever be paid out:</b> your minimum profit floor ({tuning.minimumProfitPercent}%)
+                  is at or above the actual blended catalog margin ({blendedGp.toFixed(1)}%) — there's nothing left
+                  to share after the floor is protected, on any band, regardless of "% of margin shared."
+                  Lower the floor below {blendedGp.toFixed(1)}% to allow any payout at all.
+                </div>
+              )}
+              {!floorExceedsMargin && zeroRewardBands.length > 0 && (
+                <div style={{
+                  marginTop: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12.5,
+                  background: "rgba(217,119,6,0.08)", color: "#b45309",
+                }}>
+                  <b>Zero reward on:</b> {zeroRewardBands.map((b) => b.tierName).join(", ")} — the order values in
+                  {zeroRewardBands.length === 1 ? " this band are" : " these bands are"} too small for the profit
+                  floor to leave anything to share. Lower the floor, raise "% of margin shared," or widen the band.
+                </div>
+              )}
               {(unsafeBands.length > 0 || thinBands.length > 0) && (
                 <div style={{
                   marginTop: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12.5,
@@ -483,7 +520,14 @@ function AdminReferralTiersPage() {
                               )}
                             </td>
                             <td>{fmtKes(b.marginKes)}</td>
-                            <td><b>{fmtKes(b.rewardPoolKes)}</b></td>
+                            <td>
+                              <b>{fmtKes(b.rewardPoolKes)}</b>
+                              {b.rewardPoolKes === 0 && (
+                                <div style={{ color: "#b45309", fontSize: 11, marginTop: 2 }}>
+                                  {floorExceedsMargin ? "floor ≥ margin" : "floor leaves nothing"}
+                                </div>
+                              )}
+                            </td>
                             <td>{b.referrerCredits.toLocaleString()} pts</td>
                             <td>{b.refereeCredits.toLocaleString()} pts</td>
                             <td style={{ color: b.remainingProfitPercent < 0 ? "#dc2626" : "#15803d", fontWeight: 600 }}>
@@ -551,7 +595,9 @@ function AdminReferralTiersPage() {
                 </button>
                 {!canSeed && bandResults.length > 0 && (
                   <span style={{ fontSize: 12.5, color: "#b91c1c" }}>
-                    Disabled — {unsafeBands.length > 0 ? "unsafe band(s)" : "invalid band range(s)"} above must be fixed first.
+                    Disabled — {floorExceedsMargin
+                      ? "profit floor leaves nothing to share (see warning above)"
+                      : unsafeBands.length > 0 ? "unsafe band(s)" : "invalid band range(s)"} must be fixed first.
                   </span>
                 )}
               </div>
