@@ -56,7 +56,7 @@ function rankCandidates(pool: Product[], cartProductIds: Set<string>, cartCatego
   return scored.slice(0, STRIP_LENGTH).map((s) => s.product);
 }
 
-export function QuickAddProductStrip({ cardWidthClassName = "w-40 sm:w-48" }: { cardWidthClassName?: string }) {
+export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { cardWidthClassName?: string }) {
   const navigate = useNavigate();
   const { items } = useCart();
   const { kesToNextTier, kesToFreeDelivery } = useRewardDeliveryGap();
@@ -115,7 +115,7 @@ export function QuickAddProductStrip({ cardWidthClassName = "w-40 sm:w-48" }: { 
         Picked to match what's already in your cart — tap to add.
       </p>
 
-      <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+      <div className="mt-3 flex items-stretch gap-3 overflow-x-auto pb-1">
         {ranked.map((p) => (
           <div key={p.id} className={`${cardWidthClassName} shrink-0`}>
             <ProductCard product={p} onConfigure={handleConfigure} />

@@ -59,24 +59,26 @@ export function AuthModal() {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-200"
       onClick={close}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-2xl bg-card text-card-foreground shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white/75 text-card-foreground shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={close}
           aria-label="Close"
-          className="absolute right-3 top-3 z-10 rounded-full p-1.5 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+          className="absolute right-3 top-3 z-20 rounded-full p-1.5 text-muted-foreground transition hover:bg-black/5 hover:text-foreground"
         >
           <X className="h-4 w-4" />
         </button>
 
-        {mode === "login" && <LoginStep />}
-        {mode === "register" && <RegisterStep />}
+        <div className="max-h-[85vh] overflow-y-auto">
+          {mode === "login" && <LoginStep />}
+          {mode === "register" && <RegisterStep />}
+        </div>
       </div>
     </div>
   );

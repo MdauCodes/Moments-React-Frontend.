@@ -81,7 +81,7 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
   return (
     <article
       onClick={handleCardClick}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
+      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
     >
       <div className="relative aspect-square w-full overflow-hidden bg-secondary sm:aspect-[4/3] lg:aspect-[16/10]">
         {image ? (

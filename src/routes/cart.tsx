@@ -76,10 +76,6 @@ function CartPage() {
           <RewardDeliveryBanners />
         </div>
 
-        <div className="mt-5">
-          <QuickAddProductStrip />
-        </div>
-
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
           {/* Items */}
           <div className="lg:col-span-2">
@@ -228,6 +224,10 @@ function CartPage() {
               </p>
             </div>
           </aside>
+        </div>
+
+        <div className="mt-10">
+          <QuickAddProductStrip />
         </div>
       </section>
     </SiteLayout>

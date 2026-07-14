@@ -535,11 +535,7 @@ function CheckoutModal() {
             <RewardDeliveryBanners stickyTopClassName="top-0" />
           </div>
           {step === "contact" && (
-            <div className="mb-5">
-              <QuickAddProductStrip cardWidthClassName="w-32 sm:w-36" />
-            </div>
-          )}
-          {step === "contact" && (
+            <>
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>
                 <h2 className="font-display text-2xl text-foreground">How would you like to receive your order?</h2>
@@ -803,6 +799,10 @@ function CheckoutModal() {
                 Continue to payment <ArrowRight className="h-4 w-4" />
               </button>
             </form>
+            <div className="mt-6">
+              <QuickAddProductStrip cardWidthClassName="w-36 sm:w-44" />
+            </div>
+            </>
           )}
 
           {step === "payment" && (
