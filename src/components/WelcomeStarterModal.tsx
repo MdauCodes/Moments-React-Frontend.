@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Gift, Briefcase, Check } from "lucide-react";
+import { X, Gift, Briefcase, ShoppingBag, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -69,49 +69,54 @@ export function WelcomeStarterModal() {
 
         <div className="px-6 pb-4 pt-7 text-center">
           <p id="starter-modal-title" className="font-display text-2xl leading-tight text-foreground">
-            Create a free account &amp; start earning
+            Get 100 points free — just for signing up
           </p>
-          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
-            Every order earns you points toward real discounts — plus referral rewards, VIP tiers, and for
-            businesses, first-in-line access to trade credit.
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
+            Do you order packaging regularly? Every order you place earns points toward real checkout
+            discounts, plus referral rewards and VIP tiers — and if you're ordering for a business, first
+            access when trade credit launches.
           </p>
         </div>
 
-        <div className="space-y-2.5 px-6 pb-2">
+        <div className="grid grid-cols-1 gap-2.5 px-6 pb-2 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
-            className="flex w-full items-center gap-3 rounded-xl bg-primary px-4 py-3.5 text-left text-primary-foreground transition-colors hover:bg-primary/90"
+            className="flex flex-col items-center gap-2 rounded-xl border border-accent/30 bg-accent/[0.06] px-3 py-4 text-center transition-colors hover:bg-accent/[0.12]"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
               <Gift className="h-4.5 w-4.5" />
             </span>
-            <span>
-              <span className="block text-sm font-semibold">Individual Shopper Account</span>
-              <span className="block text-[11px] opacity-85">Free — welcome bonus points on signup</span>
-            </span>
+            <span className="text-xs font-semibold text-foreground">Individual Shopper</span>
+            <span className="text-[10.5px] leading-tight text-muted-foreground">Free — 100 points on signup</span>
           </button>
 
           <button
             type="button"
             onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-            className="flex w-full items-center gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
+            className="flex flex-col items-center gap-2 rounded-xl border border-accent/30 bg-accent/[0.06] px-3 py-4 text-center transition-colors hover:bg-accent/[0.12]"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
               <Briefcase className="h-4.5 w-4.5" />
             </span>
-            <span>
-              <span className="block text-sm font-semibold text-foreground">Business Account</span>
-              <span className="block text-[11px] text-muted-foreground">Free — order history + trade credit prospects</span>
+            <span className="text-xs font-semibold text-foreground">Business</span>
+            <span className="text-[10.5px] leading-tight text-muted-foreground">Free — trade credit ready</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={dismiss}
+            className="flex flex-col items-center gap-2 rounded-xl border border-accent/30 bg-accent/[0.06] px-3 py-4 text-center transition-colors hover:bg-accent/[0.12]"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+              <ShoppingBag className="h-4.5 w-4.5" />
             </span>
+            <span className="text-xs font-semibold text-foreground">Just Browsing</span>
+            <span className="text-[10.5px] leading-tight text-muted-foreground">Shop now, decide later</span>
           </button>
         </div>
 
-        <div className="flex items-center justify-center gap-1.5 px-6 pb-6 pt-2 text-xs text-muted-foreground">
-          <button type="button" onClick={dismiss} className="hover:underline">
-            Just browsing
-          </button>
-          <span aria-hidden="true">·</span>
+        <div className="flex items-center justify-center gap-1.5 px-6 pb-6 pt-4 text-xs text-muted-foreground">
           <Check className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
           Already have an account?
           <button type="button" onClick={() => pick(() => openLogin())} className="font-semibold text-accent hover:underline">
