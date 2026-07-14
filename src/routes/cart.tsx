@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, MessageCircle, Trash2, ShoppingBag } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { RewardDeliveryBanners } from "@/components/RewardDeliveryBanners";
+import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { useCart } from "@/contexts/CartContext";
 import { WHATSAPP_NUMBER } from "@/data/products";
 
@@ -73,6 +74,10 @@ function CartPage() {
 
         <div className="mt-5">
           <RewardDeliveryBanners />
+        </div>
+
+        <div className="mt-5">
+          <QuickAddProductStrip />
         </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-3">

@@ -25,6 +25,7 @@ import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { RewardDeliveryBanners } from "@/components/RewardDeliveryBanners";
+import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 
 
 
@@ -533,6 +534,11 @@ function CheckoutModal() {
           <div className="mb-4">
             <RewardDeliveryBanners stickyTopClassName="top-0" />
           </div>
+          {step === "contact" && (
+            <div className="mb-5">
+              <QuickAddProductStrip cardWidthClassName="w-32 sm:w-36" />
+            </div>
+          )}
           {step === "contact" && (
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>
