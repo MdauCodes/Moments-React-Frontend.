@@ -7,7 +7,7 @@ import { useAuthModal, type ModalAccountType } from "@/contexts/AuthModalContext
 import { PasswordInput } from "@/components/PasswordInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { InlineProgress } from "@/components/InlineProgress";
-import { apiUrl } from "@/config/api";
+import { apiUrl, getSessionId } from "@/config/api";
 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
@@ -174,7 +174,7 @@ function RegisterStep() {
     try {
       const res = await fetch(apiUrl("/api/v1/auth/register"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
         body: JSON.stringify({
           email: email.trim(),
           firstName,

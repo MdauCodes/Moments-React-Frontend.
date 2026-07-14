@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from "react";
-import { apiUrl, setAuthToken, getAuthToken } from "@/config/api";
+import { apiUrl, setAuthToken, getAuthToken, getSessionId } from "@/config/api";
 
 export interface AuthUser {
   id: string;
@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await fetch(apiUrl("/api/v1/auth/login"), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
       body: JSON.stringify({ email, password }),
     });
     if (!res.ok) {

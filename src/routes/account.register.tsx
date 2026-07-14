@@ -9,7 +9,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiUrl } from "@/config/api";
+import { apiUrl, getSessionId } from "@/config/api";
 
 type AccountType = "SOLE_MERCHANT" | "BUSINESS";
 
@@ -72,7 +72,7 @@ function RegisterPage() {
     try {
       const res = await fetch(apiUrl("/api/v1/auth/register"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
         body: JSON.stringify({
           email: email.trim(),
           firstName,

@@ -185,6 +185,22 @@ function CheckoutModal() {
     referralStore.getWallet().then((w) => setPointsBalance(w?.balance ?? 0)).catch(() => {});
   }, [isAuthenticated]);
 
+  // A points redemption's discount is computed against the order total at the moment
+  // it's applied — if the promo code then changes (applied, removed, or swapped), that
+  // discount is stale (computed off a total that no longer applies). Clear it and make
+  // the customer re-apply, rather than silently showing a wrong number on screen.
+  const prevPromoCodeRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentCode = appliedPromo?.code ?? null;
+    if (prevPromoCodeRef.current !== currentCode && appliedRedemption) {
+      setAppliedRedemption(null);
+      setRedeemInput("");
+      toast.info("Your promo code changed — please re-apply your points redemption.");
+    }
+    prevPromoCodeRef.current = currentCode;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedPromo?.code]);
+
   async function applyPointsRedemption() {
     const points = parseInt(redeemInput, 10);
     if (!points || points <= 0) {
