@@ -59,6 +59,13 @@ export type ReferralTierConfigDto = {
   isActive: boolean;
   sortOrder: number;
 };
+export type MarginSummaryDto = {
+  blendedGrossProfitPercent: number | null;
+  productsWithCostData: number;
+  totalActiveProducts: number;
+  creditsPerKes: number;
+  existingTiers: ReferralTierConfigDto[];
+};
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
@@ -224,6 +231,10 @@ export const adminResources = {
     create: (body: Partial<ReferralTierConfigDto>) => adminJson<ReferralTierConfigDto>("/api/v1/admin/referral/tiers", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<ReferralTierConfigDto>) => adminJson<ReferralTierConfigDto>(`/api/v1/admin/referral/tiers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/referral/tiers/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    seed: (tiers: Partial<ReferralTierConfigDto>[]) => adminJson<ReferralTierConfigDto[]>("/api/v1/admin/referral/tiers/seed", { method: "POST", body: JSON.stringify(tiers) }),
+  },
+  marginSummary: {
+    get: () => adminJson<MarginSummaryDto>("/api/v1/admin/referral/margin-summary"),
   },
   tags: {
     list: () => adminJson<TagDto[]>("/api/v1/admin/tags"),
