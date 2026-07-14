@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { X, Gift, Briefcase, ShoppingBag, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import welcomeAvatar from "@/assets/avatars/welcome-avatar.png";
 
 // Shown once per browser session, a few seconds after the homepage loads —
 // long enough to clear the branded splash. Replaces the earlier
@@ -67,8 +68,17 @@ export function WelcomeStarterModal() {
           <X className="h-4 w-4" />
         </button>
 
-        <div className="px-6 pb-4 pt-7 text-center">
-          <p id="starter-modal-title" className="font-display text-2xl leading-tight text-foreground">
+        <div className="px-6 pb-4 pt-6 text-center">
+          <div className="relative mx-auto grid h-24 w-24 place-items-center">
+            <span className="absolute inset-0 rounded-full bg-accent/12" aria-hidden="true" />
+            <img
+              src={welcomeAvatar}
+              alt=""
+              aria-hidden="true"
+              className="relative h-24 w-24 object-contain"
+            />
+          </div>
+          <p id="starter-modal-title" className="mt-2 font-display text-2xl leading-tight text-foreground">
             Get 100 points free — just for signing up
           </p>
           <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
