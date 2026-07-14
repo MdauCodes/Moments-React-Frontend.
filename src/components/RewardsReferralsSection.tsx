@@ -10,6 +10,8 @@ import {
   type ReferralEntry,
   type RewardsTier,
 } from "@/services/referralStore";
+import { EmailVerificationCard } from "@/components/EmailVerificationCard";
+import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Self-contained rewards + referrals panel — earns/redeems points, shares a
@@ -18,6 +20,7 @@ import {
  * rewards identically; only the rest of each dashboard differs.
  */
 export function RewardsReferralsSection() {
+  const { user } = useAuth();
   const [status, setStatus] = useState<ReferralStatus | null>(null);
   const [wallet, setWallet] = useState<ReferralWallet | null>(null);
   const [tier, setTier] = useState<RewardsTier | null>(null);
@@ -51,6 +54,8 @@ export function RewardsReferralsSection() {
       cancelled = true;
     };
   }, []);
+
+  const reloadWallet = () => { void referralStore.getWallet().then(setWallet); };
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -135,6 +140,15 @@ export function RewardsReferralsSection() {
         </div>
         {shareUrl && <p className="mt-2.5 break-all text-xs text-muted-foreground">{shareUrl}</p>}
       </Section>
+
+      {wallet && (
+        <EmailVerificationCard
+          email={user?.email ?? ""}
+          emailVerified={wallet.emailVerified}
+          freeRedemptionsRemaining={wallet.freeRedemptionsRemaining}
+          onVerified={reloadWallet}
+        />
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Section icon={Package} title="Points history">

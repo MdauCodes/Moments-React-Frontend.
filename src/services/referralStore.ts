@@ -14,6 +14,9 @@ export interface ReferralWallet {
   referralCode?: string;
   totalEarned?: number;
   totalRedeemed?: number;
+  emailVerified: boolean;
+  /** How many more redemptions are allowed before email verification is required. Null once verified (unlimited). */
+  freeRedemptionsRemaining: number | null;
 }
 
 export interface ReferralTransaction {
@@ -67,8 +70,10 @@ export const referralStore = {
       balance: Number(data.balance ?? 0),
       currency: data.currency ?? "KES",
       referralCode: data.referralCode,
-      totalEarned: Number(data.totalEarned ?? 0),
-      totalRedeemed: Number(data.totalRedeemed ?? 0),
+      totalEarned: Number(data.lifetimeEarned ?? 0),
+      totalRedeemed: Number(data.lifetimeRedeemed ?? 0),
+      emailVerified: Boolean(data.emailVerified),
+      freeRedemptionsRemaining: data.freeRedemptionsRemaining == null ? null : Number(data.freeRedemptionsRemaining),
     };
   },
 

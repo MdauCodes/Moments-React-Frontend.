@@ -57,4 +57,13 @@ export const passwordStore = {
     if (!token) return { ok: false, message: "Verification link is invalid." };
     return post("/api/v1/auth/verify-email", { token });
   },
+
+  // ---- Dashboard email verification (optional until the free-redemption limit) ----
+  async sendVerificationOtp(email: string): Promise<Result> {
+    return post("/api/v1/auth/resend-otp", { email });
+  },
+  async verifyEmailOtp(email: string, otp: string): Promise<Result<{ accessToken: string; refreshToken: string }>> {
+    if (!/^\d{6}$/.test(otp)) return { ok: false, message: "Enter the 6-digit code from your email." };
+    return post<{ accessToken: string; refreshToken: string }>("/api/v1/auth/verify-email", { email, otp });
+  },
 };

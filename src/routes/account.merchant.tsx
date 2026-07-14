@@ -16,6 +16,8 @@ import {
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { EmailVerificationCard } from "@/components/EmailVerificationCard";
+import { useAuth } from "@/contexts/AuthContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import {
   referralStore,
@@ -59,6 +61,7 @@ const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
 ];
 
 function MerchantDashboardBody() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<TabKey>("overview");
   const [status, setStatus] = useState<ReferralStatus | null>(null);
   const [wallet, setWallet] = useState<ReferralWallet | null>(null);
@@ -95,6 +98,8 @@ function MerchantDashboardBody() {
     };
   }, []);
 
+  const reloadWallet = () => { void referralStore.getWallet().then(setWallet); };
+
   if (loading) {
     return <p className="mt-10 text-sm text-muted-foreground">Loading…</p>;
   }
@@ -122,7 +127,9 @@ function MerchantDashboardBody() {
           {tab === "overview" && (
             <OverviewTab wallet={wallet} tier={tier} txs={txs} onSeeAllRewards={() => setTab("rewards")} />
           )}
-          {tab === "rewards" && <RewardsTab wallet={wallet} txs={txs} refs={refs} />}
+          {tab === "rewards" && (
+            <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
+          )}
           {tab === "orders" && <OrdersTab orders={orders} />}
           {tab === "settings" && <SettingsTab />}
         </div>
@@ -290,10 +297,14 @@ function RewardsTab({
   wallet,
   txs,
   refs,
+  userEmail,
+  onWalletChange,
 }: {
   wallet: ReferralWallet | null;
   txs: ReferralTransaction[];
   refs: ReferralEntry[];
+  userEmail: string;
+  onWalletChange: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const code = wallet?.referralCode ?? "";
@@ -347,6 +358,15 @@ function RewardsTab({
         </div>
         {shareUrl && <p className="mt-2.5 break-all text-xs text-muted-foreground">{shareUrl}</p>}
       </Section>
+
+      {wallet && (
+        <EmailVerificationCard
+          email={userEmail}
+          emailVerified={wallet.emailVerified}
+          freeRedemptionsRemaining={wallet.freeRedemptionsRemaining}
+          onVerified={onWalletChange}
+        />
+      )}
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Section icon={Package} title="Points history">
