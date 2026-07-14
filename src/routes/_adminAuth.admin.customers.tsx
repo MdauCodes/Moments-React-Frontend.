@@ -145,7 +145,7 @@ function AdminCustomersPage() {
                         <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{c.email} · {c.phone}</div>
                       </td>
                       <td>
-                        <div>{c.accountType === "BUSINESS" ? "Business" : "Sole Merchant"}</div>
+                        <div>{c.accountType === "BUSINESS" ? "Business" : "Individual Shopper"}</div>
                         {c.rewardsPoints != null && (
                           <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{c.rewardsPoints} pts</div>
                         )}

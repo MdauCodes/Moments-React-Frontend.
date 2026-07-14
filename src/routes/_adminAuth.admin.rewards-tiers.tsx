@@ -108,7 +108,7 @@ function AdminRewardsTiersPage() {
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>
-            <b>What this controls:</b> a VIP status ladder for every account (Sole Merchant and
+            <b>What this controls:</b> a VIP status ladder for every account (Individual Shopper and
             Business both qualify equally). We compute a customer's <b>lifetime points earned</b>{" "}
             — a number that only ever goes up, even after they redeem points — and match it
             against these tiers to resolve their current VIP level and discount %. This does not

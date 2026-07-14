@@ -7,7 +7,7 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   roles: string[];
-  accountType?: "SOLE_MERCHANT" | "BUSINESS";
+  accountType?: "INDIVIDUAL_SHOPPER" | "BUSINESS";
 }
 
 interface AuthContextValue {

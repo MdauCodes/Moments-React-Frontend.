@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 export type AuthModalMode = null | "login" | "register";
-export type ModalAccountType = "SOLE_MERCHANT" | "BUSINESS";
+export type ModalAccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
 
 interface OpenLoginOpts {
   returnUrl?: string;

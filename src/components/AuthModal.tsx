@@ -20,9 +20,9 @@ const ACCOUNT_TYPES: {
   perks: string[];
 }[] = [
   {
-    value: "SOLE_MERCHANT",
+    value: "INDIVIDUAL_SHOPPER",
     icon: Gift,
-    title: "Sole Merchant Account",
+    title: "Individual Shopper Account",
     desc: "Individuals ordering for themselves or their own small business.",
     perks: ["Welcome bonus points on signup", "Earn points on every order", "Referral rewards & VIP tiers"],
   },

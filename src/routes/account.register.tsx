@@ -11,7 +11,7 @@ import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiUrl, getSessionId } from "@/config/api";
 
-type AccountType = "SOLE_MERCHANT" | "BUSINESS";
+type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
 
 const inputCls = "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
 
@@ -23,9 +23,9 @@ const ACCOUNT_TYPES: {
   perks: string[];
 }[] = [
   {
-    value: "SOLE_MERCHANT",
+    value: "INDIVIDUAL_SHOPPER",
     icon: Gift,
-    title: "Sole Merchant Account",
+    title: "Individual Shopper Account",
     desc: "For individuals ordering for themselves or their own small business.",
     perks: ["Welcome bonus points on signup", "Earn points on every order", "Referral rewards & VIP tiers"],
   },
@@ -48,7 +48,7 @@ function RegisterPage() {
   const preselect = searchParams.get("type");
 
   const [accountType, setAccountType] = useState<AccountType | null>(
-    preselect === "business" ? "BUSINESS" : preselect === "merchant" ? "SOLE_MERCHANT" : null,
+    preselect === "business" ? "BUSINESS" : preselect === "merchant" ? "INDIVIDUAL_SHOPPER" : null,
   );
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");

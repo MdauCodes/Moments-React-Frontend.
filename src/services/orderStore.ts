@@ -101,7 +101,7 @@ export interface PlaceOrderInput {
   shippingFee: number;
   paymentMethod: CheckoutPaymentMethod;
   promoCode?: string;
-  /** Sole Merchant rewards points to redeem against this order. */
+  /** Individual Shopper rewards points to redeem against this order. */
   redeemPoints?: number;
   sessionId?: string;
   fulfillmentType?: FulfillmentType;

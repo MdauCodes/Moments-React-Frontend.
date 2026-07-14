@@ -38,7 +38,7 @@ function AccountMerchantPage() {
       <SiteLayout>
         <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
           <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
-          <h1 className="mt-1 font-display text-3xl sm:text-4xl">Sole Merchant Account</h1>
+          <h1 className="mt-1 font-display text-3xl sm:text-4xl">Individual Shopper Account</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             Earn points on every order, share your referral link, and redeem points for discounts.
           </p>
@@ -155,7 +155,7 @@ function DashboardTopStrip({
         </span>
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-[15px] font-semibold leading-tight text-foreground">Sole Merchant</p>
+            <p className="text-[15px] font-semibold leading-tight text-foreground">Individual Shopper</p>
             {tier && (
               <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
                 {tier.tierName}

@@ -5,7 +5,7 @@ import { passwordStore } from "@/services/passwordStore";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
- * Shown in both the Sole Merchant and Business account dashboards. Email
+ * Shown in both the Individual Shopper and Business account dashboards. Email
  * verification is never required to sign up or shop — only to keep
  * redeeming points past the free allowance (see backend
  * ReferralService.FREE_REDEMPTION_LIMIT). This card makes the capability

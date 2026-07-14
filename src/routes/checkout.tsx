@@ -174,7 +174,7 @@ function CheckoutModal() {
     welcomeCodeDismissed.current = true;
   }
 
-  // Sole Merchant rewards points redemption
+  // Individual Shopper rewards points redemption
   const [pointsBalance, setPointsBalance] = useState<number | null>(null);
   const [redeemInput, setRedeemInput] = useState("");
   const [appliedRedemption, setAppliedRedemption] = useState<{ points: number; discount: number } | null>(null);

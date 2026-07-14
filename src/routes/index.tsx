@@ -431,7 +431,7 @@ function Hero() {
                 above), matching the same two paths the starter modal offers. */}
             <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
               <Link
-                to="/sole-merchant-account"
+                to="/individual-shopper-account"
                 className="flex items-center justify-between gap-2.5 rounded-xl transition-transform hover:-translate-y-0.5"
                 style={{
                   background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
@@ -447,7 +447,7 @@ function Hero() {
                     <Gift className="h-4 w-4" style={{ color: "#e8c878" }} />
                   </span>
                   <div>
-                    <p className="text-[13px] font-semibold text-white">Sole Merchant Account</p>
+                    <p className="text-[13px] font-semibold text-white">Individual Shopper Account</p>
                     <p className="text-[11px] text-white/70">Welcome bonus + rewards</p>
                   </div>
                 </div>
@@ -934,7 +934,7 @@ function PromoCarousel() {
 }
 
 // ── Account types callout — compact CTA promoting both real account types
-// (Sole Merchant + Business), styled like the become-a-partner.tsx CTA box
+// (Individual Shopper + Business), styled like the become-a-partner.tsx CTA box
 // rather than a new pattern. Guests are already served by the product grid
 // around this section, so this block is only about the two account paths. ──
 function AccountTypesCallout() {
@@ -945,7 +945,7 @@ function AccountTypesCallout() {
           <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
             <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For individuals</p>
             <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
-              Open a free Sole Merchant Account.
+              Open a free Individual Shopper Account.
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Earn a welcome bonus, points on every order, and referral rewards — redeemable for
@@ -953,7 +953,7 @@ function AccountTypesCallout() {
             </p>
             <div className="mt-5">
               <Link
-                to="/sole-merchant-account"
+                to="/individual-shopper-account"
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
                 Learn more <ArrowRight className="h-4 w-4" />

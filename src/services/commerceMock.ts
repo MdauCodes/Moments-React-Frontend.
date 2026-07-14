@@ -130,6 +130,6 @@ export interface CustomerRecord {
   averageOrderValue?: number;
   defaultAddress?: string;
   createdAt: string;
-  accountType?: "SOLE_MERCHANT" | "BUSINESS";
+  accountType?: "INDIVIDUAL_SHOPPER" | "BUSINESS";
   rewardsPoints?: number | null;
 }

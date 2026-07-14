@@ -15,7 +15,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 /**
  * Self-contained rewards + referrals panel — earns/redeems points, shares a
- * referral link, shows history. Dropped into both the Sole Merchant and
+ * referral link, shows history. Dropped into both the Individual Shopper and
  * Business Account dashboards as a tab, since both account types earn
  * rewards identically; only the rest of each dashboard differs.
  */

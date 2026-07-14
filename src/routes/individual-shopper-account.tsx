@@ -20,7 +20,7 @@ const BENEFITS = [
   },
 ];
 
-function SoleMerchantAccountInfoPage() {
+function IndividualShopperAccountInfoPage() {
   return (
     <SiteLayout>
       <section className="bg-cream">
@@ -30,7 +30,7 @@ function SoleMerchantAccountInfoPage() {
           </span>
           <p className="mt-4 text-xs uppercase tracking-widest text-accent">For individuals</p>
           <h1 className="mt-3 font-display text-3xl font-medium text-foreground sm:text-4xl">
-            Open a Sole Merchant Account
+            Open an Individual Shopper Account
           </h1>
           <p className="mt-4 text-muted-foreground">
             Free, self-service, and open to anyone ordering from Moments Packaging — earn points on every
@@ -60,7 +60,7 @@ function SoleMerchantAccountInfoPage() {
               to="/account/register?type=merchant"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Get your free Sole Merchant Account
+              Get your free Individual Shopper Account
             </Link>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
@@ -76,4 +76,4 @@ function SoleMerchantAccountInfoPage() {
   );
 }
 
-export default SoleMerchantAccountInfoPage;
+export default IndividualShopperAccountInfoPage;

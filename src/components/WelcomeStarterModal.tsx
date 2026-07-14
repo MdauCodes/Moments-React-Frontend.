@@ -6,7 +6,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 // Shown once per browser session, a few seconds after the homepage loads —
 // long enough to clear the branded splash. Replaces the earlier
 // Business-Account-only promo modal: every visitor now sees all three real
-// paths (Sole Merchant, Business, or just browsing), not just one.
+// paths (Individual Shopper, Business, or just browsing), not just one.
 const STORAGE_KEY = "moments_starter_modal_shown";
 const SHOW_DELAY_MS = 3600;
 
@@ -80,7 +80,7 @@ export function WelcomeStarterModal() {
         <div className="space-y-2.5 px-6 pb-2">
           <button
             type="button"
-            onClick={() => pick(() => openRegister({ accountType: "SOLE_MERCHANT" }))}
+            onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
             className="flex w-full items-center gap-3 rounded-xl bg-primary px-4 py-3.5 text-left text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15">

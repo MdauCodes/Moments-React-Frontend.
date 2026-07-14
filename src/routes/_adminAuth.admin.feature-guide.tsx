@@ -17,17 +17,17 @@ const CUSTOMER_FACING: GuideGroup = {
   entries: [
     {
       name: "Homepage & starter modal",
-      description: "A first-visit popup lets a new visitor self-identify as a Sole Merchant, a Business, or \"just browsing\", and routes them into the right registration flow.",
+      description: "A first-visit popup lets a new visitor self-identify as an Individual Shopper, a Business, or \"just browsing\", and routes them into the right registration flow.",
       route: "/",
     },
     {
-      name: "Sole Merchant Account",
+      name: "Individual Shopper Account",
       description: "Free individual account. Earns a welcome bonus on signup, points on every paid order, and can redeem points for checkout discounts.",
-      route: "/sole-merchant-account",
+      route: "/individual-shopper-account",
     },
     {
       name: "Business Account",
-      description: "Free profile for companies/SMEs (business name, KRA PIN, industry, address, contact person). Tracks order history and a \"trade credit readiness\" score as groundwork for a future trade-credit product. Earns rewards identically to a Sole Merchant account.",
+      description: "Free profile for companies/SMEs (business name, KRA PIN, industry, address, contact person). Tracks order history and a \"trade credit readiness\" score as groundwork for a future trade-credit product. Earns rewards identically to an Individual Shopper account.",
       route: "/business-account",
     },
     {
