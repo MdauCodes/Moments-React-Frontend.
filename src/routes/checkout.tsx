@@ -24,6 +24,7 @@ import { referralStore } from "@/services/referralStore";
 import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { RewardDeliveryBanners } from "@/components/RewardDeliveryBanners";
 
 
 
@@ -529,6 +530,9 @@ function CheckoutModal() {
       {/* Body */}
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
+          <div className="mb-4">
+            <RewardDeliveryBanners stickyTopClassName="top-0" />
+          </div>
           {step === "contact" && (
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>

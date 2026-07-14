@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { ArrowRight, MessageCircle, Trash2, ShoppingBag } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
+import { RewardDeliveryBanners } from "@/components/RewardDeliveryBanners";
 import { useCart } from "@/contexts/CartContext";
 import { WHATSAPP_NUMBER } from "@/data/products";
 
@@ -69,6 +70,10 @@ function CartPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           {items.length} item{items.length !== 1 ? "s" : ""} · review and proceed to checkout.
         </p>
+
+        <div className="mt-5">
+          <RewardDeliveryBanners />
+        </div>
 
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
           {/* Items */}
