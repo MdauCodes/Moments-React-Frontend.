@@ -104,6 +104,18 @@ export function generateBands(startValue: number, bandWidth: number, maxCutoff: 
   return bands;
 }
 
+/** Clamps a percent input to a sane [0, 100] integer range. */
+export function clampPercent(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(100, Math.max(0, Math.round(n)));
+}
+
+/** Clamps a KES amount input to a non-negative integer. */
+export function clampKes(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.round(n));
+}
+
 export const DEFAULT_BANDS: Band[] = [
   { id: "b1", tierName: "Standard", minOrderAmount: 0, maxOrderAmount: 2000 },
   { id: "b2", tierName: "Mid", minOrderAmount: 2000, maxOrderAmount: 5000 },

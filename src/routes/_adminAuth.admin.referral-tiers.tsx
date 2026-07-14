@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type ReferralTierConfigDto, type MarginSummaryDto } from "@/services/adminResources";
 import {
   type Band, type BandResult, type TuningInputs,
-  computeBands, generateBands, DEFAULT_BANDS, PRESETS,
+  computeBands, generateBands, DEFAULT_BANDS, PRESETS, clampPercent, clampKes,
 } from "@/lib/referralMarginCalc";
 
 type FormState = {
@@ -108,14 +108,57 @@ function AdminReferralTiersPage() {
     [bands, tuning, blendedGp, creditsPerKes],
   );
 
+  // Bands where the business would actually LOSE profit after paying the reward — blocking.
+  const unsafeBands = bandResults.filter((b) => b.remainingProfitPercent < 0);
+  // Bands that are technically safe but very thin — warned, not blocked.
+  const thinBands = bandResults.filter((b) => b.remainingProfitPercent >= 0 && b.remainingProfitPercent < 5);
+  // Bands with an invalid range (max not greater than min) — blocking, nonsensical config.
+  const invalidRangeBands = bands.filter((b) => b.maxOrderAmount != null && b.maxOrderAmount <= b.minOrderAmount);
+
+  useEffect(() => {
+    if (unsafeBands.length > 0) {
+      toast.error(
+        `${unsafeBands.length} band(s) would cost the business money: ${unsafeBands.map((b) => b.tierName).join(", ")}. ` +
+        `Lower the reward share % or raise the minimum profit % kept — "Seed into system" is disabled until this is fixed.`,
+        { id: "unsafe-bands", duration: Infinity },
+      );
+    } else {
+      toast.dismiss("unsafe-bands");
+    }
+  }, [unsafeBands.map((b) => b.id).join(",")]);
+
+  useEffect(() => {
+    if (invalidRangeBands.length > 0) {
+      toast.error(
+        `${invalidRangeBands.length} band(s) have a maximum that isn't greater than their minimum: ` +
+        `${invalidRangeBands.map((b) => b.tierName).join(", ")}. Fix the range before seeding.`,
+        { id: "invalid-range-bands", duration: Infinity },
+      );
+    } else {
+      toast.dismiss("invalid-range-bands");
+    }
+  }, [invalidRangeBands.map((b) => b.id).join(",")]);
+
   function applyPreset(name: "decent" | "generous") {
     setTuning((t) => ({ ...t, ...PRESETS[name] }));
     pulse("tuning");
   }
 
   function updateBand(id: string, patch: Partial<Band>) {
-    setBands((prev) => prev.map((b) => (b.id === id ? { ...b, ...patch } : b)));
+    const clamped: Partial<Band> = { ...patch };
+    if (clamped.minOrderAmount != null) clamped.minOrderAmount = clampKes(clamped.minOrderAmount);
+    if (clamped.maxOrderAmount != null) clamped.maxOrderAmount = clampKes(clamped.maxOrderAmount);
+    setBands((prev) => prev.map((b) => (b.id === id ? { ...b, ...clamped } : b)));
     pulse(id);
+  }
+
+  function setTuningClamped(patch: Partial<typeof tuning>) {
+    const clamped: Partial<typeof tuning> = {};
+    for (const [k, v] of Object.entries(patch)) {
+      (clamped as Record<string, number>)[k] = clampPercent(v as number);
+    }
+    setTuning((t) => ({ ...t, ...clamped }));
+    pulse("tuning");
   }
 
   function addBand() {
@@ -131,14 +174,25 @@ function AdminReferralTiersPage() {
   }
 
   function runGenerator() {
-    const start = Number(genStart) || 0;
-    const width = Number(genWidth) || 1000;
-    const max = Number(genMax) || 10000;
+    const start = clampKes(Number(genStart));
+    const width = clampKes(Number(genWidth));
+    const max = clampKes(Number(genMax));
+    if (width <= 0) {
+      toast.error("Band width must be greater than 0.");
+      return;
+    }
+    if (max <= start) {
+      toast.error("Top cutoff must be greater than the start value.");
+      return;
+    }
     setBands(generateBands(start, width, max));
     toast.success("Bands generated — still fully editable below");
   }
 
+  const canSeed = unsafeBands.length === 0 && invalidRangeBands.length === 0 && bandResults.length > 0;
+
   async function seedIntoSystem() {
+    if (!canSeed) return;
     setSeeding(true);
     try {
       const payload = bandResults.map((b, idx) => ({
@@ -300,24 +354,56 @@ function AdminReferralTiersPage() {
                 style={{ opacity: pulsing.has("tuning") ? 0.6 : 1, transition: "opacity 200ms" }}
               >
                 <label>
-                  <span className="admin-label">Minimum profit % always kept</span>
+                  <span className="admin-label">Minimum profit % always kept (0–100)</span>
                   <input type="number" min={0} max={100} className="admin-input"
                     value={tuning.minimumProfitPercent}
-                    onChange={(e) => { setTuning((t) => ({ ...t, minimumProfitPercent: Number(e.target.value) })); pulse("tuning"); }} />
+                    onChange={(e) => {
+                      const clamped = clampPercent(Number(e.target.value));
+                      e.currentTarget.value = String(clamped); // force-correct the visible text even if the number didn't change
+                      setTuningClamped({ minimumProfitPercent: clamped });
+                    }} />
                 </label>
                 <label>
-                  <span className="admin-label">% of remaining margin shared as rewards</span>
+                  <span className="admin-label">% of remaining margin shared as rewards (0–100)</span>
                   <input type="number" min={0} max={100} className="admin-input"
                     value={tuning.rewardSharePercent}
-                    onChange={(e) => { setTuning((t) => ({ ...t, rewardSharePercent: Number(e.target.value) })); pulse("tuning"); }} />
+                    onChange={(e) => {
+                      const clamped = clampPercent(Number(e.target.value));
+                      e.currentTarget.value = String(clamped);
+                      setTuningClamped({ rewardSharePercent: clamped });
+                    }} />
                 </label>
                 <label>
-                  <span className="admin-label">Referrer share of reward pool (%)</span>
+                  <span className="admin-label">Referrer share of reward pool % (0–100, referee gets the rest)</span>
                   <input type="number" min={0} max={100} className="admin-input"
                     value={tuning.referrerSplitPercent}
-                    onChange={(e) => { setTuning((t) => ({ ...t, referrerSplitPercent: Number(e.target.value) })); pulse("tuning"); }} />
+                    onChange={(e) => {
+                      const clamped = clampPercent(Number(e.target.value));
+                      e.currentTarget.value = String(clamped);
+                      setTuningClamped({ referrerSplitPercent: clamped });
+                    }} />
                 </label>
               </div>
+              {(unsafeBands.length > 0 || thinBands.length > 0) && (
+                <div style={{
+                  marginTop: 12, padding: "10px 12px", borderRadius: 8, fontSize: 12.5,
+                  background: unsafeBands.length > 0 ? "rgba(220,38,38,0.08)" : "rgba(217,119,6,0.08)",
+                  color: unsafeBands.length > 0 ? "#b91c1c" : "#b45309",
+                }}>
+                  {unsafeBands.length > 0 ? (
+                    <>
+                      <b>Unsafe:</b> {unsafeBands.map((b) => b.tierName).join(", ")} would leave the business with
+                      negative profit after the reward. Lower "% of margin shared" or raise "minimum profit % kept."
+                      Seeding is blocked until this is fixed.
+                    </>
+                  ) : (
+                    <>
+                      <b>Thin margin:</b> {thinBands.map((b) => b.tierName).join(", ")} leave less than 5% profit
+                      after the reward — not blocked, but worth double-checking.
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="admin-panel" style={{ padding: 14 }}>
@@ -376,13 +462,25 @@ function AdminReferralTiersPage() {
                                 onChange={(e) => updateBand(b.id, { tierName: e.target.value })} />
                             </td>
                             <td>
-                              <input className="admin-input" style={{ width: 90 }} type="number" value={b.minOrderAmount}
-                                onChange={(e) => updateBand(b.id, { minOrderAmount: Number(e.target.value) })} />
+                              <input className="admin-input" style={{ width: 90 }} type="number" min={0} value={b.minOrderAmount}
+                                onChange={(e) => {
+                                  const clamped = clampKes(Number(e.target.value));
+                                  e.currentTarget.value = String(clamped);
+                                  updateBand(b.id, { minOrderAmount: clamped });
+                                }} />
                             </td>
                             <td>
-                              <input className="admin-input" style={{ width: 90 }} type="number" placeholder="no limit"
+                              <input className="admin-input" style={{ width: 90 }} type="number" min={0} placeholder="no limit"
                                 value={b.maxOrderAmount ?? ""}
-                                onChange={(e) => updateBand(b.id, { maxOrderAmount: e.target.value === "" ? null : Number(e.target.value) })} />
+                                onChange={(e) => {
+                                  if (e.target.value === "") { updateBand(b.id, { maxOrderAmount: null }); return; }
+                                  const clamped = clampKes(Number(e.target.value));
+                                  e.currentTarget.value = String(clamped);
+                                  updateBand(b.id, { maxOrderAmount: clamped });
+                                }} />
+                              {b.maxOrderAmount != null && b.maxOrderAmount <= b.minOrderAmount && (
+                                <div style={{ color: "#dc2626", fontSize: 11, marginTop: 2 }}>Must be greater than min</div>
+                              )}
                             </td>
                             <td>{fmtKes(b.marginKes)}</td>
                             <td><b>{fmtKes(b.rewardPoolKes)}</b></td>
@@ -418,6 +516,19 @@ function AdminReferralTiersPage() {
                                       (~{refereePercentOfOrder.toFixed(1)}% of an order this size)
                                     </div>
                                   </div>
+                                  <div>
+                                    <div style={{ fontWeight: 600, fontSize: 13, color: b.remainingProfitPercent < 0 ? "#dc2626" : "#15803d" }}>
+                                      What the business keeps
+                                    </div>
+                                    <div style={{ fontSize: 13 }}>
+                                      Starts with {fmtKes(b.marginKes)} margin ({blendedGp.toFixed(1)}%), pays out{" "}
+                                      <b>{fmtKes(b.rewardPoolKes)}</b> in combined rewards, keeps{" "}
+                                      <b style={{ color: b.remainingProfitPercent < 0 ? "#dc2626" : "#15803d" }}>
+                                        {fmtKes(b.remainingProfitKes)}
+                                      </b>{" "}
+                                      profit (~{b.remainingProfitPercent.toFixed(1)}% of the order).
+                                    </div>
+                                  </div>
                                 </div>
                               </td>
                             </tr>
@@ -429,10 +540,20 @@ function AdminReferralTiersPage() {
                 </table>
               </div>
 
-              <div className="admin-toolbar" style={{ marginTop: 12 }}>
-                <button className="admin-btn admin-btn-primary" onClick={() => setConfirmSeed(true)} disabled={bandResults.length === 0}>
+              <div className="admin-toolbar" style={{ marginTop: 12, alignItems: "center", gap: 12 }}>
+                <button
+                  className="admin-btn admin-btn-primary"
+                  onClick={() => setConfirmSeed(true)}
+                  disabled={!canSeed}
+                  title={!canSeed ? "Fix the issue(s) flagged above before seeding" : undefined}
+                >
                   Seed these bands into the referral system
                 </button>
+                {!canSeed && bandResults.length > 0 && (
+                  <span style={{ fontSize: 12.5, color: "#b91c1c" }}>
+                    Disabled — {unsafeBands.length > 0 ? "unsafe band(s)" : "invalid band range(s)"} above must be fixed first.
+                  </span>
+                )}
               </div>
             </div>
           </>

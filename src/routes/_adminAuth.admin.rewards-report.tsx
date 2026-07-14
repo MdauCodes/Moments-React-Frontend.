@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Coins, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Coins, TrendingDown, TrendingUp, Wallet, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { adminResources, type RewardsSummaryDto } from "@/services/adminResources";
@@ -89,6 +89,18 @@ function AdminRewardsReportPage() {
             Conversion rate: {data.creditsPerKes} points = KES 1. Configurable in Settings.
           </div>
         )}
+
+        <div className="admin-panel" style={{ padding: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <Clock size={16} color="var(--admin-muted)" />
+            <h3 style={{ fontFamily: "var(--font-display)", fontSize: 15 }}>Coming soon</h3>
+          </div>
+          <ul style={{ fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.8, paddingLeft: 20, listStyle: "disc" }}>
+            <li>Time-range filtering — view earned/redeemed/profit-impact for a specific week, month, or custom date range instead of only all-time totals.</li>
+            <li>A fuller cash-flow / business-terms breakdown — what the rewards &amp; referral program has cost by month, alongside gross revenue and margin for the same period.</li>
+            <li>Sales attribution — how much revenue is actually driven by promo codes and referral links, not just how many points they've paid out.</li>
+          </ul>
+        </div>
       </div>
     </AdminLayout>
   );
