@@ -27,6 +27,44 @@ function fmtKes(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 }
 
+/** Small "i" icon that reveals a plain-language explanation of a term on click — click elsewhere to close. */
+function InfoTip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-block", marginLeft: 5 }}>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
+        aria-label="What does this mean?"
+        title="What does this mean?"
+        style={{
+          width: 15, height: 15, borderRadius: "50%", border: "1px solid var(--admin-muted)",
+          background: "none", color: "var(--admin-muted)", fontSize: 10, fontWeight: 700, lineHeight: "13px",
+          cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center", justifyContent: "center",
+          verticalAlign: "middle",
+        }}
+      >
+        i
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 60 }} />
+          <div
+            className="admin-panel"
+            style={{
+              position: "absolute", top: "130%", left: 0, zIndex: 61, width: 260,
+              padding: "10px 12px", fontSize: 12, fontWeight: 400, lineHeight: 1.5,
+              boxShadow: "0 6px 20px rgba(0,0,0,0.18)", textTransform: "none",
+            }}
+          >
+            {text}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
 /** Brief per-field "this changed" pulse — not a real network loader, just visual confirmation. */
 function usePulse() {
   const [pulsing, setPulsing] = useState<Set<string>>(new Set());
@@ -329,23 +367,51 @@ function AdminReferralTiersPage() {
 
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, display: "flex", gap: 24, flexWrap: "wrap" }}>
           <div>
-            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>Blended catalog margin</div>
+            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>
+              Blended catalog margin
+              <InfoTip text={
+                "A simple (unweighted) average of Riseller's own per-product profit margin, across every active " +
+                "product that has real cost data synced — not weighted by how much of each product actually " +
+                "sells, so a low-selling item counts the same as a bestseller. Products with no cost data yet " +
+                "are excluded, not counted as zero."
+              } />
+            </div>
             <div style={{ fontSize: 20, fontWeight: 700 }}>
               {summaryLoading ? "…" : summary?.blendedGrossProfitPercent != null ? `${summary.blendedGrossProfitPercent.toFixed(1)}%` : "No data yet"}
             </div>
           </div>
           <div>
-            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>Products with real cost data</div>
+            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>
+              Products with real cost data
+              <InfoTip text={
+                "How many active products have a real buying price synced from Riseller (used to compute the " +
+                "blended margin above) out of how many active products exist in total. The gap is products " +
+                "Riseller hasn't reported a cost for yet — they're skipped, not assumed to have zero margin."
+              } />
+            </div>
             <div style={{ fontSize: 20, fontWeight: 700 }}>
               {summaryLoading ? "…" : `${summary?.productsWithCostData ?? 0} / ${summary?.totalActiveProducts ?? 0}`}
             </div>
           </div>
           <div>
-            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>Credits per KES</div>
+            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>
+              Credits per KES
+              <InfoTip text={
+                "The conversion rate between points and real money, set in Settings. E.g. 10 means 10 points " +
+                "= KES 1 when a customer redeems them at checkout — this rate is what turns the reward pool " +
+                "KES figures below into the actual point counts shown."
+              } />
+            </div>
             <div style={{ fontSize: 20, fontWeight: 700 }}>{summaryLoading ? "…" : creditsPerKes}</div>
           </div>
           <div>
-            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>Live tiers</div>
+            <div style={{ color: "var(--admin-muted)", fontSize: 11, textTransform: "uppercase" }}>
+              Live tiers
+              <InfoTip text={
+                "How many referral payout tiers actually exist right now in the live system. Zero means " +
+                "referrals are not paying out at all, regardless of how many people sign up via a referral link."
+              } />
+            </div>
             <div style={{ fontSize: 20, fontWeight: 700 }}>{loading ? "…" : rows.length}</div>
           </div>
         </div>
@@ -370,7 +436,14 @@ function AdminReferralTiersPage() {
                 style={{ opacity: pulsing.has("tuning") ? 0.6 : 1, transition: "opacity 200ms" }}
               >
                 <label>
-                  <span className="admin-label">Minimum profit % always kept (0–100)</span>
+                  <span className="admin-label">
+                    Minimum profit % always kept (0–100)
+                    <InfoTip text={
+                      "The slice of an order's value the business protects as guaranteed profit before any reward " +
+                      "is even considered. On a KES 1,000 order with a 20% floor, KES 200 is untouchable no matter " +
+                      "what — only margin above that floor can ever be shared as a reward."
+                    } />
+                  </span>
                   <input type="number" min={0} max={100} className="admin-input"
                     value={tuning.minimumProfitPercent}
                     onChange={(e) => {
@@ -380,7 +453,15 @@ function AdminReferralTiersPage() {
                     }} />
                 </label>
                 <label>
-                  <span className="admin-label">% of remaining margin shared as rewards (0–100)</span>
+                  <span className="admin-label">
+                    % of remaining margin shared as rewards (0–100)
+                    <InfoTip text={
+                      "Once the profit floor above is protected, this is the percentage of whatever margin is " +
+                      "left over that becomes the actual reward pool. Example: margin is KES 271, the floor " +
+                      "claims KES 200, leaving KES 71 — at 15% of that, about KES 11 becomes the pool split " +
+                      "between referrer and referee."
+                    } />
+                  </span>
                   <input type="number" min={0} max={100} className="admin-input"
                     value={tuning.rewardSharePercent}
                     onChange={(e) => {
@@ -390,7 +471,14 @@ function AdminReferralTiersPage() {
                     }} />
                 </label>
                 <label>
-                  <span className="admin-label">Referrer share of reward pool % (0–100, referee gets the rest)</span>
+                  <span className="admin-label">
+                    Referrer share of reward pool % (0–100, referee gets the rest)
+                    <InfoTip text={
+                      "How the reward pool above splits between the two people in a referral. 50% is an even " +
+                      "split; 70% would give the referrer (who shared the link) 70% of the pool and the referee " +
+                      "(the new customer) the remaining 30%."
+                    } />
+                  </span>
                   <input type="number" min={0} max={100} className="admin-input"
                     value={tuning.referrerSplitPercent}
                     onChange={(e) => {
@@ -473,8 +561,28 @@ function AdminReferralTiersPage() {
                   <thead>
                     <tr>
                       <th /><th>Tier name</th><th>Min (KES)</th><th>Max (KES)</th>
-                      <th>Margin</th><th>Reward pool</th><th>Referrer</th><th>Referee</th>
-                      <th>Profit retained</th><th />
+                      <th>
+                        Margin
+                        <InfoTip text={
+                          "This band's estimated gross profit, in KES, at a representative order value within " +
+                          "the range — calculated as that order value multiplied by the blended catalog margin %."
+                        } />
+                      </th>
+                      <th>
+                        Reward pool
+                        <InfoTip text={
+                          "The total KES available to give out as referrer + referee credits combined, after the " +
+                          "minimum profit floor is protected and the reward-share % is applied to what's left."
+                        } />
+                      </th>
+                      <th>Referrer</th><th>Referee</th>
+                      <th>
+                        Profit retained
+                        <InfoTip text={
+                          "What the business actually keeps after paying out the reward pool — shown as both a " +
+                          "percentage of the order value and the KES amount. This is margin minus reward pool."
+                        } />
+                      </th><th />
                     </tr>
                   </thead>
                   <tbody>
