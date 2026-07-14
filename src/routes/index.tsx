@@ -159,6 +159,7 @@ function HomeNav() {
 
 // ── Hero ──
 function Hero() {
+  const { openRegister } = useAuthModal();
   return (
     <section
       className="relative overflow-hidden"
@@ -430,52 +431,40 @@ function Hero() {
                 here (guests are already covered by "Browse all packaging"
                 above), matching the same two paths the starter modal offers. */}
             <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
-              <Link
-                to="/individual-shopper-account"
-                className="flex items-center justify-between gap-2.5 rounded-xl transition-transform hover:-translate-y-0.5"
-                style={{
-                  background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
-                  border: "1px solid rgba(232,200,120,0.35)",
-                  padding: "12px 14px",
-                }}
+              <button
+                type="button"
+                onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
+                className="flex items-center justify-between gap-2.5 rounded-xl bg-cream text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ padding: "13px 14px" }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
-                    style={{ background: "rgba(232,200,120,0.18)" }}
-                  >
-                    <Gift className="h-4 w-4" style={{ color: "#e8c878" }} />
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(232,200,120,0.35)" }}>
+                    <Gift className="h-4.5 w-4.5 text-forest" />
                   </span>
                   <div>
-                    <p className="text-[13px] font-semibold text-white">Individual Shopper Account</p>
-                    <p className="text-[11px] text-white/70">Welcome bonus + rewards</p>
+                    <p className="text-[13px] font-semibold text-forest">Individual Shopper Account</p>
+                    <p className="text-[11px] text-forest/70">Welcome bonus + rewards</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#e8c878" }} />
-              </Link>
-              <Link
-                to="/business-account"
-                className="flex items-center justify-between gap-2.5 rounded-xl transition-transform hover:-translate-y-0.5"
-                style={{
-                  background: "linear-gradient(90deg, rgba(232,200,120,0.16), rgba(232,200,120,0.05))",
-                  border: "1px solid rgba(232,200,120,0.35)",
-                  padding: "12px 14px",
-                }}
+                <ArrowRight className="h-4 w-4 shrink-0 text-forest" />
+              </button>
+              <button
+                type="button"
+                onClick={() => openRegister({ accountType: "BUSINESS" })}
+                className="flex items-center justify-between gap-2.5 rounded-xl bg-cream text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ padding: "13px 14px" }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
-                    style={{ background: "rgba(232,200,120,0.18)" }}
-                  >
-                    <Briefcase className="h-4 w-4" style={{ color: "#e8c878" }} />
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(232,200,120,0.35)" }}>
+                    <Briefcase className="h-4.5 w-4.5 text-forest" />
                   </span>
                   <div>
-                    <p className="text-[13px] font-semibold text-white">Business Account</p>
-                    <p className="text-[11px] text-white/70">Welcome bonus + order history</p>
+                    <p className="text-[13px] font-semibold text-forest">Business Account</p>
+                    <p className="text-[11px] text-forest/70">Welcome bonus + order history</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#e8c878" }} />
-              </Link>
+                <ArrowRight className="h-4 w-4 shrink-0 text-forest" />
+              </button>
             </div>
 
             {/* Secondary CTA row */}
