@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
-import { X, Gift, Briefcase, Check, ShoppingBag } from "lucide-react";
+import { X, Gift, Briefcase, Check, ShoppingBag, PartyPopper, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal, type ModalAccountType } from "@/contexts/AuthModalContext";
@@ -159,6 +159,20 @@ function RegisterStep() {
   const [password, setPassword] = useState("");
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [welcome, setWelcome] = useState<{ firstName: string; accountType: ModalAccountType } | null>(null);
+
+  function finishAndContinue() {
+    close();
+    if (returnUrl) {
+      toast.success("Account created — you're in.");
+      navigate(returnUrl);
+    } else if (welcome?.accountType === "BUSINESS") {
+      toast.success("Account created — let's set up your business profile.");
+      navigate("/account/business");
+    } else {
+      toast.success("Account created — you're in.");
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -192,21 +206,40 @@ function RegisterStep() {
       const accessToken = (data as { accessToken?: string }).accessToken;
       const refreshTokenValue = (data as { refreshToken?: string }).refreshToken;
       if (accessToken) setSession(accessToken, refreshTokenValue);
-      close();
-      if (returnUrl) {
-        toast.success("Account created — you're in.");
-        navigate(returnUrl);
-      } else if (accountType === "BUSINESS") {
-        toast.success("Account created — let's set up your business profile.");
-        navigate("/account/business");
-      } else {
-        toast.success("Account created — you're in.");
-      }
+      setWelcome({ firstName: firstName.trim() || "there", accountType: accountType as ModalAccountType });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (welcome) {
+    return (
+      <div className="px-6 pb-6 pt-8 text-center">
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-accent/10 text-accent">
+          <PartyPopper className="h-6 w-6" />
+        </div>
+        <h2 className="mt-4 font-display text-2xl text-foreground">Welcome, {welcome.firstName}!</h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">Your account is ready.</p>
+        <div className="mt-5 flex items-start gap-3 rounded-xl border border-accent/25 bg-accent/[0.03] p-3.5 text-left">
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+            <UserRound className="h-4 w-4" />
+          </span>
+          <span className="text-xs text-muted-foreground">
+            <span className="block font-semibold text-foreground">You'll be assigned a dedicated account manager</span>
+            They'll be your go-to contact for orders, questions, and getting the most out of your account.
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={finishAndContinue}
+          className="mt-5 w-full rounded-full bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+        >
+          Continue
+        </button>
+      </div>
+    );
   }
 
   if (!accountType) {
