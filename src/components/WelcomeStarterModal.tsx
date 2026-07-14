@@ -104,7 +104,7 @@ export function WelcomeStarterModal() {
               src={avatarLeft}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -left-12 -top-10 hidden h-36 w-36 select-none object-contain object-bottom sm:block"
+              className="pointer-events-none absolute -left-16 -top-14 z-[5] hidden h-60 w-60 select-none object-contain object-bottom drop-shadow-2xl sm:block"
             />
             {/* Avatar 2's job: usher the button choices — breaks the
                 bottom-right corner near the button row. */}
@@ -112,29 +112,29 @@ export function WelcomeStarterModal() {
               src={avatarRight}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -right-10 -bottom-6 hidden h-32 w-32 select-none object-contain object-bottom sm:block"
+              className="pointer-events-none absolute -right-12 -bottom-8 z-[5] hidden h-48 w-48 select-none object-contain object-bottom drop-shadow-2xl sm:block"
             />
 
-            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-5 py-6 sm:px-8 sm:py-8 animate-in fade-in duration-200">
-              <div className="flex items-center gap-4 sm:block">
+            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 py-5 sm:px-8 sm:py-8 animate-in fade-in duration-200">
+              <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
                 <img
                   src={avatarLeft}
                   alt=""
                   aria-hidden="true"
-                  className="h-16 w-16 shrink-0 object-contain object-bottom sm:hidden"
+                  className="h-12 w-12 shrink-0 object-contain object-bottom sm:hidden"
                 />
-                <div className="min-w-0 text-left">
-                  <p id="starter-modal-title" className="font-display text-xl leading-tight text-foreground sm:text-2xl">
+                <div className="min-w-0">
+                  <p id="starter-modal-title" className="font-display text-lg leading-snug text-foreground sm:text-2xl sm:leading-tight">
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
+                  <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground sm:mt-2 sm:text-sm sm:leading-normal">
                     Get 100 Reward Coupons free just for joining, and keep earning every time you order — real
                     discounts, referral rewards, and VIP perks along the way.
                   </p>
                 </div>
               </div>
 
-              <p className="mt-6 text-center text-[11px] font-semibold uppercase tracking-wider text-accent sm:text-left">
+              <p className="mt-4 text-center text-[11px] font-semibold uppercase tracking-wider text-accent sm:mt-6 sm:text-left">
                 Choose how you'd like to shop with us
               </p>
 
@@ -142,7 +142,7 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-accent/30 bg-white/50 px-3 py-4 text-center transition-colors hover:bg-accent/[0.12]"
+                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16] sm:gap-2 sm:py-4"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
                     <Briefcase className="h-4.5 w-4.5" />
@@ -155,7 +155,7 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-accent/30 bg-white/50 px-3 py-4 text-center transition-colors hover:bg-accent/[0.12]"
+                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16] sm:gap-2 sm:py-4"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
                     <Gift className="h-4.5 w-4.5" />
@@ -168,7 +168,7 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => setView("decline")}
-                  className="flex flex-col items-center gap-2 rounded-xl border border-border bg-white/30 px-3 py-4 text-center transition-colors hover:bg-black/5"
+                  className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-secondary sm:gap-2 sm:py-4"
                 >
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
                     <ShoppingBag className="h-4.5 w-4.5" />
@@ -225,7 +225,7 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-white/50 px-3 py-3.5 text-center transition-colors hover:bg-accent/[0.12]"
+                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16]"
                 >
                   <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
                   <span className="text-[10.5px] leading-tight text-muted-foreground">Welcome bonus + trade credit ready</span>
@@ -234,7 +234,7 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-white/50 px-3 py-3.5 text-center transition-colors hover:bg-accent/[0.12]"
+                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16]"
                 >
                   <span className="text-xs font-semibold text-foreground">Create an Individual Shopper account</span>
                   <span className="text-[10.5px] leading-tight text-muted-foreground">Free — 100 Reward Coupons on signup</span>
@@ -245,7 +245,7 @@ export function WelcomeStarterModal() {
               <button
                 type="button"
                 onClick={dismiss}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-transparent px-3 py-3 text-xs font-semibold text-foreground transition-colors hover:bg-black/5"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3 py-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
               >
                 Continue without an account
                 <ArrowRight className="h-3.5 w-3.5" />
