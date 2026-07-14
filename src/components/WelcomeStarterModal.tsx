@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, Gift, Briefcase, ShoppingBag, Check } from "lucide-react";
+import { X, Gift, Briefcase, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 
@@ -67,76 +67,52 @@ export function WelcomeStarterModal() {
           <X className="h-4 w-4" />
         </button>
 
-        <div className="px-6 pb-2 pt-6">
-          <p id="starter-modal-title" className="font-display text-xl text-foreground">
-            Welcome to Moments Packaging
+        <div className="px-6 pb-4 pt-7 text-center">
+          <p id="starter-modal-title" className="font-display text-2xl leading-tight text-foreground">
+            Create a free account &amp; start earning
           </p>
-          <p className="mt-1 text-sm text-muted-foreground">Which one sounds like you?</p>
+          <p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">
+            Every order earns you points toward real discounts — plus referral rewards, VIP tiers, and for
+            businesses, first-in-line access to trade credit.
+          </p>
         </div>
 
-        <div className="space-y-2 px-6 py-4">
+        <div className="space-y-2.5 px-6 pb-2">
           <button
             type="button"
             onClick={() => pick(() => openRegister({ accountType: "SOLE_MERCHANT" }))}
-            className="flex w-full items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
+            className="flex w-full items-center gap-3 rounded-xl bg-primary px-4 py-3.5 text-left text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/15">
               <Gift className="h-4.5 w-4.5" />
             </span>
             <span>
-              <span className="block text-sm font-semibold text-foreground">I'm an individual — Sole Merchant</span>
-              <span className="mt-1 block space-y-0.5">
-                {["Welcome bonus points on signup", "Earn points on every order", "Referral rewards & VIP tiers"].map((p) => (
-                  <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                    <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
-                    {p}
-                  </span>
-                ))}
-              </span>
+              <span className="block text-sm font-semibold">Individual Shopper Account</span>
+              <span className="block text-[11px] opacity-85">Free — welcome bonus points on signup</span>
             </span>
           </button>
 
           <button
             type="button"
             onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-            className="flex w-full items-start gap-3 rounded-xl border border-border p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
+            className="flex w-full items-center gap-3 rounded-xl border border-border bg-secondary/40 px-4 py-3.5 text-left transition-colors hover:bg-secondary/70"
           >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
               <Briefcase className="h-4.5 w-4.5" />
             </span>
             <span>
-              <span className="block text-sm font-semibold text-foreground">I'm ordering for a business</span>
-              <span className="mt-1 block space-y-0.5">
-                {["Welcome bonus points + order history for your business", "Earn points & referral rewards too", "First in line for trade credit"].map((p) => (
-                  <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                    <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
-                    {p}
-                  </span>
-                ))}
-              </span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={dismiss}
-            className="flex w-full items-start gap-3 rounded-xl border border-dashed border-border p-3.5 text-left transition-colors hover:bg-secondary/30"
-          >
-            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
-              <ShoppingBag className="h-4.5 w-4.5" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold text-foreground">Just browsing</span>
-              <span className="block text-xs text-muted-foreground">
-                Buy and track your order — no account needed. You'll miss out on welcome points, order rewards,
-                saved order history and referral perks.
-              </span>
+              <span className="block text-sm font-semibold text-foreground">Business Account</span>
+              <span className="block text-[11px] text-muted-foreground">Free — order history + trade credit prospects</span>
             </span>
           </button>
         </div>
 
-        <div className="flex items-center justify-center gap-1.5 border-t border-border px-6 py-3.5 text-xs text-muted-foreground">
-          <Check className="h-3.5 w-3.5 text-accent" />
+        <div className="flex items-center justify-center gap-1.5 px-6 pb-6 pt-2 text-xs text-muted-foreground">
+          <button type="button" onClick={dismiss} className="hover:underline">
+            Just browsing
+          </button>
+          <span aria-hidden="true">·</span>
+          <Check className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
           Already have an account?
           <button type="button" onClick={() => pick(() => openLogin())} className="font-semibold text-accent hover:underline">
             Sign in
