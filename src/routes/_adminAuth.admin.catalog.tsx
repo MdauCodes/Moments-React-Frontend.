@@ -10,12 +10,13 @@ import {
   type SegmentDto,
   type CategoryDto,
   type SubcategoryDto,
+  type IndustryDto,
 } from "@/services/adminResources";
 
 type Level = "segment" | "category" | "subcategory";
 type LevelRow = SegmentDto | CategoryDto | SubcategoryDto;
 
-const emptyForm = { name: "", description: "", sortOrder: "" };
+const emptyForm = { name: "", description: "", sortOrder: "", industryIds: [] as string[] };
 
 function AdminCatalogPage() {
   const { isAdmin } = useAuth();
@@ -23,6 +24,7 @@ function AdminCatalogPage() {
   const [segments, setSegments] = useState<SegmentDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryDto[]>([]);
+  const [industries, setIndustries] = useState<IndustryDto[]>([]);
   const [loadingSegments, setLoadingSegments] = useState(true);
   const [loadingCategories, setLoadingCategories] = useState(false);
   const [loadingSubcategories, setLoadingSubcategories] = useState(false);
@@ -78,6 +80,7 @@ function AdminCatalogPage() {
 
   useEffect(() => {
     void loadSegments();
+    adminResources.industries.list().then(setIndustries).catch(() => undefined);
   }, []);
 
   const selectSegment = (id: string) => {
@@ -104,8 +107,18 @@ function AdminCatalogPage() {
       name: row.name,
       description: row.description ?? "",
       sortOrder: row.sortOrder != null ? String(row.sortOrder) : "",
+      industryIds: level === "category" ? ((row as CategoryDto).industryIds ?? []) : [],
     });
     setModalLevel(level);
+  };
+
+  const toggleFormIndustry = (industryId: string) => {
+    setForm((f) => ({
+      ...f,
+      industryIds: f.industryIds.includes(industryId)
+        ? f.industryIds.filter((id) => id !== industryId)
+        : [...f.industryIds, industryId],
+    }));
   };
 
   const closeModal = () => {
@@ -129,8 +142,8 @@ function AdminCatalogPage() {
         await loadSegments();
       } else if (modalLevel === "category") {
         if (!selectedSegmentId) return;
-        const categoryBody = { ...body, segmentId: selectedSegmentId };
-        editing ? await adminResources.categories.update(editing.id, categoryBody) : await adminResources.categories.create(categoryBody as { segmentId: string; name: string; description?: string; sortOrder?: number });
+        const categoryBody = { ...body, segmentId: selectedSegmentId, industryIds: form.industryIds };
+        editing ? await adminResources.categories.update(editing.id, categoryBody) : await adminResources.categories.create(categoryBody as { segmentId: string; name: string; description?: string; sortOrder?: number; industryIds?: string[] });
         toast.success(editing ? "Category updated" : "Category created");
         await loadCategories(selectedSegmentId);
       } else {
@@ -344,7 +357,14 @@ function AdminCatalogPage() {
                         border: "1px solid var(--admin-border)",
                       }}
                     >
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</span>
+                      <span>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</span>
+                        {c.industryNames && c.industryNames.length > 0 && (
+                          <span style={{ display: "block", fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
+                            {c.industryNames.join(", ")}
+                          </span>
+                        )}
+                      </span>
                       <span style={{ display: "flex", gap: 4 }}>
                         <button className="admin-btn admin-btn-ghost" onClick={(e) => { e.stopPropagation(); beginEdit("category", c); }}><Pencil size={12} /></button>
                         {isAdmin && (
@@ -416,6 +436,39 @@ function AdminCatalogPage() {
                 <span className="admin-label">Description</span>
                 <textarea className="admin-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </label>
+              {modalLevel === "category" && (
+                <div style={{ gridColumn: "1/-1" }}>
+                  <span className="admin-label">
+                    Industries — drives the homepage industry tiles: clicking one filters products AND this category list to just what's tagged here
+                  </span>
+                  {industries.length === 0 ? (
+                    <p style={{ fontSize: 12.5, color: "var(--admin-muted)", margin: "4px 0 0" }}>
+                      No industries created yet — add some under Industries first.
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                      {industries.map((ind) => {
+                        const checked = form.industryIds.includes(ind.id);
+                        return (
+                          <label
+                            key={ind.id}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 6,
+                              padding: "6px 10px", borderRadius: 999, cursor: "pointer",
+                              border: `1px solid ${checked ? "var(--admin-accent)" : "var(--admin-border)"}`,
+                              background: checked ? "var(--admin-accent-soft, rgba(0,0,0,0.06))" : "transparent",
+                              fontSize: 12.5,
+                            }}
+                          >
+                            <input type="checkbox" checked={checked} onChange={() => toggleFormIndustry(ind.id)} style={{ margin: 0 }} />
+                            {ind.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="admin-toolbar">
               <button className="admin-btn admin-btn-primary" disabled={saving}>

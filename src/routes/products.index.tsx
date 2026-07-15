@@ -235,9 +235,17 @@ function ProductsPage() {
   // Segment -> Category -> Subcategory taxonomy for "Browse by category".
   // Counts stay small (dozens, not product-scale) even once the full catalogue
   // is classified, so fetching all three flat and filtering client-side is fine.
+  // Scoped to the selected industry when one's active, so a visitor who
+  // clicked "Food & Beverage" only sees categories relevant to it, not the
+  // full unfiltered taxonomy tree.
   useEffect(() => {
     let cancelled = false;
-    void Promise.all([api.getSegments(), api.getCategories(), api.getSubcategories()]).then(
+    const industryId = selectedIndustry?.id;
+    void Promise.all([
+      api.getSegments(),
+      api.getCategories({ industryId }),
+      api.getSubcategories({ industryId }),
+    ]).then(
       ([segs, cats, subs]) => {
         if (cancelled) return;
         setSegments(segs);
@@ -246,7 +254,7 @@ function ProductsPage() {
       },
     ).catch(() => undefined);
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedIndustry?.id]);
 
   // Admin-managed tags, driving "What do you need?" once populated. Additive
   // to the verified keyword quick-finds below, not a replacement — there are

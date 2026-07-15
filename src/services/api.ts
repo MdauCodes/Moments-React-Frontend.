@@ -7,7 +7,7 @@ import { MOCK_PRODUCTS } from "@/data/mockProducts";
 
 type PageResponse<T> = { content: T[] };
 export type Segment = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
-export type Category = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type Category = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number; industryIds?: string[]; industryNames?: string[] };
 export type Subcategory = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type Tag = { id: string; name: string; slug?: string; description?: string };
 type ProductApiDto = Partial<Product> & {
@@ -207,11 +207,11 @@ export const api = {
 
   getSegments: async () => getJson<Segment[]>("/api/v1/public/segments"),
 
-  getCategories: async (segmentId?: string) =>
-    getJson<Category[]>(`/api/v1/public/categories${qs({ segmentId })}`),
+  getCategories: async (params?: { segmentId?: string; industryId?: string }) =>
+    getJson<Category[]>(`/api/v1/public/categories${qs({ segmentId: params?.segmentId, industryId: params?.industryId })}`),
 
-  getSubcategories: async (categoryId?: string) =>
-    getJson<Subcategory[]>(`/api/v1/public/subcategories${qs({ categoryId })}`),
+  getSubcategories: async (params?: { categoryId?: string; industryId?: string }) =>
+    getJson<Subcategory[]>(`/api/v1/public/subcategories${qs({ categoryId: params?.categoryId, industryId: params?.industryId })}`),
 
   getTags: async () => getJson<Tag[]>("/api/v1/public/tags"),
 
