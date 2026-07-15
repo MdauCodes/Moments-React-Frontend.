@@ -36,14 +36,16 @@ function AccountMerchantPage() {
   return (
     <ProtectedRoute>
       <SiteLayout>
-        <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
-          <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
-          <h1 className="mt-1 font-display text-3xl sm:text-4xl">Individual Shopper Account</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Earn Reward Coupons on every order, share your referral link, and redeem Reward Coupons for discounts.
-          </p>
-          <MerchantDashboardBody />
-        </section>
+        <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
+          <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
+            <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
+            <h1 className="mt-1 font-display text-3xl sm:text-4xl">Individual Shopper Account</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Earn Reward Coupons on every order, share your referral link, and redeem Reward Coupons for discounts.
+            </p>
+            <MerchantDashboardBody />
+          </section>
+        </div>
       </SiteLayout>
     </ProtectedRoute>
   );
@@ -118,7 +120,7 @@ function MerchantDashboardBody() {
   }
 
   return (
-    <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="mt-8 overflow-hidden rounded-xl border border-kraft/20 bg-card shadow-sm">
       <DashboardTopStrip wallet={wallet} tier={tier} orderCount={orders?.length} />
 
       <div className="flex flex-col lg:flex-row">
@@ -148,21 +150,21 @@ function DashboardTopStrip({
   orderCount?: number;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4 sm:px-6">
+    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-forest px-5 py-4 sm:px-6">
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cream/15 text-cream">
           <Gift className="h-4 w-4" />
         </span>
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-[15px] font-semibold leading-tight text-foreground">Individual Shopper</p>
+            <p className="text-[15px] font-semibold leading-tight text-cream">Individual Shopper</p>
             {tier && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+              <span className="inline-flex items-center gap-1 rounded-full bg-cream/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cream">
                 {tier.tierName}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">Rewards account</p>
+          <p className="mt-0.5 text-xs text-cream/70">Rewards account</p>
         </div>
       </div>
 
@@ -178,8 +180,8 @@ function DashboardTopStrip({
 function TopStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-cream/60">{label}</p>
+      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-cream">{value}</p>
     </div>
   );
 }
@@ -196,7 +198,7 @@ function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
             onClick={() => onChange(item.key)}
             className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
               active
-                ? "border-accent bg-secondary/70 font-medium text-foreground"
+                ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
             }`}
           >

@@ -56,15 +56,17 @@ function AccountBusinessPage() {
   return (
     <ProtectedRoute>
       <SiteLayout>
-        <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
-          <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
-          <h1 className="mt-1 font-display text-3xl sm:text-4xl">Business Account</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            A free, self-service profile for businesses ordering from Moments Packaging — track your order
-            history and be first in line when trade credit accounts launch.
-          </p>
-          <BusinessAccountBody />
-        </section>
+        <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
+          <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
+            <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
+            <h1 className="mt-1 font-display text-3xl sm:text-4xl">Business Account</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A free, self-service profile for businesses ordering from Moments Packaging — track your order
+              history and be first in line when trade credit accounts launch.
+            </p>
+            <BusinessAccountBody />
+          </section>
+        </div>
       </SiteLayout>
     </ProtectedRoute>
   );
@@ -126,7 +128,7 @@ function BusinessDashboard({
   }, []);
 
   return (
-    <div className="mt-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+    <div className="mt-8 overflow-hidden rounded-xl border border-kraft/20 bg-card shadow-sm">
       <DashboardTopStrip account={account} orderCount={orders?.length} />
 
       <div className="flex flex-col lg:flex-row">
@@ -151,26 +153,26 @@ function BusinessDashboard({
 function DashboardTopStrip({ account, orderCount }: { account: BusinessAccount; orderCount?: number }) {
   const score = account.creditReadiness?.score;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 px-5 py-4 sm:px-6">
+    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-forest px-5 py-4 sm:px-6">
       <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cream/15 text-cream">
           <Briefcase className="h-4 w-4" />
         </span>
         <div>
           <div className="flex items-center gap-2">
-            <p className="text-[15px] font-semibold leading-tight text-foreground">{account.businessName}</p>
+            <p className="text-[15px] font-semibold leading-tight text-cream">{account.businessName}</p>
             <span
               className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                 account.status === "ACTIVE"
-                  ? "bg-emerald-500/10 text-emerald-600"
-                  : "bg-destructive/10 text-destructive"
+                  ? "bg-emerald-400/20 text-emerald-300"
+                  : "bg-destructive/20 text-destructive"
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-current" />
               {account.status === "ACTIVE" ? "Active" : "Suspended"}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="mt-0.5 text-xs text-cream/70">
             {account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "Business"} · Opened{" "}
             {new Date(account.createdAt).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}
           </p>
@@ -189,8 +191,8 @@ function DashboardTopStrip({ account, orderCount }: { account: BusinessAccount; 
 function TopStat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
-      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-foreground">{value}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-cream/60">{label}</p>
+      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-cream">{value}</p>
     </div>
   );
 }
@@ -207,7 +209,7 @@ function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
             onClick={() => onChange(item.key)}
             className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
               active
-                ? "border-accent bg-secondary/70 font-medium text-foreground"
+                ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
             }`}
           >

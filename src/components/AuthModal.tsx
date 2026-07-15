@@ -104,8 +104,13 @@ function LoginStep() {
         navigate("/admin/dashboard");
       } else if (returnUrl) {
         navigate(returnUrl);
+      } else if (loggedInUser?.accountType === "BUSINESS") {
+        navigate("/account/business");
+      } else if (loggedInUser?.accountType === "INDIVIDUAL_SHOPPER") {
+        navigate("/account/merchant");
       }
-      // otherwise: stay on the current page, it re-renders now that isAuthenticated is true
+      // otherwise (no account type on the token, e.g. guest): stay on the
+      // current page, it re-renders now that isAuthenticated is true
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Sign in failed");
     } finally {
