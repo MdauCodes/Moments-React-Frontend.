@@ -9,12 +9,15 @@ export interface A11yPrefs {
 }
 
 const STORAGE_KEY = "moments.a11yPrefs.v1";
-const FONT_SCALE_MIN = 1;
+const FONT_SCALE_MIN = 0.85;
 const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_STEP = 0.125;
 
+// Site loads at the smallest available size by default — visitors who want
+// larger text can size up from here via the existing +/- controls, rather
+// than the reverse (starting large, having to size down).
 const DEFAULT_PREFS: A11yPrefs = {
-  fontScale: 1,
+  fontScale: FONT_SCALE_MIN,
   highContrast: false,
   reduceMotion: false,
   underlineLinks: false,

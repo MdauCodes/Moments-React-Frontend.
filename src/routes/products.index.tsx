@@ -609,7 +609,13 @@ function ProductsPage() {
             lives here alongside the legacy flat category list, sort, and price,
             all in one panel so there's one place to refine, not two competing ones. */}
         <div id="browse-by-category" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4">
-          {segments.length > 0 && (
+          {selectedIndustry && taxCategories.length === 0 && (
+            <div className="mb-4 rounded-xl border border-dashed border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
+              No categories have been tagged for <span className="font-semibold text-foreground">{selectedIndustry.name}</span> yet —
+              showing all matching products below instead.
+            </div>
+          )}
+          {segments.length > 0 && (!selectedIndustry || taxCategories.length > 0) && (
             <div className="mb-4 border-b border-border pb-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
                 Browse by category

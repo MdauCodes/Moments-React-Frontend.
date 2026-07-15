@@ -385,7 +385,7 @@ function Hero() {
             <h1
               className="font-display"
               style={{
-                fontSize: "clamp(32px, 4.6vw, 50px)",
+                fontSize: "clamp(28px, 3.8vw, 42px)",
                 lineHeight: 1.1,
                 letterSpacing: "-0.03em",
                 color: "white",

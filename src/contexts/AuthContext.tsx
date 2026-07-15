@@ -131,7 +131,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error((err as { message?: string }).message ?? "Login failed");
     }
     const data = await res.json();
-    if (data.accessToken) setAccessToken(data.accessToken);
+    if (!data.accessToken) {
+      // Without a token, isAuthenticated can never become true (it requires
+      // both accessToken and user) — surface this as a real failure instead
+      // of returning a "successful" user while the header silently stays
+      // signed out.
+      throw new Error("Login succeeded but no session token was returned. Please try again.");
+    }
+    setAccessToken(data.accessToken);
     if (data.refreshToken) {
       try {
         window.localStorage.setItem(RT_KEY, data.refreshToken);
@@ -139,9 +146,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     }
-    // user is set by setAccessToken via decodeJwt
-    // but login response also has data.user as fallback
-    if (!decodeJwt(data.accessToken) && data.user) setUser(data.user);
     return decodeJwt(data.accessToken) ?? (data.user as AuthUser) ?? null;
   };
 
