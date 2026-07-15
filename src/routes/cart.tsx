@@ -66,7 +66,7 @@ function CartPage() {
 
   return (
     <SiteLayout>
-      <section className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8">
+      <section className="mx-auto max-w-7xl bg-gradient-to-b from-cream/70 via-cream/25 to-transparent px-5 py-10 sm:py-14 lg:px-8">
         <h1 className="font-display text-3xl sm:text-4xl">Your cart</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {items.length} item{items.length !== 1 ? "s" : ""} · review and proceed to checkout.
@@ -79,7 +79,7 @@ function CartPage() {
         <div className="mt-8 grid gap-8 lg:grid-cols-3">
           {/* Items */}
           <div className="lg:col-span-2">
-            <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+            <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border border-t-4 border-t-kraft bg-card">
               {items.map((it) => (
                 <li key={it.id} className="flex gap-4 p-4 sm:p-5">
                   <img
@@ -190,38 +190,42 @@ function CartPage() {
 
           {/* Summary */}
           <aside className="lg:col-span-1">
-            <div className="sticky top-24 rounded-2xl border border-border bg-card p-5 sm:p-6">
-              <h2 className="font-display text-xl">Order summary</h2>
-              <dl className="mt-4 space-y-2 text-sm">
-                <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{fmt(cartTotal)}</dd></div>
-                <p className="text-xs text-muted-foreground">
-                  Shipping calculated at checkout based on your delivery zone.
-                </p>
-              </dl>
-              <button
-                type="button"
-                onClick={() => navigate("/checkout")}
-                className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
-              >
-                Proceed to checkout <ArrowRight className="h-4 w-4" />
-              </button>
-
-              <div className="mt-5 rounded-xl border border-dashed border-border bg-background/50 p-3">
-                <p className="text-xs text-muted-foreground">
-                  Need a custom price or longer lead time? Send this list to us first:
-                </p>
+            <div className="sticky top-24 overflow-hidden rounded-2xl border border-forest/15 bg-card shadow-sm">
+              <div className="bg-forest px-5 py-4 sm:px-6">
+                <h2 className="font-display text-xl text-cream">Order summary</h2>
+              </div>
+              <div className="p-5 sm:p-6">
+                <dl className="space-y-2 text-sm">
+                  <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{fmt(cartTotal)}</dd></div>
+                  <p className="text-xs text-muted-foreground">
+                    Shipping calculated at checkout based on your delivery zone.
+                  </p>
+                </dl>
                 <button
                   type="button"
-                  onClick={handleWhatsApp}
-                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-2.5 text-xs font-medium text-foreground hover:bg-secondary"
+                  onClick={() => navigate("/checkout")}
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
                 >
-                  <MessageCircle className="h-4 w-4" /> Enquire on WhatsApp first
+                  Proceed to checkout <ArrowRight className="h-4 w-4" />
                 </button>
-              </div>
 
-              <p className="mt-4 text-[11px] text-muted-foreground">
-                Pay securely with M-Pesa STK push. Card and bank options coming soon.
-              </p>
+                <div className="mt-5 rounded-xl border border-kraft/25 bg-kraft/[0.06] p-3">
+                  <p className="text-xs text-muted-foreground">
+                    Need a custom price or longer lead time? Send this list to us first:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleWhatsApp}
+                    className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-kraft/30 bg-background px-4 py-2.5 text-xs font-medium text-foreground hover:bg-kraft/10"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Enquire on WhatsApp first
+                  </button>
+                </div>
+
+                <p className="mt-4 text-[11px] text-muted-foreground">
+                  Pay securely with M-Pesa STK push. Card and bank options coming soon.
+                </p>
+              </div>
             </div>
           </aside>
         </div>

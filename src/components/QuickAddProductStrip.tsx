@@ -106,7 +106,7 @@ export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { 
   if (pool === null || ranked.length === 0) return null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+    <div className="rounded-2xl border border-kraft/25 bg-kraft/[0.05] p-4 sm:p-5">
       <div className="flex items-center gap-1.5">
         <Sparkles className="h-4 w-4 text-accent" />
         <p className="text-sm font-semibold text-foreground">Add a little more to your order</p>

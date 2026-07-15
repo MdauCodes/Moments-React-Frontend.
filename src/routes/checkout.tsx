@@ -859,9 +859,12 @@ function CheckoutModal() {
                   </div>
 
                   {/* Order summary */}
-                  <div className="rounded-2xl border border-border bg-card p-5">
-                    <h3 className="text-sm font-semibold text-foreground">Order summary</h3>
-                    <ul className="mt-3 space-y-2 text-sm">
+                  <div className="overflow-hidden rounded-2xl border border-forest/15 bg-card">
+                    <div className="bg-forest px-5 py-3">
+                      <h3 className="text-sm font-semibold text-cream">Order summary</h3>
+                    </div>
+                    <div className="p-5">
+                    <ul className="space-y-2 text-sm">
                       {items.map((it) => (
                         <li key={it.id} className="flex justify-between gap-3">
                           <span className="text-foreground/90">
@@ -949,6 +952,7 @@ function CheckoutModal() {
                         <dd className="tabular-nums">{fmt(total)}</dd>
                       </div>
                     </dl>
+                    </div>
                   </div>
 
                   <button
