@@ -162,7 +162,7 @@ export function FeaturedCarousel() {
               return (
                 <Link
                   key={p.id}
-                  to="/products/$slug"
+                  to={`/products/${p.slug}`}
                   data-carousel-card
                   className="group flex w-[72%] shrink-0 snap-start gap-3 rounded-xl border border-border bg-card p-2.5 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-md sm:w-[300px] sm:p-3"
                 >

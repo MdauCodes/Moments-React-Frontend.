@@ -310,7 +310,7 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
                 return (
                   <li key={p.id}>
                     <Link
-                      to="/products/$slug"
+                      to={`/products/${p.slug}`}
                       onClick={() => {
                         pushRecent(query);
                         void api.trackClick(p.id);

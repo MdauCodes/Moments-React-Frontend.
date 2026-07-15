@@ -200,7 +200,7 @@ function ShowcaseCard({ product, flag }: { product: Product; flag: TabKey }) {
 
   return (
     <Link
-      to="/products/$slug"
+      to={`/products/${product.slug}`}
       className="group/card relative flex w-[170px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md sm:w-[200px]"
     >
       <div className="relative aspect-square overflow-hidden bg-secondary">

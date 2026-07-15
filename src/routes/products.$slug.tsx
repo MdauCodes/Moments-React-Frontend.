@@ -199,13 +199,14 @@ export default function ProductDetail() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-7xl px-5 pt-6 lg:px-8">
+      <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
+      <div className="mx-auto max-w-7xl px-5 pt-5 lg:px-8">
         <Link to="/products" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back to catalogue
         </Link>
       </div>
 
-      <nav className="mx-auto max-w-7xl px-5 pt-4 text-xs text-muted-foreground lg:px-8">
+      <nav className="mx-auto max-w-7xl px-5 pt-3 text-xs text-muted-foreground lg:px-8">
         <Link to="/" className="hover:text-foreground">Home</Link>
         <span className="mx-1.5">/</span>
         <Link to="/products" className="hover:text-foreground">Products</Link>
@@ -225,10 +226,10 @@ export default function ProductDetail() {
         <span className="text-foreground">{product.name}</span>
       </nav>
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-5 py-8 sm:gap-10 sm:py-10 lg:grid-cols-5 lg:gap-12 lg:px-8 lg:py-12">
+      <section className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:gap-8 sm:py-8 lg:grid-cols-5 lg:gap-10 lg:px-8 lg:py-10">
         {/* LEFT — gallery */}
         <div className="lg:col-span-3">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary">
+          <div className="relative aspect-square max-h-[380px] overflow-hidden rounded-2xl border border-border bg-secondary sm:max-h-[440px]">
             {activeImage ? (
               <img src={activeImage} alt={product.name} className="h-full w-full object-cover" />
             ) : (
@@ -279,7 +280,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Pricing */}
-          <div className="mt-6">
+          <div className="mt-5">
             {hasCollections ? (
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to buy</p>
@@ -335,7 +336,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Configurator */}
-          <div className="mt-6 space-y-5 rounded-2xl border border-border bg-card p-5">
+          <div className="mt-5 space-y-4 rounded-2xl border border-kraft/20 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <StockBadge state={stock.state} label={stock.label} />
               {stock.state !== "untracked" && stock.state !== "out_of_stock" && Number.isFinite(stock.available) && stock.available > 0 && (
@@ -444,9 +445,10 @@ export default function ProductDetail() {
           </ul>
         </div>
       </section>
+      </div>
 
       {/* Tabs */}
-      <section className="mx-auto max-w-7xl px-5 pb-12 lg:px-8">
+      <section className="mx-auto max-w-7xl px-5 pb-10 lg:px-8">
         <Tabs defaultValue="details" className="w-full">
           <TabsList className="bg-cream">
             <TabsTrigger value="details">Details</TabsTrigger>
@@ -485,9 +487,9 @@ export default function ProductDetail() {
       </section>
 
       {related.length > 0 && (
-        <section className="mx-auto max-w-7xl px-5 pb-20 sm:pb-24 lg:px-8">
+        <section className="mx-auto max-w-7xl px-5 pb-14 sm:pb-16 lg:px-8">
           <h2 className="font-display text-2xl text-foreground sm:text-3xl">You might also like</h2>
-          <div className="mt-6 grid gap-5 sm:mt-8 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+          <div className="mt-5 grid gap-5 sm:mt-6 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             {related.map((p) => <ProductCard key={p.id} product={p} onConfigure={handleConfigure} />)}
           </div>
         </section>

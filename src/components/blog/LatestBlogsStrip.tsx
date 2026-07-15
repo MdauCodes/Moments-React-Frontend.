@@ -51,7 +51,7 @@ export function LatestBlogsStrip() {
             b ? (
               <Link
                 key={(b as Blog).id}
-                to="/blog/$slug"
+                to={`/blog/${(b as Blog).slug}`}
                 className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-2xl"
               >
                 <BlogCard blog={b as Blog} />
