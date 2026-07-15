@@ -110,6 +110,10 @@ export interface PlaceOrderInput {
   courierStageOrOffice?: string;
   /** Client-generated UUID — prevents duplicate orders on network retry. */
   idempotencyKey?: string;
+  /** Customer ticked "I need a tax invoice / VAT document" for this order. */
+  taxInvoiceRequested?: boolean;
+  /** Where to email the tax invoice PDF; defaults to customer.email server-side if blank. */
+  taxInvoiceEmail?: string;
 }
 
 // ── Normalised status the UI cares about ─────────────────────────────────────
@@ -263,6 +267,10 @@ export const orderStore = {
     if (input.promoCode) body.promoCode = input.promoCode;
     if (input.redeemPoints) body.redeemPoints = input.redeemPoints;
     if (input.sessionId) body.sessionId = input.sessionId;
+    if (input.taxInvoiceRequested) {
+      body.taxInvoiceRequested = true;
+      if (input.taxInvoiceEmail) body.taxInvoiceEmail = input.taxInvoiceEmail;
+    }
 
     let res: Response;
     try {

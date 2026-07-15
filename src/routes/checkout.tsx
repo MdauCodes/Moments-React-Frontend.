@@ -93,6 +93,8 @@ function CheckoutModal() {
   const [county, setCounty] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
+  const [taxInvoiceRequested, setTaxInvoiceRequested] = useState(false);
+  const [taxInvoiceEmail, setTaxInvoiceEmail] = useState("");
   const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
 
   // Promo code
@@ -381,6 +383,8 @@ function CheckoutModal() {
           idempotencyKey: idempotencyKey.current,
           promoCode: appliedPromo?.code,
           redeemPoints: appliedRedemption?.points,
+          taxInvoiceRequested,
+          taxInvoiceEmail: taxInvoiceEmail.trim() || undefined,
           ...(fulfillment === "OWN_COURIER" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -393,6 +397,9 @@ function CheckoutModal() {
         ref = order.reference;
         setOrderId(id);
         setOrderRef(ref);
+        if (taxInvoiceRequested) {
+          toast.success(`Your tax invoice will be emailed to ${taxInvoiceEmail.trim() || email} once your order is confirmed.`);
+        }
       }
 
       if (!id) {
@@ -608,6 +615,36 @@ function CheckoutModal() {
                     placeholder="0712 345 678"
                     inputMode="tel"
                   />
+                </div>
+
+                <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
+                  <label className="flex items-start gap-2.5 text-sm text-foreground/90">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
+                      checked={taxInvoiceRequested}
+                      onChange={(e) => setTaxInvoiceRequested(e.target.checked)}
+                    />
+                    <span>
+                      <span className="font-medium">I need a tax invoice / VAT document for this order</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        For your own record-keeping (input VAT claims, expense filing). We'll email it as a PDF once
+                        your order is placed — available for 2 weeks from the date sent.
+                      </span>
+                    </span>
+                  </label>
+                  {taxInvoiceRequested && (
+                    <div className="mt-3">
+                      <label className={labelCls}>Send tax invoice to</label>
+                      <input
+                        type="email"
+                        className={inputCls}
+                        value={taxInvoiceEmail}
+                        onChange={(e) => setTaxInvoiceEmail(e.target.value)}
+                        placeholder={email || "you@example.com"}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {fulfillment === "OWN_COURIER" && (
