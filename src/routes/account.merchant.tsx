@@ -113,31 +113,37 @@ function MerchantDashboardBody() {
     return <p className="mt-10 text-sm text-muted-foreground">Loading…</p>;
   }
 
-  const live = status?.featureUnlocked && status?.programEnabled;
-
-  if (!live) {
-    return (
-      <div className="mt-10 rounded-2xl border border-dashed border-border bg-secondary/20 p-8 text-center">
-        <p className="font-display text-lg">Rewards program — coming soon</p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          {status?.message ?? "We're polishing the rewards programme. Check back soon."}
-        </p>
-      </div>
-    );
-  }
+  // Whether the rewards program itself is live — NOT a gate on the whole dashboard. Orders and
+  // Settings have nothing to do with rewards and must stay reachable even if this check fails
+  // (network hiccup, backend blip, or the program being toggled off) — previously the entire
+  // sidebar/tabs shell only rendered when this was true, so a rewards outage silently took
+  // Orders and Settings down with it.
+  const live = !!(status?.featureUnlocked && status?.programEnabled);
+  const rewardsComingSoonMessage = status?.message ?? "We're polishing the rewards programme. Check back soon.";
 
   return (
     <div className="mt-8 overflow-hidden rounded-xl border border-kraft/20 bg-card shadow-sm">
-      <DashboardTopStrip wallet={wallet} tier={tier} orderCount={orders?.length} />
+      <DashboardTopStrip wallet={wallet} tier={tier} orderCount={orders?.length} live={live} />
 
       <div className="flex flex-col lg:flex-row">
         <DashboardNav tab={tab} onChange={setTab} />
         <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
           {tab === "overview" && (
-            <OverviewTab wallet={wallet} tier={tier} txs={txs} onSeeAllRewards={() => setTab("rewards")} />
+            <OverviewTab
+              live={live}
+              comingSoonMessage={rewardsComingSoonMessage}
+              wallet={wallet}
+              tier={tier}
+              txs={txs}
+              onSeeAllRewards={() => setTab("rewards")}
+            />
           )}
           {tab === "rewards" && (
-            <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
+            live ? (
+              <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
+            ) : (
+              <RewardsComingSoon message={rewardsComingSoonMessage} />
+            )
           )}
           {tab === "orders" && <OrdersTab orders={orders} />}
           {tab === "settings" && <SettingsTab />}
@@ -147,14 +153,25 @@ function MerchantDashboardBody() {
   );
 }
 
+function RewardsComingSoon({ message }: { message: string }) {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-secondary/20 p-8 text-center">
+      <p className="font-display text-lg">Rewards program — coming soon</p>
+      <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
 function DashboardTopStrip({
   wallet,
   tier,
   orderCount,
+  live,
 }: {
   wallet: ReferralWallet | null;
   tier: RewardsTier | null;
   orderCount?: number;
+  live: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-forest px-5 py-4 sm:px-6">
@@ -176,8 +193,12 @@ function DashboardTopStrip({
       </div>
 
       <div className="flex items-center gap-6 sm:gap-8">
-        <TopStat label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} />
-        <TopStat label="Reward Coupons value" value={fmtKes(wallet?.balance ?? 0)} />
+        {live && (
+          <>
+            <TopStat label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} />
+            <TopStat label="Reward Coupons value" value={fmtKes(wallet?.balance ?? 0)} />
+          </>
+        )}
         <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
       </div>
     </div>
@@ -282,11 +303,15 @@ function Section({
 // ── Overview tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({
+  live,
+  comingSoonMessage,
   wallet,
   tier,
   txs,
   onSeeAllRewards,
 }: {
+  live: boolean;
+  comingSoonMessage: string;
   wallet: ReferralWallet | null;
   tier: RewardsTier | null;
   txs: ReferralTransaction[];
@@ -295,39 +320,45 @@ function OverviewTab({
   const recent = txs.slice(0, 3);
   return (
     <div className="space-y-5">
-      <Section icon={Award} title="Reward Coupons balance" tint="accent">
-        <div className="flex items-baseline gap-1.5">
-          <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
-          <p className="text-sm text-muted-foreground">Reward Coupons · worth {fmtKes(wallet?.balance ?? 0)}</p>
-        </div>
-        {tier ? (
-          <p className="mt-2 text-xs text-muted-foreground">
-            You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier —{" "}
-            {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
-          </p>
-        ) : (
-          <p className="mt-2 text-xs text-muted-foreground">Keep earning Reward Coupons to unlock a VIP tier.</p>
-        )}
-      </Section>
+      {live ? (
+        <>
+          <Section icon={Award} title="Reward Coupons balance" tint="accent">
+            <div className="flex items-baseline gap-1.5">
+              <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
+              <p className="text-sm text-muted-foreground">Reward Coupons · worth {fmtKes(wallet?.balance ?? 0)}</p>
+            </div>
+            {tier ? (
+              <p className="mt-2 text-xs text-muted-foreground">
+                You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier —{" "}
+                {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">Keep earning Reward Coupons to unlock a VIP tier.</p>
+            )}
+          </Section>
 
-      <Section
-        icon={Package}
-        title="Recent activity"
-        action={
-          <button
-            type="button"
-            onClick={onSeeAllRewards}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+          <Section
+            icon={Package}
+            title="Recent activity"
+            action={
+              <button
+                type="button"
+                onClick={onSeeAllRewards}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+              >
+                View all <ArrowRight className="h-3 w-3" />
+              </button>
+            }
           >
-            View all <ArrowRight className="h-3 w-3" />
-          </button>
-        }
-      >
-        <div className="space-y-2">
-          {recent.length === 0 && <p className="text-sm text-muted-foreground">No activity yet — place an order to start earning.</p>}
-          {recent.map((t) => <TransactionRow key={t.id} tx={t} />)}
-        </div>
-      </Section>
+            <div className="space-y-2">
+              {recent.length === 0 && <p className="text-sm text-muted-foreground">No activity yet — place an order to start earning.</p>}
+              {recent.map((t) => <TransactionRow key={t.id} tx={t} />)}
+            </div>
+          </Section>
+        </>
+      ) : (
+        <RewardsComingSoon message={comingSoonMessage} />
+      )}
     </div>
   );
 }

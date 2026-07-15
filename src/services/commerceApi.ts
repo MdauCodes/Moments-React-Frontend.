@@ -321,6 +321,20 @@ export async function getCustomer(
   return { customer: data.customer, orders: data.orders ?? [], source: "live" };
 }
 
+export interface ImpersonationSession {
+  accessToken: string;
+  expiresIn: number;
+  customerName: string;
+  accountType: "INDIVIDUAL_SHOPPER" | "BUSINESS" | null;
+}
+
+/** Mints a short-lived session that lets an admin preview/act inside this customer's real dashboard. */
+export async function impersonateCustomer(id: string): Promise<ImpersonationSession> {
+  const res = await adminFetch(`/api/v1/admin/customers/${encodeURIComponent(id)}/impersonate`, { method: "POST" });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  return (await res.json()) as ImpersonationSession;
+}
+
 // ---------- Analytics ----------
 // Backend GET /api/v1/admin/analytics/overview returns a flat operational shape:
 //   revenueToday, revenueWeek, revenueMTD,

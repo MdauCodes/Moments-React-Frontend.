@@ -21,17 +21,53 @@ interface AuthContextValue {
   logout: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
   setSession: (accessToken: string, refreshTokenValue?: string) => void;
+  /** True when this tab is an admin previewing a customer's dashboard (see impersonateCustomer). */
+  isImpersonating: boolean;
+  exitImpersonation: () => void;
 }
 
 const RT_KEY = "mpk_rt";
 const REFRESH_INTERVAL_MS = 840_000; // 14 min
+
+// Impersonation lives in sessionStorage (tab-scoped, never localStorage) so an admin
+// previewing a customer's dashboard in a new tab can never collide with or overwrite a real
+// customer/admin session sitting in that browser's localStorage — closing the tab discards it.
+const IMPERSONATION_KEY = "mpk_impersonation_token";
+
+function readImpersonationToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(IMPERSONATION_KEY);
+  } catch {
+    return null;
+  }
+}
+
+// Reads a one-time ?impersonate=<token> param (set by the admin "Preview dashboard" button),
+// moves it into sessionStorage, and strips it from the visible URL so it never lingers in
+// history/bookmarks.
+function bootstrapImpersonationFromUrl(): string | null {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("impersonate");
+  if (!token) return null;
+  try {
+    window.sessionStorage.setItem(IMPERSONATION_KEY, token);
+  } catch {
+    /* ignore */
+  }
+  params.delete("impersonate");
+  const newSearch = params.toString();
+  window.history.replaceState({}, "", window.location.pathname + (newSearch ? `?${newSearch}` : "") + window.location.hash);
+  return token;
+}
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 // Module-scoped access token mirror (kept in sync with localStorage)
 let accessTokenMem: string | null = null;
 export function getAccessToken(): string | null {
-  return accessTokenMem ?? getAuthToken();
+  return readImpersonationToken() ?? accessTokenMem ?? getAuthToken();
 }
 
 // Decode JWT payload and extract AuthUser from claims.
@@ -63,7 +99,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialise user instantly from existing token — no network call needed
   const [user, setUser] = useState<AuthUser | null>(() => decodeJwt(getAuthToken()));
   const [accessToken, setAccessTokenState] = useState<string | null>(getAuthToken());
+  const [impersonationToken, setImpersonationToken] = useState<string | null>(
+    () => bootstrapImpersonationFromUrl() ?? readImpersonationToken(),
+  );
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const impersonatedUser = impersonationToken ? decodeJwt(impersonationToken) : null;
+  const effectiveUser = impersonatedUser ?? user;
+  const effectiveAccessToken = impersonationToken ?? accessToken;
+
+  const exitImpersonation = () => {
+    try {
+      window.sessionStorage.removeItem(IMPERSONATION_KEY);
+    } catch {
+      /* ignore */
+    }
+    setImpersonationToken(null);
+    if (window.opener) {
+      window.close();
+    } else {
+      window.location.href = "/";
+    }
+  };
 
   const setAccessToken = (token: string | null) => {
     accessTokenMem = token;
@@ -98,27 +155,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // On mount: if token is expired but refresh token exists, trigger refresh
+  // On mount: if token is expired but refresh token exists, trigger refresh.
+  // Skipped while impersonating — that session deliberately has no refresh token, and this
+  // tab's localStorage may hold an unrelated real customer/admin session we must never touch.
   useEffect(() => {
+    if (impersonationToken) return;
     const token = getAuthToken();
     const rt = typeof window !== "undefined" ? window.localStorage.getItem(RT_KEY) : null;
     if (rt && !decodeJwt(token)) {
       // Token missing or expired — refresh silently
       void refreshToken();
     }
-  }, [refreshToken]);
+  }, [refreshToken, impersonationToken]);
 
-  // Auto-refresh interval
+  // Auto-refresh interval — also skipped while impersonating, same reasoning as above.
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!accessToken) return;
+    if (!accessToken || impersonationToken) return;
     intervalRef.current = setInterval(() => {
       void refreshToken();
     }, REFRESH_INTERVAL_MS);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [accessToken, refreshToken]);
+  }, [accessToken, refreshToken, impersonationToken]);
 
   const login = async (email: string, password: string) => {
     const res = await fetch(apiUrl("/api/v1/auth/login"), {
@@ -179,11 +239,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const roles = user?.roles ?? [];
+  const roles = effectiveUser?.roles ?? [];
   const value: AuthContextValue = {
-    user,
-    accessToken,
-    isAuthenticated: !!accessToken && !!user,
+    user: effectiveUser,
+    accessToken: effectiveAccessToken,
+    isAuthenticated: !!effectiveAccessToken && !!effectiveUser,
     isCustomer: roles.includes("ROLE_CUSTOMER"),
     isStaff: roles.includes("ROLE_STAFF"),
     isAdmin: roles.includes("ROLE_ADMIN"),
@@ -191,6 +251,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     refreshToken,
     setSession,
+    isImpersonating: !!impersonationToken,
+    exitImpersonation,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

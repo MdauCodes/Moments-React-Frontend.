@@ -11,7 +11,7 @@ import {
   formatDate,
   formatDateShort,
 } from "@/components/admin/commerceUi";
-import { getCustomer } from "@/services/commerceApi";
+import { getCustomer, impersonateCustomer } from "@/services/commerceApi";
 import type { CustomerRecord, OrderRecord } from "@/services/commerceMock";
 import { downloadCustomerStatementPdf } from "@/lib/pdf";
 import { FileText } from "lucide-react";
@@ -24,6 +24,22 @@ function AdminCustomerDetailPage() {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [source, setSource] = useState<"live" | "mock">("mock");
   const [loading, setLoading] = useState(true);
+  const [previewing, setPreviewing] = useState(false);
+
+  async function previewDashboard() {
+    if (!id) return;
+    setPreviewing(true);
+    try {
+      const session = await impersonateCustomer(id);
+      const dashboardPath = session.accountType === "BUSINESS" ? "/account/business" : "/account/merchant";
+      const url = `${window.location.origin}${dashboardPath}?impersonate=${encodeURIComponent(session.accessToken)}`;
+      window.open(url, "_blank", "noopener");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't start preview");
+    } finally {
+      setPreviewing(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +70,11 @@ function AdminCustomerDetailPage() {
   }
 
   return (
-    <AdminLayout title={customer.name}>
+    <AdminLayout
+      title={customer.name}
+      actionLabel={previewing ? "Opening preview…" : "Preview dashboard"}
+      onAction={previewDashboard}
+    >
       <div className="admin-page-stack">
         <MockBanner source={source} />
 

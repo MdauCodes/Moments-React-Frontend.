@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
+import { Eye } from "lucide-react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { CookieConsent } from "@/components/CookieConsent";
 import { PageProgressBar } from "@/components/PageProgressBar";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardSidebarContextValue {
   open: boolean;
@@ -29,10 +31,24 @@ export function useDashboardSidebar(): DashboardSidebarContextValue {
  */
 export function DashboardLayout({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
+  const { isImpersonating, user, exitImpersonation } = useAuth();
   return (
     <DashboardSidebarContext.Provider value={{ open, setOpen }}>
       <PageProgressBar />
       <div className="flex min-h-screen flex-col bg-background">
+        {isImpersonating && (
+          <div className="flex flex-wrap items-center justify-center gap-2 bg-accent px-4 py-2 text-center text-xs font-semibold text-accent-foreground sm:text-sm">
+            <Eye className="h-3.5 w-3.5 shrink-0" />
+            Previewing as {user ? `${user.firstName} ${user.lastName}`.trim() : "this customer"} — admin session
+            <button
+              type="button"
+              onClick={exitImpersonation}
+              className="ml-1 rounded-full border border-accent-foreground/40 px-2.5 py-0.5 text-[11px] font-semibold hover:bg-accent-foreground/10"
+            >
+              Exit preview
+            </button>
+          </div>
+        )}
         <DashboardHeader />
         <main className="flex-1">{children}</main>
         <WhatsAppFloat />
