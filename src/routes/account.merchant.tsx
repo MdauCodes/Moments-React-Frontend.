@@ -12,13 +12,17 @@ import {
   LayoutGrid,
   Settings as SettingsIcon,
   Award,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { SiteLayout } from "@/components/SiteLayout";
+import { DashboardLayout, useDashboardSidebar } from "@/components/DashboardLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { EmailVerificationCard } from "@/components/EmailVerificationCard";
+import { InlineProgress } from "@/components/InlineProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
+import { profileStore, type CustomerProfile } from "@/services/profileStore";
 import {
   referralStore,
   type ReferralStatus,
@@ -35,18 +39,21 @@ function fmtKes(n: number) {
 function AccountMerchantPage() {
   return (
     <ProtectedRoute>
-      <SiteLayout>
+      <DashboardLayout>
         <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
-          <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
+          <section className="mx-auto max-w-6xl px-5 py-8 lg:px-8 lg:py-10">
             <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
             <h1 className="mt-1 font-display text-3xl sm:text-4xl">Individual Shopper Account</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Earn Reward Coupons on every order, share your referral link, and redeem Reward Coupons for discounts.
             </p>
             <MerchantDashboardBody />
+            <div className="mt-10">
+              <QuickAddProductStrip />
+            </div>
           </section>
         </div>
-      </SiteLayout>
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }
@@ -125,7 +132,7 @@ function MerchantDashboardBody() {
 
       <div className="flex flex-col lg:flex-row">
         <DashboardNav tab={tab} onChange={setTab} />
-        <div className="min-w-0 flex-1 border-t border-border p-5 sm:p-6 lg:border-l lg:border-t-0">
+        <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
           {tab === "overview" && (
             <OverviewTab wallet={wallet} tier={tier} txs={txs} onSeeAllRewards={() => setTab("rewards")} />
           )}
@@ -187,15 +194,45 @@ function TopStat({ label, value }: { label: string; value: string }) {
 }
 
 function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
+  const { open, setOpen } = useDashboardSidebar();
+  const handleChange = (t: TabKey) => {
+    onChange(t);
+    setOpen(false);
+  };
   return (
-    <nav className="flex gap-1 overflow-x-auto border-t border-border p-2 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:border-t-0 lg:p-3">
-      {NAV_ITEMS.map((item) => {
+    <>
+      {open && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        />
+      )}
+      <nav
+        className={`fixed inset-y-0 left-0 z-50 w-64 -translate-x-full overflow-y-auto bg-cream p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-52 lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-3 lg:shadow-none ${
+          open ? "translate-x-0" : ""
+        }`}
+      >
+        <div className="mb-3 flex items-center justify-between lg:hidden">
+          <p className="text-sm font-semibold text-foreground">Menu</p>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+            className="grid h-8 w-8 place-items-center rounded-md hover:bg-secondary"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex flex-col gap-1">
+          {NAV_ITEMS.map((item) => {
         const active = tab === item.key;
         return (
           <button
             key={item.key}
             type="button"
-            onClick={() => onChange(item.key)}
+            onClick={() => handleChange(item.key)}
             className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
               active
                 ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
@@ -206,8 +243,10 @@ function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) =>
             {item.label}
           </button>
         );
-      })}
-    </nav>
+          })}
+        </div>
+      </nav>
+    </>
   );
 }
 
@@ -461,19 +500,107 @@ function OrdersTab({ orders }: { orders: CustomerOrder[] | null }) {
 
 // ── Settings tab ───────────────────────────────────────────────────────────────
 
+const settingsInputCls =
+  "w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
+
 function SettingsTab() {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    profileStore.get().then((res) => {
+      const p = res.profile;
+      if (!p.firstName && user) {
+        p.firstName = user.firstName;
+        p.lastName = user.lastName;
+        p.email = user.email;
+      }
+      setProfile(p);
+    });
+  }, [user]);
+
+  if (!profile) {
+    return <p className="text-sm text-muted-foreground">Loading…</p>;
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profile) return;
+    setSaving(true);
+    try {
+      const { profile: saved, source } = await profileStore.save(profile);
+      setProfile(saved);
+      toast.success(source === "live" ? "Profile saved" : "Saved locally");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <Section icon={SettingsIcon} title="Account settings">
-      <p className="text-sm text-muted-foreground">
-        Manage your name, email, phone and saved addresses from your profile page.
-      </p>
-      <Link
-        to="/account/profile"
-        className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary"
-      >
-        Edit profile <ArrowRight className="h-3.5 w-3.5" />
-      </Link>
-    </Section>
+    <div className="space-y-5">
+      <Section icon={SettingsIcon} title="Contact details">
+        <form onSubmit={handleSave} className="grid gap-3 sm:grid-cols-2">
+          <label>
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">First name</span>
+            <input
+              className={settingsInputCls}
+              value={profile.firstName}
+              onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+            />
+          </label>
+          <label>
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Last name</span>
+            <input
+              className={settingsInputCls}
+              value={profile.lastName}
+              onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+            />
+          </label>
+          <label>
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</span>
+            <input
+              type="email"
+              className={settingsInputCls}
+              value={profile.email}
+              onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+            />
+          </label>
+          <label>
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone</span>
+            <input
+              className={settingsInputCls}
+              value={profile.phone}
+              placeholder="+254 7…"
+              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+            />
+          </label>
+          <div className="flex justify-end sm:col-span-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {saving && <InlineProgress size="sm" />} Save
+            </button>
+          </div>
+        </form>
+      </Section>
+
+      <Section icon={SettingsIcon} title="Saved addresses">
+        <p className="text-sm text-muted-foreground">
+          {profile.addresses.length === 0
+            ? "No addresses saved yet."
+            : `${profile.addresses.length} address${profile.addresses.length === 1 ? "" : "es"} saved.`}
+        </p>
+        <Link
+          to="/account/profile"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary"
+        >
+          Manage saved addresses <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </Section>
+    </div>
   );
 }
 

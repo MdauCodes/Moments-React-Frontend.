@@ -17,10 +17,13 @@ import {
   Settings as SettingsIcon,
   Lock,
   Award,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { SiteLayout } from "@/components/SiteLayout";
+import { DashboardLayout, useDashboardSidebar } from "@/components/DashboardLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
+import { HowItWorksCard } from "@/components/HowItWorksCard";
 import { InlineProgress } from "@/components/InlineProgress";
 import { RewardsReferralsSection } from "@/components/RewardsReferralsSection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -55,9 +58,9 @@ const blankForm: BusinessAccountInput = {
 function AccountBusinessPage() {
   return (
     <ProtectedRoute>
-      <SiteLayout>
+      <DashboardLayout>
         <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
-          <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
+          <section className="mx-auto max-w-6xl px-5 py-8 lg:px-8 lg:py-10">
             <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
             <h1 className="mt-1 font-display text-3xl sm:text-4xl">Business Account</h1>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -65,9 +68,12 @@ function AccountBusinessPage() {
               history and be first in line when trade credit accounts launch.
             </p>
             <BusinessAccountBody />
+            <div className="mt-10">
+              <QuickAddProductStrip />
+            </div>
           </section>
         </div>
-      </SiteLayout>
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }
@@ -98,13 +104,15 @@ function BusinessAccountBody() {
 
 type TabKey = "overview" | "orders" | "rewards" | "credit" | "documents" | "settings";
 
+// Available functionality first, "Soon" placeholders last — so the sidebar
+// reads as "here's what you can do" before "here's what's coming."
 const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid; soon?: boolean }[] = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
   { key: "orders", label: "Orders", icon: Package },
   { key: "rewards", label: "Rewards & Referrals", icon: Award },
+  { key: "settings", label: "Settings", icon: SettingsIcon },
   { key: "credit", label: "Trade Credit", icon: Landmark, soon: true },
   { key: "documents", label: "Documents", icon: FileText, soon: true },
-  { key: "settings", label: "Settings", icon: SettingsIcon },
 ];
 
 function fmtKes(n: number) {
@@ -133,7 +141,7 @@ function BusinessDashboard({
 
       <div className="flex flex-col lg:flex-row">
         <DashboardNav tab={tab} onChange={setTab} />
-        <div className="min-w-0 flex-1 border-t border-border p-5 sm:p-6 lg:border-l lg:border-t-0">
+        <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
           {tab === "overview" && (
             <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
           )}
@@ -198,32 +206,64 @@ function TopStat({ label, value }: { label: string; value: string }) {
 }
 
 function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
+  const { open, setOpen } = useDashboardSidebar();
+  const handleChange = (t: TabKey) => {
+    onChange(t);
+    setOpen(false);
+  };
   return (
-    <nav className="flex gap-1 overflow-x-auto border-t border-border p-2 lg:w-52 lg:shrink-0 lg:flex-col lg:overflow-visible lg:border-t-0 lg:p-3">
-      {NAV_ITEMS.map((item) => {
-        const active = tab === item.key;
-        return (
+    <>
+      {open && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setOpen(false)}
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+        />
+      )}
+      <nav
+        className={`fixed inset-y-0 left-0 z-50 w-64 -translate-x-full overflow-y-auto bg-cream p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-52 lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-3 lg:shadow-none ${
+          open ? "translate-x-0" : ""
+        }`}
+      >
+        <div className="mb-3 flex items-center justify-between lg:hidden">
+          <p className="text-sm font-semibold text-foreground">Menu</p>
           <button
-            key={item.key}
             type="button"
-            onClick={() => onChange(item.key)}
-            className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
-              active
-                ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
-            }`}
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+            className="grid h-8 w-8 place-items-center rounded-md hover:bg-secondary"
           >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {item.label}
-            {item.soon && (
-              <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Soon
-              </span>
-            )}
+            <X className="h-4 w-4" />
           </button>
-        );
-      })}
-    </nav>
+        </div>
+        <div className="flex flex-col gap-1">
+          {NAV_ITEMS.map((item) => {
+            const active = tab === item.key;
+            return (
+              <button
+                key={item.key}
+                type="button"
+                onClick={() => handleChange(item.key)}
+                className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
+                  active
+                    ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
+                    : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
+                }`}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {item.label}
+                {item.soon && (
+                  <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Soon
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+    </>
   );
 }
 
@@ -356,18 +396,10 @@ const CREDIT_FEATURES = [
 function TradeCreditTab({ readiness }: { readiness: CreditReadiness | null }) {
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-secondary/20 p-5">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-foreground">Trade Credit — coming soon</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Applications aren't open yet. When they are, your Business Account and order history — including the
-            readiness score below — will be the starting point.
-          </p>
-        </div>
-      </div>
+      <HowItWorksCard icon={Lock} title="Trade Credit — coming soon">
+        Applications aren't open yet. When they are, your Business Account and order history — including the
+        readiness score below — will be the starting point.
+      </HowItWorksCard>
 
       {readiness && <CreditReadinessCard readiness={readiness} />}
 
@@ -400,18 +432,10 @@ const DOCUMENT_TYPES = [
 function DocumentsTab() {
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3 rounded-lg border border-dashed border-border bg-secondary/20 p-5">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-secondary text-muted-foreground">
-          <Lock className="h-3.5 w-3.5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-foreground">Document uploads — coming soon</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Nothing to submit yet. Once trade credit applications open, you'll upload these here — no need to
-            send anything over email or WhatsApp.
-          </p>
-        </div>
-      </div>
+      <HowItWorksCard icon={Lock} title="Document uploads — coming soon">
+        Nothing to submit yet. Once trade credit applications open, you'll upload these here — no need to send
+        anything over email or WhatsApp.
+      </HowItWorksCard>
 
       <div className="grid gap-3 sm:grid-cols-2">
         {DOCUMENT_TYPES.map((d) => (

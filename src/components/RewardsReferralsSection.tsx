@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { Copy, Check, Share2, Users, Package, Award } from "lucide-react";
+import { Copy, Check, Share2, Users, Package, Award, Gift } from "lucide-react";
 import { toast } from "sonner";
 import {
   referralStore,
@@ -11,6 +11,7 @@ import {
   type RewardsTier,
 } from "@/services/referralStore";
 import { EmailVerificationCard } from "@/components/EmailVerificationCard";
+import { HowItWorksCard } from "@/components/HowItWorksCard";
 import { useAuth } from "@/contexts/AuthContext";
 
 /**
@@ -102,6 +103,17 @@ export function RewardsReferralsSection() {
 
   return (
     <div className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <HowItWorksCard icon={Gift} title="How Reward Coupons work">
+          You earn Reward Coupons from a welcome bonus on signup, on every paid order, and for leaving product
+          reviews. Redeem them for a real KES discount at checkout — no minimum order, no expiry.
+        </HowItWorksCard>
+        <HowItWorksCard icon={Users} title="How referrals work">
+          Share your code below. When someone signs up with it and their first order is confirmed, you both earn
+          Reward Coupons — sized by that order's value.
+        </HowItWorksCard>
+      </div>
+
       <Section icon={Award} title="Reward Coupons balance" tint="accent">
         <div className="flex items-baseline gap-1.5">
           <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
