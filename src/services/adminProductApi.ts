@@ -50,13 +50,25 @@ function buildPayload(values: ProductFormValues, productId?: string) {
     isNewArrival: values.isNewArrival,
     isFastMoving: values.isFastMoving,
     industryIds,
+    tagIds: values.tagIds ?? [],
+    subcategoryId: values.subcategoryId || undefined,
+    // Explicit clear signal — without it, an empty subcategoryId reads as "no change"
+    // server-side, so picking "Select subcategory…" back to blank would silently do nothing.
+    clearSubcategory: !values.subcategoryId,
     material: values.material || undefined,
     finish: values.finish || undefined,
     basePrice: values.basePrice ?? null,
+    originalBasePrice: values.compareAtPrice && values.basePrice && values.compareAtPrice > values.basePrice
+      ? values.compareAtPrice
+      : undefined,
+    clearOriginalBasePrice: !values.compareAtPrice,
     stockCount: values.trackInventory ? values.stock ?? 0 : undefined,
     lowStockThreshold: values.trackInventory ? values.lowStockThreshold ?? 10 : undefined,
     individualSalesEnabled: values.individualSalesEnabled ?? true,
     pricingTiers,
+    stockStatus: values.stockStatus ?? "MADE_TO_ORDER",
+    vatExempt: values.vatExempt ?? false,
+    vatRate: values.vatExempt ? 0 : (typeof values.vatRate === "number" ? values.vatRate : 0.16),
   };
 }
 

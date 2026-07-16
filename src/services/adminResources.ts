@@ -83,7 +83,7 @@ export type ProductDto = {
   variants?: Array<{ id?: string; label: string; sku?: string; price?: number; stock?: number }>;
 };
 export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries" | "curatedTags" | "curatedTagIds">;
-export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; industryIds?: string[]; tagIds?: string[] };
+export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; clearSubcategory?: boolean; industryIds?: string[]; tagIds?: string[] };
 export type BulkClassifyResponse = { updatedCount: number; productIds: string[] };
 
 

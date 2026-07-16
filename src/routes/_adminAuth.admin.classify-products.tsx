@@ -42,6 +42,7 @@ function AdminClassifyProductsPage() {
   const [targetSegmentId, setTargetSegmentId] = useState("");
   const [targetCategoryId, setTargetCategoryId] = useState("");
   const [targetSubcategoryId, setTargetSubcategoryId] = useState("");
+  const [clearSubcategory, setClearSubcategory] = useState(false);
   const [targetIndustryIds, setTargetIndustryIds] = useState<Set<string>>(new Set());
   const [targetTagIds, setTargetTagIds] = useState<Set<string>>(new Set());
 
@@ -147,21 +148,22 @@ function AdminClassifyProductsPage() {
 
   const openClassify = () => {
     setTargetSegmentId(""); setTargetCategoryId(""); setTargetSubcategoryId("");
-    setTargetIndustryIds(new Set()); setTargetTagIds(new Set()); setSubcategorySearch("");
+    setTargetIndustryIds(new Set()); setTargetTagIds(new Set()); setSubcategorySearch(""); setClearSubcategory(false);
     setClassifyOpen(true);
   };
 
   const submitClassify = async (e: FormEvent) => {
     e.preventDefault();
-    if (!targetSubcategoryId && targetIndustryIds.size === 0 && targetTagIds.size === 0) {
-      toast.error("Pick a subcategory, industry, and/or tag");
+    if (!targetSubcategoryId && !clearSubcategory && targetIndustryIds.size === 0 && targetTagIds.size === 0) {
+      toast.error("Pick a subcategory, industry, and/or tag — or tick 'Clear subcategory'");
       return;
     }
     setClassifying(true);
     try {
       const result = await adminResources.products.bulkClassify({
         productIds: Array.from(selectedIds),
-        subcategoryId: targetSubcategoryId || undefined,
+        subcategoryId: clearSubcategory ? undefined : targetSubcategoryId || undefined,
+        clearSubcategory: clearSubcategory || undefined,
         industryIds: targetIndustryIds.size > 0 ? Array.from(targetIndustryIds) : undefined,
         tagIds: targetTagIds.size > 0 ? Array.from(targetTagIds) : undefined,
       });
@@ -418,6 +420,7 @@ function AdminClassifyProductsPage() {
                   className="admin-input"
                   placeholder="Type to search e.g. Pizza Boxes…"
                   value={subcategorySearch}
+                  disabled={clearSubcategory}
                   onChange={(e) => { setSubcategorySearch(e.target.value); setTargetSubcategoryId(""); }}
                 />
                 {subcategorySearchResults.length > 0 && (
@@ -444,23 +447,34 @@ function AdminClassifyProductsPage() {
                   Or use the three dropdowns below if you'd rather browse by segment/category.
                 </span>
               </label>
+              <label style={{ gridColumn: "1/-1", display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={clearSubcategory}
+                  onChange={(e) => {
+                    setClearSubcategory(e.target.checked);
+                    if (e.target.checked) { setTargetSubcategoryId(""); setSubcategorySearch(""); }
+                  }}
+                />
+                <span className="admin-label" style={{ margin: 0 }}>Clear subcategory (set back to Unclassified)</span>
+              </label>
               <label>
                 <span className="admin-label">Segment</span>
-                <select className="admin-select" value={targetSegmentId} onChange={(e) => setTargetSegmentId(e.target.value)}>
+                <select className="admin-select" value={targetSegmentId} disabled={clearSubcategory} onChange={(e) => setTargetSegmentId(e.target.value)}>
                   <option value="">Select segment…</option>
                   {segments.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </label>
               <label>
                 <span className="admin-label">Category</span>
-                <select className="admin-select" value={targetCategoryId} disabled={!targetSegmentId} onChange={(e) => setTargetCategoryId(e.target.value)}>
+                <select className="admin-select" value={targetCategoryId} disabled={clearSubcategory || !targetSegmentId} onChange={(e) => setTargetCategoryId(e.target.value)}>
                   <option value="">Select category…</option>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </label>
               <label>
                 <span className="admin-label">Subcategory</span>
-                <select className="admin-select" value={targetSubcategoryId} disabled={!targetCategoryId} onChange={(e) => setTargetSubcategoryId(e.target.value)}>
+                <select className="admin-select" value={targetSubcategoryId} disabled={clearSubcategory || !targetCategoryId} onChange={(e) => setTargetSubcategoryId(e.target.value)}>
                   <option value="">Select subcategory…</option>
                   {subcategories.map((sc) => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
                 </select>
