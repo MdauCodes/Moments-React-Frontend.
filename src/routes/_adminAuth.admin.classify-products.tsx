@@ -3,6 +3,7 @@ import { LayoutGrid, Loader2, Rows3, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import {
   adminResources,
   type CategoryDto,
@@ -29,6 +30,8 @@ function AdminClassifyProductsPage() {
   const [segments, setSegments] = useState<SegmentDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryDto[]>([]);
+  const [allSubcategories, setAllSubcategories] = useState<SubcategoryDto[]>([]);
+  const [subcategorySearch, setSubcategorySearch] = useState("");
   const [industries, setIndustries] = useState<IndustryDto[]>([]);
   const [tags, setTags] = useState<TagDto[]>([]);
   const [newTagName, setNewTagName] = useState("");
@@ -54,7 +57,7 @@ function AdminClassifyProductsPage() {
       setProducts(productPage.rows);
       setTotalPages(productPage.totalPages);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load products");
+      reportAdminError(err, "Loading products (Classify Products)");
     } finally {
       setLoading(false);
     }
@@ -66,8 +69,24 @@ function AdminClassifyProductsPage() {
   useEffect(() => {
     adminResources.segments.list().then(setSegments).catch(() => undefined);
     adminResources.industries.list().then(setIndustries).catch(() => undefined);
+    adminResources.subcategories.list().then(setAllSubcategories).catch(() => undefined);
     void loadTags();
   }, []);
+
+  const subcategorySearchResults = useMemo(() => {
+    const q = subcategorySearch.trim().toLowerCase();
+    if (!q) return [];
+    return allSubcategories
+      .filter((sc) => [sc.name, sc.categoryName, sc.segmentName].filter(Boolean).some((v) => String(v).toLowerCase().includes(q)))
+      .slice(0, 8);
+  }, [subcategorySearch, allSubcategories]);
+
+  const pickSubcategoryQuick = (sc: SubcategoryDto) => {
+    setTargetSegmentId(sc.segmentId ?? "");
+    setTargetCategoryId(sc.categoryId);
+    setTargetSubcategoryId(sc.id);
+    setSubcategorySearch(`${sc.segmentName ? `${sc.segmentName} › ` : ""}${sc.categoryName ? `${sc.categoryName} › ` : ""}${sc.name}`);
+  };
 
   useEffect(() => {
     if (!targetSegmentId) { setCategories([]); setTargetCategoryId(""); return; }
@@ -128,7 +147,7 @@ function AdminClassifyProductsPage() {
 
   const openClassify = () => {
     setTargetSegmentId(""); setTargetCategoryId(""); setTargetSubcategoryId("");
-    setTargetIndustryIds(new Set()); setTargetTagIds(new Set());
+    setTargetIndustryIds(new Set()); setTargetTagIds(new Set()); setSubcategorySearch("");
     setClassifyOpen(true);
   };
 
@@ -151,7 +170,7 @@ function AdminClassifyProductsPage() {
       setSelectedIds(new Set());
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Bulk classify failed");
+      reportAdminError(err, "Bulk classify products");
     } finally {
       setClassifying(false);
     }
@@ -166,7 +185,7 @@ function AdminClassifyProductsPage() {
       setNewTagName("");
       await loadTags();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to create tag");
+      reportAdminError(err, "Create tag");
     } finally {
       setSavingTag(false);
     }
@@ -179,7 +198,7 @@ function AdminClassifyProductsPage() {
       toast.success("Tag deleted");
       await loadTags();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete tag");
     }
   };
 
@@ -393,6 +412,38 @@ function AdminClassifyProductsPage() {
               <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setClassifyOpen(false)}>Close</button>
             </div>
             <div className="admin-form-grid">
+              <label style={{ gridColumn: "1/-1", position: "relative" }}>
+                <span className="admin-label">Quick find subcategory</span>
+                <input
+                  className="admin-input"
+                  placeholder="Type to search e.g. Pizza Boxes…"
+                  value={subcategorySearch}
+                  onChange={(e) => { setSubcategorySearch(e.target.value); setTargetSubcategoryId(""); }}
+                />
+                {subcategorySearchResults.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10, marginTop: 2,
+                      background: "var(--admin-bg, #fff)", border: "1px solid var(--admin-border)", borderRadius: 8,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)", maxHeight: 220, overflowY: "auto",
+                    }}
+                  >
+                    {subcategorySearchResults.map((sc) => (
+                      <button
+                        key={sc.id}
+                        type="button"
+                        onClick={() => pickSubcategoryQuick(sc)}
+                        style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 10px", fontSize: 12, background: "transparent", border: 0, cursor: "pointer" }}
+                      >
+                        {sc.segmentName} › {sc.categoryName} › <b>{sc.name}</b>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <span className="admin-helper" style={{ fontSize: 11 }}>
+                  Or use the three dropdowns below if you'd rather browse by segment/category.
+                </span>
+              </label>
               <label>
                 <span className="admin-label">Segment</span>
                 <select className="admin-select" value={targetSegmentId} onChange={(e) => setTargetSegmentId(e.target.value)}>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
 import { ChevronDown } from "lucide-react";
 import { adminJson } from "@/services/adminApi";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import {
   adminResources,
   type SegmentDto,
@@ -274,13 +275,17 @@ function slugifyDraft(input: string): string {
     .slice(0, 80);
 }
 
-function validateProduct(values: ProductFormValues): string[] {
+function validateProduct(values: ProductFormValues, isNew: boolean): string[] {
   const issues: string[] = [];
   if (!values.name.trim()) issues.push("Product name is required.");
-  if (!values.image) issues.push("Add a product image.");
+  // Image/description completeness is only enforced when creating a new product.
+  // An existing product that was already saved without one (e.g. bulk-imported)
+  // must still be editable for unrelated fields — like classification — without
+  // being forced to backfill catalogue details it's always been missing.
+  if (isNew && !values.image) issues.push("Add a product image.");
   // Category/Subcategory/Industries/Tags are no longer set here — classification
   // happens on the Classify Products page, so a new product is valid unclassified.
-  if (!values.description.trim()) issues.push("Add a short catalogue description.");
+  if (isNew && !values.description.trim()) issues.push("Add a short catalogue description.");
   if (values.moq < 1) issues.push("MOQ must be at least 1.");
   if (values.isDiscount && (!values.discountPercent || values.discountPercent <= 0))
     issues.push("Set a discount percentage when Discounted is on.");
@@ -914,7 +919,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
     }));
 
   const isDirty = useMemo(() => JSON.stringify(values) !== JSON.stringify(initial), [initial, values]);
-  const validationIssues = useMemo(() => validateProduct(values), [values]);
+  const validationIssues = useMemo(() => validateProduct(values, !productId), [values, productId]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -966,6 +971,7 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
       try { sessionStorage.removeItem(draftKey); } catch {}
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save product.");
+      reportAdminError(err, productId ? "Save product changes" : "Create product");
     } finally {
       setBusy(false);
     }
