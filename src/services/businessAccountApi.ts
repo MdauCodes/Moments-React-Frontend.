@@ -66,6 +66,15 @@ export interface BusinessAccountInput {
   phone: string;
 }
 
+export type CustomerTaxDocument = {
+  id: string;
+  orderReference: string;
+  status: "PENDING" | "GENERATING" | "SENT" | "FAILED" | "EXPIRED";
+  cloudinaryUrl?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+};
+
 export const businessAccountApi = {
   /** Returns null when the customer has no business account yet (404). */
   async getMine(): Promise<BusinessAccount | null> {
@@ -99,5 +108,12 @@ export const businessAccountApi = {
       throw new Error(err.message ?? `Failed to update business account (${res.status})`);
     }
     return (await res.json()) as BusinessAccount;
+  },
+
+  async myTaxDocuments(): Promise<CustomerTaxDocument[]> {
+    const res = await authFetch(apiUrl("/api/v1/customer/tax-documents?size=50"));
+    if (!res.ok) throw new Error(`Failed to load documents (${res.status})`);
+    const data = (await res.json()) as { content?: CustomerTaxDocument[] };
+    return data.content ?? [];
   },
 };

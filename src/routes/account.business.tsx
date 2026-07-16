@@ -37,6 +37,7 @@ import {
   type BusinessAccountInput,
   type BusinessType,
   type CreditReadiness,
+  type CustomerTaxDocument,
 } from "@/services/businessAccountApi";
 
 const inputCls =
@@ -111,8 +112,8 @@ const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid; soon?: b
   { key: "orders", label: "Orders", icon: Package },
   { key: "rewards", label: "Rewards & Referrals", icon: Award },
   { key: "settings", label: "Settings", icon: SettingsIcon },
+  { key: "documents", label: "Documents", icon: FileText },
   { key: "credit", label: "Trade Credit", icon: Landmark, soon: true },
-  { key: "documents", label: "Documents", icon: FileText, soon: true },
 ];
 
 function fmtKes(n: number) {
@@ -420,34 +421,89 @@ function TradeCreditTab({ readiness }: { readiness: CreditReadiness | null }) {
   );
 }
 
-// ── Documents tab (coming soon) ───────────────────────────────────────────────
+// ── Documents tab — tax invoices requested at checkout ──────────────────────────
 
-const DOCUMENT_TYPES = [
-  { title: "KRA PIN certificate", desc: "Confirms your tax registration." },
-  { title: "Business registration certificate", desc: "Certificate of incorporation, or business name registration." },
-  { title: "Contact person ID", desc: "National ID or passport of the primary contact." },
-  { title: "Bank/M-Pesa statement", desc: "Recent statement to support the credit assessment." },
-];
+const DOC_STATUS_STYLES: Record<CustomerTaxDocument["status"], string> = {
+  PENDING: "bg-amber-500/15 text-amber-700",
+  GENERATING: "bg-blue-500/15 text-blue-700",
+  SENT: "bg-emerald-500/15 text-emerald-700",
+  FAILED: "bg-destructive/15 text-destructive",
+  EXPIRED: "bg-muted text-muted-foreground",
+};
+
+const DOC_STATUS_LABELS: Record<CustomerTaxDocument["status"], string> = {
+  PENDING: "Preparing",
+  GENERATING: "Preparing",
+  SENT: "Sent to your email",
+  FAILED: "Couldn't be generated",
+  EXPIRED: "Link expired",
+};
 
 function DocumentsTab() {
+  const [docs, setDocs] = useState<CustomerTaxDocument[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    businessAccountApi
+      .myTaxDocuments()
+      .then(setDocs)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load documents"));
+  }, []);
+
   return (
     <div className="space-y-5">
-      <HowItWorksCard icon={Lock} title="Document uploads — coming soon">
-        Nothing to submit yet. Once trade credit applications open, you'll upload these here — no need to send
-        anything over email or WhatsApp.
+      <HowItWorksCard icon={FileText} title="Tax invoices / VAT breakdowns">
+        Whenever you tick "I need a tax invoice" at checkout, the PDF shows up here once it's ready — you don't need
+        to dig through your inbox. Links expire 2 weeks after being sent; contact us with the order reference to get
+        one resent after that.
       </HowItWorksCard>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        {DOCUMENT_TYPES.map((d) => (
-          <div key={d.title} className="flex items-start gap-3 rounded-lg border border-border bg-background/40 p-4">
-            <FileText className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            <div>
-              <p className="text-[13px] font-semibold text-foreground">{d.title}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{d.desc}</p>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+
+      {docs === null && !error ? (
+        <p className="text-sm text-muted-foreground">Loading your documents…</p>
+      ) : docs && docs.length === 0 ? (
+        <p className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No tax invoices requested yet — tick "I need a tax invoice" at checkout on your next order to get one here.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {docs?.map((d) => (
+            <div
+              key={d.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-background/40 p-4"
+            >
+              <div>
+                <p className="text-sm font-semibold text-foreground">{d.orderReference}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  Requested {new Date(d.createdAt).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}
+                  {d.sentAt && ` · Sent ${new Date(d.sentAt).toLocaleDateString("en-KE", { day: "2-digit", month: "short", year: "numeric" })}`}
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${DOC_STATUS_STYLES[d.status]}`}>
+                  {DOC_STATUS_LABELS[d.status]}
+                </span>
+                {d.cloudinaryUrl && (
+                  <a
+                    href={d.cloudinaryUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+                  >
+                    Download
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
+      <HowItWorksCard icon={Lock} title="Trade-credit document uploads — coming soon">
+        Once trade credit applications open, you'll upload KRA PIN certificates, registration documents and bank
+        statements here too — separate from the tax invoices above.
+      </HowItWorksCard>
     </div>
   );
 }
