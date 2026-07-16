@@ -1,4 +1,4 @@
-import { adminJson } from "@/services/adminApi";
+import { adminJson, adminFetch } from "@/services/adminApi";
 
 export type PageResponse<T> = { content?: T[]; totalElements?: number; totalPages?: number; number?: number; size?: number };
 export type BackendRole = "ROLE_ADMIN" | "ROLE_STAFF";
@@ -173,6 +173,25 @@ export type RoleDto = {
 };
 export type RoleRequest = { name: string; displayName: string; description?: string; permissions: string[] };
 
+export type CheckoutDryRunItem = { productId: string; productName: string; quantity: number; unitPrice: number; lineTotal: number; found: boolean };
+export type CheckoutDryRunRequest = {
+  county?: string;
+  promoCode?: string;
+  redeemPoints?: number;
+  items: { productId: string; quantity: number; unitPrice?: number }[];
+};
+export type CheckoutDryRunResult = {
+  items: CheckoutDryRunItem[];
+  subtotal: number;
+  deliveryFee: number;
+  discount: number;
+  taxableAmount: number;
+  vatAmount: number;
+  totalAmount: number;
+  appliedPromo?: string | null;
+  warnings: string[];
+};
+
 export type TaxDocumentStatus = "PENDING" | "GENERATING" | "SENT" | "FAILED" | "EXPIRED";
 export type TaxDocumentAdminDto = {
   id: string;
@@ -230,6 +249,17 @@ export const adminResources = {
     list: (params: { status?: TaxDocumentStatus; page?: number; size?: number }) =>
       adminJson<PageResponse<TaxDocumentAdminDto>>(`/api/v1/admin/tax-documents${qs(params)}`),
     retry: (id: string) => adminJson<TaxDocumentAdminDto>(`/api/v1/admin/tax-documents/${encodeURIComponent(id)}/retry`, { method: "POST" }),
+  },
+  devTools: {
+    checkoutDryRun: (body: CheckoutDryRunRequest) =>
+      adminJson<CheckoutDryRunResult>("/api/v1/admin/dev-tools/checkout-dry-run", { method: "POST", body: JSON.stringify(body) }),
+    stkPushTest: (body: { phone: string; amount: number }) =>
+      adminJson<{ checkoutRequestId: string; status: string }>("/api/v1/admin/dev-tools/stk-push-test", { method: "POST", body: JSON.stringify(body) }),
+    async previewTaxInvoice(orderReference: string): Promise<Blob> {
+      const res = await adminFetch(`/api/v1/admin/dev-tools/tax-invoice-preview/${encodeURIComponent(orderReference)}`);
+      if (!res.ok) throw new Error(`Failed to render preview (${res.status})`);
+      return res.blob();
+    },
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),

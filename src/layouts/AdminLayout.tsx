@@ -32,6 +32,7 @@ import {
   BookOpen,
   Share2,
   Receipt,
+  Wrench,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -81,6 +82,8 @@ interface NavItem {
   badge?: number;
   /** Item is visible when user has ANY of these permissions. Omit = always visible. */
   requiresAny?: PermissionCode[];
+  /** Item is only ever visible to the Super Admin staff role, regardless of permissions. */
+  superAdminOnly?: boolean;
 }
 
 interface NavSection {
@@ -156,6 +159,12 @@ const navSections: NavSection[] = [
     label: "Help",
     items: [
       { label: "Feature Guide", to: "/admin/feature-guide", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Developer",
+    items: [
+      { label: "Developer Tools", to: "/admin/dev-tools", icon: Wrench, superAdminOnly: true },
     ],
   },
 ];
@@ -500,6 +509,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
         >
           {navSections.map((section, sectionIdx) => {
             const visible = section.items.filter((item) => {
+              if (item.superAdminOnly) return staffRole === "SUPER_ADMIN";
               if (!item.requiresAny) return true;
               if (hasAnyPerm(permissions, item.requiresAny)) return true;
               // SUPER_ADMIN sees audit logs even without explicit AUDIT_VIEW perm.
