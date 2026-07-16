@@ -214,7 +214,8 @@ export const adminResources = {
     list: () => adminJson<IndustryDto[]>("/api/v1/admin/industries"),
     create: (body: Partial<IndustryDto>) => adminJson<IndustryDto>("/api/v1/admin/industries", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<IndustryDto>) => adminJson<IndustryDto>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
-    remove: (id: string) => adminJson<void>(`/api/v1/admin/industries/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    remove: (id: string, opts?: { reassignTo?: string }) =>
+      adminJson<void>(`/api/v1/admin/industries/${encodeURIComponent(id)}${qs({ reassignTo: opts?.reassignTo })}`, { method: "DELETE" }),
   },
   businessAccounts: {
     list: (params: { q?: string; page?: number; size?: number }) =>
