@@ -129,9 +129,10 @@ function AdminTaxDocumentsPage() {
                       <td>{new Date(r.createdAt).toLocaleString("en-KE")}</td>
                       <td>{r.sentAt ? new Date(r.sentAt).toLocaleString("en-KE") : "—"}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
-                        {r.status === "FAILED" && (
+                        {(r.status === "FAILED" || r.status === "EXPIRED") && (
                           <button className="admin-btn admin-btn-ghost" disabled={retryingId === r.id} onClick={() => void retry(r)}>
-                            {retryingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}Retry
+                            {retryingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
+                            {r.status === "EXPIRED" ? "Resend" : "Retry"}
                           </button>
                         )}
                         {r.cloudinaryUrl && (
