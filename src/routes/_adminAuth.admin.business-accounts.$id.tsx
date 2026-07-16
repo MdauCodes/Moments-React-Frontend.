@@ -58,6 +58,7 @@ function AdminBusinessAccountDetailPage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<EditForm | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,7 +75,7 @@ function AdminBusinessAccountDetailPage() {
       .catch((err) => reportAdminError(err, "Failed to load business account"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, reloadKey]);
 
   async function toggleStatus() {
     if (!account) return;
@@ -140,7 +141,7 @@ function AdminBusinessAccountDetailPage() {
   const readiness = account.creditReadiness;
 
   return (
-    <AdminLayout title={account.businessName}>
+    <AdminLayout title={account.businessName} onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(240px, 1fr)", gap: 16 }} data-admin-detail-grid>
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

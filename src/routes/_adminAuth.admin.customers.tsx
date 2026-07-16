@@ -53,6 +53,7 @@ function AdminCustomersPage() {
   const [status, setStatus] = useState("ALL");
   const [segment, setSegment] = useState("ALL");
   const [page, setPage] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => { document.title = "Customers · Moments admin"; }, []);
 
@@ -64,12 +65,12 @@ function AdminCustomersPage() {
       .catch((err) => reportAdminError(err, "Failed to load customers"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [q, status, segment, page]);
+  }, [q, status, segment, page, reloadKey]);
 
   const totalLtv = data?.rows.reduce((s, c) => s + c.lifetimeValue, 0) ?? 0;
 
   return (
-    <AdminLayout title="Customers">
+    <AdminLayout title="Customers" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         {data && <MockBanner source={data.source} />}
 

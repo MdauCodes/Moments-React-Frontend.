@@ -176,7 +176,7 @@ function AdminStaffPage() {
     );
   }
   return (
-    <AdminLayout title="Staff" actionLabel="Refresh" onAction={() => setReloadKey((key) => key + 1)}>
+    <AdminLayout title="Staff" actionLabel="Refresh" onAction={() => setReloadKey((key) => key + 1)} onReload={() => setReloadKey((key) => key + 1)}>
       <div style={styles.toolbar} data-admin-toolbar>
         <input
           style={styles.search}

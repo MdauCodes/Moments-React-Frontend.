@@ -407,6 +407,7 @@ function AdminEnquiryDetailPage() {
   const [notesDraft, setNotesDraft] = useState("");
   const [notesFeedback, setNotesFeedback] = useState("");
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Toast helper
   const showToast = (msg: string) => {
@@ -442,7 +443,7 @@ function AdminEnquiryDetailPage() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, reloadKey]);
 
   const patch = async (path: string, body: Record<string, unknown>): Promise<boolean> => {
     try {
@@ -537,7 +538,7 @@ function AdminEnquiryDetailPage() {
   };
 
   return (
-    <AdminLayout title="Enquiry detail">
+    <AdminLayout title="Enquiry detail" onReload={() => setReloadKey((k) => k + 1)}>
       <button
         type="button"
         style={styles.back}

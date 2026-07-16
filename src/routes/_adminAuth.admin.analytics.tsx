@@ -56,6 +56,7 @@ function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -67,7 +68,7 @@ function AdminAnalyticsPage() {
       .catch((err) => reportAdminError(err, "Failed to load analytics"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [reloadKey]);
 
   async function handleExport(kind: "orders" | "customers") {
     try {
@@ -101,7 +102,7 @@ function AdminAnalyticsPage() {
   const placeholder = loading || !data ? "—" : null;
 
   return (
-    <AdminLayout title="Analytics">
+    <AdminLayout title="Analytics" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <div style={{ fontSize: 13, color: "var(--admin-muted)" }}>

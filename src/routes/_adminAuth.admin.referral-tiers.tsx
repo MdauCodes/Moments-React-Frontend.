@@ -349,7 +349,7 @@ function AdminReferralTiersPage() {
   }, [summary, form.minOrderAmount, form.maxOrderAmount, form.referrerCredits, form.refereeCredits]);
 
   return (
-    <AdminLayout title="Referral Payout Tiers" actionLabel={mode === "manual" ? "New tier" : undefined} onAction={() => begin()}>
+    <AdminLayout title="Referral Payout Tiers" actionLabel={mode === "manual" ? "New tier" : undefined} onAction={() => begin()} onReload={load}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>

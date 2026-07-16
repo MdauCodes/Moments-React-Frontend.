@@ -85,7 +85,7 @@ function AdminDeliveryZonesPage() {
   };
 
   return (
-    <AdminLayout title="Delivery zones" actionLabel="Create zone" onAction={() => begin()}>
+    <AdminLayout title="Delivery zones" actionLabel="Create zone" onAction={() => begin()} onReload={load}>
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

@@ -36,6 +36,7 @@ function AdminBusinessAccountsPage() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => { document.title = "Business Accounts · Moments admin"; }, []);
 
@@ -53,10 +54,10 @@ function AdminBusinessAccountsPage() {
       .catch((err) => reportAdminError(err, "Failed to load business accounts"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [q, page]);
+  }, [q, page, reloadKey]);
 
   return (
-    <AdminLayout title="Business Accounts">
+    <AdminLayout title="Business Accounts" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 14 }} data-admin-stats>
           <div className="admin-panel" style={{ padding: 16 }}>

@@ -66,7 +66,7 @@ function AdminTaxDocumentsPage() {
   }
 
   return (
-    <AdminLayout title="Tax Documents">
+    <AdminLayout title="Tax Documents" onReload={load}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>

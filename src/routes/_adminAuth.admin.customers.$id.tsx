@@ -26,6 +26,7 @@ function AdminCustomerDetailPage() {
   const [source, setSource] = useState<"live" | "mock">("mock");
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   async function previewDashboard() {
     if (!id) return;
@@ -55,7 +56,7 @@ function AdminCustomerDetailPage() {
       .catch((err) => reportAdminError(err, "Failed to load customer"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, reloadKey]);
 
   if (loading) {
     return <AdminLayout title="Customer"><div className="admin-empty">Loading customer…</div></AdminLayout>;
@@ -75,6 +76,7 @@ function AdminCustomerDetailPage() {
       title={customer.name}
       actionLabel={previewing ? "Opening preview…" : "Preview dashboard"}
       onAction={previewDashboard}
+      onReload={() => setReloadKey((k) => k + 1)}
     >
       <div className="admin-page-stack">
         <MockBanner source={source} />

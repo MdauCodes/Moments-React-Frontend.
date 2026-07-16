@@ -104,7 +104,7 @@ function AdminReviewsPage() {
   };
 
   return (
-    <AdminLayout title="Reviews">
+    <AdminLayout title="Reviews" onReload={load}>
       <div className="admin-page-stack">
         <MockBanner source={source} />
 

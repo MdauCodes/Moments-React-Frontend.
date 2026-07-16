@@ -105,7 +105,7 @@ function AdminRewardsTiersPage() {
   }
 
   return (
-    <AdminLayout title="Rewards Tiers" actionLabel="New tier" onAction={() => begin()}>
+    <AdminLayout title="Rewards Tiers" actionLabel="New tier" onAction={() => begin()} onReload={load}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>

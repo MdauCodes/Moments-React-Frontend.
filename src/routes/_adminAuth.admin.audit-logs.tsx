@@ -76,6 +76,7 @@ function AdminAuditLogsPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!allowed) return;
@@ -95,12 +96,12 @@ function AdminAuditLogsPage() {
       .catch((err) => reportAdminError(err, "Failed to load audit logs"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [allowed, entityType, action, actorId, from, to, page]);
+  }, [allowed, entityType, action, actorId, from, to, page, reloadKey]);
 
   if (!allowed) return <AdminLayout title="Audit logs"><Forbidden resource="audit logs" /></AdminLayout>;
 
   return (
-    <AdminLayout title="Audit logs">
+    <AdminLayout title="Audit logs" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel admin-toolbar" data-admin-toolbar style={{ flexWrap: "wrap", gap: 8 }}>
           <input className="admin-input" placeholder="Entity type" value={entityType} onChange={(e) => { setEntityType(e.target.value); setPage(0); }} style={{ maxWidth: 160 }} />

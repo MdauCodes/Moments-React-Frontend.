@@ -34,6 +34,7 @@ function AdminOrderDetailPage() {
   const [refundBusy, setRefundBusy] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     document.title = `Order ${id} · Moments admin`;
@@ -57,7 +58,7 @@ function AdminOrderDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, reloadKey]);
 
   useEffect(() => {
     if (!order?.reference) return;
@@ -149,7 +150,7 @@ function AdminOrderDetailPage() {
   }
 
   return (
-    <AdminLayout title={`Order ${order.reference}`}>
+    <AdminLayout title={`Order ${order.reference}`} onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <MockBanner source={source} />
 

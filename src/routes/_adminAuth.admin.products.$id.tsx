@@ -15,6 +15,7 @@ export default function EditProductPage() {
   const { user } = useAdminAuth();
   const [product, setProduct] = useState<ProductDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -22,7 +23,7 @@ export default function EditProductPage() {
       setProduct(p);
       setLoading(false);
     }).catch(() => navigate("/admin/products", { replace: true }));
-  }, [id, navigate]);
+  }, [id, navigate, reloadKey]);
 
   if (loading || !product) {
     return (
@@ -42,8 +43,9 @@ export default function EditProductPage() {
   const canDelete = can(user?.role, "product:delete");
 
   return (
-    <AdminLayout title={`Edit: ${product.name}`}>
+    <AdminLayout title={`Edit: ${product.name}`} onReload={() => setReloadKey((k) => k + 1)}>
       <ProductEditor
+        key={reloadKey}
         initial={productToFormValues(product as never)}
         productId={product.id}
         submitLabel="Save changes"

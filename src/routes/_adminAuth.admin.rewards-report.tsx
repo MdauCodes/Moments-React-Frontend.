@@ -33,6 +33,7 @@ function KpiCard({
 function AdminRewardsReportPage() {
   const [data, setData] = useState<RewardsSummaryDto | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -44,12 +45,12 @@ function AdminRewardsReportPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [reloadKey]);
 
   const placeholder = loading || !data ? "—" : null;
 
   return (
-    <AdminLayout title="Rewards Report">
+    <AdminLayout title="Rewards Report" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)" }}>
           All-time totals across every customer's points wallet — welcome bonuses, order points, review

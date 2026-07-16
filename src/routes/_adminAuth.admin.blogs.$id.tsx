@@ -13,6 +13,7 @@ export default function EditBlogPage() {
   const { user } = useAdminAuth();
   const [blog, setBlog] = useState<Blog | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -21,7 +22,7 @@ export default function EditBlogPage() {
       setBlog(b);
       setLoading(false);
     }).catch(() => navigate("/admin/blogs", { replace: true }));
-  }, [id, navigate]);
+  }, [id, navigate, reloadKey]);
 
   if (loading || !blog) {
     return (
@@ -37,8 +38,9 @@ export default function EditBlogPage() {
   const canDelete = can(user?.role, "blog:delete");
 
   return (
-    <AdminLayout title={`Edit: ${blog.title}`}>
+    <AdminLayout title={`Edit: ${blog.title}`} onReload={() => setReloadKey((k) => k + 1)}>
       <BlogEditor
+        key={reloadKey}
         initial={blogToFormValues(blog)}
         submitLabel="Save & publish"
         onCancel={() => navigate("/admin/blogs")}

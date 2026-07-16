@@ -114,7 +114,7 @@ function AdminPromoCodesPage() {
   }
 
   return (
-    <AdminLayout title="Promo Codes" actionLabel="New code" onAction={() => begin()}>
+    <AdminLayout title="Promo Codes" actionLabel="New code" onAction={() => begin()} onReload={load}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>
