@@ -282,6 +282,8 @@ export interface ReceiptOrder {
   reference: string;
   invoiceNumber?: string | null;
   businessKraPin?: string | null;
+  /** The customer's own KRA PIN, entered at checkout — printed as a separate line from businessKraPin. */
+  buyerKraPin?: string | null;
   createdAt: string;
   paidAt?: string | null;
   customerName: string;
@@ -308,7 +310,7 @@ export interface ReceiptOrder {
   items: ReceiptItem[];
 }
 
-export async function downloadReceiptPdf(order: ReceiptOrder) {
+async function buildReceiptDoc(order: ReceiptOrder): Promise<{ doc: jsPDF; filename: string; footerNote: string }> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pw = doc.internal.pageSize.getWidth();
   const logo = await loadLogo();
@@ -324,7 +326,8 @@ export async function downloadReceiptPdf(order: ReceiptOrder) {
   } else {
     meta.push({ label: "Date of issue", value: fmtDate(order.createdAt) });
   }
-  if (order.businessKraPin) meta.push({ label: "KRA PIN", value: order.businessKraPin });
+  if (order.businessKraPin) meta.push({ label: "Seller KRA PIN", value: order.businessKraPin });
+  if (order.buyerKraPin) meta.push({ label: "Buyer KRA PIN", value: order.buyerKraPin });
 
   let y = masthead(doc, { docType, meta, logo });
   y += 3;
@@ -514,11 +517,28 @@ export async function downloadReceiptPdf(order: ReceiptOrder) {
   );
 
   const filePrefix = docType === "Receipt" ? "receipt" : "invoice";
-  save(
+  return {
     doc,
-    `${filePrefix}-${order.reference}.pdf`,
-    `${BRAND.name}  ·  ${docType} ${order.reference}  ·  ${BRAND.site}`,
-  );
+    filename: `${filePrefix}-${order.reference}.pdf`,
+    footerNote: `${BRAND.name}  ·  ${docType} ${order.reference}  ·  ${BRAND.site}`,
+  };
+}
+
+export async function downloadReceiptPdf(order: ReceiptOrder) {
+  const { doc, filename, footerNote } = await buildReceiptDoc(order);
+  save(doc, filename, footerNote);
+}
+
+/**
+ * Same renderer as downloadReceiptPdf, but returns the PDF as a Blob instead of triggering a
+ * browser download — used to upload the customer's tax invoice to Cloudinary right after
+ * checkout (see checkout.tsx) so the self-serve download and the emailed copy are always the
+ * exact same document, not two independently-maintained layouts.
+ */
+export async function buildReceiptPdfBlob(order: ReceiptOrder): Promise<Blob> {
+  const { doc, footerNote } = await buildReceiptDoc(order);
+  footer(doc, footerNote);
+  return doc.output("blob");
 }
 
 // ── 2. Dispatch packing checklist ─────────────────────────────────────────────

@@ -26,6 +26,87 @@ import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { RewardDeliveryBanners } from "@/components/RewardDeliveryBanners";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
+import { buildReceiptPdfBlob } from "@/lib/pdf";
+import type { CustomerOrder } from "@/services/orderStore";
+
+/**
+ * Generates the tax invoice PDF client-side (same renderer as the self-serve download on the
+ * track-orders page) and uploads it straight to Cloudinary while the customer's browser is still
+ * here — the backend only ever hands out a short-lived signed upload slot, never sees the file.
+ * Fire-and-forget: if anything fails (network drop, tab closed mid-upload), TaxDocumentService's
+ * payment-webhook fallback regenerates the PDF server-side instead, so nothing is lost.
+ */
+async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, buyerKraPin: string) {
+  try {
+    const blob = await buildReceiptPdfBlob({
+      reference: order.reference,
+      invoiceNumber: order.invoiceNumber,
+      buyerKraPin: buyerKraPin || undefined,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      customerPhone: order.customerPhone,
+      shippingAddress: order.shippingAddress,
+      city: order.city,
+      county: order.county,
+      currency: order.currency,
+      subtotal: order.subtotal,
+      shippingFee: order.shippingFee,
+      vatAmount: order.vatAmount,
+      total: order.total,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      paymentReference: order.paymentReference,
+      receiptNumber: order.receiptNumber,
+      fulfillmentType: order.fulfillmentType,
+      courierServiceName: order.courierServiceName,
+      items: order.items.map((it) => ({
+        productName: it.productName,
+        size: it.size,
+        material: it.material,
+        finish: it.finish,
+        sku: it.sku,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice,
+        lineTotal: it.lineTotal,
+      })),
+    });
+
+    const sigRes = await fetch(
+      apiUrl(`/api/v1/tax-documents/${encodeURIComponent(order.reference)}/upload-signature?token=${encodeURIComponent(uploadToken)}`),
+    );
+    if (!sigRes.ok) return;
+    const sig = await sigRes.json();
+
+    const form = new FormData();
+    form.append("file", blob, `${sig.publicId}.pdf`);
+    form.append("api_key", sig.apiKey);
+    form.append("timestamp", String(sig.timestamp));
+    form.append("signature", sig.signature);
+    form.append("folder", sig.folder);
+    form.append("public_id", sig.publicId);
+
+    const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sig.cloudName}/raw/upload`, {
+      method: "POST",
+      body: form,
+    });
+    if (!uploadRes.ok) return;
+    const uploaded = await uploadRes.json();
+
+    await fetch(apiUrl(`/api/v1/tax-documents/${encodeURIComponent(order.reference)}/complete`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        token: uploadToken,
+        cloudinaryUrl: uploaded.secure_url,
+        cloudinaryPublicId: uploaded.public_id,
+      }),
+    });
+  } catch {
+    // Silent — the payment-webhook fallback covers this order regardless.
+  }
+}
 
 
 
@@ -96,6 +177,7 @@ function CheckoutModal() {
   const [taxInvoiceRequested, setTaxInvoiceRequested] = useState(false);
   const [taxInvoiceEmail, setTaxInvoiceEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
+  const [kraPinPrefilled, setKraPinPrefilled] = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
 
   // Promo code
@@ -116,7 +198,10 @@ function CheckoutModal() {
       .getMine()
       .then((acc) => {
         if (acc?.status === "ACTIVE" && acc.welcomeCode) setWelcomeCode(acc.welcomeCode);
-        if (acc?.kraPin) setTaxInvoiceKraPin((prev) => prev || acc.kraPin!);
+        if (acc?.kraPin) {
+          setTaxInvoiceKraPin((prev) => prev || acc.kraPin!);
+          setKraPinPrefilled(true);
+        }
       })
       .catch(() => {});
   }, [isAuthenticated]);
@@ -402,6 +487,9 @@ function CheckoutModal() {
         setOrderRef(ref);
         if (taxInvoiceRequested) {
           toast.success(`Your tax invoice will be emailed to ${taxInvoiceEmail.trim() || email} once your order is confirmed.`);
+          if (order.taxInvoiceUploadToken) {
+            void uploadTaxInvoicePdf(order, order.taxInvoiceUploadToken, taxInvoiceKraPin.trim());
+          }
         }
       }
 
@@ -653,10 +741,18 @@ function CheckoutModal() {
                         <input
                           className={inputCls}
                           value={taxInvoiceKraPin}
-                          onChange={(e) => setTaxInvoiceKraPin(e.target.value.toUpperCase())}
+                          onChange={(e) => {
+                            setKraPinPrefilled(false);
+                            setTaxInvoiceKraPin(e.target.value.toUpperCase());
+                          }}
                           placeholder="A123456789Z"
                           maxLength={11}
                         />
+                        {kraPinPrefilled && taxInvoiceKraPin && (
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            Prefilled from your business profile — edit if you'd like to use a different PIN.
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}

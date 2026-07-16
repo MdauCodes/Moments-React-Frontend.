@@ -74,6 +74,9 @@ export interface CustomerOrder {
   subtotal: number;
   shippingFee: number;
   total: number;
+  /** VAT-exclusive taxable amount and the VAT charged on it — present on the raw checkout response. */
+  taxableAmount?: number;
+  vatAmount?: number;
   currency: "KES";
   createdAt: string;
   updatedAt: string;
@@ -84,6 +87,8 @@ export interface CustomerOrder {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  /** One-time secret for the Cloudinary tax-invoice upload flow — present only when taxInvoiceRequested was true. */
+  taxInvoiceUploadToken?: string | null;
 }
 
 export interface PlaceOrderInput {
