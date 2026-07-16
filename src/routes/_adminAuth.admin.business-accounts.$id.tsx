@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { adminResources, type BusinessAccountDto, type BusinessType, type IndustryDto } from "@/services/adminResources";
@@ -70,7 +71,7 @@ function AdminBusinessAccountDetailPage() {
         setAccount(acc);
         setIndustries(inds);
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load business account"))
+      .catch((err) => reportAdminError(err, "Failed to load business account"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [id]);
@@ -84,7 +85,7 @@ function AdminBusinessAccountDetailPage() {
       setAccount(updated);
       toast.success(next === "ACTIVE" ? "Account reactivated" : "Account suspended");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update status");
+      reportAdminError(err, "Failed to update status");
     } finally {
       setUpdating(false);
     }
@@ -116,7 +117,7 @@ function AdminBusinessAccountDetailPage() {
       setEditing(false);
       toast.success("Business account updated");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save changes");
+      reportAdminError(err, "Failed to save changes");
     } finally {
       setSaving(false);
     }

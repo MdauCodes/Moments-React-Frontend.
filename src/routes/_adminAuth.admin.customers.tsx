@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { MockBanner, formatKes, formatDateShort } from "@/components/admin/commerceUi";
 import { listCustomers, exportCustomers, type ListCustomersResult } from "@/services/commerceApi";
@@ -60,7 +61,7 @@ function AdminCustomersPage() {
     setLoading(true);
     listCustomers({ q, status, segment, page, size: PAGE_SIZE })
       .then((res) => { if (!cancelled) setData(res); })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load customers"))
+      .catch((err) => reportAdminError(err, "Failed to load customers"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [q, status, segment, page]);

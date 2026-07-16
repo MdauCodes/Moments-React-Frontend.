@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   adminResources,
@@ -107,7 +108,7 @@ function AdminEnquiriesPage() {
       setTotalPages(data.totalPages);
       if (selected) setSelected(data.rows.find((r) => r.id === selected.id) ?? null);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load enquiries");
+      reportAdminError(err, "Failed to load enquiries");
     } finally {
       setLoading(false);
     }
@@ -144,7 +145,7 @@ function AdminEnquiriesPage() {
       await loadSummary();
       await loadDue();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Update failed");
+      reportAdminError(err, "Update failed");
     } finally { setSaving(false); }
   };
 

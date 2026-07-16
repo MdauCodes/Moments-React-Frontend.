@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, Loader2, ShieldCheck, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { MockBanner } from "@/components/admin/commerceUi";
 import { reviewStore, type ProductReview } from "@/services/reviewStore";
@@ -42,7 +43,7 @@ function AdminReviewsPage() {
       setRows(res.reviews);
       setSource(res.source);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load reviews");
+      reportAdminError(err, "Failed to load reviews");
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ function AdminReviewsPage() {
         toast.success(next.hidden ? "Review hidden" : "Review made visible");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update review");
+      reportAdminError(err, "Failed to update review");
     } finally {
       setBusyId(null);
     }
@@ -96,7 +97,7 @@ function AdminReviewsPage() {
         toast.success("Review deleted");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to delete review");
+      reportAdminError(err, "Failed to delete review");
     } finally {
       setBusyId(null);
     }

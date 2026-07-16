@@ -1,6 +1,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -91,7 +92,7 @@ function AdminAuditLogsPage() {
         size: 30,
       })
       .then((data) => { if (!cancelled) { setRows(data.rows); setTotalPages(data.totalPages); } })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load audit logs"))
+      .catch((err) => reportAdminError(err, "Failed to load audit logs"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [allowed, entityType, action, actorId, from, to, page]);

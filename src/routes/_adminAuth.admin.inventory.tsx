@@ -2,6 +2,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { adminResources, type ProductDto } from "@/services/adminResources";
 
@@ -79,7 +80,7 @@ function AdminInventoryPage() {
       setAdjust(null);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to adjust stock");
+      reportAdminError(err, "Failed to adjust stock");
       setAdjust({ ...adjust, busy: false });
     }
   };
@@ -97,7 +98,7 @@ function AdminInventoryPage() {
       setSetStockState((s) => ({ ...s, [p.id]: "" }));
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to set stock");
+      reportAdminError(err, "Failed to set stock");
     }
   };
 

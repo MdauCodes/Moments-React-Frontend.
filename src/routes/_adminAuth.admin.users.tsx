@@ -2,6 +2,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { KeyRound, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -52,7 +53,7 @@ function AdminUsersPage() {
       const [users, roleList] = await Promise.all([
         adminResources.users.list().catch((err) => {
           console.error("Failed to load users", err);
-          toast.error(err instanceof Error ? err.message : "Failed to load users");
+          reportAdminError(err, "Failed to load users");
           return [] as UserDto[];
         }),
         adminResources.roles.list().catch(() => [] as RoleDto[]),
@@ -60,7 +61,7 @@ function AdminUsersPage() {
       setRows(Array.isArray(users) ? users : []);
       setRoles(Array.isArray(roleList) ? roleList : []);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load users");
+      reportAdminError(err, "Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ function AdminUsersPage() {
       setOpen(false);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      reportAdminError(err, "Save failed");
     } finally {
       setSaving(false);
     }
@@ -114,7 +115,7 @@ function AdminUsersPage() {
       await adminResources.users.resetPassword(row.id);
       toast.success(`Reset email sent to ${row.email}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Reset failed");
+      reportAdminError(err, "Reset failed");
     }
   };
 
@@ -126,7 +127,7 @@ function AdminUsersPage() {
       toast.success("User deleted");
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     } finally {
       setSaving(false);
     }

@@ -1,6 +1,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
@@ -42,7 +43,7 @@ function PaymentQueuePage() {
       toast.success(`Payment verified for ${o.reference}`);
       await refresh();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Verification failed");
+      reportAdminError(err, "Verification failed");
     } finally {
       setBusyId(null);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Loader2, Pencil, Trash2, Sparkles, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type ReferralTierConfigDto, type MarginSummaryDto } from "@/services/adminResources";
@@ -113,7 +114,7 @@ function AdminReferralTiersPage() {
     try {
       setRows(await adminResources.referralTiers.list());
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load referral tiers");
+      reportAdminError(err, "Failed to load referral tiers");
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ function AdminReferralTiersPage() {
         })));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load margin summary");
+      reportAdminError(err, "Failed to load margin summary");
     } finally {
       setSummaryLoading(false);
     }
@@ -264,7 +265,7 @@ function AdminReferralTiersPage() {
       await Promise.all([load(), loadSummary()]);
       setMode("manual");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Seed failed");
+      reportAdminError(err, "Seed failed");
     } finally {
       setSeeding(false);
     }
@@ -314,7 +315,7 @@ function AdminReferralTiersPage() {
       setOpen(false);
       await Promise.all([load(), loadSummary()]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      reportAdminError(err, "Save failed");
     } finally {
       setSaving(false);
     }
@@ -328,7 +329,7 @@ function AdminReferralTiersPage() {
       toast.success("Tier deleted");
       await Promise.all([load(), loadSummary()]);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     } finally {
       setSaving(false);
     }

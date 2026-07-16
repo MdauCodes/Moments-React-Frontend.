@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type PromoCodeDto } from "@/services/adminResources";
@@ -44,7 +45,7 @@ function AdminPromoCodesPage() {
     try {
       setRows(await adminResources.promoCodes.list());
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load promo codes");
+      reportAdminError(err, "Failed to load promo codes");
     } finally {
       setLoading(false);
     }
@@ -92,7 +93,7 @@ function AdminPromoCodesPage() {
       setOpen(false);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      reportAdminError(err, "Save failed");
     } finally {
       setSaving(false);
     }
@@ -106,7 +107,7 @@ function AdminPromoCodesPage() {
       toast.success("Promo code deleted");
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     } finally {
       setSaving(false);
     }

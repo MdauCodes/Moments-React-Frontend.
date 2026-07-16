@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { LayoutGrid, Pencil, Rows3, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type IndustryDto, type ProductDto } from "@/services/adminResources";
@@ -40,7 +41,7 @@ function AdminProductsPage() {
       setTotalPages(productPage.totalPages);
       setIndustries(industryRows);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load products");
+      reportAdminError(err, "Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -100,7 +101,7 @@ function AdminProductsPage() {
       toast.success("Product deleted");
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     } finally {
       setSaving(false);
     }

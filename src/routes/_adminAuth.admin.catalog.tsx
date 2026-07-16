@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
@@ -50,7 +51,7 @@ function AdminCatalogPage() {
     try {
       setSegments(await adminResources.segments.list());
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load segments");
+      reportAdminError(err, "Failed to load segments");
     } finally {
       setLoadingSegments(false);
     }
@@ -61,7 +62,7 @@ function AdminCatalogPage() {
     try {
       setCategories(await adminResources.categories.list(segmentId));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load categories");
+      reportAdminError(err, "Failed to load categories");
     } finally {
       setLoadingCategories(false);
     }
@@ -72,7 +73,7 @@ function AdminCatalogPage() {
     try {
       setSubcategories(await adminResources.subcategories.list(categoryId));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load subcategories");
+      reportAdminError(err, "Failed to load subcategories");
     } finally {
       setLoadingSubcategories(false);
     }
@@ -157,7 +158,7 @@ function AdminCatalogPage() {
       }
       closeModal();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      reportAdminError(err, "Save failed");
     } finally {
       setSaving(false);
     }
@@ -205,7 +206,7 @@ function AdminCatalogPage() {
         void loadSiblings(level, row.id);
         return;
       }
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
       // 404 means the row was already deleted elsewhere (another tab, another
       // admin) and this page's list is just stale — refresh so the ghost row
       // clears instead of sitting there forever confusing whoever's looking at it.
@@ -258,7 +259,7 @@ function AdminCatalogPage() {
       await afterDelete(level, row);
       closePendingDelete();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     } finally {
       setSaving(false);
     }

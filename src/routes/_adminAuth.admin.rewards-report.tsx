@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Coins, TrendingDown, TrendingUp, Wallet, Clock } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { adminResources, type RewardsSummaryDto } from "@/services/adminResources";
 
@@ -38,7 +39,7 @@ function AdminRewardsReportPage() {
       try {
         setData(await adminResources.rewardsSummary.get());
       } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Failed to load rewards report");
+        reportAdminError(err, "Failed to load rewards report");
       } finally {
         setLoading(false);
       }

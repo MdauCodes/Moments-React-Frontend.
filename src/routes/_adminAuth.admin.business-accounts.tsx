@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { adminResources, type BusinessAccountDto, type BusinessType } from "@/services/adminResources";
 
@@ -49,7 +50,7 @@ function AdminBusinessAccountsPage() {
         setTotal(res.totalElements ?? 0);
         setTotalPages(res.totalPages ?? 1);
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load business accounts"))
+      .catch((err) => reportAdminError(err, "Failed to load business accounts"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [q, page]);

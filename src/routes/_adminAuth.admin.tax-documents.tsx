@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, RotateCw, Download, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { adminResources, type TaxDocumentAdminDto, type TaxDocumentStatus } from "@/services/adminResources";
 
@@ -44,7 +45,7 @@ function AdminTaxDocumentsPage() {
       const res = await adminResources.taxDocuments.list({ status: statusFilter || undefined, size: 50 });
       setRows(res.content ?? []);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load tax documents");
+      reportAdminError(err, "Failed to load tax documents");
     } finally {
       setLoading(false);
     }
@@ -58,7 +59,7 @@ function AdminTaxDocumentsPage() {
       setRows((prev) => prev.map((r) => (r.id === row.id ? updated : r)));
       toast.success(updated.status === "SENT" ? "Tax invoice sent" : `Retry finished — status: ${updated.status}`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Retry failed");
+      reportAdminError(err, "Retry failed");
     } finally {
       setRetryingId(null);
     }

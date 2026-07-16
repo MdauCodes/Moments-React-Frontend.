@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   MockBanner,
@@ -35,7 +36,7 @@ function AdminCustomerDetailPage() {
       const url = `${window.location.origin}${dashboardPath}?impersonate=${encodeURIComponent(session.accessToken)}`;
       window.open(url, "_blank", "noopener");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Couldn't start preview");
+      reportAdminError(err, "Couldn't start preview");
     } finally {
       setPreviewing(false);
     }
@@ -51,7 +52,7 @@ function AdminCustomerDetailPage() {
         setOrders(res.orders);
         setSource(res.source);
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load customer"))
+      .catch((err) => reportAdminError(err, "Failed to load customer"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [id]);

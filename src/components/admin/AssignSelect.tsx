@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { assignOrder, listAssignableUsers, type AssignableUser } from "@/services/commerceApi";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { canAssignTo, resolveStaffRole, STAFF_ROLE_DISPLAY, normalizeStaffRole } from "@/lib/roles";
@@ -74,7 +75,7 @@ export function AssignSelect({ orderId, assignedTo, assignedToId, paymentStatus,
       toast.success(`Assigned to ${u.name}`);
       onAssigned?.({ assignedTo: u.name, assignedToId: u.id });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Assignment failed");
+      reportAdminError(err, "Assignment failed");
     } finally {
       setBusy(false);
     }

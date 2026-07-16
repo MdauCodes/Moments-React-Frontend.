@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type RewardsTierConfigDto } from "@/services/adminResources";
@@ -37,7 +38,7 @@ function AdminRewardsTiersPage() {
     try {
       setRows(await adminResources.rewardsTiers.list());
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load rewards tiers");
+      reportAdminError(err, "Failed to load rewards tiers");
     } finally {
       setLoading(false);
     }
@@ -83,7 +84,7 @@ function AdminRewardsTiersPage() {
       setOpen(false);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      reportAdminError(err, "Save failed");
     } finally {
       setSaving(false);
     }
@@ -97,7 +98,7 @@ function AdminRewardsTiersPage() {
       toast.success("Tier deleted");
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     } finally {
       setSaving(false);
     }

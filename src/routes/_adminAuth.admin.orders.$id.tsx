@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   GatewayChip,
@@ -49,7 +50,7 @@ function AdminOrderDetailPage() {
           setStaffNotes(res.order?.staffNotes ?? res.order?.notes ?? "");
         }
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load order"))
+      .catch((err) => reportAdminError(err, "Failed to load order"))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -85,7 +86,7 @@ function AdminOrderDetailPage() {
         toast.success(`Refund request ${status.toLowerCase()}`);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update refund");
+      reportAdminError(err, "Failed to update refund");
     } finally {
       setRefundBusy(false);
     }
@@ -102,7 +103,7 @@ function AdminOrderDetailPage() {
         toast.success(`Order moved to ${ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}`);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update status");
+      reportAdminError(err, "Failed to update status");
     } finally {
       setSaving(false);
     }
@@ -121,7 +122,7 @@ function AdminOrderDetailPage() {
         toast.success("Refund processed — order marked as REFUNDED");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Refund failed");
+      reportAdminError(err, "Refund failed");
     } finally {
       setSaving(false);
     }

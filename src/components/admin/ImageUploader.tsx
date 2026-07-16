@@ -1,6 +1,7 @@
 import { useRef, useState, type CSSProperties } from "react";
 import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { adminResources } from "@/services/adminResources";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -32,7 +33,7 @@ export function ImageUploader({ label, value, entity, onChange }: { label: strin
       onChange(uploaded.url);
       toast.success("Image uploaded");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Image upload failed");
+      reportAdminError(err, "Image upload failed");
     } finally {
       setLoading(false);
       if (inputRef.current) inputRef.current.value = "";

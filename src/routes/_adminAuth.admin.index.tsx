@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { ArrowRight, Boxes, Briefcase, CheckCircle2, PackageCheck, Plus, Send, ShoppingCart, Users as UsersIcon } from "lucide-react";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { MockBanner, formatKes } from "@/components/admin/commerceUi";
@@ -49,7 +50,7 @@ export function AdminDashboardPage() {
     setLoadingStats(true);
     getDashboardStats()
       .then((res) => { if (!cancelled) setStats(res as ApiStats); })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load dashboard"))
+      .catch((err) => reportAdminError(err, "Failed to load dashboard"))
       .finally(() => { if (!cancelled) setLoadingStats(false); });
     return () => { cancelled = true; };
   }, [needStats]);

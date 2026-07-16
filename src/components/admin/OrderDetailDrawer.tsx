@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -67,7 +68,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
         setStaffNotes(loaded?.staffNotes ?? loaded?.notes ?? "");
         setSelectedStatus(loaded?.status ?? "");
       })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load order"))
+      .catch((err) => reportAdminError(err, "Failed to load order"))
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
@@ -104,7 +105,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
         toast.success(`Refund request ${status.toLowerCase()}`);
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update refund");
+      reportAdminError(err, "Failed to update refund");
     } finally {
       setRefundBusy(false);
     }
@@ -122,7 +123,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
         onChanged?.();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to update status");
+      reportAdminError(err, "Failed to update status");
     } finally {
       setUpdatingStatus(false);
     }
@@ -159,7 +160,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
         onChanged?.();
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Cancel failed");
+      reportAdminError(err, "Cancel failed");
     } finally {
       setCancelling(false);
     }
@@ -357,7 +358,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                                 onChanged?.();
                               }
                             } catch (err) {
-                              toast.error(err instanceof Error ? err.message : "Failed to update status");
+                              reportAdminError(err, "Failed to update status");
                             } finally {
                               setUpdatingStatus(false);
                             }
@@ -524,7 +525,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                             toast.success(`Assigned to ${u.name}`);
                             onChanged?.();
                           } catch (err) {
-                            toast.error(err instanceof Error ? err.message : "Assignment failed");
+                            reportAdminError(err, "Assignment failed");
                           } finally {
                             setAssigning(false);
                           }

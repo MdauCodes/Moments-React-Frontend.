@@ -2,6 +2,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, Lock, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -57,7 +58,7 @@ function AdminRolesPage() {
     try {
       setRoles(await adminResources.roles.list());
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load roles");
+      reportAdminError(err, "Failed to load roles");
     } finally {
       setLoading(false);
     }
@@ -108,7 +109,7 @@ function AdminRolesPage() {
       setOpen(false);
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Save failed");
+      reportAdminError(err, "Save failed");
     } finally {
       setSaving(false);
     }
@@ -121,7 +122,7 @@ function AdminRolesPage() {
       toast.success("Role deleted");
       await load();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
+      reportAdminError(err, "Delete failed");
     }
   };
 

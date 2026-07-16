@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, X, Printer, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { dispatchConfirmOrder } from "@/services/commerceApi";
@@ -88,7 +89,7 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
       await onDispatched(order.id);
     } catch (err) {
       console.error("[dispatch] failed:", err);
-      toast.error(err instanceof Error ? err.message : "Dispatch failed — please try again");
+      reportAdminError(err, "Dispatch failed — please try again");
     } finally {
       setSubmitting(false);
     }

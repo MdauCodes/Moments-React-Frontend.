@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "lucide-react";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
@@ -63,7 +64,7 @@ function AdminAnalyticsPage() {
     setLoading(true);
     getAnalyticsOverview()
       .then((res) => { if (!cancelled) setData(res); })
-      .catch((err) => toast.error(err instanceof Error ? err.message : "Failed to load analytics"))
+      .catch((err) => reportAdminError(err, "Failed to load analytics"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
@@ -91,7 +92,7 @@ function AdminAnalyticsPage() {
       }
       toast.success(`Exported ${kind}.csv`);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Export failed");
+      reportAdminError(err, "Export failed");
     } finally {
       setExporting(null);
     }
