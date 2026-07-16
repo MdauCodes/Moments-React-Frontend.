@@ -173,6 +173,20 @@ export type RoleDto = {
 };
 export type RoleRequest = { name: string; displayName: string; description?: string; permissions: string[] };
 
+export type TaxDocumentStatus = "PENDING" | "GENERATING" | "SENT" | "FAILED" | "EXPIRED";
+export type TaxDocumentAdminDto = {
+  id: string;
+  orderReference: string;
+  customerName: string;
+  customerPhone: string;
+  recipientEmail: string;
+  status: TaxDocumentStatus;
+  failureReason?: string | null;
+  cloudinaryUrl?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+};
+
 
 function unwrap<T>(data: PageResponse<T> | T[]): { rows: T[]; total: number; totalPages: number } {
   if (Array.isArray(data)) return { rows: data, total: data.length, totalPages: 1 };
@@ -210,6 +224,11 @@ export const adminResources = {
       adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     setStatus: (id: string, status: "ACTIVE" | "SUSPENDED") =>
       adminJson<BusinessAccountDto>(`/api/v1/admin/business-accounts/${encodeURIComponent(id)}/status${qs({ status })}`, { method: "PATCH" }),
+  },
+  taxDocuments: {
+    list: (params: { status?: TaxDocumentStatus; page?: number; size?: number }) =>
+      adminJson<PageResponse<TaxDocumentAdminDto>>(`/api/v1/admin/tax-documents${qs(params)}`),
+    retry: (id: string) => adminJson<TaxDocumentAdminDto>(`/api/v1/admin/tax-documents/${encodeURIComponent(id)}/retry`, { method: "POST" }),
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),
