@@ -196,7 +196,7 @@ function DashboardTopStrip({
         {live && (
           <>
             <TopStat label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} />
-            <TopStat label="Reward Coupons value" value={fmtKes(wallet?.balance ?? 0)} />
+            <TopStat label="Reward Coupons value" value={fmtKes(wallet?.balanceValueKes ?? 0)} />
           </>
         )}
         <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
@@ -325,7 +325,7 @@ function OverviewTab({
           <Section icon={Award} title="Reward Coupons balance" tint="accent">
             <div className="flex items-baseline gap-1.5">
               <p className="font-mono text-3xl font-semibold tabular-nums text-foreground">{wallet?.balance ?? 0}</p>
-              <p className="text-sm text-muted-foreground">Reward Coupons · worth {fmtKes(wallet?.balance ?? 0)}</p>
+              <p className="text-sm text-muted-foreground">Reward Coupons · worth {fmtKes(wallet?.balanceValueKes ?? 0)}</p>
             </div>
             {tier ? (
               <p className="mt-2 text-xs text-muted-foreground">

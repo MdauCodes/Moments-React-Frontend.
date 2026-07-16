@@ -10,6 +10,8 @@ export interface ReferralStatus {
 
 export interface ReferralWallet {
   balance: number;
+  /** Real KES value of the current balance, computed server-side from the live conversion rate — never derive this from `balance` directly, coupons are not worth KES 1 each. */
+  balanceValueKes: number;
   currency: string;
   referralCode?: string;
   totalEarned?: number;
@@ -68,6 +70,7 @@ export const referralStore = {
     if (!data) return null;
     return {
       balance: Number(data.balance ?? 0),
+      balanceValueKes: Number(data.balanceValueKes ?? 0),
       currency: data.currency ?? "KES",
       referralCode: data.referralCode,
       totalEarned: Number(data.lifetimeEarned ?? 0),
