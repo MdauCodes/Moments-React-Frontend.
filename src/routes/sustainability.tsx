@@ -1,6 +1,7 @@
 import { Leaf, Users, ShieldCheck, Recycle } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import esgPoster1 from "@/assets/company-profile/esg-poster-1.jpg";
+import sproutingLeafIcon from "@/assets/sustainability-sprouting-leaf.jpg";
 
 const FOREST = "#0d3320";
 const FOREST_DEEP = "#08231a";
@@ -80,18 +81,27 @@ function SustainabilityPage() {
           </div>
 
           <div
-            className="mx-auto mt-10 max-w-4xl rounded-2xl border p-6 text-center"
+            className="mx-auto mt-10 max-w-4xl rounded-2xl border p-6"
             style={{ borderColor: `${GOLD}33`, background: FOREST }}
           >
-            <p className="text-sm leading-relaxed text-white/88">
-              Every package we produce carries an opportunity to make a positive impact. When you see the sprouting leaf
-              and ♻️ recycling symbol in our logo, we invite you to see more than a brand — our commitment to protecting
-              natural resources, embracing sustainable innovation and promoting packaging solutions that support a
-              cleaner, greener future.
-            </p>
-            <p className="mt-3 font-display text-base italic" style={{ color: GOLD_SOFT }}>
-              Together, we can package responsibly today and preserve tomorrow.
-            </p>
+            <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+              <img
+                src={sproutingLeafIcon}
+                alt="Sprouting leaf"
+                className="h-16 w-16 shrink-0 rounded-full bg-white p-1.5 sm:h-20 sm:w-20"
+              />
+              <div>
+                <p className="text-sm leading-relaxed text-white/88">
+                  Every package we produce carries an opportunity to make a positive impact. When you see the sprouting leaf
+                  and ♻️ recycling symbol in our logo, we invite you to see more than a brand — our commitment to protecting
+                  natural resources, embracing sustainable innovation and promoting packaging solutions that support a
+                  cleaner, greener future.
+                </p>
+                <p className="mt-3 font-display text-base italic" style={{ color: GOLD_SOFT }}>
+                  Together, we can package responsibly today and preserve tomorrow.
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Single ESG poster */}

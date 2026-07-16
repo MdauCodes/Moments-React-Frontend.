@@ -14,9 +14,11 @@ export function getTermsContent() {
       title: "Who we are",
       body: (
         <p>
-          Moments Packaging Kenya Ltd is a Kenyan-registered business based at {COMPANY_ADDRESS}.
-          We design, print and deliver custom paper packaging — bags, boxes, cups, mailers, labels
-          and gifting packaging — to restaurants, retailers and brands across Kenya.
+          Moments Packaging Kenya Ltd is a Kenyan-registered business based at {COMPANY_ADDRESS}. We
+          provide high-quality packaging solutions for businesses across a wide range of industries,
+          including food &amp; beverage, retail, hospitality, healthcare, beauty, and e-commerce. Our
+          extensive product range includes paper bags, food packaging, cups, boxes, containers, labels,
+          gift packaging, and other packaging essentials.
         </p>
       ),
     },
@@ -261,8 +263,8 @@ export function getTermsContent() {
     intro: (
       <>
         The terms that govern quotes, orders, payment, production, delivery and returns when
-        you buy custom-branded paper packaging from Moments Packaging Kenya. By placing an
-        order or using the site, you agree to these Terms.
+        you buy paper packaging from Moments Packaging Kenya. By placing an order or using the
+        site, you agree to these Terms.
       </>
     ),
     sections,
