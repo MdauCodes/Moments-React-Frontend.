@@ -114,6 +114,8 @@ export interface PlaceOrderInput {
   taxInvoiceRequested?: boolean;
   /** Where to email the tax invoice PDF; defaults to customer.email server-side if blank. */
   taxInvoiceEmail?: string;
+  /** Customer's own KRA PIN, printed on the tax invoice for their own remittance records. */
+  taxInvoiceKraPin?: string;
 }
 
 // ── Normalised status the UI cares about ─────────────────────────────────────
@@ -270,6 +272,7 @@ export const orderStore = {
     if (input.taxInvoiceRequested) {
       body.taxInvoiceRequested = true;
       if (input.taxInvoiceEmail) body.taxInvoiceEmail = input.taxInvoiceEmail;
+      if (input.taxInvoiceKraPin) body.taxInvoiceKraPin = input.taxInvoiceKraPin;
     }
 
     let res: Response;

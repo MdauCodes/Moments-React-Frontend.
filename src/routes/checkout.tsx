@@ -95,6 +95,7 @@ function CheckoutModal() {
   const [address, setAddress] = useState("");
   const [taxInvoiceRequested, setTaxInvoiceRequested] = useState(false);
   const [taxInvoiceEmail, setTaxInvoiceEmail] = useState("");
+  const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
   const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
 
   // Promo code
@@ -115,6 +116,7 @@ function CheckoutModal() {
       .getMine()
       .then((acc) => {
         if (acc?.status === "ACTIVE" && acc.welcomeCode) setWelcomeCode(acc.welcomeCode);
+        if (acc?.kraPin) setTaxInvoiceKraPin((prev) => prev || acc.kraPin!);
       })
       .catch(() => {});
   }, [isAuthenticated]);
@@ -385,6 +387,7 @@ function CheckoutModal() {
           redeemPoints: appliedRedemption?.points,
           taxInvoiceRequested,
           taxInvoiceEmail: taxInvoiceEmail.trim() || undefined,
+          taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
           ...(fulfillment === "OWN_COURIER" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -634,15 +637,27 @@ function CheckoutModal() {
                     </span>
                   </label>
                   {taxInvoiceRequested && (
-                    <div className="mt-3">
-                      <label className={labelCls}>Send tax invoice to</label>
-                      <input
-                        type="email"
-                        className={inputCls}
-                        value={taxInvoiceEmail}
-                        onChange={(e) => setTaxInvoiceEmail(e.target.value)}
-                        placeholder={email || "you@example.com"}
-                      />
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className={labelCls}>Send tax invoice to</label>
+                        <input
+                          type="email"
+                          className={inputCls}
+                          value={taxInvoiceEmail}
+                          onChange={(e) => setTaxInvoiceEmail(e.target.value)}
+                          placeholder={email || "you@example.com"}
+                        />
+                      </div>
+                      <div>
+                        <label className={labelCls}>Your KRA PIN (optional)</label>
+                        <input
+                          className={inputCls}
+                          value={taxInvoiceKraPin}
+                          onChange={(e) => setTaxInvoiceKraPin(e.target.value.toUpperCase())}
+                          placeholder="A123456789Z"
+                          maxLength={11}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>
