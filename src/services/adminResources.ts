@@ -255,6 +255,8 @@ export const adminResources = {
       adminJson<CheckoutDryRunResult>("/api/v1/admin/dev-tools/checkout-dry-run", { method: "POST", body: JSON.stringify(body) }),
     stkPushTest: (body: { phone: string; amount: number }) =>
       adminJson<{ checkoutRequestId: string; status: string }>("/api/v1/admin/dev-tools/stk-push-test", { method: "POST", body: JSON.stringify(body) }),
+    simulateCallback: (body: { checkoutRequestId: string; success: boolean }) =>
+      adminJson<{ message: string }>("/api/v1/admin/dev-tools/stk-push-test/simulate-callback", { method: "POST", body: JSON.stringify(body) }),
     async previewTaxInvoice(orderReference: string): Promise<Blob> {
       const res = await adminFetch(`/api/v1/admin/dev-tools/tax-invoice-preview/${encodeURIComponent(orderReference)}`);
       if (!res.ok) throw new Error(`Failed to render preview (${res.status})`);
