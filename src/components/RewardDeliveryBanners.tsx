@@ -80,37 +80,36 @@ export function RewardDeliveryBanners({ topOffsetClassName = "top-16 sm:top-20" 
   let content: React.ReactNode = null;
   let tone: "accent" | "success" = "accent";
 
+  // A leading bullet drawn inline with the text (not a flex sibling) so the whole message wraps
+  // as one natural paragraph on narrow screens instead of being squeezed onto a single truncated
+  // line — the actual bug being fixed here (mobile was cutting the message off with "...").
+  const bullet = <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle" />;
+
   if (!isAuthenticated) {
     content = (
-      <button type="button" onClick={() => openLogin({})} className="flex w-full items-center justify-center gap-2 text-center">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-        <span className="truncate">
-          Create a free account or log in — this order could be earning you Reward Coupons toward real discounts.
-        </span>
-        <span className="shrink-0 underline underline-offset-2">Sign up</span>
+      <button type="button" onClick={() => openLogin({})} className="block w-full text-center leading-snug">
+        {bullet}
+        Create a free account or log in — this order could be earning you Reward Coupons toward real discounts.{" "}
+        <span className="underline underline-offset-2">Sign up</span>
       </button>
     );
   } else if (primaryGap) {
     content = (
-      <div className="flex w-full items-center justify-center gap-2 text-center">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-        <span className="truncate">
-          Shop <AnimatedKes value={primaryGap.amount} /> more to {primaryGap.benefit}
-          {bonusCoupons > 0 && (
-            <> — plus earn <AnimatedNumber value={bonusCoupons} /> more coupon{bonusCoupons === 1 ? "" : "s"}</>
-          )}
-          .
-        </span>
+      <div className="text-center leading-snug">
+        {bullet}
+        Shop <AnimatedKes value={primaryGap.amount} /> more to {primaryGap.benefit}
+        {bonusCoupons > 0 && (
+          <> — plus earn <AnimatedNumber value={bonusCoupons} /> more coupon{bonusCoupons === 1 ? "" : "s"}</>
+        )}
+        .
       </div>
     );
   } else if (walletBalance != null && walletBalance > 0) {
     tone = "success";
     content = (
-      <div className="flex w-full items-center justify-center gap-2 text-center">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-        <span className="truncate">
-          You have <AnimatedNumber value={walletBalance} /> Reward Coupons ({fmtKes(walletBalanceValueKes ?? 0)}) ready to redeem at checkout.
-        </span>
+      <div className="text-center leading-snug">
+        {bullet}
+        You have <AnimatedNumber value={walletBalance} /> Reward Coupons ({fmtKes(walletBalanceValueKes ?? 0)}) ready to redeem at checkout.
       </div>
     );
   } else if (myTier || welcomeCodeReady || freeDeliveryUnlockedZoneLabel) {
@@ -121,9 +120,9 @@ export function RewardDeliveryBanners({ topOffsetClassName = "top-16 sm:top-20" 
       freeDeliveryUnlockedZoneLabel ? `free delivery to ${freeDeliveryUnlockedZoneLabel}` : null,
     ].filter((p): p is string => Boolean(p));
     content = (
-      <div className="flex w-full items-center justify-center gap-2 text-center">
-        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-        <span className="truncate">You're all set on this order — {parts.join(", ")}.</span>
+      <div className="text-center leading-snug">
+        {bullet}
+        You're all set on this order — {parts.join(", ")}.
       </div>
     );
   }
@@ -142,5 +141,7 @@ export function RewardDeliveryBanners({ topOffsetClassName = "top-16 sm:top-20" 
 }
 
 /** Reserve this much vertical space wherever RewardDeliveryBanners is mounted, so the fixed bar
- *  doesn't cover the content immediately below it. Matches the bar's own py-2.5 + line height. */
-export const REWARD_BANNER_SPACER_CLASS = "h-9 sm:h-10";
+ *  doesn't cover the content immediately below it. Taller on mobile since the full (no longer
+ *  truncated) message can wrap to two lines on a narrow screen; a single line comfortably fits
+ *  from sm: up. */
+export const REWARD_BANNER_SPACER_CLASS = "h-14 sm:h-10";
