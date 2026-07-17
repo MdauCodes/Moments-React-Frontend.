@@ -11,6 +11,7 @@ type FieldDef = {
   description: string;
   suffix?: string;
   defaultValue: string;
+  type?: "number" | "boolean";
 };
 
 const REWARD_COUPON_FIELDS: FieldDef[] = [
@@ -22,6 +23,7 @@ const REWARD_COUPON_FIELDS: FieldDef[] = [
 ];
 
 const WELCOME_CODE_FIELDS: FieldDef[] = [
+  { key: "discounts.welcomeCodeEnabled", label: "Enabled", description: "Whether a new Business Account automatically gets a welcome code at signup. Individual Shopper accounts never get this — only Reward Coupons.", defaultValue: "true", type: "boolean" },
   { key: "discounts.welcomeCodePercent", label: "Discount", description: "Percentage off the Business Account welcome code applies.", suffix: "%", defaultValue: "5" },
   { key: "discounts.welcomeCodeMinOrderAmount", label: "Minimum order", description: "The order must reach this subtotal before the welcome code can be used.", suffix: "KES", defaultValue: "5000" },
   { key: "discounts.welcomeCodeValidDays", label: "Validity window", description: "Days from account creation before the welcome code expires.", suffix: "days", defaultValue: "30" },
@@ -153,13 +155,25 @@ function FieldGroup({
             <label>
               <span className="admin-label">{f.label}</span>
               <p style={{ margin: "0 0 6px", fontSize: 12, color: "var(--admin-muted)" }}>{f.description}</p>
-              <input
-                type="number"
-                className="admin-input"
-                disabled={loading}
-                value={values[f.key] ?? ""}
-                onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
-              />
+              {f.type === "boolean" ? (
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    disabled={loading}
+                    checked={values[f.key] === "true"}
+                    onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.checked ? "true" : "false" }))}
+                  />
+                  <span style={{ fontSize: 13 }}>{values[f.key] === "true" ? "On" : "Off"}</span>
+                </label>
+              ) : (
+                <input
+                  type="number"
+                  className="admin-input"
+                  disabled={loading}
+                  value={values[f.key] ?? ""}
+                  onChange={(e) => setValues((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                />
+              )}
             </label>
             {f.suffix && <span style={{ fontSize: 12, color: "var(--admin-muted)", paddingBottom: 10 }}>{f.suffix}</span>}
             <button
