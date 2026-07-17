@@ -305,7 +305,17 @@ export const orderStore = {
       throw new Error(msg);
     }
 
-    const order = (await res.json()) as CustomerOrder;
+    const raw = (await res.json()) as any;
+    const order: CustomerOrder = {
+      ...raw,
+      customerName: raw.contactName ?? raw.customerName ?? "",
+      customerEmail: raw.email ?? raw.customerEmail ?? "",
+      customerPhone: raw.phone ?? raw.customerPhone ?? "",
+      shippingAddress: raw.deliveryAddress ?? raw.shippingAddress ?? "",
+      shippingFee: Number(raw.deliveryFee ?? raw.shippingFee ?? 0),
+      total: Number(raw.totalAmount ?? raw.total ?? 0),
+      subtotal: Number(raw.subtotal ?? 0),
+    };
     const all = readAll();
     if (!all.some((o) => o.reference === order.reference)) {
       writeAll([order, ...all]);

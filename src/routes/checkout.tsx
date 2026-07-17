@@ -415,8 +415,8 @@ function CheckoutModal() {
         return false;
       }
     } else if (fulfillment === "OWN_COURIER") {
-      if (!address.trim() || !city.trim() || !county.trim()) {
-        toast.error("Please provide the pickup/handoff address for the courier");
+      if (!city.trim() || !county.trim()) {
+        toast.error("Please fill in the destination town and county");
         return false;
       }
       if (!courierType) {
