@@ -258,7 +258,7 @@ function OverviewTab({
         </div>
       </Section>
 
-      <QuickAddProductStrip cardWidthClassName="w-36 sm:w-44" />
+      <QuickAddProductStrip cardWidthClassName="w-44 sm:w-52" />
     </div>
   );
 }

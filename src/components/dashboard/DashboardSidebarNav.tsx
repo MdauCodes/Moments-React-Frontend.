@@ -41,7 +41,7 @@ export function DashboardSidebarNav<T extends string>({
         />
       )}
       <nav
-        className={`fixed inset-y-0 left-0 z-50 w-64 -translate-x-full overflow-y-auto bg-forest p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-52 lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:p-3 lg:shadow-none ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 -translate-x-full overflow-y-auto bg-[var(--forest-deep)] p-4 shadow-xl transition-transform duration-200 lg:sticky lg:top-[60px] lg:z-auto lg:h-[calc(100vh-60px)] lg:w-52 lg:shrink-0 lg:translate-x-0 lg:overflow-y-auto lg:p-3 lg:shadow-none ${
           open ? "translate-x-0" : ""
         }`}
       >

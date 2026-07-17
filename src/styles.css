@@ -83,6 +83,10 @@
      active state) where the dark --forest/--primary reads as too muted
      against a light background at icon size. */
   --forest-bright: oklch(0.55 0.13 155);
+  /* Noticeably darker than --forest — reserved for large dark surfaces (the customer dashboard
+     sidebar/header) that need to read as clearly distinct from the rest of the site's --forest
+     usage (buttons, banners), not just a tint of it. */
+  --forest-deep: oklch(0.20 0.04 155);
   --clay: oklch(0.62 0.16 35);
   --ink: oklch(0.18 0.02 60);
 

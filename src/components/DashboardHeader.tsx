@@ -7,30 +7,33 @@ import { useDashboardSidebar } from "@/components/DashboardLayout";
  * NOT the full marketing SiteHeader (no mega-menu, search, cart/account
  * dropdown). A customer inside their dashboard is already "in the app";
  * this just gives them a way back to the homepage or the catalogue, plus
- * the mobile sidebar toggle. Accessibility controls are unaffected — the
- * AccessibilityToolbar is mounted globally in App.tsx, outside any layout.
+ * the mobile sidebar toggle. Dark forest-deep background matches the
+ * sidebar below it, so the two read as one shell instead of a mismatched
+ * light strip sitting on top of a dark panel. Accessibility controls are
+ * unaffected — the AccessibilityToolbar is mounted globally in App.tsx,
+ * outside any layout.
  */
 export function DashboardHeader() {
   const { setOpen } = useDashboardSidebar();
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-cream/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-3 lg:px-8">
+    <header className="sticky top-0 z-30 bg-[var(--forest-deep)]">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setOpen(true)}
             aria-label="Open menu"
-            className="grid h-9 w-9 place-items-center rounded-lg text-foreground hover:bg-secondary lg:hidden"
+            className="grid h-9 w-9 place-items-center rounded-lg text-cream hover:bg-cream/10 lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <Link to="/" className="font-display text-lg font-semibold text-forest">
+          <Link to="/" className="font-display text-lg font-semibold text-cream">
             moments
           </Link>
         </div>
         <Link
           to="/products"
-          className="rounded-full border border-border px-4 py-1.5 text-sm font-medium text-foreground hover:bg-secondary"
+          className="rounded-full border border-cream/25 px-4 py-1.5 text-sm font-medium text-cream hover:bg-cream/10"
         >
           Shop
         </Link>

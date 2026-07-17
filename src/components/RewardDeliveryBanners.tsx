@@ -1,4 +1,4 @@
-import { Gift, Truck, ChevronRight } from "lucide-react";
+import { Gift, Truck, ChevronRight, Ticket, Award } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -27,6 +27,13 @@ export function RewardDeliveryBanners({ stickyTopClassName = "top-16 sm:top-20" 
     kesToFreeDelivery,
     freeDeliveryZoneLabel,
     freeDeliveryUnlockedZoneLabel,
+    walletBalance,
+    walletBalanceValueKes,
+    kesToNextPointsBracket,
+    rewardsConfig,
+    welcomeCode,
+    kesToWelcomeCode,
+    welcomeCodeReady,
   } = useRewardDeliveryGap();
 
   // ── Rewards banner ──────────────────────────────────────────────────────
@@ -87,11 +94,62 @@ export function RewardDeliveryBanners({ stickyTopClassName = "top-16 sm:top-20" 
     );
   }
 
-  if (!rewardsBanner && !deliveryBanner) return null;
+  // ── Redeemable coupon balance — a standing reminder, not a threshold gap ──
+  let couponBalanceBanner: React.ReactNode = null;
+  if (isAuthenticated && walletBalance != null && walletBalance > 0) {
+    couponBalanceBanner = (
+      <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] px-3.5 py-2.5">
+        <Ticket className="h-4 w-4 shrink-0 text-emerald-600" />
+        <span className="text-xs font-medium text-foreground">
+          You have <b>{walletBalance} Reward Coupons</b> ({fmtKes(walletBalanceValueKes ?? 0)}) ready to redeem at checkout.
+        </span>
+      </div>
+    );
+  }
+
+  // ── Welcome code (Business Accounts only) ────────────────────────────────
+  let welcomeCodeBanner: React.ReactNode = null;
+  if (welcomeCode && kesToWelcomeCode != null) {
+    welcomeCodeBanner = (
+      <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/[0.06] px-3.5 py-2.5">
+        <Gift className="h-4 w-4 shrink-0 text-accent" />
+        <span className="text-xs font-medium text-foreground">
+          Add <b>{fmtKes(kesToWelcomeCode)}</b> more and use your welcome code <b>{welcomeCode}</b> for 5% off.
+        </span>
+      </div>
+    );
+  } else if (welcomeCode && welcomeCodeReady) {
+    welcomeCodeBanner = (
+      <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/[0.06] px-3.5 py-2.5">
+        <Gift className="h-4 w-4 shrink-0 text-emerald-600" />
+        <span className="text-xs font-medium text-foreground">
+          Your welcome code <b>{welcomeCode}</b> is ready — apply it at checkout for 5% off.
+        </span>
+      </div>
+    );
+  }
+
+  // ── Earn more this order (next KES-100 bracket) ──────────────────────────
+  let earnMoreBanner: React.ReactNode = null;
+  if (isAuthenticated && kesToNextPointsBracket != null && rewardsConfig && rewardsConfig.pointsPer100Kes > 0) {
+    earnMoreBanner = (
+      <div className="flex items-center gap-2 rounded-lg border border-accent/30 bg-accent/[0.06] px-3.5 py-2.5">
+        <Award className="h-4 w-4 shrink-0 text-accent" />
+        <span className="text-xs font-medium text-foreground">
+          Spend <b>{fmtKes(kesToNextPointsBracket)}</b> more and earn <b>{rewardsConfig.pointsPer100Kes} more Reward Coupon{rewardsConfig.pointsPer100Kes === 1 ? "" : "s"}</b> on this order.
+        </span>
+      </div>
+    );
+  }
+
+  if (!rewardsBanner && !deliveryBanner && !couponBalanceBanner && !welcomeCodeBanner && !earnMoreBanner) return null;
 
   return (
     <div className={`sticky z-30 space-y-2 rounded-xl border border-border bg-background/95 p-3 shadow-sm backdrop-blur ${stickyTopClassName}`}>
+      {couponBalanceBanner}
+      {welcomeCodeBanner}
       {rewardsBanner}
+      {earnMoreBanner}
       {deliveryBanner}
     </div>
   );

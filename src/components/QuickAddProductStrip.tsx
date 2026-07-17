@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 
 import type { Product } from "@/data/products";
 import { api } from "@/services/api";
@@ -62,6 +63,7 @@ export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { 
   const [pool, setPool] = useState<Product[] | null>(null);
   const [configuring, setConfiguring] = useState<Product | null>(null);
   const [preTier, setPreTier] = useState<string | undefined>(undefined);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -97,31 +99,68 @@ export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { 
     return rankCandidates(pool, cartProductIds, cartCategoryCounts, gapTarget);
   }, [pool, items, kesToNextTier, kesToFreeDelivery]);
 
+  const searched = useMemo(() => {
+    if (!pool || !query.trim()) return null;
+    const q = query.trim().toLowerCase();
+    return pool.filter((p) => isPurchasable(p) && p.name.toLowerCase().includes(q)).slice(0, STRIP_LENGTH);
+  }, [pool, query]);
+
+  const displayed = searched ?? ranked;
+
   function handleConfigure(product: Product, preSelectedTierId?: string) {
     setConfiguring(product);
     setPreTier(preSelectedTierId);
+  }
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (query.trim()) navigate(`/products?q=${encodeURIComponent(query.trim())}`);
   }
 
   if (pool === null || ranked.length === 0) return null;
 
   return (
     <div className="rounded-2xl border border-kraft/25 bg-kraft/[0.05] p-4 sm:p-5">
-      <p className="text-sm font-semibold text-foreground">Add a little more to your order</p>
-      <p className="mt-0.5 text-xs text-muted-foreground">
-        Picked to match what's already in your cart — tap to add.
-      </p>
-
-      <div className="mt-3 flex items-stretch gap-3 overflow-x-auto pb-1">
-        {ranked.map((p) => (
-          <div key={p.id} className={`${cardWidthClassName} shrink-0`}>
-            <ProductCard product={p} onConfigure={handleConfigure} />
-          </div>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Add a little more to your order</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Picked to match what's already in your cart — tap to add.
+          </p>
+        </div>
+        <form onSubmit={submitSearch} className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products…"
+            className="w-40 rounded-full border border-border bg-background py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:ring-2 focus:ring-accent/50 sm:w-52"
+          />
+        </form>
       </div>
+
+      {searched && searched.length === 0 ? (
+        <p className="mt-3 text-xs text-muted-foreground">
+          No matches in this preview —{" "}
+          <button type="button" onClick={submitSearch} className="font-medium text-accent hover:underline">
+            search the full catalogue
+          </button>
+          .
+        </p>
+      ) : (
+        <div className="mt-3 flex items-stretch gap-3 overflow-x-auto pb-1">
+          {displayed.map((p) => (
+            <div key={p.id} className={`${cardWidthClassName} shrink-0`}>
+              <ProductCard product={p} onConfigure={handleConfigure} />
+            </div>
+          ))}
+        </div>
+      )}
 
       <button
         type="button"
-        onClick={() => navigate("/products")}
+        onClick={() => navigate(query.trim() ? `/products?q=${encodeURIComponent(query.trim())}` : "/products")}
         className="mt-2 text-xs font-medium text-accent hover:underline"
       >
         Browse full catalogue →
