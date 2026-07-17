@@ -108,7 +108,10 @@ function AdminCatalogPage() {
       name: row.name,
       description: row.description ?? "",
       sortOrder: row.sortOrder != null ? String(row.sortOrder) : "",
-      industryIds: level === "category" ? ((row as CategoryDto).industryIds ?? []) : [],
+      industryIds:
+        level === "category" ? ((row as CategoryDto).industryIds ?? [])
+        : level === "subcategory" ? ((row as SubcategoryDto).industryIds ?? [])
+        : [],
     });
     setModalLevel(level);
   };
@@ -149,10 +152,10 @@ function AdminCatalogPage() {
         await loadCategories(selectedSegmentId);
       } else {
         if (!selectedCategoryId) return;
-        const subcategoryBody = { ...body, categoryId: selectedCategoryId };
+        const subcategoryBody = { ...body, categoryId: selectedCategoryId, industryIds: form.industryIds };
         editing
           ? await adminResources.subcategories.update(editing.id, subcategoryBody)
-          : await adminResources.subcategories.create(subcategoryBody as { categoryId: string; name: string; description?: string; sortOrder?: number });
+          : await adminResources.subcategories.create(subcategoryBody as { categoryId: string; name: string; description?: string; sortOrder?: number; industryIds?: string[] });
         toast.success(editing ? "Subcategory updated" : "Subcategory created");
         await loadSubcategories(selectedCategoryId);
       }
@@ -401,7 +404,14 @@ function AdminCatalogPage() {
                         border: "1px solid var(--admin-border)",
                       }}
                     >
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{sc.name}</span>
+                      <span>
+                        <span style={{ fontWeight: 600, fontSize: 13 }}>{sc.name}</span>
+                        {sc.industryNames && sc.industryNames.length > 0 && (
+                          <span style={{ display: "block", fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
+                            {sc.industryNames.join(", ")}
+                          </span>
+                        )}
+                      </span>
                       <span style={{ display: "flex", gap: 4 }}>
                         <button className="admin-btn admin-btn-ghost" onClick={() => beginEdit("subcategory", sc)}><Pencil size={12} /></button>
                         {isAdmin && (
@@ -437,10 +447,12 @@ function AdminCatalogPage() {
                 <span className="admin-label">Description</span>
                 <textarea className="admin-textarea" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
               </label>
-              {modalLevel === "category" && (
+              {(modalLevel === "category" || modalLevel === "subcategory") && (
                 <div style={{ gridColumn: "1/-1" }}>
                   <span className="admin-label">
-                    Industries — drives the homepage industry tiles: clicking one filters products AND this category list to just what's tagged here
+                    {modalLevel === "category"
+                      ? "Industries — drives the homepage industry tiles: clicking one filters products AND this category list to just what's tagged here"
+                      : "Industries — tag this subcategory directly, independent of its category's own industry tags (it already inherits those too)"}
                   </span>
                   {industries.length === 0 ? (
                     <p style={{ fontSize: 12.5, color: "var(--admin-muted)", margin: "4px 0 0" }}>

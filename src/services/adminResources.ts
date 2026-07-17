@@ -69,7 +69,7 @@ export type MarginSummaryDto = {
 export type TagDto = { id: string; name: string; slug?: string; description?: string };
 export type SegmentDto = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type CategoryDto = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number; industryIds?: string[]; industryNames?: string[] };
-export type SubcategoryDto = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type SubcategoryDto = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number; industryIds?: string[]; industryNames?: string[] };
 export type ProductDto = {
   id: string; name: string; slug?: string; category?: string; description?: string; moq?: number;
   sizes?: string[]; tags?: string[]; keywords?: string[]; primaryImageUrl?: string; imageUrls?: string[];
@@ -312,9 +312,9 @@ export const adminResources = {
   },
   subcategories: {
     list: (categoryId?: string) => adminJson<SubcategoryDto[]>(`/api/v1/admin/subcategories${qs({ categoryId })}`),
-    create: (body: { categoryId: string; name: string; description?: string; sortOrder?: number }) =>
+    create: (body: { categoryId: string; name: string; description?: string; sortOrder?: number; industryIds?: string[] }) =>
       adminJson<SubcategoryDto>("/api/v1/admin/subcategories", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, body: Partial<{ categoryId: string; name: string; description?: string; sortOrder?: number }>) =>
+    update: (id: string, body: Partial<{ categoryId: string; name: string; description?: string; sortOrder?: number; industryIds?: string[] }>) =>
       adminJson<SubcategoryDto>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string, opts?: { reassignTo?: string; cascade?: boolean }) =>
       adminJson<void>(`/api/v1/admin/subcategories/${encodeURIComponent(id)}${qs({ reassignTo: opts?.reassignTo, cascade: opts?.cascade })}`, { method: "DELETE" }),

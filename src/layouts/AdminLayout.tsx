@@ -33,6 +33,8 @@ import {
   Share2,
   Receipt,
   Wrench,
+  Coins,
+  ListTree,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -117,14 +119,15 @@ const navSections: NavSection[] = [
       { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Referral Payout Tiers", to: "/admin/referral-tiers", icon: Share2, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Rewards Settings", to: "/admin/rewards-settings", icon: Coins, requiresAny: [PERM.SETTINGS_MANAGE] },
     ],
   },
   {
-    label: "Catalogue",
+    label: "Inventory",
     items: [
       { label: "Products", to: "/admin/products", icon: Package, requiresAny: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE] },
-      { label: "Inventory", to: "/admin/inventory", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Catalog Structure", to: "/admin/catalog", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
+      { label: "Stock Levels", to: "/admin/inventory", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
+      { label: "Categories & Segments", to: "/admin/catalog", icon: ListTree, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Classify Products", to: "/admin/classify-products", icon: LayoutList, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Industries", to: "/admin/industries", icon: Factory, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Delivery Zones", to: "/admin/delivery-zones", icon: Truck, requiresAny: [PERM.SETTINGS_MANAGE] },

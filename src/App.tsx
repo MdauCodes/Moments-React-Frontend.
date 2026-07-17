@@ -96,6 +96,7 @@ import AdminTaxDocumentsPage from "@/routes/_adminAuth.admin.tax-documents";
 import AdminRewardsTiersPage from "@/routes/_adminAuth.admin.rewards-tiers";
 import AdminReferralTiersPage from "@/routes/_adminAuth.admin.referral-tiers";
 import AdminRewardsReportPage from "@/routes/_adminAuth.admin.rewards-report";
+import AdminRewardsSettingsPage from "@/routes/_adminAuth.admin.rewards-settings";
 import AdminFeatureGuidePage from "@/routes/_adminAuth.admin.feature-guide";
 import AdminDevToolsPage from "@/routes/_adminAuth.admin.dev-tools";
 import AdminPaymentsPage from "@/routes/_adminAuth.admin.payments";
@@ -209,6 +210,7 @@ export default function App() {
                       <Route path="/admin/rewards-tiers" element={<AdminRewardsTiersPage />} />
                       <Route path="/admin/referral-tiers" element={<AdminReferralTiersPage />} />
                       <Route path="/admin/rewards-report" element={<AdminRewardsReportPage />} />
+                      <Route path="/admin/rewards-settings" element={<AdminRewardsSettingsPage />} />
                       <Route path="/admin/feature-guide" element={<AdminFeatureGuidePage />} />
                       <Route path="/admin/payments" element={<AdminPaymentsPage />} />
                       <Route path="/admin/products" element={<AdminProductsIndexPage />} />
