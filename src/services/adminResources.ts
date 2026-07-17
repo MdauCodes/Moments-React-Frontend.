@@ -267,6 +267,8 @@ export const adminResources = {
       if (!res.ok) throw new Error(`Failed to render preview (${res.status})`);
       return res.blob();
     },
+    sendTestTaxInvoiceEmail: (body: { orderReference: string; email: string }) =>
+      adminJson<{ message: string }>("/api/v1/admin/dev-tools/test-tax-invoice-email", { method: "POST", body: JSON.stringify(body) }),
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),

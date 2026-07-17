@@ -369,10 +369,55 @@ function PdfPreviewCard() {
   );
 }
 
+function TestTaxInvoiceEmailCard() {
+  const [reference, setReference] = useState("");
+  const [email, setEmail] = useState("");
+  const [sending, setSending] = useState(false);
+
+  async function send() {
+    setSending(true);
+    try {
+      const res = await adminResources.devTools.sendTestTaxInvoiceEmail({ orderReference: reference.trim(), email: email.trim() });
+      toast.success(res.message);
+    } catch (err) {
+      reportAdminError(err, "Test email failed");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const canSend = !sending && reference.trim() && /^\S+@\S+\.\S+$/.test(email.trim());
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <FileText size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Send test tax invoice email</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        Renders a real existing order's tax invoice, uploads it to a separate "dev-test" Cloudinary folder, and
+        emails it to any address you give — the real customer email/PDF path, without needing a paid order or
+        touching that order's own tax-document history. Use this to check formatting, attachments, and inbox
+        deliverability before a real customer sees it.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <OrderPicker value={reference} onChange={setReference} />
+        <input
+          className="admin-input" style={{ width: 240 }}
+          type="email" placeholder="you@example.com"
+          value={email} onChange={(e) => setEmail(e.target.value)}
+        />
+        <button type="button" className="admin-btn admin-btn-primary" disabled={!canSend} onClick={() => void send()}>
+          {sending && <Loader2 size={14} className="animate-spin" />} Send test email
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Coming soon placeholders ──────────────────────────────────────────────────
 
 const COMING_SOON = [
-  "Email send test (any template, any address)",
   "WhatsApp forward-to-developer test",
   "Referral/rewards calculation sandbox",
   "Cache inspector (view/evict Caffeine caches)",
@@ -405,6 +450,7 @@ function AdminDevToolsPage() {
         <CheckoutDryRunCard />
         <StkPushTestCard />
         <PdfPreviewCard />
+        <TestTaxInvoiceEmailCard />
         <ComingSoonCard />
       </div>
     </AdminLayout>
