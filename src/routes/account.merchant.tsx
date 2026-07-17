@@ -19,7 +19,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { EmailVerificationCard } from "@/components/EmailVerificationCard";
 import { StatCard, StatCardGrid } from "@/components/dashboard/StatCard";
-import { DashboardSidebarNav, type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
+import { type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardIdentityRow } from "@/components/dashboard/DashboardIdentityRow";
 import { InlineProgress } from "@/components/InlineProgress";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,19 +43,7 @@ function AccountMerchantPage() {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
-          <section className="mx-auto max-w-6xl px-5 py-8 lg:px-8 lg:py-10">
-            <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
-            <h1 className="mt-1 font-display text-3xl sm:text-4xl">Individual Shopper Account</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Earn Reward Coupons on every order, share your referral link, and redeem Reward Coupons for discounts.
-            </p>
-            <MerchantDashboardBody />
-            <div className="mt-10">
-              <QuickAddProductStrip />
-            </div>
-          </section>
-        </div>
+        <MerchantDashboardBody />
       </DashboardLayout>
     </ProtectedRoute>
   );
@@ -112,7 +101,7 @@ function MerchantDashboardBody() {
   const reloadWallet = () => { void referralStore.getWallet().then(setWallet); };
 
   if (loading) {
-    return <p className="mt-10 text-sm text-muted-foreground">Loading…</p>;
+    return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
   }
 
   // Whether the rewards program itself is live — NOT a gate on the whole dashboard. Orders and
@@ -124,57 +113,56 @@ function MerchantDashboardBody() {
   const rewardsComingSoonMessage = status?.message ?? "We're polishing the rewards programme. Check back soon.";
 
   return (
-    <div className="mt-8 space-y-5">
-      <DashboardIdentityRow
-        icon={Gift}
-        name="Individual Shopper"
-        meta="Rewards account"
-        badge={
-          tier && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
-              {tier.tierName}
-            </span>
-          )
-        }
-      />
-
-      <StatCardGrid>
-        {live && (
-          <>
-            <StatCard icon={Award} label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} tone="accent" />
-            <StatCard icon={Gift} label="Reward Coupons value" value={fmtKes(wallet?.balanceValueKes ?? 0)} tone="accent" />
-          </>
-        )}
-        <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
-      </StatCardGrid>
-
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col lg:flex-row">
-          <DashboardSidebarNav items={NAV_ITEMS} active={tab} onChange={setTab} />
-          <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
-            {tab === "overview" && (
-              <OverviewTab
-                live={live}
-                comingSoonMessage={rewardsComingSoonMessage}
-                wallet={wallet}
-                tier={tier}
-                txs={txs}
-                onSeeAllRewards={() => setTab("rewards")}
-              />
-            )}
-            {tab === "rewards" && (
-              live ? (
-                <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
-              ) : (
-                <RewardsComingSoon message={rewardsComingSoonMessage} />
-              )
-            )}
-            {tab === "orders" && <OrdersTab orders={orders} />}
-            {tab === "settings" && <SettingsTab />}
-          </div>
-        </div>
-      </div>
-    </div>
+    <DashboardShell
+      navItems={NAV_ITEMS}
+      activeTab={tab}
+      onTabChange={setTab}
+      identity={
+        <DashboardIdentityRow
+          icon={Gift}
+          name="Individual Shopper"
+          meta="Rewards account"
+          badge={
+            tier && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                {tier.tierName}
+              </span>
+            )
+          }
+        />
+      }
+      stats={
+        <StatCardGrid>
+          {live && (
+            <>
+              <StatCard icon={Award} label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} tone="accent" />
+              <StatCard icon={Gift} label="Reward Coupons value" value={fmtKes(wallet?.balanceValueKes ?? 0)} tone="accent" />
+            </>
+          )}
+          <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
+        </StatCardGrid>
+      }
+    >
+      {tab === "overview" && (
+        <OverviewTab
+          live={live}
+          comingSoonMessage={rewardsComingSoonMessage}
+          wallet={wallet}
+          tier={tier}
+          txs={txs}
+          onSeeAllRewards={() => setTab("rewards")}
+        />
+      )}
+      {tab === "rewards" && (
+        live ? (
+          <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
+        ) : (
+          <RewardsComingSoon message={rewardsComingSoonMessage} />
+        )
+      )}
+      {tab === "orders" && <OrdersTab orders={orders} />}
+      {tab === "settings" && <SettingsTab />}
+    </DashboardShell>
   );
 }
 
@@ -275,6 +263,7 @@ function OverviewTab({
       ) : (
         <RewardsComingSoon message={comingSoonMessage} />
       )}
+      <QuickAddProductStrip cardWidthClassName="w-32 sm:w-40" />
     </div>
   );
 }

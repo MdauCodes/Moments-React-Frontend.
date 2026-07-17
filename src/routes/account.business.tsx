@@ -26,7 +26,8 @@ import { HowItWorksCard } from "@/components/HowItWorksCard";
 import { InlineProgress } from "@/components/InlineProgress";
 import { RewardsReferralsSection } from "@/components/RewardsReferralsSection";
 import { StatCard, StatCardGrid } from "@/components/dashboard/StatCard";
-import { DashboardSidebarNav, type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
+import { type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardIdentityRow } from "@/components/dashboard/DashboardIdentityRow";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/services/api";
@@ -62,20 +63,7 @@ function AccountBusinessPage() {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="bg-gradient-to-b from-cream/70 via-cream/20 to-transparent">
-          <section className="mx-auto max-w-6xl px-5 py-8 lg:px-8 lg:py-10">
-            <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
-            <h1 className="mt-1 font-display text-3xl sm:text-4xl">Business Account</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              A free, self-service profile for businesses ordering from Moments Packaging — track your order
-              history and be first in line when trade credit accounts launch.
-            </p>
-            <BusinessAccountBody />
-            <div className="mt-10">
-              <QuickAddProductStrip />
-            </div>
-          </section>
-        </div>
+        <BusinessAccountBody />
       </DashboardLayout>
     </ProtectedRoute>
   );
@@ -91,14 +79,26 @@ function BusinessAccountBody() {
   }, []);
 
   if (account === undefined) {
-    return <p className="mt-10 text-sm text-muted-foreground">Loading…</p>;
+    return <p className="p-6 text-sm text-muted-foreground">Loading…</p>;
   }
 
   if (account) {
     return <BusinessDashboard account={account} industries={industries} onUpdated={setAccount} />;
   }
 
-  return <BusinessAccountForm industries={industries} onCreated={setAccount} />;
+  return (
+    <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+      <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
+      <h1 className="mt-1 font-display text-3xl sm:text-4xl">Business Account</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        A free, self-service profile for businesses ordering from Moments Packaging — track your order history and
+        be first in line when trade credit accounts launch.
+      </p>
+      <div className="mt-8">
+        <BusinessAccountForm industries={industries} onCreated={setAccount} />
+      </div>
+    </div>
+  );
 }
 
 // ── Dashboard shell — one unified panel, internal nav rail, Stripe-style
@@ -141,49 +141,48 @@ function BusinessDashboard({
   const score = account.creditReadiness?.score;
 
   return (
-    <div className="mt-8 space-y-5">
-      <DashboardIdentityRow
-        icon={Briefcase}
-        name={account.businessName}
-        meta={`${account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "Business"} · Opened ${new Date(account.createdAt).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}`}
-        badge={
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-              account.status === "ACTIVE"
-                ? "bg-emerald-500/10 text-emerald-600"
-                : "bg-destructive/10 text-destructive"
-            }`}
-          >
-            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-            {account.status === "ACTIVE" ? "Active" : "Suspended"}
-          </span>
-        }
-      />
-
-      <StatCardGrid>
-        <StatCard icon={TrendingUp} label="Readiness" value={score !== undefined ? `${score}/100` : "—"} />
-        <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
-        <StatCard icon={Landmark} label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
-      </StatCardGrid>
-
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="flex flex-col lg:flex-row">
-          <DashboardSidebarNav items={NAV_ITEMS} active={tab} onChange={setTab} />
-          <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
-            {tab === "overview" && (
-              <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
-            )}
-            {tab === "orders" && <OrdersTab orders={orders} totalSpend={account.totalSpend ?? 0} />}
-            {tab === "rewards" && <RewardsReferralsSection />}
-            {tab === "credit" && <TradeCreditTab readiness={account.creditReadiness ?? null} />}
-            {tab === "documents" && <DocumentsTab />}
-            {tab === "settings" && (
-              <SettingsTab account={account} industries={industries} onUpdated={onUpdated} />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+    <DashboardShell
+      navItems={NAV_ITEMS}
+      activeTab={tab}
+      onTabChange={setTab}
+      identity={
+        <DashboardIdentityRow
+          icon={Briefcase}
+          name={account.businessName}
+          meta={`${account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "Business"} · Opened ${new Date(account.createdAt).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}`}
+          badge={
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                account.status === "ACTIVE"
+                  ? "bg-emerald-500/10 text-emerald-600"
+                  : "bg-destructive/10 text-destructive"
+              }`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {account.status === "ACTIVE" ? "Active" : "Suspended"}
+            </span>
+          }
+        />
+      }
+      stats={
+        <StatCardGrid>
+          <StatCard icon={TrendingUp} label="Readiness" value={score !== undefined ? `${score}/100` : "—"} />
+          <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
+          <StatCard icon={Landmark} label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
+        </StatCardGrid>
+      }
+    >
+      {tab === "overview" && (
+        <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
+      )}
+      {tab === "orders" && <OrdersTab orders={orders} totalSpend={account.totalSpend ?? 0} />}
+      {tab === "rewards" && <RewardsReferralsSection />}
+      {tab === "credit" && <TradeCreditTab readiness={account.creditReadiness ?? null} />}
+      {tab === "documents" && <DocumentsTab />}
+      {tab === "settings" && (
+        <SettingsTab account={account} industries={industries} onUpdated={onUpdated} />
+      )}
+    </DashboardShell>
   );
 }
 
@@ -260,6 +259,8 @@ function OverviewTab({
       </Section>
 
       {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
+
+      <QuickAddProductStrip cardWidthClassName="w-32 sm:w-40" />
     </div>
   );
 }
