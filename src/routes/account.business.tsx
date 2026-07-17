@@ -17,15 +17,17 @@ import {
   Settings as SettingsIcon,
   Lock,
   Award,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DashboardLayout, useDashboardSidebar } from "@/components/DashboardLayout";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { HowItWorksCard } from "@/components/HowItWorksCard";
 import { InlineProgress } from "@/components/InlineProgress";
 import { RewardsReferralsSection } from "@/components/RewardsReferralsSection";
+import { StatCard, StatCardGrid } from "@/components/dashboard/StatCard";
+import { DashboardSidebarNav, type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
+import { DashboardIdentityRow } from "@/components/dashboard/DashboardIdentityRow";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
@@ -107,7 +109,7 @@ type TabKey = "overview" | "orders" | "rewards" | "credit" | "documents" | "sett
 
 // Available functionality first, "Soon" placeholders last — so the sidebar
 // reads as "here's what you can do" before "here's what's coming."
-const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid; soon?: boolean }[] = [
+const NAV_ITEMS: DashboardNavItem<TabKey>[] = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
   { key: "orders", label: "Orders", icon: Package },
   { key: "rewards", label: "Rewards & Referrals", icon: Award },
@@ -136,135 +138,52 @@ function BusinessDashboard({
     orderStore.listMine(0, 20).then((r) => setOrders(r.rows));
   }, []);
 
-  return (
-    <div className="mt-8 overflow-hidden rounded-xl border border-kraft/20 bg-card shadow-sm">
-      <DashboardTopStrip account={account} orderCount={orders?.length} />
-
-      <div className="flex flex-col lg:flex-row">
-        <DashboardNav tab={tab} onChange={setTab} />
-        <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
-          {tab === "overview" && (
-            <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
-          )}
-          {tab === "orders" && <OrdersTab orders={orders} totalSpend={account.totalSpend ?? 0} />}
-          {tab === "rewards" && <RewardsReferralsSection />}
-          {tab === "credit" && <TradeCreditTab readiness={account.creditReadiness ?? null} />}
-          {tab === "documents" && <DocumentsTab />}
-          {tab === "settings" && (
-            <SettingsTab account={account} industries={industries} onUpdated={onUpdated} />
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DashboardTopStrip({ account, orderCount }: { account: BusinessAccount; orderCount?: number }) {
   const score = account.creditReadiness?.score;
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-forest px-5 py-4 sm:px-6">
-      <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cream/15 text-cream">
-          <Briefcase className="h-4 w-4" />
-        </span>
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-[15px] font-semibold leading-tight text-cream">{account.businessName}</p>
-            <span
-              className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                account.status === "ACTIVE"
-                  ? "bg-emerald-400/20 text-emerald-300"
-                  : "bg-destructive/20 text-destructive"
-              }`}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-current" />
-              {account.status === "ACTIVE" ? "Active" : "Suspended"}
-            </span>
-          </div>
-          <p className="mt-0.5 text-xs text-cream/70">
-            {account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "Business"} · Opened{" "}
-            {new Date(account.createdAt).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}
-          </p>
-        </div>
-      </div>
 
-      <div className="flex items-center gap-6 sm:gap-8">
-        <TopStat label="Readiness" value={score !== undefined ? `${score}/100` : "—"} />
-        <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
-        <TopStat label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
-      </div>
-    </div>
-  );
-}
-
-function TopStat({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-[10px] font-medium uppercase tracking-wider text-cream/60">{label}</p>
-      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-cream">{value}</p>
-    </div>
-  );
-}
-
-function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
-  const { open, setOpen } = useDashboardSidebar();
-  const handleChange = (t: TabKey) => {
-    onChange(t);
-    setOpen(false);
-  };
-  return (
-    <>
-      {open && (
-        <button
-          type="button"
-          aria-label="Close menu"
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-        />
-      )}
-      <nav
-        className={`fixed inset-y-0 left-0 z-50 w-64 -translate-x-full overflow-y-auto bg-cream p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-52 lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-3 lg:shadow-none ${
-          open ? "translate-x-0" : ""
-        }`}
-      >
-        <div className="mb-3 flex items-center justify-between lg:hidden">
-          <p className="text-sm font-semibold text-foreground">Menu</p>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
-            className="grid h-8 w-8 place-items-center rounded-md hover:bg-secondary"
+    <div className="mt-8 space-y-5">
+      <DashboardIdentityRow
+        icon={Briefcase}
+        name={account.businessName}
+        meta={`${account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "Business"} · Opened ${new Date(account.createdAt).toLocaleDateString("en-KE", { month: "short", year: "numeric" })}`}
+        badge={
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+              account.status === "ACTIVE"
+                ? "bg-emerald-500/10 text-emerald-600"
+                : "bg-destructive/10 text-destructive"
+            }`}
           >
-            <X className="h-4 w-4" />
-          </button>
+            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+            {account.status === "ACTIVE" ? "Active" : "Suspended"}
+          </span>
+        }
+      />
+
+      <StatCardGrid>
+        <StatCard icon={TrendingUp} label="Readiness" value={score !== undefined ? `${score}/100` : "—"} />
+        <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
+        <StatCard icon={Landmark} label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
+      </StatCardGrid>
+
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex flex-col lg:flex-row">
+          <DashboardSidebarNav items={NAV_ITEMS} active={tab} onChange={setTab} />
+          <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
+            {tab === "overview" && (
+              <OverviewTab account={account} orders={orders} onSeeAllOrders={() => setTab("orders")} />
+            )}
+            {tab === "orders" && <OrdersTab orders={orders} totalSpend={account.totalSpend ?? 0} />}
+            {tab === "rewards" && <RewardsReferralsSection />}
+            {tab === "credit" && <TradeCreditTab readiness={account.creditReadiness ?? null} />}
+            {tab === "documents" && <DocumentsTab />}
+            {tab === "settings" && (
+              <SettingsTab account={account} industries={industries} onUpdated={onUpdated} />
+            )}
+          </div>
         </div>
-        <div className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-            const active = tab === item.key;
-            return (
-              <button
-                key={item.key}
-                type="button"
-                onClick={() => handleChange(item.key)}
-                className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
-                  active
-                    ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
-                    : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
-                }`}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                {item.label}
-                {item.soon && (
-                  <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Soon
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </nav>
-    </>
+      </div>
+    </div>
   );
 }
 

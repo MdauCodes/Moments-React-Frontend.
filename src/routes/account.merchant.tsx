@@ -12,13 +12,15 @@ import {
   LayoutGrid,
   Settings as SettingsIcon,
   Award,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { DashboardLayout, useDashboardSidebar } from "@/components/DashboardLayout";
+import { DashboardLayout } from "@/components/DashboardLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { EmailVerificationCard } from "@/components/EmailVerificationCard";
+import { StatCard, StatCardGrid } from "@/components/dashboard/StatCard";
+import { DashboardSidebarNav, type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
+import { DashboardIdentityRow } from "@/components/dashboard/DashboardIdentityRow";
 import { InlineProgress } from "@/components/InlineProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
@@ -62,7 +64,7 @@ function AccountMerchantPage() {
 
 type TabKey = "overview" | "rewards" | "orders" | "settings";
 
-const NAV_ITEMS: { key: TabKey; label: string; icon: typeof LayoutGrid }[] = [
+const NAV_ITEMS: DashboardNavItem<TabKey>[] = [
   { key: "overview", label: "Overview", icon: LayoutGrid },
   { key: "rewards", label: "Rewards & Referrals", icon: Award },
   { key: "orders", label: "Orders", icon: Package },
@@ -122,31 +124,54 @@ function MerchantDashboardBody() {
   const rewardsComingSoonMessage = status?.message ?? "We're polishing the rewards programme. Check back soon.";
 
   return (
-    <div className="mt-8 overflow-hidden rounded-xl border border-kraft/20 bg-card shadow-sm">
-      <DashboardTopStrip wallet={wallet} tier={tier} orderCount={orders?.length} live={live} />
+    <div className="mt-8 space-y-5">
+      <DashboardIdentityRow
+        icon={Gift}
+        name="Individual Shopper"
+        meta="Rewards account"
+        badge={
+          tier && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+              {tier.tierName}
+            </span>
+          )
+        }
+      />
 
-      <div className="flex flex-col lg:flex-row">
-        <DashboardNav tab={tab} onChange={setTab} />
-        <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
-          {tab === "overview" && (
-            <OverviewTab
-              live={live}
-              comingSoonMessage={rewardsComingSoonMessage}
-              wallet={wallet}
-              tier={tier}
-              txs={txs}
-              onSeeAllRewards={() => setTab("rewards")}
-            />
-          )}
-          {tab === "rewards" && (
-            live ? (
-              <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
-            ) : (
-              <RewardsComingSoon message={rewardsComingSoonMessage} />
-            )
-          )}
-          {tab === "orders" && <OrdersTab orders={orders} />}
-          {tab === "settings" && <SettingsTab />}
+      <StatCardGrid>
+        {live && (
+          <>
+            <StatCard icon={Award} label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} tone="accent" />
+            <StatCard icon={Gift} label="Reward Coupons value" value={fmtKes(wallet?.balanceValueKes ?? 0)} tone="accent" />
+          </>
+        )}
+        <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
+      </StatCardGrid>
+
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <div className="flex flex-col lg:flex-row">
+          <DashboardSidebarNav items={NAV_ITEMS} active={tab} onChange={setTab} />
+          <div className="min-w-0 flex-1 p-5 sm:p-6 lg:border-l lg:border-border">
+            {tab === "overview" && (
+              <OverviewTab
+                live={live}
+                comingSoonMessage={rewardsComingSoonMessage}
+                wallet={wallet}
+                tier={tier}
+                txs={txs}
+                onSeeAllRewards={() => setTab("rewards")}
+              />
+            )}
+            {tab === "rewards" && (
+              live ? (
+                <RewardsTab wallet={wallet} txs={txs} refs={refs} userEmail={user?.email ?? ""} onWalletChange={reloadWallet} />
+              ) : (
+                <RewardsComingSoon message={rewardsComingSoonMessage} />
+              )
+            )}
+            {tab === "orders" && <OrdersTab orders={orders} />}
+            {tab === "settings" && <SettingsTab />}
+          </div>
         </div>
       </div>
     </div>
@@ -159,115 +184,6 @@ function RewardsComingSoon({ message }: { message: string }) {
       <p className="font-display text-lg">Rewards program — coming soon</p>
       <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">{message}</p>
     </div>
-  );
-}
-
-function DashboardTopStrip({
-  wallet,
-  tier,
-  orderCount,
-  live,
-}: {
-  wallet: ReferralWallet | null;
-  tier: RewardsTier | null;
-  orderCount?: number;
-  live: boolean;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-4 bg-forest px-5 py-4 sm:px-6">
-      <div className="flex items-center gap-3">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cream/15 text-cream">
-          <Gift className="h-4 w-4" />
-        </span>
-        <div>
-          <div className="flex items-center gap-2">
-            <p className="text-[15px] font-semibold leading-tight text-cream">Individual Shopper</p>
-            {tier && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-cream/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cream">
-                {tier.tierName}
-              </span>
-            )}
-          </div>
-          <p className="mt-0.5 text-xs text-cream/70">Rewards account</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-6 sm:gap-8">
-        {live && (
-          <>
-            <TopStat label="Reward Coupons balance" value={String(wallet?.balance ?? 0)} />
-            <TopStat label="Reward Coupons value" value={fmtKes(wallet?.balanceValueKes ?? 0)} />
-          </>
-        )}
-        <TopStat label="Orders" value={orderCount !== undefined ? String(orderCount) : "—"} />
-      </div>
-    </div>
-  );
-}
-
-function TopStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[10px] font-medium uppercase tracking-wider text-cream/60">{label}</p>
-      <p className="mt-0.5 font-mono text-sm font-semibold tabular-nums text-cream">{value}</p>
-    </div>
-  );
-}
-
-function DashboardNav({ tab, onChange }: { tab: TabKey; onChange: (t: TabKey) => void }) {
-  const { open, setOpen } = useDashboardSidebar();
-  const handleChange = (t: TabKey) => {
-    onChange(t);
-    setOpen(false);
-  };
-  return (
-    <>
-      {open && (
-        <button
-          type="button"
-          aria-label="Close menu"
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-        />
-      )}
-      <nav
-        className={`fixed inset-y-0 left-0 z-50 w-64 -translate-x-full overflow-y-auto bg-cream p-4 shadow-xl transition-transform duration-200 lg:static lg:z-auto lg:w-52 lg:shrink-0 lg:translate-x-0 lg:overflow-visible lg:bg-transparent lg:p-3 lg:shadow-none ${
-          open ? "translate-x-0" : ""
-        }`}
-      >
-        <div className="mb-3 flex items-center justify-between lg:hidden">
-          <p className="text-sm font-semibold text-foreground">Menu</p>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            aria-label="Close menu"
-            className="grid h-8 w-8 place-items-center rounded-md hover:bg-secondary"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
-        const active = tab === item.key;
-        return (
-          <button
-            key={item.key}
-            type="button"
-            onClick={() => handleChange(item.key)}
-            className={`flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-md border-l-2 px-3 py-2 text-left text-sm transition-colors ${
-              active
-                ? "border-kraft bg-kraft/[0.08] font-medium text-foreground"
-                : "border-transparent text-muted-foreground hover:bg-secondary/40 hover:text-foreground"
-            }`}
-          >
-            <item.icon className="h-4 w-4 shrink-0" />
-            {item.label}
-          </button>
-        );
-          })}
-        </div>
-      </nav>
-    </>
   );
 }
 
