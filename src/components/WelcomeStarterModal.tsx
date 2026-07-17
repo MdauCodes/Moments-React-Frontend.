@@ -150,10 +150,9 @@ export function WelcomeStarterModal() {
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
                   <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground sm:mt-2 sm:text-sm sm:leading-normal">
-                    Every account gets 1,000 Reward Coupons (worth about KES 100) free just for joining, and keeps
-                    earning every time you order — real discounts, referral rewards, and VIP perks along the way.
-                    Open a Business Account and you'll also unlock a one-time 5% welcome code once your trade
-                    profile is set up.
+                    Every account gets 1,000 Coupon Points (worth KES 100) free when you join. Earn more with every
+                    order through discounts, referral rewards, and VIP perks. Open a Business Account to unlock a
+                    one-time 5% promo code after your trade profile is approved.
                   </p>
                 </div>
               </div>
@@ -203,13 +202,15 @@ export function WelcomeStarterModal() {
                 </button>
               </div>
 
-              <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                <Check className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                Already have an account?
-                <button type="button" onClick={() => pick(() => openLogin())} className="font-semibold text-accent hover:underline">
-                  Sign in
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => pick(() => openLogin())}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-accent bg-accent/[0.08] px-4 py-3 text-sm font-semibold text-accent shadow-sm transition-colors hover:bg-accent/[0.16]"
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />
+                Already have an account? Sign in
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </button>
             </div>
           </>
         ) : (
@@ -241,8 +242,9 @@ export function WelcomeStarterModal() {
                 Before you go — here's what you'd be skipping
               </p>
               <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">
-                No account means no Reward Coupons, no order history, no referral rewards, and no VIP tier discounts
-                on future orders. You can still shop freely — just without any of that following you home.
+                Without an account, you can still shop as a guest—but you won't earn Reward Coupons, referral
+                rewards, or VIP discounts, and your order history won't be saved. Create an account to unlock these
+                benefits on future orders.
               </p>
 
               <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -268,8 +270,17 @@ export function WelcomeStarterModal() {
 
               <button
                 type="button"
+                onClick={() => pick(() => openLogin())}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-accent bg-accent/[0.08] px-4 py-2.5 text-sm font-semibold text-accent shadow-sm transition-colors hover:bg-accent/[0.16]"
+              >
+                <Check className="h-4 w-4" aria-hidden="true" />
+                Already have an account? Sign in
+              </button>
+
+              <button
+                type="button"
                 onClick={() => dismiss()}
-                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3 py-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
+                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3 py-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
               >
                 Continue without an account
                 <ArrowRight className="h-3.5 w-3.5" />
