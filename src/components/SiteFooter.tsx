@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useState } from "react";
-import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook, X } from "lucide-react";
+import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook } from "lucide-react";
 import {
   COMPANY_EMAIL,
   COMPANY_PHONE,
@@ -16,61 +16,20 @@ import {
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import { getPrivacyPolicyContent } from "@/routes/privacy";
-import { getTermsContent } from "@/routes/terms";
+import { getTermsContent, getRewardsOfferContent } from "@/routes/terms";
 import { getRefundsContent } from "@/routes/refunds";
 import { getAccessibilityPolicyContent } from "@/routes/accessibility-policy";
+import { PolicyContentModal, type PolicyContent } from "@/components/PolicyContentModal";
 
-type PolicyKey = "privacy" | "terms" | "refunds" | "accessibility";
+type PolicyKey = "privacy" | "terms" | "rewards" | "refunds" | "accessibility";
 
-const POLICY_CONTENT: Record<PolicyKey, () => ReturnType<typeof getPrivacyPolicyContent>> = {
+const POLICY_CONTENT: Record<PolicyKey, () => PolicyContent> = {
   privacy: getPrivacyPolicyContent,
   terms: getTermsContent,
+  rewards: getRewardsOfferContent,
   refunds: getRefundsContent,
   accessibility: getAccessibilityPolicyContent,
 };
-
-/** Footer link that opens a policy's full content in a modal instead of
- * navigating away — so reading it doesn't cost your place on the page. */
-function PolicyModal({ policyKey, onClose }: { policyKey: PolicyKey; onClose: () => void }) {
-  const content = POLICY_CONTENT[policyKey]();
-  return (
-    <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-background text-foreground sm:rounded-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-border px-5 py-4 sm:px-6">
-          <div>
-            <h2 className="font-display text-xl font-medium">{content.title}</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Updated {content.updated}</p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="overflow-y-auto px-5 py-5 sm:px-6">
-          <div className="text-sm leading-relaxed text-foreground/80">{content.intro}</div>
-          <div className="mt-6 space-y-6">
-            {content.sections.map((section) => (
-              <section key={section.id}>
-                <h3 className="font-display text-base font-semibold text-foreground">{section.title}</h3>
-                <div className="legal-prose mt-2 text-sm leading-relaxed text-foreground/80">{section.body}</div>
-              </section>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function SiteFooter() {
   const [openPolicy, setOpenPolicy] = useState<PolicyKey | null>(null);
@@ -105,6 +64,13 @@ export function SiteFooter() {
               className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
             >
               Terms of Service
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpenPolicy("rewards")}
+              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
+            >
+              Rewards &amp; Coupons Terms
             </button>
             <button
               type="button"
@@ -302,7 +268,7 @@ export function SiteFooter() {
         </div>
       </div>
 
-      {openPolicy && <PolicyModal policyKey={openPolicy} onClose={() => setOpenPolicy(null)} />}
+      {openPolicy && <PolicyContentModal content={POLICY_CONTENT[openPolicy]()} onClose={() => setOpenPolicy(null)} />}
     </footer>
   );
 }

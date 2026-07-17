@@ -129,6 +129,41 @@ export function getTermsContent() {
       ),
     },
     {
+      id: "reward-coupons",
+      title: "Reward Coupons & Referrals",
+      body: (
+        <>
+          <p>
+            Every registered customer — Individual Shopper and Business Account alike — earns
+            Reward Coupons: a 100-coupon bonus for creating an account, coupons for every paid
+            order, and coupons for submitting a product review. The number of coupons awarded per
+            order and their KES redemption value are set by us and may change; the current rate is
+            shown in your account dashboard before you redeem.
+          </p>
+          <ul>
+            <li>
+              Reward Coupons can be redeemed for a discount at checkout, up to a maximum
+              percentage of that order's total (also shown in your dashboard). They cannot be
+              exchanged for cash, transferred to another customer, or combined with a promo code
+              on the same order.
+            </li>
+            <li>
+              Sharing your referral code and having a friend register with it earns both of you
+              Reward Coupons once their first qualifying order is confirmed.
+            </li>
+            <li>
+              Reward Coupons have no expiry, but redemption above a small free allowance requires a
+              verified email address, to protect against abuse.
+            </li>
+            <li>
+              We may adjust or reverse a Reward Coupons balance where it resulted from a technical
+              error, fraud, or abuse of the referral program.
+            </li>
+          </ul>
+        </>
+      ),
+    },
+    {
       id: "business-accounts",
       title: "Business Accounts",
       body: (
@@ -274,6 +309,27 @@ export function getTermsContent() {
       { to: "/refunds", label: "Refund & Returns Policy" },
       { to: "/accessibility-policy", label: "Accessibility Policy" },
     ],
+  };
+}
+
+/** Focused subset of the full Terms — just Reward Coupons, Business Accounts, and the welcome
+ *  offer — for contexts where a customer wants only the discount/coupon rules, not the entire
+ *  Terms of Service. Pulled from the same section objects as getTermsContent() so the wording
+ *  never drifts between the two. */
+export function getRewardsOfferContent() {
+  const full = getTermsContent();
+  const ids = ["reward-coupons", "business-accounts", "welcome-offer"];
+  return {
+    title: "Rewards, Referrals & Welcome Offer Terms",
+    updated: full.updated,
+    intro: (
+      <>
+        The rules that govern Reward Coupons, referrals, and the Business Account welcome
+        discount code. For everything else — orders, payment, delivery, returns — see the full{" "}
+        <a href="/terms">Terms of Service</a>.
+      </>
+    ),
+    sections: full.sections.filter((s) => ids.includes(s.id)),
   };
 }
 

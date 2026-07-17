@@ -25,6 +25,7 @@ import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { HowItWorksCard } from "@/components/HowItWorksCard";
 import { InlineProgress } from "@/components/InlineProgress";
 import { RewardsReferralsSection } from "@/components/RewardsReferralsSection";
+import { RewardsTermsLink } from "@/components/RewardsTermsLink";
 import { StatCard, StatCardGrid } from "@/components/dashboard/StatCard";
 import { type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -587,10 +588,7 @@ function WelcomeCodeCard({ code }: { code: string }) {
       <p className="mt-2.5 text-xs text-muted-foreground">
         Enter this at checkout for a discount on orders of Ksh 5,000 or more. One-time use, valid only on this
         account, for 30 days from today. See the{" "}
-        <Link to="/terms#welcome-offer" className="text-accent hover:underline">
-          full offer terms
-        </Link>
-        .
+        <RewardsTermsLink>full offer terms</RewardsTermsLink>.
       </p>
     </Section>
   );
@@ -729,14 +727,7 @@ function BusinessAccountForm({
       <div className="flex flex-col-reverse items-start gap-3 border-t border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs text-muted-foreground">
           Free to open — earns a one-time welcome discount code. Read the{" "}
-          <Link to="/terms#business-accounts" className="text-accent hover:underline">
-            Business Account terms
-          </Link>{" "}
-          and{" "}
-          <Link to="/terms#welcome-offer" className="text-accent hover:underline">
-            welcome offer terms
-          </Link>
-          .
+          <RewardsTermsLink>Business Account &amp; welcome offer terms</RewardsTermsLink>.
         </p>
         <button
           type="submit"
