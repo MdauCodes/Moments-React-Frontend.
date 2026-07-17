@@ -1033,6 +1033,10 @@ function CheckoutModal() {
                             Use a different code
                           </button>
                         </div>
+                      ) : appliedRedemption ? (
+                        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+                          A promo code can't be combined with Reward Coupons — remove your redeemed coupons above to use one instead.
+                        </p>
                       ) : (
                         <div className="flex gap-2">
                           <input
@@ -1065,6 +1069,10 @@ function CheckoutModal() {
                               Remove
                             </button>
                           </div>
+                        ) : appliedPromo ? (
+                          <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+                            Reward Coupons can't be combined with a promo code — remove {appliedPromo.code} above to redeem coupons instead.
+                          </p>
                         ) : (
                           <div className="flex gap-2">
                             <input

@@ -128,8 +128,9 @@ export function WelcomeStarterModal() {
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
                   <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground sm:mt-2 sm:text-sm sm:leading-normal">
-                    Get 100 Reward Coupons free just for joining, and keep earning every time you order — real
-                    discounts, referral rewards, and VIP perks along the way.
+                    Every account gets 100 Reward Coupons free just for joining, and keeps earning every time you
+                    order — real discounts, referral rewards, and VIP perks along the way. Open a Business Account
+                    and you'll also unlock a one-time 5% welcome code once your trade profile is set up.
                   </p>
                 </div>
               </div>
@@ -148,7 +149,7 @@ export function WelcomeStarterModal() {
                     <Briefcase className="h-4.5 w-4.5" />
                   </span>
                   <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">Welcome bonus + trade credit ready</span>
+                  <span className="text-[10.5px] leading-tight text-muted-foreground">100 coupons now, +5% welcome code later</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
 
@@ -228,7 +229,7 @@ export function WelcomeStarterModal() {
                   className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16]"
                 >
                   <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">Welcome bonus + trade credit ready</span>
+                  <span className="text-[10.5px] leading-tight text-muted-foreground">100 coupons now, +5% welcome code later</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
                 <button
