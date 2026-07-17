@@ -6,23 +6,38 @@ import avatarLeft from "@/assets/avatars/avatar_1.png";
 import avatarRight from "@/assets/avatars/avatar_2.png";
 import avatarShrug from "@/assets/avatars/avatar_3.png";
 
-// Shown once per browser session, a few seconds after the homepage loads —
-// long enough to clear the branded splash. Two-screen flow: the main offer
-// screen, and — only if the visitor picks "no account" — a single second-
-// thoughts screen explaining what they'd be skipping, with an easy way
-// back to either path or to just continue anonymously.
-const STORAGE_KEY = "moments_starter_modal_shown";
-const SHOW_DELAY_MS = 3600;
+// Shows a few seconds after the homepage loads — long enough to clear the branded splash — and,
+// for a visitor who dismisses it while still not logged in, re-appears a few more times as they
+// keep browsing rather than vanishing for the rest of the session. Capped at MAX_SHOWS so it
+// nudges rather than harasses. Two-screen flow: the main offer screen, and — only if the visitor
+// picks "no account" — a single second-thoughts screen explaining what they'd be skipping, with
+// an easy way back to either path or to just continue anonymously.
+const SHOW_COUNT_KEY = "moments_starter_modal_show_count";
+const SHOW_DELAY_MS = 1800;
+const REAPPEAR_DELAY_MS = 45_000;
+const MAX_SHOWS = 3;
 
 type View = "main" | "decline";
 
-function shouldShow(): boolean {
-  if (typeof window === "undefined") return false;
+function getShowCount(): number {
+  if (typeof window === "undefined") return MAX_SHOWS;
   try {
-    return window.sessionStorage.getItem(STORAGE_KEY) === null;
+    return Number(window.sessionStorage.getItem(SHOW_COUNT_KEY) ?? "0");
   } catch {
-    return false;
+    return MAX_SHOWS;
   }
+}
+
+function recordShow() {
+  try {
+    window.sessionStorage.setItem(SHOW_COUNT_KEY, String(getShowCount() + 1));
+  } catch {
+    /* ignore */
+  }
+}
+
+function shouldShow(): boolean {
+  return getShowCount() < MAX_SHOWS;
 }
 
 // Small CTA pill shown inside each option card so it's unmistakably a
@@ -50,23 +65,30 @@ export function WelcomeStarterModal() {
   useEffect(() => {
     if (!shouldShow() || isAuthenticated) return;
     const t = setTimeout(() => {
+      recordShow();
       setView("main");
       setOpen(true);
     }, SHOW_DELAY_MS);
     return () => clearTimeout(t);
   }, [isAuthenticated]);
 
-  function dismiss() {
-    try {
-      window.sessionStorage.setItem(STORAGE_KEY, "1");
-    } catch {
-      /* ignore */
-    }
+  /** @param final true when the visitor engaged (register/login) — no re-appearance. false for a
+   *  plain close/"continue without an account", which re-arms another appearance later if the
+   *  visitor is still around and still unauthenticated, up to MAX_SHOWS. */
+  function dismiss(final = false) {
     setOpen(false);
+    if (final || isAuthenticated || !shouldShow()) return;
+    const t = setTimeout(() => {
+      if (!shouldShow() || isAuthenticated) return;
+      recordShow();
+      setView("main");
+      setOpen(true);
+    }, REAPPEAR_DELAY_MS);
+    return () => clearTimeout(t);
   }
 
   function pick(action: () => void) {
-    dismiss();
+    dismiss(true);
     action();
   }
 
@@ -78,7 +100,7 @@ export function WelcomeStarterModal() {
       aria-modal="true"
       aria-labelledby="starter-modal-title"
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300"
-      onClick={dismiss}
+      onClick={() => dismiss()}
     >
       <div
         className={`relative w-full rounded-3xl border border-white/40 bg-white/75 text-card-foreground shadow-2xl backdrop-blur-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
@@ -88,7 +110,7 @@ export function WelcomeStarterModal() {
       >
         <button
           type="button"
-          onClick={dismiss}
+          onClick={() => dismiss()}
           aria-label="Close"
           className="absolute right-3 top-3 z-20 rounded-full p-1.5 text-muted-foreground transition hover:bg-black/5 hover:text-foreground"
         >
@@ -245,7 +267,7 @@ export function WelcomeStarterModal() {
 
               <button
                 type="button"
-                onClick={dismiss}
+                onClick={() => dismiss()}
                 className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-secondary/60 px-3 py-3 text-xs font-semibold text-foreground shadow-sm transition-colors hover:bg-secondary"
               >
                 Continue without an account
