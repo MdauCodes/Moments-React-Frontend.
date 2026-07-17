@@ -24,7 +24,7 @@ import { referralStore } from "@/services/referralStore";
 import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
-import { RewardDeliveryBanners } from "@/components/RewardDeliveryBanners";
+import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { buildReceiptPdfBlob } from "@/lib/pdf";
 import type { CustomerOrder } from "@/services/orderStore";
@@ -629,9 +629,8 @@ function CheckoutModal() {
       {/* Body */}
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-10">
-          <div className="mb-4">
-            <RewardDeliveryBanners stickyTopClassName="top-0" />
-          </div>
+          <RewardDeliveryBanners topOffsetClassName="top-[104px]" />
+          <div className={`mb-4 ${REWARD_BANNER_SPACER_CLASS}`} aria-hidden="true" />
           {step === "contact" && (
             <>
             <form onSubmit={handleContactSubmit} className="space-y-5">
