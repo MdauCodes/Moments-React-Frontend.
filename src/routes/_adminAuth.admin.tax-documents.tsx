@@ -38,6 +38,7 @@ function AdminTaxDocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<TaxDocumentStatus | "">("");
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -62,6 +63,20 @@ function AdminTaxDocumentsPage() {
       reportAdminError(err, "Retry failed");
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function preview(row: TaxDocumentAdminDto) {
+    setPreviewingId(row.id);
+    try {
+      const blob = await adminResources.taxDocuments.preview(row.id);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      reportAdminError(err, "Preview failed");
+    } finally {
+      setPreviewingId(null);
     }
   }
 
@@ -136,11 +151,15 @@ function AdminTaxDocumentsPage() {
                             {r.status === "EXPIRED" ? "Resend" : "Retry"}
                           </button>
                         )}
-                        {r.cloudinaryUrl && (
-                          <a className="admin-btn admin-btn-ghost" href={r.cloudinaryUrl} target="_blank" rel="noreferrer">
-                            <Download size={14} />PDF
-                          </a>
-                        )}
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          disabled={previewingId === r.id}
+                          onClick={() => void preview(r)}
+                          title="Regenerates the PDF live from the order's current data — works even for expired documents"
+                        >
+                          {previewingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                          Preview / Download
+                        </button>
                         {wa && (
                           <a className="admin-btn admin-btn-ghost" href={wa} target="_blank" rel="noreferrer">
                             <MessageCircle size={14} />WhatsApp

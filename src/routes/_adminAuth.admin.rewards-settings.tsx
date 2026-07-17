@@ -90,6 +90,11 @@ function AdminRewardsSettingsPage() {
             These are the same figures shown to customers in the welcome popup, the cart banner, and their
             dashboard — changes here take effect on the next page load, no deployment needed.
           </p>
+          <p style={{ margin: "8px 0 0" }}>
+            This covers the signup bonus and the ongoing coupons every customer earns on every order. It's
+            separate from <b>Referral Payout Tiers</b>, which is a one-time bonus paid to a referrer and their
+            referred friend on that friend's first qualifying order — the two don't overlap or compete.
+          </p>
           {!loading && (
             <p style={{ margin: "8px 0 0", fontWeight: 600, color: "var(--admin-text)" }}>
               Right now: a new signup gets {example.welcome.toLocaleString()} coupons, worth about{" "}

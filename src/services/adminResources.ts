@@ -249,6 +249,11 @@ export const adminResources = {
     list: (params: { status?: TaxDocumentStatus; page?: number; size?: number }) =>
       adminJson<PageResponse<TaxDocumentAdminDto>>(`/api/v1/admin/tax-documents${qs(params)}`),
     retry: (id: string) => adminJson<TaxDocumentAdminDto>(`/api/v1/admin/tax-documents/${encodeURIComponent(id)}/retry`, { method: "POST" }),
+    async preview(id: string): Promise<Blob> {
+      const res = await adminFetch(`/api/v1/admin/tax-documents/${encodeURIComponent(id)}/preview`);
+      if (!res.ok) throw new Error(`Failed to render preview (${res.status})`);
+      return res.blob();
+    },
   },
   devTools: {
     checkoutDryRun: (body: CheckoutDryRunRequest) =>

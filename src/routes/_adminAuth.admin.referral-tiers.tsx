@@ -353,10 +353,15 @@ function AdminReferralTiersPage() {
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>
-            <b>What this controls:</b> when a referred friend's first paid order lands, we look up
+            <b>What this controls:</b> when a referred friend's first qualifying paid order lands, we look up
             which tier their order value falls into, then pay out <b>both</b> people — the referrer
-            gets "referrer credits", the new customer (referee) gets "referee credits". Separate from{" "}
-            <b>Rewards Tiers</b>, which is the VIP ladder based on lifetime points.
+            gets "referrer credits", the new customer (referee) gets "referee credits". This is a{" "}
+            <b>one-time</b> bonus per referral relationship — it does not repeat on the referee's later orders.
+            It's separate from <b>Rewards Settings</b>, which controls the signup bonus every account gets and
+            the ongoing coupons everyone earns on every order (referred or not), and separate from{" "}
+            <b>Rewards Tiers</b>, which is the VIP ladder based on lifetime points. A referred customer gets
+            all three: the signup bonus, this one-time referral bonus, and ongoing per-order coupons like
+            everyone else — nothing here overlaps or competes with those.
           </p>
           {!loading && rows.length === 0 && (
             <p style={{ marginTop: 10, color: "#b45309", fontWeight: 600 }}>
