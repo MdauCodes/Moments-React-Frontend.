@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sparkles } from "lucide-react";
 
 import type { Product } from "@/data/products";
 import { api } from "@/services/api";
@@ -107,10 +106,7 @@ export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { 
 
   return (
     <div className="rounded-2xl border border-kraft/25 bg-kraft/[0.05] p-4 sm:p-5">
-      <div className="flex items-center gap-1.5">
-        <Sparkles className="h-4 w-4 text-accent" />
-        <p className="text-sm font-semibold text-foreground">Add a little more to your order</p>
-      </div>
+      <p className="text-sm font-semibold text-foreground">Add a little more to your order</p>
       <p className="mt-0.5 text-xs text-muted-foreground">
         Picked to match what's already in your cart — tap to add.
       </p>

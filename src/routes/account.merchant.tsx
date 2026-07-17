@@ -263,7 +263,7 @@ function OverviewTab({
       ) : (
         <RewardsComingSoon message={comingSoonMessage} />
       )}
-      <QuickAddProductStrip cardWidthClassName="w-32 sm:w-40" />
+      <QuickAddProductStrip cardWidthClassName="w-36 sm:w-44" />
     </div>
   );
 }

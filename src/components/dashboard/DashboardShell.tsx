@@ -26,8 +26,8 @@ export function DashboardShell<T extends string>({
   return (
     <div className="lg:flex lg:min-h-[75vh]">
       <DashboardSidebarNav items={navItems} active={activeTab} onChange={onTabChange} />
-      <div className="min-w-0 flex-1">
-        <div className="border-b border-border bg-card px-4 py-5 sm:px-6 lg:px-8">
+      <div className="min-w-0 flex-1 bg-cream/40">
+        <div className="border-b border-kraft/15 bg-card px-4 py-5 sm:px-6 lg:px-8">
           {identity}
           <div className="mt-4">{stats}</div>
         </div>

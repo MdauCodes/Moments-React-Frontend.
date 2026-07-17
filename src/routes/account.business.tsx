@@ -138,8 +138,6 @@ function BusinessDashboard({
     orderStore.listMine(0, 20).then((r) => setOrders(r.rows));
   }, []);
 
-  const score = account.creditReadiness?.score;
-
   return (
     <DashboardShell
       navItems={NAV_ITEMS}
@@ -166,7 +164,6 @@ function BusinessDashboard({
       }
       stats={
         <StatCardGrid>
-          <StatCard icon={TrendingUp} label="Readiness" value={score !== undefined ? `${score}/100` : "—"} />
           <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
           <StatCard icon={Landmark} label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
         </StatCardGrid>
@@ -234,7 +231,10 @@ function OverviewTab({
   const recent = orders?.slice(0, 3) ?? null;
   return (
     <div className="space-y-5">
-      {account.creditReadiness && <CreditReadinessCard readiness={account.creditReadiness} compact />}
+      {/* Coupons/welcome code lead the overview — trade credit isn't live yet, so its readiness
+          score (still shown, framed as "coming soon," on the dedicated Trade Credit tab) shouldn't
+          be the first thing a business owner sees here. */}
+      {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
 
       <Section
         icon={Package}
@@ -258,9 +258,7 @@ function OverviewTab({
         </div>
       </Section>
 
-      {account.welcomeCode && <WelcomeCodeCard code={account.welcomeCode} />}
-
-      <QuickAddProductStrip cardWidthClassName="w-32 sm:w-40" />
+      <QuickAddProductStrip cardWidthClassName="w-36 sm:w-44" />
     </div>
   );
 }
