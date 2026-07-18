@@ -217,6 +217,8 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     subtotal: raw.subtotal ?? raw.totalAmount ?? 0,
     shippingFee: raw.deliveryFee ?? raw.shippingFee ?? 0,
     total: raw.totalAmount ?? raw.total ?? 0,
+    discount: raw.discount ?? undefined,
+    vatAmount: raw.vatAmount ?? undefined,
     currency: "KES",
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),
