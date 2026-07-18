@@ -130,6 +130,16 @@ export function PrintReceipt({ order, hideTrigger = false }: PrintReceiptProps) 
                 {order.shippingFee === 0 ? "Free" : fmt(order.shippingFee)}
               </td>
             </tr>
+            {!!order.discount && order.discount > 0 && (
+              <tr>
+                <td colSpan={3} style={{ textAlign: "right", padding: "4px 6px", color: "#555" }}>
+                  Discount
+                </td>
+                <td style={{ textAlign: "right", padding: "4px 6px", color: "#b91c1c" }}>
+                  -{fmt(order.discount)}
+                </td>
+              </tr>
+            )}
             <tr style={{ borderTop: "2px solid #111" }}>
               <td colSpan={3} style={{ textAlign: "right", padding: "10px 6px", fontWeight: 700, fontSize: 14 }}>
                 Total ({order.currency})

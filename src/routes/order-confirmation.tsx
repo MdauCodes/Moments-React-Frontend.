@@ -136,6 +136,8 @@ function OrderConfirmationPage() {
                   currency: order.currency,
                   subtotal: order.subtotal,
                   shippingFee: order.shippingFee,
+                  discount: order.discount,
+                  vatAmount: order.vatAmount,
                   total: order.total,
                   paymentMethod: order.paymentMethod,
                   paymentStatus: order.paymentStatus,

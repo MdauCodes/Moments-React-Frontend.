@@ -249,6 +249,8 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
       currency: o.currency,
       subtotal: o.subtotal,
       shippingFee: o.shippingFee,
+      discount: o.discount,
+      vatAmount: o.vatAmount,
       total: o.total,
       paymentMethod: o.paymentMethod,
       paymentStatus: o.paymentStatus,
