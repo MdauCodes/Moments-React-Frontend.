@@ -73,6 +73,7 @@ export interface CustomerOrder {
   items: CustomerOrderItem[];
   subtotal: number;
   shippingFee: number;
+  discount?: number;
   total: number;
   /** VAT-exclusive taxable amount and the VAT charged on it — present on the raw checkout response. */
   taxableAmount?: number;
