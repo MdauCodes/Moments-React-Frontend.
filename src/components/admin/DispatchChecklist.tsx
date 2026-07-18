@@ -81,7 +81,7 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
     setSubmitting(true);
     try {
       console.log("[dispatch] PATCH /api/v1/admin/orders/" + order.id + "/dispatch-confirm");
-      const result = await dispatchConfirmOrder(order.id, "CONFIRM_LATER", true);
+      const result = await dispatchConfirmOrder(order.id, "CONFIRM_LATER", allTicked);
       console.log("[dispatch] response:", result);
       try { window.localStorage.removeItem(`${STORAGE_PREFIX}${order.id}`); } catch { /* ignore */ }
       toast.success(`Order dispatched successfully`);
@@ -270,7 +270,7 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
               </ul>
 
               {/* Not-all-ticked warning */}
-              {!allTicked && tickedCount > 0 && (
+              {!allTicked && (
                 <div
                   style={{
                     display: "flex",
@@ -293,9 +293,10 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button
                   className="admin-btn admin-btn-primary"
-                  disabled={isDispatched}
-                  style={{ width: "100%", justifyContent: "center", opacity: isDispatched ? 0.6 : 1 }}
-                  onClick={() => { if (!isDispatched) setConfirmOpen(true); }}
+                  disabled={isDispatched || !allTicked}
+                  style={{ width: "100%", justifyContent: "center", opacity: isDispatched || !allTicked ? 0.6 : 1 }}
+                  onClick={() => { if (!isDispatched && allTicked) setConfirmOpen(true); }}
+                  title={!isDispatched && !allTicked ? "Tick every item before dispatching" : undefined}
                 >
                   {isDispatched ? "View Details (Already Dispatched)" : "Dispatch Order"}
                 </button>
