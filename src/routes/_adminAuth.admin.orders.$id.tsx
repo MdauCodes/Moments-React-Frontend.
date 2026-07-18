@@ -15,15 +15,29 @@ import {
   formatKes,
   getNextAction,
 } from "@/components/admin/commerceUi";
-import { getOrder, updateOrderStatus, refundOrder } from "@/services/commerceApi";
+import {
+  getOrder,
+  updateOrderStatus,
+  requestOrderRefund,
+  resolveOrderRefundRequest,
+  markOrderPaymentRefunded,
+  restoreOrderInventory,
+} from "@/services/commerceApi";
 import { refundStore, type RefundRequest, type RefundRequestStatus } from "@/services/refundStore";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
+import { useAuth } from "@/contexts/AdminAuthContext";
+import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
 
 
 
 function AdminOrderDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdminOrAbove = (() => {
+    const role = resolveStaffRole(user);
+    return !!role && STAFF_ROLE_RANK[role] <= STAFF_ROLE_RANK.ADMIN;
+  })();
   const [order, setOrder] = useState<OrderRecord | undefined>();
   const [source, setSource] = useState<"live" | "mock">("mock");
   const [loading, setLoading] = useState(true);
@@ -34,6 +48,7 @@ function AdminOrderDetailPage() {
   const [refundBusy, setRefundBusy] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
+  const [refundActionBusy, setRefundActionBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -110,22 +125,74 @@ function AdminOrderDetailPage() {
     }
   };
 
-  // Admin-initiated refund (different from customer refund request)
-  const handleRefund = async () => {
+  // Refunds are deliberately NOT one automated action — logging a request just records the
+  // complaint. Every consequence (marking payment refunded, restoring stock, flipping order
+  // status) is a separate, explicit admin step below, never bundled together.
+  const handleLogRefundRequest = async () => {
     if (!order || !refundReason.trim()) return;
     setSaving(true);
     try {
-      const res = await refundOrder(order.id, refundReason.trim());
+      const res = await requestOrderRefund(order.id, refundReason.trim());
       if (res.order) {
         setOrder(res.order);
         setShowRefundInput(false);
         setRefundReason("");
-        toast.success("Refund processed — order marked as REFUNDED");
+        toast.success("Refund request logged — nothing else changed yet");
       }
     } catch (err) {
-      reportAdminError(err, "Refund failed");
+      reportAdminError(err, "Failed to log refund request");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleResolveRefundRequest = async () => {
+    if (!order) return;
+    setRefundActionBusy(true);
+    try {
+      const res = await resolveOrderRefundRequest(order.id);
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Refund request marked resolved");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to resolve refund request");
+    } finally {
+      setRefundActionBusy(false);
+    }
+  };
+
+  const handleMarkPaymentRefunded = async () => {
+    if (!order) return;
+    if (!window.confirm("Mark this order's payment as refunded? Only do this once you've actually reversed the payment yourself.")) return;
+    setRefundActionBusy(true);
+    try {
+      const res = await markOrderPaymentRefunded(order.id, order.refundRequestReason ?? "Refund processed");
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Payment marked refunded");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to mark payment refunded");
+    } finally {
+      setRefundActionBusy(false);
+    }
+  };
+
+  const handleRestoreInventory = async () => {
+    if (!order) return;
+    if (!window.confirm("Restore stock for every item on this order?")) return;
+    setRefundActionBusy(true);
+    try {
+      const res = await restoreOrderInventory(order.id);
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Inventory restored");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to restore inventory");
+    } finally {
+      setRefundActionBusy(false);
     }
   };
 
@@ -375,15 +442,73 @@ function AdminOrderDetailPage() {
                 </select>
               </details>
 
-              {order.paymentStatus === "PAID" && order.status !== "REFUNDED" && order.status !== "CANCELLED" && (
-                <button
-                  className="admin-btn admin-btn-danger"
-                  disabled={saving}
-                  style={{ marginTop: 12 }}
-                  onClick={() => setShowRefundInput((v) => !v)}
+              {/* Refunds are a manual, admin-attended process — logging a request here is just
+                  a complaint on record. It never touches payment status or inventory by itself;
+                  those are separate explicit actions below once an admin has actually resolved
+                  it in the real world (e.g. a manual M-Pesa reversal). */}
+              {order.refundRequestedAt && !order.refundResolvedAt ? (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: "10px 12px",
+                    borderRadius: 8,
+                    background: "rgba(239, 68, 68, 0.08)",
+                    border: "1px dashed rgba(239, 68, 68, 0.4)",
+                  }}
                 >
-                  Process refund
-                </button>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Refund requested — awaiting manual resolution</div>
+                  <p style={{ margin: "6px 0", fontSize: 12, color: "var(--admin-muted)", whiteSpace: "pre-wrap" }}>
+                    {order.refundRequestReason}
+                  </p>
+                  <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
+                    Requested {formatDate(order.refundRequestedAt)}
+                    {order.refundRequestedBy ? ` by ${order.refundRequestedBy}` : ""}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                    {isAdminOrAbove && (
+                      <>
+                        <button
+                          className="admin-btn admin-btn-danger"
+                          disabled={refundActionBusy}
+                          onClick={handleMarkPaymentRefunded}
+                        >
+                          Mark payment refunded
+                        </button>
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          disabled={refundActionBusy}
+                          onClick={handleRestoreInventory}
+                        >
+                          Restore inventory
+                        </button>
+                      </>
+                    )}
+                    <button
+                      className="admin-btn admin-btn-ghost"
+                      disabled={refundActionBusy}
+                      onClick={handleResolveRefundRequest}
+                    >
+                      {refundActionBusy && <Loader2 size={14} className="animate-spin inline mr-1" />}
+                      Mark request resolved
+                    </button>
+                  </div>
+                  {!isAdminOrAbove && (
+                    <p style={{ marginTop: 8, fontSize: 11, color: "var(--admin-muted)" }}>
+                      Only an Admin can mark the payment refunded or restore inventory.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                order.paymentStatus === "PAID" && (
+                  <button
+                    className="admin-btn admin-btn-danger"
+                    disabled={saving}
+                    style={{ marginTop: 12 }}
+                    onClick={() => setShowRefundInput((v) => !v)}
+                  >
+                    Log refund request
+                  </button>
+                )
               )}
 
               {showRefundInput && (
@@ -400,10 +525,10 @@ function AdminOrderDetailPage() {
                     <button
                       className="admin-btn admin-btn-danger"
                       disabled={saving || !refundReason.trim()}
-                      onClick={handleRefund}
+                      onClick={handleLogRefundRequest}
                     >
                       {saving && <Loader2 size={14} className="animate-spin inline mr-1" />}
-                      Confirm refund
+                      Log request
                     </button>
                     <button
                       className="admin-btn admin-btn-ghost"

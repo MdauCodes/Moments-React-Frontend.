@@ -130,6 +130,10 @@ function normalizeOrder(raw: any): OrderRecord {
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
+    refundRequestedAt: raw?.refundRequestedAt,
+    refundRequestReason: raw?.refundRequestReason,
+    refundRequestedBy: raw?.refundRequestedBy,
+    refundResolvedAt: raw?.refundResolvedAt,
     statusHistory: (raw?.statusHistory ?? []).map((h: any) => ({
       id: h.id,
       fromStatus: h.fromStatus,
@@ -257,15 +261,55 @@ export async function listAssignableUsers(): Promise<AssignableUser[]> {
   }
 }
 
-// Backend PATCH /api/v1/admin/orders/{id}/refund  (@IsAdmin only)
-// Body: { reason: string }
-export async function refundOrder(
+// Refunds are deliberately NOT one automated action — logging a request never touches
+// payment/inventory by itself; those are separate, explicit admin-only steps below.
+
+// PATCH /api/v1/admin/orders/{id}/refund-request  (@IsStaffOrAdmin)
+export async function requestOrderRefund(
   id: string,
   reason: string,
 ): Promise<{ order: OrderRecord | undefined; source: Source }> {
-  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/refund`, {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/refund-request`, {
     method: "PATCH",
     body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// PATCH /api/v1/admin/orders/{id}/refund-request/resolve  (@IsStaffOrAdmin)
+export async function resolveOrderRefundRequest(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/refund-request/resolve`, {
+    method: "PATCH",
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// PATCH /api/v1/admin/orders/{id}/mark-payment-refunded  (@IsAdmin only)
+export async function markOrderPaymentRefunded(
+  id: string,
+  reason: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/mark-payment-refunded`, {
+    method: "PATCH",
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// PATCH /api/v1/admin/orders/{id}/restore-inventory  (@IsAdmin only)
+export async function restoreOrderInventory(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/restore-inventory`, {
+    method: "PATCH",
   });
   if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
   const raw = await res.json();

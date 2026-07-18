@@ -71,6 +71,10 @@ export interface OrderRecord {
   promoCode?: string;
   paymentMethod?: string;
   fulfillmentType?: string;
+  refundRequestedAt?: string;
+  refundRequestReason?: string;
+  refundRequestedBy?: string;
+  refundResolvedAt?: string;
   statusHistory?: {
     id?: string;
     fromStatus?: string;
