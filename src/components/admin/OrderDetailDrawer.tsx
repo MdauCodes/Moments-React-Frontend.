@@ -12,11 +12,21 @@ import {
   ORDER_STATUS_OPTIONS,
   getNextAction,
 } from "@/components/admin/commerceUi";
-import { assignOrder, getOrder, listAssignableUsers, updateOrderStatus, type AssignableUser } from "@/services/commerceApi";
+import {
+  assignOrder,
+  getOrder,
+  listAssignableUsers,
+  updateOrderStatus,
+  requestOrderRefund,
+  resolveOrderRefundRequest,
+  markOrderPaymentRefunded,
+  restoreOrderInventory,
+  type AssignableUser,
+} from "@/services/commerceApi";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
-import { refundStore, type RefundRequest, type RefundRequestStatus } from "@/services/refundStore";
+import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
 
 interface Props {
   orderId: string | null;
@@ -44,15 +54,19 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   const [savingNotes, setSavingNotes] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState<OrderStatus | "">("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
-  const { hasPermission } = useAuth();
+  const { user, hasPermission } = useAuth();
   const canAssign = hasPermission(PERM.ORDER_ASSIGN) || hasPermission(PERM.ORDER_MANAGE_ALL);
   const canOverrideStatus = hasPermission(PERM.ORDER_MANAGE_ALL);
+  const isAdminOrAbove = (() => {
+    const role = resolveStaffRole(user);
+    return !!role && STAFF_ROLE_RANK[role] <= STAFF_ROLE_RANK.ADMIN;
+  })();
   const [assignees, setAssignees] = useState<AssignableUser[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const [refund, setRefund] = useState<RefundRequest | null>(null);
-  const [refundNote, setRefundNote] = useState("");
-  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
+  const [showRefundInput, setShowRefundInput] = useState(false);
+  const [refundActionBusy, setRefundActionBusy] = useState(false);
   useEffect(() => { if (canAssign) listAssignableUsers().then(setAssignees).catch(() => {}); }, [canAssign]);
 
   useEffect(() => {
@@ -79,35 +93,77 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
 
   const o = order as (OrderRecord & Record<string, any>) | null;
 
-  useEffect(() => {
-    if (!o?.reference) { setRefund(null); return; }
-    let cancelled = false;
-    refundStore
-      .getAdminForOrder(o.reference)
-      .then((r) => {
-        if (cancelled) return;
-        setRefund(r);
-        setRefundNote(r?.adminNote ?? "");
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [o?.reference]);
-
-  const updateRefund = async (status: RefundRequestStatus) => {
-    if (!refund) return;
-    setRefundBusy(true);
+  // Refunds are deliberately NOT one automated action — logging a request just records the
+  // complaint. Every consequence is a separate, explicit admin step, never bundled together.
+  const handleLogRefundRequest = async () => {
+    if (!o || !refundReason.trim()) return;
+    setUpdatingStatus(true);
     try {
-      const next = await refundStore.updateStatus(refund.id, status, refundNote.trim() || undefined);
-      if (next) {
-        setRefund(next);
-        toast.success(`Refund request ${status.toLowerCase()}`);
+      const res = await requestOrderRefund(o.id, refundReason.trim());
+      if (res.order) {
+        setOrder(res.order);
+        setShowRefundInput(false);
+        setRefundReason("");
+        toast.success("Refund request logged — nothing else changed yet");
+        onChanged?.();
       }
     } catch (err) {
-      reportAdminError(err, "Failed to update refund");
+      reportAdminError(err, "Failed to log refund request");
     } finally {
-      setRefundBusy(false);
+      setUpdatingStatus(false);
+    }
+  };
+
+  const handleResolveRefundRequest = async () => {
+    if (!o) return;
+    setRefundActionBusy(true);
+    try {
+      const res = await resolveOrderRefundRequest(o.id);
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Refund request marked resolved");
+        onChanged?.();
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to resolve refund request");
+    } finally {
+      setRefundActionBusy(false);
+    }
+  };
+
+  const handleMarkPaymentRefunded = async () => {
+    if (!o) return;
+    if (!window.confirm("Mark this order's payment as refunded? Only do this once you've actually reversed the payment yourself.")) return;
+    setRefundActionBusy(true);
+    try {
+      const res = await markOrderPaymentRefunded(o.id, o.refundRequestReason ?? "Refund processed");
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Payment marked refunded");
+        onChanged?.();
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to mark payment refunded");
+    } finally {
+      setRefundActionBusy(false);
+    }
+  };
+
+  const handleRestoreInventory = async () => {
+    if (!o) return;
+    if (!window.confirm("Restore stock for every item on this order?")) return;
+    setRefundActionBusy(true);
+    try {
+      const res = await restoreOrderInventory(o.id);
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Inventory restored");
+        onChanged?.();
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to restore inventory");
+    } finally {
+      setRefundActionBusy(false);
     }
   };
 
@@ -372,6 +428,8 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
 
                     <details>
                       <summary className="cursor-pointer text-xs text-muted-foreground">Manual override</summary>
+                      {/* REFUNDED is deliberately excluded — only set through the Refund
+                          section below, never as a quick dropdown pick. */}
                       <div className="mt-2 space-y-3">
                         <select
                           className="w-full rounded-md border bg-background px-3 py-2 text-sm"
@@ -379,7 +437,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                           onChange={(e) => setSelectedStatus(e.target.value as OrderStatus)}
                           disabled={updatingStatus || cancelling}
                         >
-                          {ORDER_STATUS_OPTIONS.filter((opt) => opt.value !== "ALL").map((opt) => (
+                          {ORDER_STATUS_OPTIONS.filter((opt) => opt.value !== "ALL" && (opt.value !== "REFUNDED" || o.status === "REFUNDED")).map((opt) => (
                             <option key={opt.value} value={opt.value}>
                               {opt.label}
                             </option>
@@ -412,66 +470,83 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                 </Section>
               )}
 
-              {/* Customer refund request — was missing from the drawer entirely
-                  before, forcing admins to leave and open the full order page
-                  just to see/manage a refund request. */}
-              {refund && (
-                <Section title="Refund / return request">
-                  <div className="flex items-center justify-between gap-2 pb-2">
-                    <span className="text-xs text-muted-foreground">Status</span>
-                    <span
-                      className={`n ${
-                        refund.status === "PENDING" ? "n-muted" : refund.status === "REJECTED" ? "n-muted" : "n-ok"
-                      }`}
-                    >
-                      {refund.status}
-                    </span>
+              {/* Refund — its own section, separate from status: refunding is a distinct
+                  decision from moving an order through fulfilment. Logging a request just
+                  records the complaint; nothing else changes until an admin explicitly acts. */}
+              <Section title="Refund">
+                {o.refundRequestedAt && !o.refundResolvedAt ? (
+                  <div className="rounded-md border border-dashed border-destructive/40 bg-destructive/5 p-3">
+                    <div className="text-sm font-semibold">Refund requested — awaiting manual resolution</div>
+                    <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">{o.refundRequestReason}</p>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      Requested {formatDate(o.refundRequestedAt)}
+                      {o.refundRequestedBy ? ` by ${o.refundRequestedBy}` : ""}
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {isAdminOrAbove && (
+                        <>
+                          <button className="admin-btn admin-btn-danger" disabled={refundActionBusy} onClick={handleMarkPaymentRefunded}>
+                            Mark payment refunded
+                          </button>
+                          <button className="admin-btn admin-btn-ghost" disabled={refundActionBusy} onClick={handleRestoreInventory}>
+                            Restore inventory
+                          </button>
+                        </>
+                      )}
+                      <button className="admin-btn admin-btn-ghost" disabled={refundActionBusy} onClick={handleResolveRefundRequest}>
+                        {refundActionBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                        Mark request resolved
+                      </button>
+                    </div>
+                    {!isAdminOrAbove && (
+                      <p className="mt-2 text-[11px] text-muted-foreground">
+                        Only an Admin can mark the payment refunded or restore inventory.
+                      </p>
+                    )}
                   </div>
-                  <Row label="Wants" value={refund.desiredAction.replace(/_/g, " ")} />
-                  <div className="pt-2">
-                    <span className="text-sm text-muted-foreground">Reason</span>
-                    <p className="mt-1 whitespace-pre-wrap text-sm">{refund.reason}</p>
-                  </div>
-                  <div className="pt-1 text-[11px] text-muted-foreground">
-                    Submitted {new Date(refund.createdAt).toLocaleString("en-KE")}
-                    {refund.updatedAt !== refund.createdAt &&
-                      ` · updated ${new Date(refund.updatedAt).toLocaleString("en-KE")}`}
-                  </div>
-                  <label className="mt-3 block">
-                    <span className="text-xs uppercase text-muted-foreground">Admin note (shown to customer)</span>
+                ) : o.refundResolvedAt ? (
+                  <p className="text-sm text-muted-foreground">No open refund request. Last one was resolved {formatDate(o.refundResolvedAt)}.</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No refund requested for this order.</p>
+                )}
+
+                {o.paymentStatus === "PAID" && !(o.refundRequestedAt && !o.refundResolvedAt) && (
+                  <button
+                    className="admin-btn admin-btn-danger mt-3"
+                    disabled={updatingStatus}
+                    onClick={() => setShowRefundInput((v) => !v)}
+                  >
+                    Log refund request
+                  </button>
+                )}
+
+                {showRefundInput && (
+                  <div className="mt-3">
                     <textarea
-                      className="mt-1 w-full rounded-md border bg-background p-2 text-sm"
-                      rows={3}
-                      value={refundNote}
-                      onChange={(e) => setRefundNote(e.target.value)}
-                      placeholder="e.g. Approved — replacement dispatched via Sendy."
+                      className="w-full rounded-md border bg-background p-2 text-sm"
+                      rows={2}
+                      value={refundReason}
+                      onChange={(e) => setRefundReason(e.target.value)}
+                      placeholder="Reason for refund (required)…"
                     />
-                  </label>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      className="admin-btn admin-btn-primary"
-                      disabled={refundBusy || refund.status === "APPROVED"}
-                      onClick={() => void updateRefund("APPROVED")}
-                    >
-                      {refundBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />} Approve
-                    </button>
-                    <button
-                      className="admin-btn admin-btn-ghost"
-                      disabled={refundBusy || refund.status === "REJECTED"}
-                      onClick={() => void updateRefund("REJECTED")}
-                    >
-                      Reject
-                    </button>
-                    <button
-                      className="admin-btn admin-btn-ghost"
-                      disabled={refundBusy || refund.status === "RESOLVED"}
-                      onClick={() => void updateRefund("RESOLVED")}
-                    >
-                      Mark resolved
-                    </button>
+                    <div className="mt-2 flex gap-2">
+                      <button className="admin-btn admin-btn-danger" disabled={updatingStatus || !refundReason.trim()} onClick={handleLogRefundRequest}>
+                        {updatingStatus && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                        Log request
+                      </button>
+                      <button
+                        className="admin-btn admin-btn-ghost"
+                        onClick={() => {
+                          setShowRefundInput(false);
+                          setRefundReason("");
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </Section>
-              )}
+                )}
+              </Section>
 
               {/* Status history */}
               {Array.isArray(o.statusHistory) && o.statusHistory.length > 0 && (

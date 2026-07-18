@@ -23,7 +23,6 @@ import {
   markOrderPaymentRefunded,
   restoreOrderInventory,
 } from "@/services/commerceApi";
-import { refundStore, type RefundRequest, type RefundRequestStatus } from "@/services/refundStore";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
@@ -43,9 +42,6 @@ function AdminOrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
-  const [refund, setRefund] = useState<RefundRequest | null>(null);
-  const [refundNote, setRefundNote] = useState("");
-  const [refundBusy, setRefundBusy] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
   const [refundActionBusy, setRefundActionBusy] = useState(false);
@@ -74,39 +70,6 @@ function AdminOrderDetailPage() {
       cancelled = true;
     };
   }, [id, reloadKey]);
-
-  useEffect(() => {
-    if (!order?.reference) return;
-    let cancelled = false;
-    refundStore
-      .getAdminForOrder(order.reference)
-      .then((r) => {
-        if (!cancelled) {
-          setRefund(r);
-          setRefundNote(r?.adminNote ?? "");
-        }
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [order?.reference]);
-
-  const updateRefund = async (status: RefundRequestStatus) => {
-    if (!refund) return;
-    setRefundBusy(true);
-    try {
-      const next = await refundStore.updateStatus(refund.id, status, refundNote.trim() || undefined);
-      if (next) {
-        setRefund(next);
-        toast.success(`Refund request ${status.toLowerCase()}`);
-      }
-    } catch (err) {
-      reportAdminError(err, "Failed to update refund");
-    } finally {
-      setRefundBusy(false);
-    }
-  };
 
   // Status change — also sends current staffNotes so they aren't wiped
   const handleStatusChange = async (status: OrderStatus) => {
@@ -422,7 +385,9 @@ function AdminOrderDetailPage() {
               })()}
 
               {/* Manual override for edge cases the linear flow doesn't cover
-                  (e.g. correcting a mis-click, jumping straight to CANCELLED). */}
+                  (e.g. correcting a mis-click, jumping straight to CANCELLED).
+                  REFUNDED is deliberately excluded — that status only gets set
+                  through the Refund card below, never as a quick dropdown pick. */}
               <details style={{ marginTop: 12 }}>
                 <summary style={{ cursor: "pointer", fontSize: 12, color: "var(--admin-muted)" }}>
                   Manual override
@@ -434,7 +399,7 @@ function AdminOrderDetailPage() {
                   disabled={saving}
                   style={{ marginTop: 8 }}
                 >
-                  {ORDER_STATUS_OPTIONS.filter((o) => o.value !== "ALL").map((o) => (
+                  {ORDER_STATUS_OPTIONS.filter((o) => o.value !== "ALL" && (o.value !== "REFUNDED" || order.status === "REFUNDED")).map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
                     </option>
@@ -442,14 +407,31 @@ function AdminOrderDetailPage() {
                 </select>
               </details>
 
-              {/* Refunds are a manual, admin-attended process — logging a request here is just
-                  a complaint on record. It never touches payment status or inventory by itself;
-                  those are separate explicit actions below once an admin has actually resolved
-                  it in the real world (e.g. a manual M-Pesa reversal). */}
+              {order.status !== "CANCELLED" && order.status !== "REFUNDED" && (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  style={{ marginTop: 12, color: "var(--admin-clay, #c0392b)", borderColor: "var(--admin-clay, #c0392b)" }}
+                  disabled={saving}
+                  onClick={() => {
+                    if (!window.confirm(`Cancel order ${order.reference}? This cannot be undone from this screen.`)) return;
+                    void handleStatusChange("CANCELLED");
+                  }}
+                >
+                  Cancel order
+                </button>
+              )}
+            </div>
+
+            {/* Refund — a separate card from status, on purpose: refunding an order is a
+                distinct decision from moving it through fulfilment, and keeping them apart
+                stops the "what does this button actually do" confusion of one crowded panel. */}
+            <div className="admin-panel" style={{ padding: 16 }}>
+              <div className="admin-label">Refund</div>
               {order.refundRequestedAt && !order.refundResolvedAt ? (
                 <div
                   style={{
-                    marginTop: 12,
+                    marginTop: 10,
                     padding: "10px 12px",
                     borderRadius: 8,
                     background: "rgba(239, 68, 68, 0.08)",
@@ -498,17 +480,23 @@ function AdminOrderDetailPage() {
                     </p>
                   )}
                 </div>
+              ) : order.refundResolvedAt ? (
+                <p style={{ marginTop: 8, fontSize: 13, color: "var(--admin-muted)" }}>
+                  No open refund request. Last one was resolved {formatDate(order.refundResolvedAt)}.
+                </p>
               ) : (
-                order.paymentStatus === "PAID" && (
-                  <button
-                    className="admin-btn admin-btn-danger"
-                    disabled={saving}
-                    style={{ marginTop: 12 }}
-                    onClick={() => setShowRefundInput((v) => !v)}
-                  >
-                    Log refund request
-                  </button>
-                )
+                <p style={{ marginTop: 8, fontSize: 13, color: "var(--admin-muted)" }}>No refund requested for this order.</p>
+              )}
+
+              {order.paymentStatus === "PAID" && !(order.refundRequestedAt && !order.refundResolvedAt) && (
+                <button
+                  className="admin-btn admin-btn-danger"
+                  disabled={saving}
+                  style={{ marginTop: 12 }}
+                  onClick={() => setShowRefundInput((v) => !v)}
+                >
+                  Log refund request
+                </button>
               )}
 
               {showRefundInput && (
@@ -565,74 +553,6 @@ function AdminOrderDetailPage() {
                 Save notes
               </button>
             </div>
-
-            {/* Customer refund request panel */}
-            {refund && (
-              <div className="admin-panel" style={{ padding: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <div className="admin-label">Refund / return request</div>
-                  <span
-                    className={`n ${
-                      refund.status === "PENDING" ? "n-muted" : refund.status === "REJECTED" ? "n-muted" : "n-ok"
-                    }`}
-                  >
-                    {refund.status}
-                  </span>
-                </div>
-                <div style={{ marginTop: 8, fontSize: 13 }}>
-                  <div>
-                    <b>Wants:</b> {refund.desiredAction.replace(/_/g, " ")}
-                  </div>
-                  <div style={{ marginTop: 6 }}>
-                    <b>Reason:</b>
-                  </div>
-                  <p style={{ whiteSpace: "pre-wrap", margin: "4px 0", color: "var(--admin-muted)" }}>
-                    {refund.reason}
-                  </p>
-                  <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>
-                    Submitted {new Date(refund.createdAt).toLocaleString("en-KE")}
-                    {refund.updatedAt !== refund.createdAt &&
-                      ` · updated ${new Date(refund.updatedAt).toLocaleString("en-KE")}`}
-                  </div>
-                </div>
-                <label style={{ display: "block", marginTop: 12 }}>
-                  <span className="admin-label">Admin note (shown to customer)</span>
-                  <textarea
-                    className="admin-textarea"
-                    rows={3}
-                    value={refundNote}
-                    onChange={(e) => setRefundNote(e.target.value)}
-                    placeholder="e.g. Approved — replacement dispatched via Sendy."
-                  />
-                </label>
-                <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                  <button
-                    className="admin-btn admin-btn-primary"
-                    disabled={refundBusy || refund.status === "APPROVED"}
-                    onClick={() => void updateRefund("APPROVED")}
-                  >
-                    {refundBusy && <Loader2 size={14} className="animate-spin inline" />} Approve
-                  </button>
-                  <button
-                    className="admin-btn admin-btn-ghost"
-                    disabled={refundBusy || refund.status === "REJECTED"}
-                    onClick={() => void updateRefund("REJECTED")}
-                  >
-                    Reject
-                  </button>
-                  <button
-                    className="admin-btn admin-btn-ghost"
-                    disabled={refundBusy || refund.status === "RESOLVED"}
-                    onClick={() => void updateRefund("RESOLVED")}
-                  >
-                    Mark resolved
-                  </button>
-                </div>
-                <p style={{ color: "var(--admin-muted)", fontSize: 11, marginTop: 10 }}>
-                  If issuing a money refund, also use the <b>Process refund</b> button above to update the order status.
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
