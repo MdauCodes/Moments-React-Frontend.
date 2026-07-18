@@ -359,10 +359,10 @@ export async function listCustomers(params: ListCustomersParams = {}): Promise<L
 export async function getCustomer(
   id: string,
 ): Promise<{ customer: CustomerRecord | undefined; orders: OrderRecord[]; source: Source }> {
-  const data = await getJson<{ customer: CustomerRecord; orders?: OrderRecord[] }>(
+  const data = await getJson<{ customer: CustomerRecord; orders?: any[] }>(
     `/api/v1/admin/customers/${encodeURIComponent(id)}`,
   );
-  return { customer: data.customer, orders: data.orders ?? [], source: "live" };
+  return { customer: data.customer, orders: (data.orders ?? []).map(normalizeOrder), source: "live" };
 }
 
 export interface ImpersonationSession {
