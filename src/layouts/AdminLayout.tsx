@@ -44,7 +44,7 @@ import { resolveStaffRole, STAFF_ROLE_DISPLAY } from "@/lib/roles";
 import { OnboardingTour } from "@/components/admin/OnboardingTour";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 function MockModeBanner() {
   const { enabled, message } = useMockModeState();
@@ -420,8 +420,16 @@ let sidebarScrollTop = 0;
 export function AdminLayout({ title, actionLabel, onAction, onReload, children }: AdminLayoutProps) {
   const { user, logout, permissions } = useAdminAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const pathname = location.pathname;
   const sidebarNavRef = useRef<HTMLElement | null>(null);
+  const [headerSearch, setHeaderSearch] = useState("");
+
+  const runHeaderSearch = () => {
+    const q = headerSearch.trim();
+    if (!q) return;
+    navigate(`/admin/enquiries?q=${encodeURIComponent(q)}`);
+  };
 
   useEffect(() => {
     if (sidebarNavRef.current) sidebarNavRef.current.scrollTop = sidebarScrollTop;
@@ -574,6 +582,14 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
                 type="text"
                 placeholder="Search enquiries..."
                 style={styles.searchInput}
+                value={headerSearch}
+                onChange={(e) => setHeaderSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    runHeaderSearch();
+                  }
+                }}
               />
             </div>
             <button

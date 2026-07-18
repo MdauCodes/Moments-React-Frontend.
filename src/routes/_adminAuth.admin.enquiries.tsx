@@ -1,5 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Loader2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -78,12 +79,17 @@ function StatusPill({ status }: { status?: string }) {
 }
 
 function AdminEnquiriesPage() {
-  const [view, setView] = useState<"pipeline" | "list">("pipeline");
+  const [searchParams] = useSearchParams();
+  // The admin header's global search box promises "Search enquiries…" and lands here —
+  // a query arriving via ?q= (from any other admin page) seeds this page's own search
+  // and switches to the flat list view so the match is actually visible.
+  const initialQ = searchParams.get("q") ?? "";
+  const [view, setView] = useState<"pipeline" | "list">(initialQ ? "list" : "pipeline");
   const [rows, setRows] = useState<EnquiryDto[]>([]);
   const [selected, setSelected] = useState<EnquiryDto | null>(null);
   const [status, setStatus] = useState<"ALL" | EnquiryPipelineStatus>("ALL");
   const [assignedFilter, setAssignedFilter] = useState<string>("");
-  const [q, setQ] = useState<string>("");
+  const [q, setQ] = useState<string>(initialQ);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
