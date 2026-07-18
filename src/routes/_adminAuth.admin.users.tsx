@@ -35,6 +35,7 @@ function AdminUsersPage() {
   const [form, setForm] = useState<UserForm>(emptyForm);
   const [banner, setBanner] = useState<string | null>(null);
   const [showFirstVisit, setShowFirstVisit] = useState(false);
+  const [rolesForbidden, setRolesForbidden] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !user?.id) return;
@@ -56,7 +57,11 @@ function AdminUsersPage() {
           reportAdminError(err, "Failed to load users");
           return [] as UserDto[];
         }),
-        adminResources.roles.list().catch(() => [] as RoleDto[]),
+        adminResources.roles.list().catch((err) => {
+          console.error("Failed to load roles", err);
+          setRolesForbidden(true);
+          return [] as RoleDto[];
+        }),
       ]);
       setRows(Array.isArray(users) ? users : []);
       setRoles(Array.isArray(roleList) ? roleList : []);
@@ -239,12 +244,17 @@ function AdminUsersPage() {
                 </label>
                 <label>
                   <span className="admin-label">Role</span>
-                  <select required className="admin-select" value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })}>
+                  <select required className="admin-select" value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })} disabled={rolesForbidden}>
                     <option value="" disabled>Select a role…</option>
                     {roles.map((r) => (
                       <option key={r.id} value={r.id}>{r.displayName}</option>
                     ))}
                   </select>
+                  {rolesForbidden && (
+                    <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--admin-muted)" }}>
+                      Only a Super Admin can view the role list and create staff accounts — ask one of them to add this person.
+                    </p>
+                  )}
                 </label>
                 <label>
                   <span className="admin-label">Enabled</span>
