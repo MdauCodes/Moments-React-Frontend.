@@ -106,7 +106,16 @@ function AdminIndustriesPage() {
         .map((c) => {
           const current = new Set(c.industryIds ?? []);
           checkedCategoryIds.has(c.id) ? current.add(industryId) : current.delete(industryId);
-          return adminResources.categories.update(c.id, { industryIds: Array.from(current) });
+          // The backend's category update reuses the create DTO, which requires segmentId/name
+          // even on a partial update — send the category's own current values, not just the
+          // one field we're actually changing, or the request fails validation.
+          return adminResources.categories.update(c.id, {
+            segmentId: c.segmentId,
+            name: c.name,
+            description: c.description,
+            sortOrder: c.sortOrder,
+            industryIds: Array.from(current),
+          });
         });
 
       const subcategoryUpdates = subcategories
@@ -118,7 +127,14 @@ function AdminIndustriesPage() {
         .map((sc) => {
           const current = new Set(sc.industryIds ?? []);
           checkedSubcategoryIds.has(sc.id) ? current.add(industryId) : current.delete(industryId);
-          return adminResources.subcategories.update(sc.id, { industryIds: Array.from(current) });
+          // Same reason as categories above — categoryId/name are required even on update.
+          return adminResources.subcategories.update(sc.id, {
+            categoryId: sc.categoryId,
+            name: sc.name,
+            description: sc.description,
+            sortOrder: sc.sortOrder,
+            industryIds: Array.from(current),
+          });
         });
 
       await Promise.all([...categoryUpdates, ...subcategoryUpdates]);
