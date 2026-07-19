@@ -9,13 +9,13 @@ import { ArrowRight } from "lucide-react";
 const stats = [
   { v: "500+", l: "Brands packaged" },
   { v: "12", l: "Years in operation" },
-  { v: "14 days", l: "Average lead time" },
+  { v: "3 days", l: "Average delivery time" },
   { v: "47", l: "Counties served" },
 ];
 
 const values = [
   { t: "Craft", b: "Every order is print-checked by hand. No batch leaves our floor without a second pair of eyes." },
-  { t: "Speed", b: "We protect your launch dates. 7–14 day production, with rush options when it matters." },
+  { t: "Speed", b: "We protect your launch dates. Same-day dispatch within Nairobi, up to 3 days countrywide." },
   { t: "Partnership", b: "We don't just sell boxes. We help you brief, design, and roll out packaging that sells." },
 ];
 

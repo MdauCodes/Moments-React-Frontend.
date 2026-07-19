@@ -126,7 +126,7 @@ export function WelcomeStarterModal() {
               src={avatarLeft}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -left-16 -top-14 z-[5] hidden h-60 w-60 select-none object-contain object-bottom drop-shadow-2xl sm:block"
+              className="pointer-events-none absolute -left-10 -top-9 z-[5] hidden h-40 w-40 select-none object-contain object-bottom drop-shadow-2xl sm:block"
             />
             {/* Avatar 2's job: usher the button choices — breaks the
                 bottom-right corner near the button row. */}
@@ -134,10 +134,10 @@ export function WelcomeStarterModal() {
               src={avatarRight}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -right-12 -bottom-8 z-[5] hidden h-48 w-48 select-none object-contain object-bottom drop-shadow-2xl sm:block"
+              className="pointer-events-none absolute -right-8 -bottom-6 z-[5] hidden h-32 w-32 select-none object-contain object-bottom drop-shadow-2xl sm:block"
             />
 
-            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 py-5 sm:px-8 sm:py-8 animate-in fade-in duration-200">
+            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 py-5 sm:px-8 sm:py-8 sm:pl-16 animate-in fade-in duration-200">
               <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
                 <img
                   src={avatarLeft}
@@ -146,7 +146,7 @@ export function WelcomeStarterModal() {
                   className="h-12 w-12 shrink-0 object-contain object-bottom sm:hidden"
                 />
                 <div className="min-w-0">
-                  <p id="starter-modal-title" className="font-display text-lg leading-snug text-foreground sm:text-2xl sm:leading-tight">
+                  <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug text-foreground sm:text-2xl sm:leading-tight">
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
                   <p className="mt-1.5 text-[13px] leading-snug text-muted-foreground sm:mt-2 sm:text-sm sm:leading-normal">

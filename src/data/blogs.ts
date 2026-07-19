@@ -240,7 +240,7 @@ export const seedBlogs: Blog[] = [
       template: "announcement",
       data: {
         headline: "Three new mailer sizes. 100% recycled kraft. MOQ 200.",
-        body: "We've added Small (A5), Medium (A4) and Large (A3) eco mailers to the catalogue, all printed with water-based inks. Lead time is 5–7 working days from artwork approval. Built specifically for Kenyan online sellers shipping nationally.",
+        body: "We've added Small (A5), Medium (A4) and Large (A3) eco mailers to the catalogue, all printed with water-based inks. Delivered countrywide within 3 business days. Built specifically for Kenyan online sellers shipping nationally.",
         ctaLabel: "See the mailer range",
         ctaHref: "/products?category=mailers",
       },
