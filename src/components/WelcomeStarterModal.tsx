@@ -121,12 +121,15 @@ export function WelcomeStarterModal() {
           <>
             {/* Avatar 1's job: introduce the offer copy — breaks the card's
                 top-left corner so it reads as a mascot standing in front of
-                the panel, not artwork pasted inside it. */}
+                the panel, not artwork pasted inside it. Smaller on mobile —
+                same corner-break idea, scaled to the narrower card and the
+                backdrop margin around it (p-4 on the overlay), so it never
+                overlaps the centered heading below. */}
             <img
               src={avatarLeft}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -left-10 -top-9 z-[5] hidden h-40 w-40 select-none object-contain object-bottom drop-shadow-2xl sm:block"
+              className="pointer-events-none absolute -left-4 -top-4 z-[5] h-16 w-16 select-none object-contain object-bottom drop-shadow-xl sm:-left-10 sm:-top-9 sm:h-40 sm:w-40 sm:drop-shadow-2xl"
             />
             {/* Avatar 2's job: usher the button choices — breaks the
                 bottom-right corner near the button row. */}
@@ -134,17 +137,11 @@ export function WelcomeStarterModal() {
               src={avatarRight}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -right-8 -bottom-6 z-[5] hidden h-32 w-32 select-none object-contain object-bottom drop-shadow-2xl sm:block"
+              className="pointer-events-none absolute -right-3 -bottom-3 z-[5] h-14 w-14 select-none object-contain object-bottom drop-shadow-xl sm:-right-8 sm:-bottom-6 sm:h-32 sm:w-32 sm:drop-shadow-2xl"
             />
 
-            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 py-5 sm:px-8 sm:py-8 sm:pl-16 animate-in fade-in duration-200">
+            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-14 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200">
               <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
-                <img
-                  src={avatarLeft}
-                  alt=""
-                  aria-hidden="true"
-                  className="h-12 w-12 shrink-0 object-contain object-bottom sm:hidden"
-                />
                 <div className="min-w-0">
                   <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug text-foreground sm:text-2xl sm:leading-tight">
                     Here at Moments Packaging, we believe your loyalty should pay you back.
@@ -171,7 +168,7 @@ export function WelcomeStarterModal() {
                     <Briefcase className="h-4.5 w-4.5" />
                   </span>
                   <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 coupons now, +5% welcome code later</span>
+                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 coupons + a one-time 5% welcome code</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
 
@@ -184,7 +181,7 @@ export function WelcomeStarterModal() {
                     <Gift className="h-4.5 w-4.5" />
                   </span>
                   <span className="text-xs font-semibold text-foreground">Create an Individual Shopper account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">Free — 1,000 Reward Coupons on signup</span>
+                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 Reward Coupons on signup</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
 
@@ -254,7 +251,7 @@ export function WelcomeStarterModal() {
                   className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16]"
                 >
                   <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 coupons now, +5% welcome code later</span>
+                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 coupons + a one-time 5% welcome code</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
                 <button
@@ -263,7 +260,7 @@ export function WelcomeStarterModal() {
                   className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16]"
                 >
                   <span className="text-xs font-semibold text-foreground">Create an Individual Shopper account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">Free — 1,000 Reward Coupons on signup</span>
+                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 Reward Coupons on signup</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
               </div>
