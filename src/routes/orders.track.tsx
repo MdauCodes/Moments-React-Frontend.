@@ -250,6 +250,8 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
       subtotal: o.subtotal,
       shippingFee: o.shippingFee,
       discount: o.discount,
+      taxableAmount: o.taxableAmount,
+      grossTaxableAmount: o.grossTaxableAmount,
       vatAmount: o.vatAmount,
       total: o.total,
       paymentMethod: o.paymentMethod,

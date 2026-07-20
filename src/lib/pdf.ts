@@ -297,6 +297,8 @@ export interface ReceiptOrder {
   subtotal: number;
   shippingFee: number;
   discount?: number | null;
+  taxableAmount?: number | null;
+  grossTaxableAmount?: number | null;
   vatAmount?: number | null;
   vatRate?: number | null;
   total: number;
@@ -432,16 +434,40 @@ async function buildReceiptDoc(order: ReceiptOrder): Promise<{ doc: jsPDF; filen
     ty += bold ? 7 : 5.5;
   };
 
-  const subtotalExVat = order.subtotal - (order.vatAmount ?? 0);
-  totRow("Subtotal (excl. VAT)", fmt(subtotalExVat));
-  if ((order.vatAmount ?? 0) > 0) {
-    totRow(`VAT (${vatRate}%)`, fmt(order.vatAmount));
+  // VAT is charged on what the customer actually paid, not the pre-discount sticker
+  // price — mirrors the backend's tax-invoice.html chain (gross → discount → net → VAT)
+  // rather than folding the discount into the VAT figure silently.
+  const discountTotal = order.discount ?? 0;
+  const hasDiscount = discountTotal > 0;
+  const vatAmount = order.vatAmount ?? 0;
+  const taxableAmount = order.taxableAmount ?? order.subtotal - vatAmount;
+  const grossTaxableAmount = order.grossTaxableAmount ?? taxableAmount;
+  const taxableDiscount = grossTaxableAmount - taxableAmount;
+  const exemptGross = order.subtotal - grossTaxableAmount;
+  const exemptDiscount = discountTotal - taxableDiscount;
+  const exemptNet = exemptGross - exemptDiscount;
+
+  if (hasDiscount && grossTaxableAmount > 0.01) {
+    totRow("Vatable items (before discount)", fmt(grossTaxableAmount));
   }
-  if ((order.discount ?? 0) > 0) {
-    totRow("Discount", `-${fmt(order.discount)}`, false, DANGER);
+  if (hasDiscount && taxableDiscount > 0.01) {
+    totRow("Discount on vatable items", `-${fmt(taxableDiscount)}`, false, DANGER);
+  }
+  totRow(hasDiscount ? "Vatable amount (after discount)" : "Vatable amount (excl. VAT)", fmt(hasDiscount ? taxableAmount : taxableAmount - vatAmount));
+  if (hasDiscount) {
+    totRow("— excl. VAT", fmt(taxableAmount - vatAmount));
+  }
+  if (vatAmount > 0) {
+    totRow(`VAT (${vatRate}%)`, fmt(vatAmount));
+  }
+  if (exemptGross > 0.01) {
+    totRow(hasDiscount ? "VAT-exempt items (after discount)" : "VAT-exempt items", fmt(exemptNet));
   }
   const isCourier = (order.fulfillmentType ?? "") === "OWN_COURIER";
   totRow("Delivery", isCourier ? "To be confirmed" : order.shippingFee === 0 ? "Free" : fmt(order.shippingFee));
+  if (hasDiscount) {
+    totRow("Total discount applied", `-${fmt(discountTotal)}`, false, DANGER);
+  }
 
   ty += 1.5;
   hline(doc, ty, INK, 0.4);

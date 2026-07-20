@@ -77,6 +77,8 @@ export interface CustomerOrder {
   total: number;
   /** VAT-exclusive taxable amount and the VAT charged on it — present on the raw checkout response. */
   taxableAmount?: number;
+  /** VAT-inclusive taxable base BEFORE discount is allocated — for showing the gross→discount→net chain on documents. */
+  grossTaxableAmount?: number;
   vatAmount?: number;
   currency: "KES";
   createdAt: string;
@@ -218,6 +220,8 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     shippingFee: raw.deliveryFee ?? raw.shippingFee ?? 0,
     total: raw.totalAmount ?? raw.total ?? 0,
     discount: raw.discount ?? undefined,
+    taxableAmount: raw.taxableAmount ?? undefined,
+    grossTaxableAmount: raw.grossTaxableAmount ?? undefined,
     vatAmount: raw.vatAmount ?? undefined,
     currency: "KES",
     createdAt: raw.createdAt ?? new Date().toISOString(),

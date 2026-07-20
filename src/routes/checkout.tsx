@@ -54,6 +54,8 @@ async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, bu
       subtotal: order.subtotal,
       shippingFee: order.shippingFee,
       discount: order.discount,
+      taxableAmount: order.taxableAmount,
+      grossTaxableAmount: order.grossTaxableAmount,
       vatAmount: order.vatAmount,
       total: order.total,
       paymentMethod: order.paymentMethod,
