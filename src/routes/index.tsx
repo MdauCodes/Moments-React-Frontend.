@@ -427,43 +427,43 @@ function Hero() {
               </Link>
             </div>
 
-            {/* Account-type promo — both real account types get equal billing
-                here (guests are already covered by "Browse all packaging"
-                above), matching the same two paths the starter modal offers. */}
+            {/* Account-type promo — styled with the same gold fill and weight as
+                "Browse all packaging" above so both paths read as equally primary,
+                not a bold CTA followed by two muted afterthoughts. */}
             <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
               <button
                 type="button"
                 onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl bg-cream text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ padding: "13px 14px" }}
+                className="flex items-center justify-between gap-2.5 rounded-xl text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ padding: "14px 16px", background: "#e8c878" }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(232,200,120,0.35)" }}>
-                    <Gift className="h-4.5 w-4.5 text-forest" />
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(13,51,32,0.12)" }}>
+                    <Gift className="h-4.5 w-4.5" style={{ color: "#0d3320" }} />
                   </span>
                   <div>
-                    <p className="text-[13px] font-semibold text-forest">Individual Shopper Account</p>
-                    <p className="text-[11px] text-forest/70">Welcome bonus + rewards</p>
+                    <p className="text-[14px] font-bold" style={{ color: "#0d3320" }}>Individual Shopper Account</p>
+                    <p className="text-[11.5px] font-medium" style={{ color: "rgba(13,51,32,0.75)" }}>Welcome bonus + rewards</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-forest" />
+                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#0d3320" }} />
               </button>
               <button
                 type="button"
                 onClick={() => openRegister({ accountType: "BUSINESS" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl bg-cream text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ padding: "13px 14px" }}
+                className="flex items-center justify-between gap-2.5 rounded-xl text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
+                style={{ padding: "14px 16px", background: "#e8c878" }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(232,200,120,0.35)" }}>
-                    <Briefcase className="h-4.5 w-4.5 text-forest" />
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(13,51,32,0.12)" }}>
+                    <Briefcase className="h-4.5 w-4.5" style={{ color: "#0d3320" }} />
                   </span>
                   <div>
-                    <p className="text-[13px] font-semibold text-forest">Business Account</p>
-                    <p className="text-[11px] text-forest/70">Welcome bonus + order history</p>
+                    <p className="text-[14px] font-bold" style={{ color: "#0d3320" }}>Business Account</p>
+                    <p className="text-[11.5px] font-medium" style={{ color: "rgba(13,51,32,0.75)" }}>Welcome bonus + order history</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-forest" />
+                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#0d3320" }} />
               </button>
             </div>
 
