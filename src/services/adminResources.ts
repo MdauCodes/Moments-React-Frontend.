@@ -207,6 +207,24 @@ export type TaxDocumentAdminDto = {
 };
 
 
+export type DocumentBundleStatus = "PENDING" | "SENT" | "FAILED";
+export type DocumentBundleAdminDto = {
+  id: string;
+  orderReference: string;
+  orderStatus: string;
+  customerName: string;
+  customerPhone: string;
+  recipientEmail: string;
+  status: DocumentBundleStatus;
+  failureReason?: string | null;
+  etrCloudinaryUrl?: string | null;
+  etrUploadedAt?: string | null;
+  sentAt?: string | null;
+  createdAt: string;
+  receiptUrl?: string | null;
+  taxInvoiceUrl?: string | null;
+};
+
 function unwrap<T>(data: PageResponse<T> | T[]): { rows: T[]; total: number; totalPages: number } {
   if (Array.isArray(data)) return { rows: data, total: data.length, totalPages: 1 };
   const rows = data.content ?? [];
@@ -254,6 +272,19 @@ export const adminResources = {
       if (!res.ok) throw new Error(`Failed to render preview (${res.status})`);
       return res.blob();
     },
+  },
+  documentBundles: {
+    list: (params: { status?: DocumentBundleStatus; page?: number; size?: number }) =>
+      adminJson<PageResponse<DocumentBundleAdminDto>>(`/api/v1/admin/document-bundles${qs(params)}`),
+    byOrder: (orderReference: string) =>
+      adminJson<DocumentBundleAdminDto>(`/api/v1/admin/document-bundles/by-order/${encodeURIComponent(orderReference)}`),
+    uploadEtr: (id: string, file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      return adminJson<DocumentBundleAdminDto>(`/api/v1/admin/document-bundles/${encodeURIComponent(id)}/upload-etr`, { method: "POST", body: form });
+    },
+    retry: (id: string) =>
+      adminJson<DocumentBundleAdminDto>(`/api/v1/admin/document-bundles/${encodeURIComponent(id)}/retry`, { method: "POST" }),
   },
   devTools: {
     checkoutDryRun: (body: CheckoutDryRunRequest) =>

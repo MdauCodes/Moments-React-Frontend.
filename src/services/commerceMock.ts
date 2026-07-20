@@ -65,6 +65,8 @@ export interface OrderRecord {
   vatAmount?: number;
   taxableAmount?: number;
   vatRate?: number;
+  etrRequested?: boolean;
+  documentsEmail?: string;
   courierType?: string;
   courierServiceName?: string;
   courierStageOrOffice?: string;

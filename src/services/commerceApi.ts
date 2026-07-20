@@ -124,6 +124,8 @@ function normalizeOrder(raw: any): OrderRecord {
     vatAmount: num(raw?.vatAmount),
     taxableAmount: num(raw?.taxableAmount),
     vatRate: raw?.vatRate != null ? Number(raw.vatRate) : undefined,
+    etrRequested: raw?.etrRequested ?? false,
+    documentsEmail: raw?.documentsEmail,
     promoCode: raw?.promoCode,
     paymentMethod: raw?.paymentMethod,
     fulfillmentType: raw?.fulfillmentType,

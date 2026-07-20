@@ -177,8 +177,8 @@ function CheckoutModal() {
   const [county, setCounty] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
-  const [taxInvoiceRequested, setTaxInvoiceRequested] = useState(false);
-  const [taxInvoiceEmail, setTaxInvoiceEmail] = useState("");
+  const [etrRequested, setEtrRequested] = useState(false);
+  const [documentsEmail, setDocumentsEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
   const [kraPinPrefilled, setKraPinPrefilled] = useState(false);
   const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
@@ -208,6 +208,16 @@ function CheckoutModal() {
       })
       .catch(() => {});
   }, [isAuthenticated]);
+
+  // Default the documents-delivery email to the logged-in account's email the moment the
+  // customer ticks the ETR box — still fully editable, and does nothing for guests (who must
+  // type one in themselves).
+  useEffect(() => {
+    if (etrRequested && !documentsEmail && isAuthenticated && user?.email) {
+      setDocumentsEmail(user.email);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [etrRequested, isAuthenticated]);
 
   // Silently (no toast/error) try the welcome code as soon as it qualifies —
   // the backend's own min-order-amount check is the source of truth for
@@ -469,6 +479,10 @@ function CheckoutModal() {
         return false;
       }
     }
+    if (etrRequested && !/^\S+@\S+\.\S+$/.test(documentsEmail.trim())) {
+      toast.error("Enter a valid email to receive your receipt, tax invoice and ETR");
+      return false;
+    }
     return true;
   }
 
@@ -509,8 +523,8 @@ function CheckoutModal() {
           idempotencyKey: idempotencyKey.current,
           promoCode: appliedPromo?.code,
           redeemPoints: appliedRedemption?.points,
-          taxInvoiceRequested,
-          taxInvoiceEmail: taxInvoiceEmail.trim() || undefined,
+          etrRequested,
+          documentsEmail: etrRequested ? documentsEmail.trim() : undefined,
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
           ...(fulfillment === "OWN_COURIER" && courierType
             ? {
@@ -524,8 +538,8 @@ function CheckoutModal() {
         ref = order.reference;
         setOrderId(id);
         setOrderRef(ref);
-        if (taxInvoiceRequested) {
-          toast.success(`Your tax invoice will be emailed to ${taxInvoiceEmail.trim() || email} once your order is confirmed.`);
+        if (etrRequested) {
+          toast.success(`Your receipt, tax invoice and ETR will be emailed to ${documentsEmail.trim()} once we've uploaded your ETR.`);
           if (order.taxInvoiceUploadToken) {
             void uploadTaxInvoicePdf(order, order.taxInvoiceUploadToken, taxInvoiceKraPin.trim());
           }
@@ -751,28 +765,39 @@ function CheckoutModal() {
                     <input
                       type="checkbox"
                       className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
-                      checked={taxInvoiceRequested}
-                      onChange={(e) => setTaxInvoiceRequested(e.target.checked)}
+                      checked={etrRequested}
+                      onChange={(e) => setEtrRequested(e.target.checked)}
                     />
                     <span>
-                      <span className="font-medium">I need a tax invoice / VAT document for this order</span>
+                      <span className="font-medium">Send me my ETR & tax documents</span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
-                        For your own record-keeping (input VAT claims, expense filing). We'll email it as a PDF once
-                        your order is placed — available for 2 weeks from the date sent.
+                        You'll automatically receive your ETR (KRA-compliant receipt) along with your tax invoice and
+                        receipt, once you check this and enter a reachable email — we email all three together as
+                        soon as we've uploaded your ETR.
                       </span>
                     </span>
                   </label>
-                  {taxInvoiceRequested && (
+                  {etrRequested && (
                     <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div>
-                        <label className={labelCls}>Send tax invoice to</label>
+                        <label className={labelCls}>Send documents to</label>
                         <input
                           type="email"
                           className={inputCls}
-                          value={taxInvoiceEmail}
-                          onChange={(e) => setTaxInvoiceEmail(e.target.value)}
-                          placeholder={email || "you@example.com"}
+                          required
+                          value={documentsEmail}
+                          onChange={(e) => setDocumentsEmail(e.target.value)}
+                          placeholder="you@example.com"
                         />
+                        {isAuthenticated && user?.email && documentsEmail !== user.email && (
+                          <button
+                            type="button"
+                            className="mt-1 text-xs font-medium text-accent underline underline-offset-2"
+                            onClick={() => setDocumentsEmail(user.email!)}
+                          >
+                            Use my account email ({user.email})
+                          </button>
+                        )}
                       </div>
                       <div>
                         <label className={labelCls}>Your KRA PIN (optional)</label>

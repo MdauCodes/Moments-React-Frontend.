@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
+import { adminResources, type DocumentBundleAdminDto } from "@/services/adminResources";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -67,6 +69,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
   const [refundActionBusy, setRefundActionBusy] = useState(false);
+  const [documentBundle, setDocumentBundle] = useState<DocumentBundleAdminDto | null>(null);
   useEffect(() => { if (canAssign) listAssignableUsers().then(setAssignees).catch(() => {}); }, [canAssign]);
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
     let cancelled = false;
     setLoading(true);
     setOrder(null);
+    setDocumentBundle(null);
     getOrder(orderId)
       .then((res) => {
         if (cancelled) return;
@@ -81,6 +85,9 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
         setOrder(loaded);
         setStaffNotes(loaded?.staffNotes ?? loaded?.notes ?? "");
         setSelectedStatus(loaded?.status ?? "");
+        if (loaded?.etrRequested && loaded.reference) {
+          adminResources.documentBundles.byOrder(loaded.reference).then(setDocumentBundle).catch(() => {});
+        }
       })
       .catch((err) => reportAdminError(err, "Failed to load order"))
       .finally(() => {
@@ -359,6 +366,28 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <Row label="Total" value={formatKes(o.total)} bold />
                 )}
               </Section>
+
+              {/* ETR / documents bundle shortcut — only shown for orders that opted in at checkout */}
+              {o.etrRequested && (
+                <Section title="ETR & Tax Documents">
+                  <Row label="Documents email" value={o.documentsEmail ?? "—"} />
+                  <div className="flex items-center justify-between gap-3 py-1.5">
+                    <span className="text-sm text-muted-foreground">Status</span>
+                    <span className="text-sm font-medium">
+                      {documentBundle?.status ?? (o.status === "PENDING_PAYMENT" ? "Awaiting payment" : "—")}
+                    </span>
+                  </div>
+                  {documentBundle?.status === "FAILED" && documentBundle.failureReason && (
+                    <p className="text-xs text-destructive">{documentBundle.failureReason}</p>
+                  )}
+                  <Link
+                    to="/admin/document-bundles"
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground/90 hover:bg-secondary/40"
+                  >
+                    Manage in Documents/PDFs →
+                  </Link>
+                </Section>
+              )}
 
               {/* Payment */}
               <Section title="Payment">

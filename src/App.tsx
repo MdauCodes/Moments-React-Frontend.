@@ -93,6 +93,7 @@ import AdminOrdersPage from "@/routes/_adminAuth.admin.orders";
 import AdminOrderDetailPage from "@/routes/_adminAuth.admin.orders.$id";
 import AdminPromoCodesPage from "@/routes/_adminAuth.admin.promo-codes";
 import AdminTaxDocumentsPage from "@/routes/_adminAuth.admin.tax-documents";
+import AdminDocumentBundlesPage from "@/routes/_adminAuth.admin.document-bundles";
 import AdminRewardsTiersPage from "@/routes/_adminAuth.admin.rewards-tiers";
 import AdminReferralTiersPage from "@/routes/_adminAuth.admin.referral-tiers";
 import AdminRewardsReportPage from "@/routes/_adminAuth.admin.rewards-report";
@@ -206,6 +207,7 @@ export default function App() {
                       <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
                       <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />
                       <Route path="/admin/tax-documents" element={<AdminTaxDocumentsPage />} />
+                      <Route path="/admin/document-bundles" element={<AdminDocumentBundlesPage />} />
                       <Route path="/admin/dev-tools" element={<AdminDevToolsPage />} />
                       <Route path="/admin/rewards-tiers" element={<AdminRewardsTiersPage />} />
                       <Route path="/admin/referral-tiers" element={<AdminReferralTiersPage />} />

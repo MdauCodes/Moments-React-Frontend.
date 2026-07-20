@@ -90,8 +90,10 @@ export interface CustomerOrder {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
-  /** One-time secret for the Cloudinary tax-invoice upload flow — present only when taxInvoiceRequested was true. */
+  /** One-time secret for the Cloudinary tax-invoice upload flow — present only when etrRequested was true. */
   taxInvoiceUploadToken?: string | null;
+  etrRequested?: boolean;
+  documentsEmail?: string;
 }
 
 export interface PlaceOrderInput {
@@ -118,12 +120,12 @@ export interface PlaceOrderInput {
   courierStageOrOffice?: string;
   /** Client-generated UUID — prevents duplicate orders on network retry. */
   idempotencyKey?: string;
-  /** Customer ticked "I need a tax invoice / VAT document" for this order. */
-  taxInvoiceRequested?: boolean;
-  /** Where to email the tax invoice PDF; defaults to customer.email server-side if blank. */
-  taxInvoiceEmail?: string;
   /** Customer's own KRA PIN, printed on the tax invoice for their own remittance records. */
   taxInvoiceKraPin?: string;
+  /** Customer ticked "Send me my ETR & tax documents" — gates receipt/tax-invoice/ETR delivery until an admin uploads the ETR. */
+  etrRequested?: boolean;
+  /** Where to email the receipt/tax-invoice/ETR bundle — required server-side when etrRequested is true. */
+  documentsEmail?: string;
 }
 
 // ── Normalised status the UI cares about ─────────────────────────────────────
@@ -281,9 +283,9 @@ export const orderStore = {
     if (input.promoCode) body.promoCode = input.promoCode;
     if (input.redeemPoints) body.redeemPoints = input.redeemPoints;
     if (input.sessionId) body.sessionId = input.sessionId;
-    if (input.taxInvoiceRequested) {
-      body.taxInvoiceRequested = true;
-      if (input.taxInvoiceEmail) body.taxInvoiceEmail = input.taxInvoiceEmail;
+    if (input.etrRequested) {
+      body.etrRequested = true;
+      body.documentsEmail = input.documentsEmail;
       if (input.taxInvoiceKraPin) body.taxInvoiceKraPin = input.taxInvoiceKraPin;
     }
 
