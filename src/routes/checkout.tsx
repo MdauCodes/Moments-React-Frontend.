@@ -271,11 +271,47 @@ function CheckoutModal() {
   const [appliedRedemption, setAppliedRedemption] = useState<{ points: number; discount: number } | null>(null);
   const [redeemChecking, setRedeemChecking] = useState(false);
   const [redeemError, setRedeemError] = useState<string | null>(null);
+  // Live "≈ KES X" hint while the customer is still typing — reuses the same
+  // server-side preview the Apply button commits with, so the number they see
+  // before applying and after applying is always consistent (real conversion
+  // rate + redemption cap, not a duplicated client-side guess).
+  const [previewDiscount, setPreviewDiscount] = useState<number | null>(null);
+  const [previewCapped, setPreviewCapped] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     referralStore.getWallet().then((w) => setPointsBalance(w?.balance ?? 0)).catch(() => {});
   }, [isAuthenticated]);
+
+  useEffect(() => {
+    const points = parseInt(redeemInput, 10);
+    if (!points || points <= 0 || appliedRedemption) {
+      setPreviewDiscount(null);
+      setPreviewCapped(false);
+      return;
+    }
+    const t = setTimeout(async () => {
+      try {
+        const preliminaryTotal = cartTotal + shippingFee - (appliedPromo?.discount ?? 0);
+        const res = await authFetch(apiUrl("/api/v1/customer/referral/redeem/preview"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ points, orderTotal: preliminaryTotal }),
+        });
+        if (!res.ok) {
+          setPreviewDiscount(null);
+          return;
+        }
+        const data = await res.json();
+        setPreviewDiscount(data.appliedDiscountKes ?? null);
+        setPreviewCapped(!!data.capped);
+      } catch {
+        setPreviewDiscount(null);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [redeemInput, appliedRedemption]);
 
   // A points redemption's discount is computed against the order total at the moment
   // it's applied — if the promo code then changes (applied, removed, or swapped), that
@@ -1093,6 +1129,11 @@ function CheckoutModal() {
                               {redeemChecking ? "…" : "Apply"}
                             </button>
                           </div>
+                        )}
+                        {!appliedRedemption && previewDiscount !== null && (
+                          <p className="mt-1.5 text-[11px] font-medium text-accent">
+                            ≈ {fmt(previewDiscount)} off{previewCapped ? " (capped at the maximum for this order)" : ""}
+                          </p>
                         )}
                         {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
                       </div>
