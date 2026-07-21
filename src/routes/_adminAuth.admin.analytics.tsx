@@ -4,10 +4,10 @@ import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "lucide-react";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { formatKes } from "@/components/admin/commerceUi";
+import { formatKes, ORDER_STATUS_OPTIONS } from "@/components/admin/commerceUi";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary,
-  type AnalyticsResult, type RevenueSummary,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary,
+  type AnalyticsResult, type RevenueSummary, type OperationsSummary,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
@@ -62,6 +62,8 @@ function AdminAnalyticsPage() {
   const [range, setRange] = useState<DateRange | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
   const [revenueLoading, setRevenueLoading] = useState(false);
+  const [ops, setOps] = useState<OperationsSummary | null>(null);
+  const [opsLoading, setOpsLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -86,6 +88,22 @@ function AdminAnalyticsPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setOpsLoading(true);
+    getOperationsSummary(range.from, range.to)
+      .then((res) => { if (!cancelled) setOps(res); })
+      .catch((err) => reportAdminError(err, "Failed to load operations summary"))
+      .finally(() => { if (!cancelled) setOpsLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  function statusLabel(status: string): string {
+    return ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status.replace(/_/g, " ");
+  }
 
   async function handleExport(kind: "orders" | "customers") {
     try {
@@ -178,6 +196,55 @@ function AdminAnalyticsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Order funnel & operations — same date range as revenue above. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>Order funnel & operations</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <KpiCard
+              label="Total orders"
+              value={opsLoading || !ops ? "—" : ops.totalOrders.toLocaleString()}
+            />
+            <KpiCard
+              label="Cancellation rate"
+              value={opsLoading || !ops ? "—" : `${ops.cancellationRatePercent}%`}
+              sub={opsLoading || !ops ? undefined : `${ops.cancelledOrders} cancelled`}
+            />
+            <KpiCard
+              label="Repeat customers"
+              value={opsLoading || !ops ? "—" : `${ops.repeatCustomerRatePercent}%`}
+              sub={opsLoading || !ops ? undefined : `${ops.repeatCustomerCount} of ${ops.distinctCustomerCount} buyer(s) had ordered before`}
+            />
+            <KpiCard
+              label="Refunds requested"
+              value={opsLoading || !ops ? "—" : formatKes(ops.refundRequestedValue)}
+              sub={opsLoading || !ops ? undefined : `${ops.refundRequestedCount} request(s) · ${ops.refundResolvedCount} resolved${ops.refundResolvedCount > 0 ? `, avg ${ops.avgRefundResolutionHours}h` : ""}`}
+            />
+          </div>
+
+          {!opsLoading && ops && ops.funnel.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Status funnel (orders placed in this period)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {ops.funnel.map((f) => {
+                  const duration = ops.avgTimeInStage.find((d) => d.status === f.status);
+                  return (
+                    <div key={f.status} className="admin-panel" style={{ padding: "10px 14px" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600 }}>{statusLabel(f.status)}</div>
+                      <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{f.count}</div>
+                      {duration && (
+                        <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
+                          avg {duration.avgHours}h in stage ({duration.sampleCount} completed)
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

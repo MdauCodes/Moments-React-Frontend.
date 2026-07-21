@@ -461,6 +461,42 @@ export async function getRevenueSummary(from: Date, to: Date): Promise<RevenueSu
   return getJson<RevenueSummary>(`/api/v1/admin/analytics/revenue?${params.toString()}`);
 }
 
+// ---------- Analytics: operations summary (Phase 2) ----------
+// Backend GET /api/v1/admin/analytics/operations?from=<ISO instant>&to=<ISO instant>
+
+export interface StatusCount {
+  status: string;
+  count: number;
+}
+
+export interface StatusDuration {
+  status: string;
+  avgHours: number;
+  sampleCount: number;
+}
+
+export interface OperationsSummary {
+  rangeStart: string;
+  rangeEnd: string;
+  totalOrders: number;
+  funnel: StatusCount[];
+  avgTimeInStage: StatusDuration[];
+  cancelledOrders: number;
+  cancellationRatePercent: number;
+  distinctCustomerCount: number;
+  repeatCustomerCount: number;
+  repeatCustomerRatePercent: number;
+  refundRequestedCount: number;
+  refundRequestedValue: number;
+  refundResolvedCount: number;
+  avgRefundResolutionHours: number;
+}
+
+export async function getOperationsSummary(from: Date, to: Date): Promise<OperationsSummary> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<OperationsSummary>(`/api/v1/admin/analytics/operations?${params.toString()}`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {
