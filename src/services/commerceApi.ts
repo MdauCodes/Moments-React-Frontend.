@@ -552,6 +552,40 @@ export async function getTaxReport(from: Date, to: Date): Promise<TaxReport> {
   return getJson<TaxReport>(`/api/v1/admin/analytics/tax?${params.toString()}`);
 }
 
+// ---------- Analytics: products & inventory (Phase 5) ----------
+// Backend GET /api/v1/admin/analytics/products?from=<ISO instant>&to=<ISO instant>
+
+export interface ProductPerformance {
+  productName: string;
+  unitsSold: number;
+  revenueKes: number;
+}
+
+export interface StockAlert {
+  productName: string;
+  stockCount: number;
+  lowStockThreshold: number;
+  stockStatus: string;
+}
+
+export interface ProductsInventory {
+  rangeStart: string;
+  rangeEnd: string;
+  topSellingByRevenue: ProductPerformance[];
+  inStockCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  totalInventoryCostValueKes: number;
+  totalInventoryRetailValueKes: number;
+  productsMissingCostPriceCount: number;
+  lowStockAlerts: StockAlert[];
+}
+
+export async function getProductsInventory(from: Date, to: Date): Promise<ProductsInventory> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<ProductsInventory>(`/api/v1/admin/analytics/products?${params.toString()}`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {
