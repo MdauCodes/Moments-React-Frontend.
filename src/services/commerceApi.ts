@@ -533,6 +533,25 @@ export async function getRewardsEconomics(from: Date, to: Date): Promise<Rewards
   return getJson<RewardsEconomics>(`/api/v1/admin/analytics/rewards?${params.toString()}`);
 }
 
+// ---------- Analytics: tax report (Phase 4) ----------
+// Backend GET /api/v1/admin/analytics/tax?from=<ISO instant>&to=<ISO instant>
+
+export interface TaxReport {
+  rangeStart: string;
+  rangeEnd: string;
+  vatableSalesKes: number;
+  vatToRemitKes: number;
+  paidOrderCount: number;
+  taxInvoiceRequestedCount: number;
+  etrRequestedCount: number;
+  documentBundleStatusCounts: StatusCount[];
+}
+
+export async function getTaxReport(from: Date, to: Date): Promise<TaxReport> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<TaxReport>(`/api/v1/admin/analytics/tax?${params.toString()}`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {

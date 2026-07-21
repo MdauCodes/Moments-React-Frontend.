@@ -6,8 +6,8 @@ import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes, ORDER_STATUS_OPTIONS } from "@/components/admin/commerceUi";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRewardsEconomics,
-  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RewardsEconomics,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRewardsEconomics, getTaxReport,
+  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RewardsEconomics, type TaxReport,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
@@ -66,6 +66,8 @@ function AdminAnalyticsPage() {
   const [opsLoading, setOpsLoading] = useState(false);
   const [rewards, setRewards] = useState<RewardsEconomics | null>(null);
   const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [tax, setTax] = useState<TaxReport | null>(null);
+  const [taxLoading, setTaxLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -114,6 +116,25 @@ function AdminAnalyticsPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setTaxLoading(true);
+    getTaxReport(range.from, range.to)
+      .then((res) => { if (!cancelled) setTax(res); })
+      .catch((err) => reportAdminError(err, "Failed to load tax report"))
+      .finally(() => { if (!cancelled) setTaxLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  function bundleStatusLabel(status: string): string {
+    const labels: Record<string, string> = {
+      PENDING: "Awaiting ETR upload", SENT: "Sent to customer", FAILED: "Failed to send", EXPIRED: "Expired",
+    };
+    return labels[status] ?? status;
+  }
 
   function sourceLabel(source: string): string {
     return source.replace(/^EARNED_/, "").replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
@@ -319,6 +340,43 @@ function AdminAnalyticsPage() {
                     <div style={{ fontSize: 12, fontWeight: 600 }}>{h.name || "—"}</div>
                     <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{h.balance.toLocaleString()}</div>
                     <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(h.valueKes)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tax report — same date range as above. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>Tax report</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <KpiCard
+              label="VAT to remit"
+              value={taxLoading || !tax ? "—" : formatKes(tax.vatToRemitKes)}
+              sub={taxLoading || !tax ? undefined : `on ${formatKes(tax.vatableSalesKes)} vatable sales, ${tax.paidOrderCount} paid order(s)`}
+            />
+            <KpiCard
+              label="Tax invoices requested"
+              value={taxLoading || !tax ? "—" : tax.taxInvoiceRequestedCount.toLocaleString()}
+              sub={taxLoading || !tax ? undefined : "paid orders in this period"}
+            />
+            <KpiCard
+              label="ETR bundles requested"
+              value={taxLoading || !tax ? "—" : tax.etrRequestedCount.toLocaleString()}
+              sub={taxLoading || !tax ? undefined : "paid orders in this period"}
+            />
+          </div>
+
+          {!taxLoading && tax && tax.documentBundleStatusCounts.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>ETR bundle delivery status</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {tax.documentBundleStatusCounts.map((s) => (
+                  <div key={s.status} className="admin-panel" style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{bundleStatusLabel(s.status)}</div>
+                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.count}</div>
                   </div>
                 ))}
               </div>
