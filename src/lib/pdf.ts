@@ -59,11 +59,17 @@ const BRAND = {
   name: "Moments Packaging Kenya",
   tagline: "Premium packaging, crafted in Kenya",
   email: "info@momentspackaging.com",
-  phone: "+254 119 556 688",
+  // Two lines, grouped in pairs for readability — matches the site footer, and
+  // splits customer calls/WhatsApp between two people instead of one.
+  phone: "0119 55 66 88",
+  phoneAlt: "0119 55 66 99",
   whatsapp: "+254 119 556 688",
   site: "momentspackaging.com",
   address: "Nairobi, Kenya",
 };
+
+/** "0119 55 66 88 / 0119 55 66 99" — both contact lines together, wherever a document shows a phone number. */
+const BOTH_PHONES = `${BRAND.phone} / ${BRAND.phoneAlt}`;
 
 // ── Colour palette ────────────────────────────────────────────────────────────
 const INK: [number, number, number] = [18, 18, 20];
@@ -166,7 +172,7 @@ function masthead(doc: jsPDF, opts: MastheadOpts): number {
     doc.setFontSize(8);
     doc.setTextColor(...MUTED);
     doc.text(BRAND.tagline, 14, 22);
-    const contactLine = `${BRAND.address}  ·  ${BRAND.phone}  ·  ${BRAND.email}  ·  ${BRAND.site}`;
+    const contactLine = `${BRAND.address}  ·  ${BOTH_PHONES}  ·  ${BRAND.email}  ·  ${BRAND.site}`;
     doc.text(opts.kraPin ? `${contactLine}  ·  KRA PIN ${opts.kraPin}` : contactLine, 14, 26.5);
 
     doc.setTextColor(...INK);
@@ -233,7 +239,7 @@ function footer(doc: jsPDF, note?: string) {
     hline(doc, ph - 15);
     doc.setFontSize(7.5);
     doc.setTextColor(...MUTED);
-    doc.text(note ?? `${BRAND.name}  ·  ${BRAND.site}  ·  ${BRAND.phone}`, 14, ph - 9);
+    doc.text(note ?? `${BRAND.name}  ·  ${BRAND.site}  ·  ${BOTH_PHONES}`, 14, ph - 9);
     doc.text(`Page ${i} of ${total}`, pw - 14, ph - 9, { align: "right" });
   }
 }
@@ -351,7 +357,7 @@ async function buildReceiptDoc(order: ReceiptOrder): Promise<{ doc: jsPDF; filen
   doc.text(BRAND.address, 14, y);
   doc.text(order.customerEmail, pw / 2, y);
   y += 5;
-  doc.text(BRAND.phone, 14, y);
+  doc.text(BOTH_PHONES, 14, y);
   doc.text(order.customerPhone, pw / 2, y);
   y += 5;
   doc.text(BRAND.email, 14, y);
@@ -522,7 +528,7 @@ async function buildReceiptDoc(order: ReceiptOrder): Promise<{ doc: jsPDF; filen
   doc.setFontSize(8.5);
   doc.setTextColor(...MUTED);
   ty += 6;
-  doc.text(`Questions? Reach us at ${BRAND.email} or WhatsApp ${BRAND.whatsapp} quoting ${order.reference}.`, 14, ty, {
+  doc.text(`Questions? Reach us at ${BRAND.email} or call/WhatsApp ${BOTH_PHONES} quoting ${order.reference}.`, 14, ty, {
     maxWidth: pw - 28,
   });
   ty += 7;
