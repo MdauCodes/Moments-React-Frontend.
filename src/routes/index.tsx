@@ -66,11 +66,11 @@ const siteLd = {
 
 
 const ANNOUNCE_ITEMS = [
-  "Order online 24/7",
-  "M-Pesa accepted",
-  "Same day — Nairobi",
-  "Up to 3 days countrywide",
-  "Branding available on order",
+  "1,000 Reward Coupons free on signup",
+  "Redeem coupons for a discount at checkout",
+  "5% welcome code for new Business Accounts",
+  "Earn coupons on every order",
+  "Referral rewards — you and your friend both earn",
 ];
 
 const TRUST_STATS = [

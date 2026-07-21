@@ -8,6 +8,7 @@ import { AppSplash } from "./AppSplash";
 import { BottomNav } from "./BottomNav";
 import { CookieConsent } from "./CookieConsent";
 import { AddToHomeScreenPrompt } from "./AddToHomeScreenPrompt";
+import { WelcomeStarterModal } from "./WelcomeStarterModal";
 
 const SPLASH_KEY = "moments_splash_shown";
 
@@ -40,6 +41,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <CookieConsent />
         <BottomNav />
       </div>
+      <WelcomeStarterModal />
     </>
   );
 }
