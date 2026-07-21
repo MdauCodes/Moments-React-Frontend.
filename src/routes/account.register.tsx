@@ -218,7 +218,7 @@ function RegisterPage() {
             onCheckedChange={setConsent}
             purpose="create and manage your account"
           />
-          <button type="submit" disabled={submitting} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
+          <button type="submit" disabled={submitting || !consent} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
             {submitting && <InlineProgress size="sm" />} Create account
           </button>
         </form>

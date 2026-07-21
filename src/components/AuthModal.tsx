@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal, type ModalAccountType } from "@/contexts/AuthModalContext";
 import { PasswordInput } from "@/components/PasswordInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { RewardsTermsLink } from "@/components/RewardsTermsLink";
 import { InlineProgress } from "@/components/InlineProgress";
 import { apiUrl, getSessionId } from "@/config/api";
 
@@ -63,7 +64,8 @@ export function AuthModal() {
       onClick={close}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 bg-white/75 text-card-foreground shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 text-card-foreground shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+        style={{ background: "color-mix(in oklab, var(--accent) 10%, white 75%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -120,8 +122,8 @@ function LoginStep() {
 
   return (
     <div className="px-6 pb-6 pt-8">
-      <h2 className="font-display text-2xl text-foreground">Sign in</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Welcome back.</p>
+      <h2 className="text-center font-display text-2xl text-foreground">Sign in</h2>
+      <p className="mt-1 text-center text-sm text-muted-foreground">Welcome back.</p>
       <form onSubmit={handleSubmit} className="mt-6 space-y-3.5">
         <div>
           <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
@@ -252,34 +254,45 @@ function RegisterStep() {
   if (!accountType) {
     return (
       <div className="px-6 pb-6 pt-8">
-        <h2 className="font-display text-2xl text-foreground">Create your account</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Choose the account that fits how you order.</p>
+        <h2 className="text-center font-display text-2xl text-foreground">Create your account</h2>
+        <p className="mt-1 text-center text-sm text-muted-foreground">Choose the account that fits how you order.</p>
         <div className="mt-5 space-y-2.5">
           {ACCOUNT_TYPES.map((t) => (
-            <button
-              key={t.value}
-              type="button"
-              onClick={() => setAccountType(t.value)}
-              className="flex w-full items-start gap-3 rounded-xl border border-border bg-background p-3.5 text-left transition-colors hover:border-accent/50 hover:bg-secondary/30"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
-                <t.icon className="h-4 w-4" />
-              </span>
-              <span>
-                <span className="block text-sm font-semibold text-foreground">{t.title}</span>
-                <span className="block text-xs text-muted-foreground">{t.desc}</span>
-                <span className="mt-1.5 block space-y-0.5">
-                  {t.perks.map((p) => (
-                    <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                      <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
-                      {p}
-                    </span>
-                  ))}
+            <div key={t.value} className="rounded-xl border border-border bg-background p-3.5 transition-colors hover:border-accent/50 hover:bg-secondary/30">
+              <button
+                type="button"
+                onClick={() => setAccountType(t.value)}
+                className="flex w-full items-start gap-3 text-left"
+              >
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/10 text-accent">
+                  <t.icon className="h-4 w-4" />
                 </span>
-              </span>
-            </button>
+                <span>
+                  <span className="block text-sm font-semibold text-foreground">{t.title}</span>
+                  <span className="block text-xs text-muted-foreground">{t.desc}</span>
+                  <span className="mt-1.5 block space-y-0.5">
+                    {t.perks.map((p) => (
+                      <span key={p} className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                        <Check className="mt-0.5 h-2.5 w-2.5 shrink-0 text-accent" />
+                        {p}
+                      </span>
+                    ))}
+                  </span>
+                </span>
+              </button>
+              <Link
+                to={t.value === "BUSINESS" ? "/business-account" : "/individual-shopper-account"}
+                onClick={close}
+                className="mt-1.5 ml-12 inline-block text-[11px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
+              >
+                Learn more
+              </Link>
+            </div>
           ))}
         </div>
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Read the <RewardsTermsLink className="text-accent underline underline-offset-2">offer terms</RewardsTermsLink> for full details.
+        </p>
 
         <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-dashed border-border bg-secondary/20 p-3">
           <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
@@ -313,10 +326,10 @@ function RegisterStep() {
           &larr; Change account type
         </button>
       )}
-      <h2 className="mt-2 font-display text-2xl text-foreground">{chosen.title}</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <h2 className="mt-2 text-center font-display text-2xl text-foreground">{chosen.title}</h2>
+      <p className="mt-1 text-center text-sm text-muted-foreground">
         {accountType === "BUSINESS"
-          ? "Your details as the account holder. You'll add your business profile (name, KRA PIN, contact info) right after this."
+          ? "Your details as the account holder. You'll add your business profile (name, address, contact info) right after this."
           : "Takes about a minute — that's it, you're in."}
       </p>
       <form onSubmit={handleSubmit} className="mt-5 space-y-3">
@@ -348,7 +361,7 @@ function RegisterStep() {
         <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage your account" />
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !consent}
           className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
         >
           {submitting && <InlineProgress size="sm" />} Create account

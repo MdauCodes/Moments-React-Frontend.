@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { X, Gift, Briefcase, ShoppingBag, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { RewardsTermsLink } from "@/components/RewardsTermsLink";
 import avatarLeft from "@/assets/avatars/avatar_1.png";
 import avatarRight from "@/assets/avatars/avatar_2.png";
 import avatarShrug from "@/assets/avatars/avatar_3.png";
@@ -103,9 +105,10 @@ export function WelcomeStarterModal() {
       onClick={() => dismiss()}
     >
       <div
-        className={`relative w-full rounded-3xl border border-white/40 bg-white/75 text-card-foreground shadow-2xl backdrop-blur-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
+        className={`relative w-full rounded-3xl border border-white/40 text-card-foreground shadow-2xl backdrop-blur-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
           view === "main" ? "max-w-3xl" : "max-w-lg"
         }`}
+        style={{ background: "color-mix(in oklab, var(--accent) 10%, white 75%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -141,7 +144,7 @@ export function WelcomeStarterModal() {
             />
 
             <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-14 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200">
-              <div className="flex flex-col items-center gap-2 text-center sm:flex-row sm:items-center sm:gap-4 sm:text-left">
+              <div className="flex flex-col items-center gap-2 text-center">
                 <div className="min-w-0">
                   <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug text-foreground sm:text-2xl sm:leading-tight">
                     Here at Moments Packaging, we believe your loyalty should pay you back.
@@ -151,6 +154,9 @@ export function WelcomeStarterModal() {
                     order through discounts, referral rewards, and VIP perks. Open a Business Account to unlock a
                     one-time 5% promo code after your trade profile is approved.
                   </p>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground">
+                    Full details in the <RewardsTermsLink className="text-accent underline underline-offset-2">offer terms</RewardsTermsLink>.
+                  </p>
                 </div>
               </div>
 
@@ -159,31 +165,49 @@ export function WelcomeStarterModal() {
               </p>
 
               <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16] sm:gap-2 sm:py-4"
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
-                    <Briefcase className="h-4.5 w-4.5" />
-                  </span>
-                  <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 coupons + a one-time 5% welcome code</span>
-                  <CtaPill>Get started</CtaPill>
-                </button>
+                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm sm:gap-2 sm:py-4">
+                  <button
+                    type="button"
+                    onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
+                    className="flex flex-col items-center gap-1.5 sm:gap-2"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+                      <Briefcase className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="text-xs font-semibold text-foreground">Create a Business Account</span>
+                    <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 coupons + a one-time 5% welcome code</span>
+                    <CtaPill>Get started</CtaPill>
+                  </button>
+                  <Link
+                    to="/business-account"
+                    onClick={() => dismiss(true)}
+                    className="text-[10px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
+                  >
+                    Learn more
+                  </Link>
+                </div>
 
-                <button
-                  type="button"
-                  onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-accent/[0.16] sm:gap-2 sm:py-4"
-                >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
-                    <Gift className="h-4.5 w-4.5" />
-                  </span>
-                  <span className="text-xs font-semibold text-foreground">Create an Individual Shopper account</span>
-                  <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 Reward Coupons on signup</span>
-                  <CtaPill>Get started</CtaPill>
-                </button>
+                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-accent/30 bg-accent/[0.09] px-3 py-3.5 text-center shadow-sm sm:gap-2 sm:py-4">
+                  <button
+                    type="button"
+                    onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
+                    className="flex flex-col items-center gap-1.5 sm:gap-2"
+                  >
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent">
+                      <Gift className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="text-xs font-semibold text-foreground">Create an Individual Shopper account</span>
+                    <span className="text-[10.5px] leading-tight text-muted-foreground">1,000 Reward Coupons on signup</span>
+                    <CtaPill>Get started</CtaPill>
+                  </button>
+                  <Link
+                    to="/individual-shopper-account"
+                    onClick={() => dismiss(true)}
+                    className="text-[10px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
+                  >
+                    Learn more
+                  </Link>
+                </div>
 
                 <button
                   type="button"
