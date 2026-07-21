@@ -307,34 +307,10 @@ function Hero() {
             boxShadow: "0 1px 0 rgba(255,255,255,0.06) inset, 0 4px 14px rgba(0,0,0,0.18)",
           }}
         >
-          {/* Desktop */}
-          <div
-            className="hidden md:flex items-center justify-center overflow-hidden whitespace-nowrap"
-            style={{ gap: "28px", padding: "8px 40px" }}
-          >
-            {ANNOUNCE_ITEMS.map((item, i) => (
-              <span key={item} className="flex items-center" style={{ gap: "28px" }}>
-                <span
-                  style={{
-                    fontSize: "11px",
-                    letterSpacing: "0.04em",
-                    color: "rgba(255,255,255,0.94)",
-                    fontWeight: 500,
-                  }}
-                >
-                  {item}
-                </span>
-                {i < ANNOUNCE_ITEMS.length - 1 && (
-                  <span
-                    className="inline-block rounded-full"
-                    style={{ width: "3px", height: "3px", background: "var(--accent)", opacity: 0.85 }}
-                  />
-                )}
-              </span>
-            ))}
-          </div>
-          {/* Mobile marquee */}
-          <div className="md:hidden overflow-hidden" style={{ padding: "8px 0" }}>
+          {/* Marquee at every breakpoint — a static centered row on desktop used to just get
+              clipped at both edges once the reward-focused copy got longer than the old
+              short delivery-info items, since it never had anywhere to scroll to. */}
+          <div className="overflow-hidden" style={{ padding: "8px 0" }}>
             <div className="mpk-marquee-track flex" style={{ gap: "22px", width: "max-content", whiteSpace: "nowrap" }}>
               {[...ANNOUNCE_ITEMS, ...ANNOUNCE_ITEMS].map((item, idx) => (
                 <span key={`${item}-${idx}`} className="flex items-center" style={{ gap: "22px" }}>

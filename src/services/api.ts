@@ -1,3 +1,20 @@
+import {
+  UtensilsCrossed,
+  Sprout,
+  Shirt,
+  ShoppingCart,
+  Gift,
+  Sparkles,
+  Zap,
+  Wrench,
+  PencilLine,
+  HardHat,
+  Truck,
+  SprayCan,
+  HeartPulse,
+  Building2,
+  type LucideIcon,
+} from "lucide-react";
 import { industries } from "@/data/products";
 import { blogStore } from "@/services/blogStore";
 import { apiUrl } from "@/config/api";
@@ -105,13 +122,40 @@ function normalizeProduct(p: ProductApiDto): Product {
 
 const iconBySlug = new Map(industries.map((industry) => [industry.slug, industry.icon]));
 
+// Keyword → icon fallback for any backend-created industry that isn't one of the original 8
+// hardcoded ones in ALL_INDUSTRIES — without this, every such industry collapsed to the same
+// icon (industries[0].icon, always the Food & Beverage fork), which read as a UI bug since
+// distinct industries all looked identical. Matched against name + slug + description, first
+// keyword group that hits wins; genuinely unmatched industries fall back to a neutral building
+// icon rather than silently reusing an unrelated one.
+const ICON_KEYWORDS: Array<{ icon: LucideIcon; words: string[] }> = [
+  { icon: UtensilsCrossed, words: ["food", "beverage", "restaurant", "cafe", "coffee", "kitchen", "bakery"] },
+  { icon: Sprout, words: ["agri", "farm", "produce", "horticulture"] },
+  { icon: Shirt, words: ["fashion", "apparel", "clothing", "textile", "garment", "boutique"] },
+  { icon: ShoppingCart, words: ["retail", "ecommerce", "e-commerce", "wholesale", "shop", "store"] },
+  { icon: Gift, words: ["hospitality", "hotel", "event", "catering", "wedding", "gifting"] },
+  { icon: HeartPulse, words: ["health", "medical", "pharma", "clinic", "wellness"] },
+  { icon: Sparkles, words: ["beauty", "cosmetic", "skincare", "haircare", "spa"] },
+  { icon: Zap, words: ["electronic", "gadget", "tech", "device"] },
+  { icon: Wrench, words: ["manufactur", "industrial", "hardware", "tools", "spares", "factory"] },
+  { icon: HardHat, words: ["construction", "building material", "cement"] },
+  { icon: Truck, words: ["logistics", "transport", "courier", "delivery"] },
+  { icon: SprayCan, words: ["clean", "hygiene", "sanit", "detergent"] },
+  { icon: PencilLine, words: ["stationery", "office", "school", "education", "supplies"] },
+];
+
+function iconByKeyword(industry: Partial<Industry>): LucideIcon | undefined {
+  const haystack = `${industry.name ?? ""} ${industry.slug ?? ""} ${industry.description ?? ""}`.toLowerCase();
+  return ICON_KEYWORDS.find((group) => group.words.some((w) => haystack.includes(w)))?.icon;
+}
+
 function normalizeIndustry(industry: Partial<Industry> & { displayId?: number }): Industry {
   const fallback = industries.find((i) => i.slug === industry.slug || i.id === industry.id);
   return {
     id: industry.id ?? fallback?.id ?? String(industry.displayId ?? ""),
     name: industry.name ?? fallback?.name ?? "Industry",
     slug: industry.slug ?? fallback?.slug ?? "industry",
-    icon: fallback?.icon ?? iconBySlug.get(industry.slug ?? "") ?? industries[0].icon,
+    icon: fallback?.icon ?? iconBySlug.get(industry.slug ?? "") ?? iconByKeyword(industry) ?? Building2,
     description: industry.description ?? fallback?.description ?? "",
     tagline: industry.tagline ?? fallback?.tagline,
     keywords: industry.keywords ?? fallback?.keywords ?? [],
