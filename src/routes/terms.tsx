@@ -152,8 +152,10 @@ export function getTermsContent() {
               Reward Coupons once their first qualifying order is confirmed.
             </li>
             <li>
-              Reward Coupons have no expiry, but redemption above a small free allowance requires a
-              verified email address, to protect against abuse.
+              The validity period of Reward Coupons, referral credits, and any other offer is set
+              and controlled by Moments Packaging — for example, coupons earned a very long time
+              ago may no longer be redeemable. Redemption above a small free allowance also
+              requires a verified email address, to protect against abuse.
             </li>
             <li>
               We may adjust or reverse a Reward Coupons balance where it resulted from a technical

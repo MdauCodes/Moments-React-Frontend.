@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { reportAdminError } from "@/lib/adminErrorToast";
-import { adminResources, type SettingDto } from "@/services/adminResources";
+import { adminResources, type SettingDto, type ReferralTierConfigDto } from "@/services/adminResources";
 
 type FieldDef = {
   key: string;
@@ -20,6 +20,7 @@ const REWARD_COUPON_FIELDS: FieldDef[] = [
   { key: "rewards.points.per.100kes", label: "Earn rate", description: "Reward Coupons earned per KES 100 spent on a paid order.", suffix: "coupons / KES 100", defaultValue: "1" },
   { key: "referral.credits.per.kes", label: "Redemption rate", description: "How many Reward Coupons equal KES 1 when redeemed at checkout — e.g. 10 means 10 coupons = KES 1.", suffix: "coupons / KES 1", defaultValue: "10" },
   { key: "referral.max.redemption.percent", label: "Max redemption per order", description: "The most an order's total can be covered by Reward Coupons.", suffix: "% of order", defaultValue: "20" },
+  { key: "referral.max.qualifying.orders", label: "Referrer repeat-earning cap", description: "How many of a referred friend's paid orders keep earning the referrer coupons. Their friend's own one-time purchase bonus is unaffected either way.", suffix: "orders", defaultValue: "1" },
 ];
 
 const WELCOME_CODE_FIELDS: FieldDef[] = [
@@ -29,15 +30,26 @@ const WELCOME_CODE_FIELDS: FieldDef[] = [
   { key: "discounts.welcomeCodeValidDays", label: "Validity window", description: "Days from account creation before the welcome code expires.", suffix: "days", defaultValue: "30" },
 ];
 
-function computeExample(values: Record<string, string>) {
+function computeExample(values: Record<string, string>, tiers: ReferralTierConfigDto[]) {
   const welcome = Number(values["rewards.welcome.points"] ?? "0");
   const rate = Number(values["referral.credits.per.kes"] ?? "10") || 10;
   const kes = welcome / rate;
-  return { welcome, kes };
+  // Illustrative first order of KES 1,000 — just to show the two customer types' totals side by side.
+  const sampleOrderKes = 1000;
+  const pointsPer100 = Number(values["rewards.points.per.100kes"] ?? "1") || 0;
+  const orderPoints = Math.floor(sampleOrderKes / 100) * pointsPer100;
+  const matchingTier = tiers.find(
+    (t) => sampleOrderKes >= t.minOrderAmount && (t.maxOrderAmount == null || sampleOrderKes <= t.maxOrderAmount) && t.isActive,
+  );
+  const refereeBonus = matchingTier?.refereeCredits ?? 0;
+  const nonReferredTotal = welcome + orderPoints;
+  const referredTotal = welcome + orderPoints + refereeBonus;
+  return { welcome, kes, sampleOrderKes, orderPoints, refereeBonus, nonReferredTotal, referredTotal };
 }
 
 function AdminRewardsSettingsPage() {
   const [rows, setRows] = useState<SettingDto[]>([]);
+  const [tiers, setTiers] = useState<ReferralTierConfigDto[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -47,8 +59,12 @@ function AdminRewardsSettingsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const data = await adminResources.settings.list();
+      const [data, tierData] = await Promise.all([
+        adminResources.settings.list(),
+        adminResources.referralTiers.list().catch(() => []),
+      ]);
       setRows(data);
+      setTiers(tierData);
       const next: Record<string, string> = {};
       for (const f of allFields) {
         const found = data.find((r) => r.key === f.key);
@@ -82,7 +98,8 @@ function AdminRewardsSettingsPage() {
     }
   };
 
-  const example = computeExample(values);
+  const example = computeExample(values, tiers);
+  const referredAhead = example.referredTotal > example.nonReferredTotal;
 
   return (
     <AdminLayout title="Rewards Settings" onReload={load}>
@@ -104,6 +121,36 @@ function AdminRewardsSettingsPage() {
             </p>
           )}
         </div>
+
+        {!loading && (
+          <div
+            className="admin-panel"
+            style={{
+              padding: 14,
+              fontSize: 13,
+              lineHeight: 1.6,
+              background: referredAhead ? "rgba(239, 68, 68, 0.06)" : "rgba(34, 197, 94, 0.06)",
+              border: `1px solid ${referredAhead ? "rgba(239, 68, 68, 0.3)" : "rgba(34, 197, 94, 0.3)"}`,
+            }}
+          >
+            <p style={{ margin: 0, fontWeight: 600 }}>
+              Referred vs. non-referred, first KES {example.sampleOrderKes.toLocaleString()} order:
+            </p>
+            <p style={{ margin: "4px 0 0" }}>
+              Non-referred customer: {example.welcome} (welcome) + {example.orderPoints} (order points) ={" "}
+              <b>{example.nonReferredTotal} coupons</b>
+            </p>
+            <p style={{ margin: "2px 0 0" }}>
+              Referred customer: {example.welcome} (welcome) + {example.orderPoints} (order points) +{" "}
+              {example.refereeBonus} (referral bonus) = <b>{example.referredTotal} coupons</b>
+            </p>
+            <p style={{ margin: "6px 0 0", color: referredAhead ? "#b91c1c" : "#15803d" }}>
+              {referredAhead
+                ? `The referred customer currently ends up ${example.referredTotal - example.nonReferredTotal} coupons ahead of a non-referred one — lower the "referee credits" on the matching Referral Payout Tier (or raise the welcome bonus) to fix this.`
+                : "Non-referred is currently equal to or ahead of referred, as intended."}
+            </p>
+          </div>
+        )}
 
         <FieldGroup
           title="Reward Coupons"
