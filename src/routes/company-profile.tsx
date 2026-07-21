@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import {
   Download,
@@ -15,16 +16,12 @@ import {
   MessageCircle,
   Instagram,
   Facebook,
-  UtensilsCrossed,
-  ShoppingCart,
-  Sprout,
-  Gem,
-  PencilLine,
-  CookingPot,
 } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import { LogoLeafIcon } from "@/components/icons/LogoLeafIcon";
+import { api } from "@/services/api";
+import { filterVisibleIndustries, type Industry } from "@/data/products";
 import pdfAsset from "@/assets/company-profile/moments-company-profile.pdf";
 import coverImg from "@/assets/company-profile/cover.jpg";
 import visionImg from "@/assets/company-profile/vision-cups.jpg";
@@ -60,15 +57,6 @@ const VALUES = [
   { Icon: ShieldCheck, title: "Integrity", body: "Business done with honesty, transparency and professionalism." },
   { Icon: Leaf, title: "Sustainability", body: "Environmentally responsible packaging for a greener future." },
   { Icon: Users, title: "Customer Success", body: "We measure success by the growth of our clients." },
-];
-
-const INDUSTRIES = [
-  { Icon: UtensilsCrossed, title: "Food & Beverage" },
-  { Icon: ShoppingCart, title: "Wholesale & E-commerce" },
-  { Icon: Sprout, title: "Agriculture" },
-  { Icon: Gem, title: "Cosmetics" },
-  { Icon: PencilLine, title: "Stationery & General Supplies" },
-  { Icon: CookingPot, title: "Kitchen Essentials" },
 ];
 
 // NOTE: asset file names don't match their visual contents —
@@ -146,6 +134,17 @@ const DISPLAY_PHONE_ALT = "0119-55-66-99";
 const DISPLAY_ADDRESS = "Weithaga Building, along Ukwala Road, OTC, Nairobi CBD";
 
 function CompanyProfilePage() {
+  const [industries, setIndustries] = useState<Industry[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    void api.getIndustries().then((data) => {
+      if (!cancelled) setIndustries(filterVisibleIndustries(data));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <SiteLayout>
       {/* ─── HERO ─── */}
@@ -383,16 +382,20 @@ function CompanyProfilePage() {
               <span className="block h-px w-12" style={{ background: GOLD }} />
             </div>
           </div>
-          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {INDUSTRIES.map((ind) => (
-              <div key={ind.title} className="flex flex-col items-center gap-3 text-center">
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {industries.map((ind) => (
+              <div
+                key={ind.id}
+                className="flex items-center gap-4 rounded-2xl border p-5"
+                style={{ borderColor: `${GOLD}33`, background: FOREST_DEEP }}
+              >
                 <span
                   className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
                   style={{ borderColor: `${GOLD}80`, color: GOLD }}
                 >
-                  <ind.Icon className="h-4.5 w-4.5" strokeWidth={1.6} />
+                  <ind.icon className="h-4.5 w-4.5" strokeWidth={1.6} />
                 </span>
-                <h3 className="font-display text-sm font-semibold text-white">{ind.title}</h3>
+                <h3 className="font-display text-sm font-semibold text-white">{ind.name}</h3>
               </div>
             ))}
           </div>
