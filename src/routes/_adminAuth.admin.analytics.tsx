@@ -6,10 +6,11 @@ import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers,
-  type AnalyticsResult,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary,
+  type AnalyticsResult, type RevenueSummary,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
 
 
@@ -58,6 +59,10 @@ function AdminAnalyticsPage() {
   const [exporting, setExporting] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
+  const [range, setRange] = useState<DateRange | null>(null);
+  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
+  const [revenueLoading, setRevenueLoading] = useState(false);
+
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
   useEffect(() => {
@@ -69,6 +74,18 @@ function AdminAnalyticsPage() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setRevenueLoading(true);
+    getRevenueSummary(range.from, range.to)
+      .then((res) => { if (!cancelled) setRevenue(res); })
+      .catch((err) => reportAdminError(err, "Failed to load revenue summary"))
+      .finally(() => { if (!cancelled) setRevenueLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
 
   async function handleExport(kind: "orders" | "customers") {
     try {
@@ -116,6 +133,54 @@ function AdminAnalyticsPage() {
               <Download size={14} style={{ marginRight: 6 }} />Customers CSV
             </button>
           </div>
+        </div>
+
+        {/* Revenue & payment health — filterable by date range, the foundation the rest of
+            the comprehensive dashboard builds on phase by phase. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>Revenue & payment health</div>
+          <DateRangePicker onChange={setRange} />
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>
+            <KpiCard
+              label="Paid revenue"
+              value={revenueLoading || !revenue ? "—" : formatKes(revenue.paidRevenue)}
+              sub={revenueLoading || !revenue ? undefined : `${revenue.paidOrderCount} paid order(s) · avg ${formatKes(revenue.averageOrderValue)}`}
+            />
+            <KpiCard
+              label="Pending payment"
+              value={revenueLoading || !revenue ? "—" : formatKes(revenue.pendingPaymentValue)}
+              sub={revenueLoading || !revenue ? undefined : `${revenue.pendingOrderCount} order(s) awaiting payment`}
+              badges={revenueLoading || !revenue || revenue.pendingOrderCount === 0 ? undefined : [{ label: "not revenue", tone: "warn" }]}
+            />
+            <KpiCard
+              label="Failed payment"
+              value={revenueLoading || !revenue ? "—" : formatKes(revenue.failedPaymentValue)}
+              sub={revenueLoading || !revenue ? undefined : `${revenue.failedOrderCount} order(s)`}
+            />
+            <KpiCard
+              label="Refunded"
+              value={revenueLoading || !revenue ? "—" : formatKes(revenue.refundedValue)}
+              sub={revenueLoading || !revenue ? undefined : `${revenue.refundedOrderCount} order(s)`}
+            />
+          </div>
+
+          {!revenueLoading && revenue && revenue.byMethod.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Payment success rate by method</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {revenue.byMethod.map((m) => (
+                  <div key={m.method} className="admin-panel" style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{m.method}</div>
+                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{m.successRatePercent}%</div>
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
+                      {m.successCount} success · {m.failedCount} failed{m.otherCount > 0 ? ` · ${m.otherCount} pending` : ""}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Primary KPIs */}

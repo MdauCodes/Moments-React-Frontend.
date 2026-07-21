@@ -430,6 +430,37 @@ export async function getAnalyticsOverview(): Promise<AnalyticsResult> {
   };
 }
 
+// ---------- Analytics: revenue summary (Phase 1 of the comprehensive dashboard) ----------
+// Backend GET /api/v1/admin/analytics/revenue?from=<ISO instant>&to=<ISO instant>
+
+export interface PaymentMethodBreakdown {
+  method: string;
+  successCount: number;
+  failedCount: number;
+  otherCount: number;
+  successRatePercent: number;
+}
+
+export interface RevenueSummary {
+  rangeStart: string;
+  rangeEnd: string;
+  paidRevenue: number;
+  paidOrderCount: number;
+  pendingPaymentValue: number;
+  pendingOrderCount: number;
+  failedPaymentValue: number;
+  failedOrderCount: number;
+  refundedValue: number;
+  refundedOrderCount: number;
+  averageOrderValue: number;
+  byMethod: PaymentMethodBreakdown[];
+}
+
+export async function getRevenueSummary(from: Date, to: Date): Promise<RevenueSummary> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<RevenueSummary>(`/api/v1/admin/analytics/revenue?${params.toString()}`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {
