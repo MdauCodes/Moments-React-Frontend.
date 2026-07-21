@@ -34,6 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
+import { profileStore } from "@/services/profileStore";
 import {
   businessAccountApi,
   BUSINESS_TYPE_LABELS,
@@ -630,6 +631,25 @@ function BusinessAccountForm({
   );
   const [saving, setSaving] = useState(false);
 
+  // New accounts only — prefill the primary contact from the details already given at
+  // registration (name + phone), so the customer isn't asked to type the same thing twice.
+  // Still fully editable, since the actual business contact can be a different person.
+  useEffect(() => {
+    if (initial) return;
+    profileStore.get().then(({ profile }) => {
+      setForm((f) =>
+        f.contactPersonName || f.phone
+          ? f
+          : {
+              ...f,
+              contactPersonName: [profile.firstName, profile.lastName].filter(Boolean).join(" "),
+              phone: profile.phone ?? "",
+            },
+      );
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function update<K extends keyof BusinessAccountInput>(key: K, value: BusinessAccountInput[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -655,7 +675,10 @@ function BusinessAccountForm({
   return (
     <form onSubmit={submit} className={wrapperCls}>
       {!initial && (
-        <div className="border-b border-border bg-secondary/40 px-6 py-4">
+        <div
+          className="border-b border-border px-6 py-4"
+          style={{ background: "color-mix(in oklab, var(--accent) 10%, transparent)" }}
+        >
           <p className="text-sm font-medium text-foreground">Tell us about your business</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Takes about a minute. Whether you're a sole trader, an SME or a registered company —
@@ -713,6 +736,11 @@ function BusinessAccountForm({
       </FormSection>
 
       <FormSection icon={User} title="Primary contact">
+        {!initial && (
+          <p className="sm:col-span-2 -mt-2 mb-1 text-xs text-muted-foreground">
+            Defaults to your own name and phone — edit if the actual business contact is someone else.
+          </p>
+        )}
         <Field label="Contact person">
           <input required className={inputCls} value={form.contactPersonName} onChange={(e) => update("contactPersonName", e.target.value)} />
         </Field>

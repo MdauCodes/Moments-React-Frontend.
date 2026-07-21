@@ -110,8 +110,11 @@ function RegisterPage() {
   if (!accountType) {
     return (
       <SiteLayout>
-        <section className="mx-auto max-w-2xl px-5 py-16 lg:px-8 lg:py-20">
-          <h1 className="font-display text-3xl">Create your account</h1>
+        <section
+          className="mx-auto max-w-2xl px-5 py-16 lg:px-8 lg:py-20"
+          style={{ background: "color-mix(in oklab, var(--accent) 8%, transparent)" }}
+        >
+          <h1 className="font-display text-3xl text-foreground">Create your account</h1>
           <p className="mt-2 text-sm text-muted-foreground">Choose the account that fits how you order.</p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {ACCOUNT_TYPES.map((t) => (
@@ -166,7 +169,10 @@ function RegisterPage() {
 
   return (
     <SiteLayout>
-      <section className="mx-auto max-w-md px-5 py-16 lg:px-8 lg:py-20">
+      <section
+        className="mx-auto max-w-md px-5 py-16 lg:px-8 lg:py-20"
+        style={{ background: "color-mix(in oklab, var(--accent) 8%, transparent)" }}
+      >
         <button
           type="button"
           onClick={() => setAccountType(null)}
@@ -174,10 +180,10 @@ function RegisterPage() {
         >
           &larr; Change account type
         </button>
-        <h1 className="mt-2 font-display text-3xl">{chosen.title}</h1>
+        <h1 className="mt-2 font-display text-3xl text-foreground">{chosen.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {accountType === "BUSINESS"
-            ? "Your details as the account holder. You'll add your business profile (name, KRA PIN, contact info) right after this."
+            ? "Your details as the account holder. You'll add your business profile (name, address, contact info) right after this."
             : "Takes about a minute — that's it, you're in."}
         </p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
