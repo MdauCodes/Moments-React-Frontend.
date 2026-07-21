@@ -65,7 +65,7 @@ export function AuthModal() {
     >
       <div
         className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 text-card-foreground shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
-        style={{ background: "color-mix(in oklab, var(--accent) 10%, white 75%)" }}
+        style={{ background: "color-mix(in oklab, var(--accent) 24%, white 76%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button

@@ -108,7 +108,7 @@ export function WelcomeStarterModal() {
         className={`relative w-full rounded-3xl border border-white/40 text-card-foreground shadow-2xl backdrop-blur-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
           view === "main" ? "max-w-3xl" : "max-w-lg"
         }`}
-        style={{ background: "color-mix(in oklab, var(--accent) 10%, white 75%)" }}
+        style={{ background: "color-mix(in oklab, var(--accent) 24%, white 76%)" }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
