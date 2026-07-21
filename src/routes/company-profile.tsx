@@ -282,6 +282,7 @@ function CompanyProfilePage() {
             </span>{" "}
             our logo reflects our environmental commitment through two powerful symbols. The{" "}
             <span className="font-semibold" style={{ color: GOLD_SOFT }}>
+              <LogoLeafIcon size={14} className="mr-1 inline-block align-text-bottom" />
               sprouting leaf
             </span>{" "}
             represents growth, renewal and our dedication to building a greener future through responsible innovation
