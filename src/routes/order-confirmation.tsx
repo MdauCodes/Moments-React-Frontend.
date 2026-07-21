@@ -110,6 +110,33 @@ function OrderConfirmationPage() {
             </dl>
           )}
 
+          {order?.etrRequested && (
+            <div className="mx-auto mt-4 max-w-sm rounded-2xl border border-border bg-secondary/30 p-4 text-left text-xs text-muted-foreground">
+              {order.documentBundleStatus === "SENT" && order.etrAvailableUntil ? (
+                <>
+                  Your receipt, tax invoice and ETR have been emailed to{" "}
+                  <span className="font-medium text-foreground">{order.documentsEmail}</span>. The ETR stays
+                  available for re-download/resend until{" "}
+                  <span className="font-medium text-foreground">
+                    {new Date(order.etrAvailableUntil).toLocaleDateString("en-KE")}
+                  </span>{" "}
+                  — after that, contact us with your order reference for a fresh copy.
+                </>
+              ) : order.documentBundleStatus === "EXPIRED" ? (
+                <>
+                  Your ETR's download window has expired. Contact us with your order reference and we'll
+                  resend it.
+                </>
+              ) : (
+                <>
+                  We'll email your receipt, tax invoice and ETR to{" "}
+                  <span className="font-medium text-foreground">{order.documentsEmail}</span> once our team
+                  has uploaded your ETR — usually within a couple of business days.
+                </>
+              )}
+            </div>
+          )}
+
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               to={ref ? `/orders/track?ref=${ref}` : "/orders/track"}
@@ -137,6 +164,8 @@ function OrderConfirmationPage() {
                   subtotal: order.subtotal,
                   shippingFee: order.shippingFee,
                   discount: order.discount,
+                  taxableAmount: order.taxableAmount,
+                  grossTaxableAmount: order.grossTaxableAmount,
                   vatAmount: order.vatAmount,
                   total: order.total,
                   paymentMethod: order.paymentMethod,

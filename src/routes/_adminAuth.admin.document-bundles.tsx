@@ -9,6 +9,7 @@ const STATUS_FILTERS: { label: string; value: DocumentBundleStatus | "" }[] = [
   { label: "Pending", value: "PENDING" },
   { label: "Sent", value: "SENT" },
   { label: "Failed", value: "FAILED" },
+  { label: "Expired", value: "EXPIRED" },
   { label: "All", value: "" },
 ];
 
@@ -16,7 +17,10 @@ const STATUS_COLORS: Record<DocumentBundleStatus, { bg: string; fg: string }> = 
   PENDING: { bg: "rgba(107, 114, 128, 0.15)", fg: "#374151" },
   SENT: { bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d" },
   FAILED: { bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c" },
+  EXPIRED: { bg: "rgba(107, 114, 128, 0.15)", fg: "#6b7280" },
 };
+
+const ETR_RETENTION_DAYS = 60;
 
 function AdminDocumentBundlesPage() {
   const [rows, setRows] = useState<DocumentBundleAdminDto[]>([]);
@@ -73,7 +77,9 @@ function AdminDocumentBundlesPage() {
             <b>What this controls:</b> orders where the customer checked "Send me my ETR & tax documents".
             Their receipt and tax invoice are held back until you upload the ETR scan here — uploading
             immediately emails all three (receipt, tax invoice, ETR) to the customer's documents email.
-            If a send fails after the ETR is uploaded, use Retry rather than re-uploading.
+            If a send fails after the ETR is uploaded, use Retry rather than re-uploading. The ETR file
+            itself is auto-deleted from Cloudinary {ETR_RETENTION_DAYS} days after upload to save on
+            storage — a bundle marked Expired can still be re-uploaded and resent any time.
           </p>
         </div>
 
@@ -131,35 +137,39 @@ function AdminDocumentBundlesPage() {
                         )}
                       </td>
                       <td>{new Date(r.createdAt).toLocaleString("en-KE")}</td>
-                      <td>{r.sentAt ? new Date(r.sentAt).toLocaleString("en-KE") : "—"}</td>
-                      <td style={{ whiteSpace: "nowrap" }}>
-                        {r.status === "PENDING" && (
-                          <>
-                            <input
-                              ref={(el) => { fileInputs.current[r.id] = el; }}
-                              type="file"
-                              accept="application/pdf,image/jpeg,image/png"
-                              style={{ display: "none" }}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                e.target.value = "";
-                                if (file) void uploadEtr(r, file);
-                              }}
-                            />
-                            <button
-                              className="admin-btn admin-btn-primary"
-                              disabled={uploadingId === r.id}
-                              onClick={() => fileInputs.current[r.id]?.click()}
-                            >
-                              {uploadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                              Upload ETR & send
-                            </button>
-                          </>
+                      <td>
+                        {r.sentAt ? new Date(r.sentAt).toLocaleString("en-KE") : "—"}
+                        {r.status === "SENT" && r.etrUploadedAt && (
+                          <div style={{ color: "var(--admin-muted)", fontSize: 11, marginTop: 2 }}>
+                            ETR available until{" "}
+                            {new Date(new Date(r.etrUploadedAt).getTime() + ETR_RETENTION_DAYS * 86400000).toLocaleDateString("en-KE")}
+                          </div>
                         )}
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        <input
+                          ref={(el) => { fileInputs.current[r.id] = el; }}
+                          type="file"
+                          accept="application/pdf,image/jpeg,image/png"
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) void uploadEtr(r, file);
+                          }}
+                        />
+                        <button
+                          className="admin-btn admin-btn-primary"
+                          disabled={uploadingId === r.id}
+                          onClick={() => fileInputs.current[r.id]?.click()}
+                        >
+                          {uploadingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                          {r.status === "PENDING" ? "Upload ETR & send" : "Re-upload & resend"}
+                        </button>
                         {r.status === "FAILED" && (
                           <button className="admin-btn admin-btn-ghost" disabled={retryingId === r.id} onClick={() => void retry(r)}>
                             {retryingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <RotateCw size={14} />}
-                            Retry send
+                            Retry send (no re-upload)
                           </button>
                         )}
                         {r.receiptUrl && (

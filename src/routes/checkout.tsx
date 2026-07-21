@@ -773,7 +773,8 @@ function CheckoutModal() {
                       <span className="mt-0.5 block text-xs text-muted-foreground">
                         You'll automatically receive your ETR (KRA-compliant receipt) along with your tax invoice and
                         receipt, once you check this and enter a reachable email — we email all three together as
-                        soon as we've uploaded your ETR.
+                        soon as we've uploaded your ETR. The ETR stays available for re-download/resend for 2
+                        months after that.
                       </span>
                     </span>
                   </label>

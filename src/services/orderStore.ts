@@ -80,6 +80,10 @@ export interface CustomerOrder {
   /** VAT-inclusive taxable base BEFORE discount is allocated — for showing the gross→discount→net chain on documents. */
   grossTaxableAmount?: number;
   vatAmount?: number;
+  /** Only set once etrRequested and an admin has uploaded the ETR at least once — PENDING/SENT/FAILED/EXPIRED. */
+  documentBundleStatus?: string | null;
+  /** ETR available for download/resend until this date — null until first uploaded, cleared once EXPIRED. */
+  etrAvailableUntil?: string | null;
   currency: "KES";
   createdAt: string;
   updatedAt: string;
@@ -225,6 +229,8 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     taxableAmount: raw.taxableAmount ?? undefined,
     grossTaxableAmount: raw.grossTaxableAmount ?? undefined,
     vatAmount: raw.vatAmount ?? undefined,
+    documentBundleStatus: raw.documentBundleStatus ?? undefined,
+    etrAvailableUntil: raw.etrAvailableUntil ?? undefined,
     currency: "KES",
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),

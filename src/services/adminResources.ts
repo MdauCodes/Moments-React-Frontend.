@@ -207,7 +207,7 @@ export type TaxDocumentAdminDto = {
 };
 
 
-export type DocumentBundleStatus = "PENDING" | "SENT" | "FAILED";
+export type DocumentBundleStatus = "PENDING" | "SENT" | "FAILED" | "EXPIRED";
 export type DocumentBundleAdminDto = {
   id: string;
   orderReference: string;

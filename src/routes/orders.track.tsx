@@ -324,6 +324,29 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
         </div>
       )}
 
+      {order.etrRequested && (
+        <div className="mt-4 rounded-xl border border-border bg-background/60 p-3 text-xs text-muted-foreground">
+          <p className="text-xs uppercase tracking-widest">ETR & tax documents</p>
+          {order.documentBundleStatus === "SENT" && order.etrAvailableUntil ? (
+            <p className="mt-1">
+              Emailed to <span className="font-medium text-foreground">{order.documentsEmail}</span>. ETR
+              available for re-download/resend until{" "}
+              <span className="font-medium text-foreground">
+                {new Date(order.etrAvailableUntil).toLocaleDateString("en-KE")}
+              </span>{" "}
+              — after that, contact us with your order reference.
+            </p>
+          ) : order.documentBundleStatus === "EXPIRED" ? (
+            <p className="mt-1">Download window expired — contact us with your order reference for a fresh copy.</p>
+          ) : (
+            <p className="mt-1">
+              Waiting on our team to upload your ETR — will be emailed to{" "}
+              <span className="font-medium text-foreground">{order.documentsEmail}</span> once ready.
+            </p>
+          )}
+        </div>
+      )}
+
       {order.items && order.items.length > 0 && (
         <div className="mt-6">
           <h3 className="text-sm font-semibold">Items</h3>
