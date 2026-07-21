@@ -235,17 +235,12 @@ function CompanyProfilePage() {
             </div>
           </div>
 
-          <div className="relative mx-auto hidden w-full max-w-lg lg:block">
-            <div
-              aria-hidden
-              className="absolute -inset-4 rounded-3xl opacity-40 blur-2xl"
-              style={{ background: `linear-gradient(135deg, ${GOLD} 0%, transparent 65%)` }}
-            />
+          <div className="mx-auto hidden w-full max-w-lg lg:block">
             <img
               src={coverImg}
               alt="Moments Packaging product range"
-              className="relative w-full rounded-3xl border shadow-2xl object-cover"
-              style={{ borderColor: `${GOLD}40`, maxHeight: "520px" }}
+              className="w-full object-cover"
+              style={{ maxHeight: "520px" }}
             />
           </div>
         </div>
@@ -304,7 +299,7 @@ function CompanyProfilePage() {
       <section className="relative" style={{ background: FOREST }}>
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8 lg:py-20">
           <div className="grid gap-6 lg:grid-cols-2 lg:items-center lg:gap-12">
-            <img src={coverImg} alt="Vision — Moments packaging range" className="w-full rounded-2xl shadow-2xl" />
+            <img src={coverImg} alt="Vision — Moments packaging range" className="w-full" />
             <div className="grid gap-5">
               {[
                 {
@@ -429,17 +424,7 @@ function CompanyProfilePage() {
             </div>
 
             {/* Right — graphic */}
-            <div className="relative">
-              <div
-                className="absolute -inset-3 rounded-2xl opacity-25 blur-xl"
-                style={{ background: `linear-gradient(135deg, ${GOLD} 0%, transparent 60%)` }}
-              />
-              <img
-                src={introImg}
-                alt="Why choose Moments Packaging"
-                className="relative w-full rounded-2xl shadow-2xl"
-              />
-            </div>
+            <img src={introImg} alt="Why choose Moments Packaging" className="w-full" />
           </div>
         </div>
       </section>
@@ -470,13 +455,7 @@ function CompanyProfilePage() {
                 }`}
               >
                 {/* Image */}
-                <div className="relative">
-                  <div
-                    className="absolute -inset-2 rounded-2xl opacity-25 blur-xl"
-                    style={{ background: `linear-gradient(135deg, ${GOLD} 0%, transparent 60%)` }}
-                  />
-                  <img src={c.image} alt={c.title} className="relative w-full rounded-2xl shadow-2xl" />
-                </div>
+                <img src={c.image} alt={c.title} className="w-full" />
 
                 {/* Text */}
                 <div>
