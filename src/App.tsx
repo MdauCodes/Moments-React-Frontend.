@@ -48,6 +48,7 @@ import ProductsIndexPage from "@/routes/products.index";
 import ProductSlugPage from "@/routes/products.$slug";
 import BusinessAccountInfoPage from "@/routes/business-account";
 import IndividualShopperAccountInfoPage from "@/routes/individual-shopper-account";
+import AccountOptionsPage from "@/routes/account-options";
 
 // ── Account pages ───────────────────────────────────────────────────────────
 import AccountLoginPage from "@/routes/account.login";
@@ -159,6 +160,7 @@ export default function App() {
                     <Route path="/products/:slug" element={<ProductSlugPage />} />
                     <Route path="/business-account" element={<BusinessAccountInfoPage />} />
                     <Route path="/individual-shopper-account" element={<IndividualShopperAccountInfoPage />} />
+                    <Route path="/account-options" element={<AccountOptionsPage />} />
                     <Route path="/sole-merchant-account" element={<Navigate to="/individual-shopper-account" replace />} />
 
                     {/* Account */}

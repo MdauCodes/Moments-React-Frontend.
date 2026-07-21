@@ -179,7 +179,7 @@ export function WelcomeStarterModal() {
                     <CtaPill>Get started</CtaPill>
                   </button>
                   <Link
-                    to="/business-account"
+                    to="/account-options#business"
                     onClick={() => dismiss(true)}
                     className="text-[10px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
                   >
@@ -201,7 +201,7 @@ export function WelcomeStarterModal() {
                     <CtaPill>Get started</CtaPill>
                   </button>
                   <Link
-                    to="/individual-shopper-account"
+                    to="/account-options#individual"
                     onClick={() => dismiss(true)}
                     className="text-[10px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
                   >

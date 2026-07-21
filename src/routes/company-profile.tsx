@@ -321,12 +321,8 @@ function CompanyProfilePage() {
                   body: "Every package tells a story. We create solutions that protect products, strengthen brands, improve customer experience and drive business growth.",
                 },
               ].map((c) => (
-                <div
-                  key={c.tag}
-                  className="rounded-2xl border p-5"
-                  style={{ borderColor: `${GOLD}33`, background: FOREST_DEEP }}
-                >
-                  <div className="flex items-center gap-3">
+                <div key={c.tag} className="text-center">
+                  <div className="flex items-center justify-center gap-3">
                     <span className="inline-block h-2 w-2 rotate-45" style={{ background: GOLD }} />
                     <p className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: GOLD }}>
                       {c.tag}
@@ -354,13 +350,9 @@ function CompanyProfilePage() {
               <span className="block h-px w-12" style={{ background: GOLD }} />
             </div>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             {VALUES.map((v) => (
-              <div
-                key={v.title}
-                className="group rounded-2xl border p-5 transition-colors"
-                style={{ borderColor: `${GOLD}33`, background: FOREST }}
-              >
+              <div key={v.title} className="flex flex-col items-center text-center">
                 <span
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
                   style={{ borderColor: `${GOLD}80`, color: GOLD }}
@@ -391,13 +383,9 @@ function CompanyProfilePage() {
               <span className="block h-px w-12" style={{ background: GOLD }} />
             </div>
           </div>
-          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {INDUSTRIES.map((ind) => (
-              <div
-                key={ind.title}
-                className="flex items-center gap-4 rounded-2xl border p-5"
-                style={{ borderColor: `${GOLD}33`, background: FOREST_DEEP }}
-              >
+              <div key={ind.title} className="flex flex-col items-center gap-3 text-center">
                 <span
                   className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border"
                   style={{ borderColor: `${GOLD}80`, color: GOLD }}

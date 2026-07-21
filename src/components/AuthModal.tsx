@@ -281,7 +281,7 @@ function RegisterStep() {
                 </span>
               </button>
               <Link
-                to={t.value === "BUSINESS" ? "/business-account" : "/individual-shopper-account"}
+                to={t.value === "BUSINESS" ? "/account-options#business" : "/account-options#individual"}
                 onClick={close}
                 className="mt-1.5 ml-12 inline-block text-[11px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
               >
