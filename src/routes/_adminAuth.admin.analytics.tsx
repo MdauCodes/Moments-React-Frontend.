@@ -6,8 +6,8 @@ import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes, ORDER_STATUS_OPTIONS } from "@/components/admin/commerceUi";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary,
-  type AnalyticsResult, type RevenueSummary, type OperationsSummary,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRewardsEconomics,
+  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RewardsEconomics,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
@@ -64,6 +64,8 @@ function AdminAnalyticsPage() {
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [ops, setOps] = useState<OperationsSummary | null>(null);
   const [opsLoading, setOpsLoading] = useState(false);
+  const [rewards, setRewards] = useState<RewardsEconomics | null>(null);
+  const [rewardsLoading, setRewardsLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -100,6 +102,22 @@ function AdminAnalyticsPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setRewardsLoading(true);
+    getRewardsEconomics(range.from, range.to)
+      .then((res) => { if (!cancelled) setRewards(res); })
+      .catch((err) => reportAdminError(err, "Failed to load rewards economics"))
+      .finally(() => { if (!cancelled) setRewardsLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  function sourceLabel(source: string): string {
+    return source.replace(/^EARNED_/, "").replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
+  }
 
   function statusLabel(status: string): string {
     return ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status.replace(/_/g, " ");
@@ -245,6 +263,64 @@ function AdminAnalyticsPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Reward Coupons & referral economics — same date range as above. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>Reward Coupons & referral economics</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <KpiCard
+              label="Outstanding coupon balance"
+              value={rewardsLoading || !rewards ? "—" : rewards.outstandingBalanceCoupons.toLocaleString()}
+              sub={rewardsLoading || !rewards ? undefined : `${formatKes(rewards.outstandingBalanceValueKes)} liability if all redeemed`}
+            />
+            <KpiCard
+              label="Redeemed this period"
+              value={rewardsLoading || !rewards ? "—" : formatKes(rewards.redeemedValueKesInRange)}
+              sub={rewardsLoading || !rewards ? undefined : `${rewards.redeemedCouponsInRange.toLocaleString()} coupon(s) · this is the program's actual cost`}
+            />
+            <KpiCard
+              label="Referral conversion"
+              value={rewardsLoading || !rewards ? "—" : `${rewards.referralConversionRatePercent}%`}
+              sub={rewardsLoading || !rewards ? undefined : `${rewards.referralConfirmedInRange} confirmed of ${rewards.referralSignupsInRange} signup(s)`}
+            />
+            <KpiCard
+              label="Median wallet balance"
+              value={rewardsLoading || !rewards ? "—" : rewards.medianWalletBalance.toLocaleString()}
+              sub="coupons, across all wallets"
+            />
+          </div>
+
+          {!rewardsLoading && rewards && rewards.earnedInRange.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Coupons earned by source (this period)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {rewards.earnedInRange.map((s) => (
+                  <div key={s.source} className="admin-panel" style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{sourceLabel(s.source)}</div>
+                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.coupons.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(s.valueKes)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!rewardsLoading && rewards && rewards.topHolders.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Top wallet holders</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {rewards.topHolders.map((h, i) => (
+                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{h.name || "—"}</div>
+                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{h.balance.toLocaleString()}</div>
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(h.valueKes)}</div>
+                  </div>
+                ))}
               </div>
             </div>
           )}

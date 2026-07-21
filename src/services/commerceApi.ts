@@ -497,6 +497,42 @@ export async function getOperationsSummary(from: Date, to: Date): Promise<Operat
   return getJson<OperationsSummary>(`/api/v1/admin/analytics/operations?${params.toString()}`);
 }
 
+// ---------- Analytics: rewards economics (Phase 3) ----------
+// Backend GET /api/v1/admin/analytics/rewards?from=<ISO instant>&to=<ISO instant>
+
+export interface RewardsSourceBreakdown {
+  source: string;
+  coupons: number;
+  valueKes: number;
+}
+
+export interface TopWalletHolder {
+  name: string;
+  balance: number;
+  valueKes: number;
+}
+
+export interface RewardsEconomics {
+  rangeStart: string;
+  rangeEnd: string;
+  outstandingBalanceCoupons: number;
+  outstandingBalanceValueKes: number;
+  redeemedCouponsInRange: number;
+  redeemedValueKesInRange: number;
+  earnedInRange: RewardsSourceBreakdown[];
+  referralConversionRatePercent: number;
+  referralSignupsInRange: number;
+  referralConfirmedInRange: number;
+  estimatedProgramCostKesInRange: number;
+  medianWalletBalance: number;
+  topHolders: TopWalletHolder[];
+}
+
+export async function getRewardsEconomics(from: Date, to: Date): Promise<RewardsEconomics> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<RewardsEconomics>(`/api/v1/admin/analytics/rewards?${params.toString()}`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {
