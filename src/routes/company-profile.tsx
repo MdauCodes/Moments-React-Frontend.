@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
+import { LogoLeafIcon } from "@/components/icons/LogoLeafIcon";
 import pdfAsset from "@/assets/company-profile/moments-company-profile.pdf";
 import coverImg from "@/assets/company-profile/cover.jpg";
 import visionImg from "@/assets/company-profile/vision-cups.jpg";
@@ -265,7 +266,8 @@ function CompanyProfilePage() {
             <Leaf className="h-4 w-4" style={{ color: GOLD }} />
             <span className="block h-px w-12" style={{ background: GOLD }} />
           </div>
-          <p className="mt-5 text-base leading-relaxed text-white/85">
+          <p className="mt-5 text-justify text-base leading-relaxed text-white/85">
+            <LogoLeafIcon size={16} className="mr-1 inline-block align-text-bottom" />
             <span className="font-semibold" style={{ color: GOLD_SOFT }}>
               Moments Packaging (K) Ltd
             </span>{" "}
@@ -274,7 +276,7 @@ function CompanyProfilePage() {
             reliability, convenience and excellent customer service, we deliver innovative packaging countrywide while
             helping brands create memorable moments through great presentation.
           </p>
-          <p className="mt-4 text-base leading-relaxed text-white/85">
+          <p className="mt-4 text-justify text-base leading-relaxed text-white/85">
             <span className="font-semibold" style={{ color: GOLD_SOFT }}>
               The meaning behind our logo:
             </span>{" "}
@@ -291,7 +293,7 @@ function CompanyProfilePage() {
             and responsible disposal of packaging materials. Together, these elements symbolize our promise to provide
             packaging solutions that respect both people and the planet.
           </p>
-          <p className="mt-4 text-base leading-relaxed text-white/85">
+          <p className="mt-4 text-justify text-base leading-relaxed text-white/85">
             Packaging is more than a container — it is a powerful marketing tool that creates lasting first impressions,
             enhances brand visibility and influences purchasing decisions.
           </p>
@@ -329,7 +331,7 @@ function CompanyProfilePage() {
                       {c.tag}
                     </p>
                   </div>
-                  <p className="mt-3 text-sm leading-relaxed text-white/85">{c.body}</p>
+                  <p className="mt-3 text-justify text-sm leading-relaxed text-white/85">{c.body}</p>
                 </div>
               ))}
             </div>
@@ -427,7 +429,7 @@ function CompanyProfilePage() {
                     <span className="mt-1 h-2.5 w-2.5 shrink-0 rotate-45" style={{ background: GOLD }} />
                     <div>
                       <p className="text-sm font-semibold text-white">{pt.title}</p>
-                      <p className="mt-0.5 text-xs leading-relaxed text-white/82">{pt.body}</p>
+                      <p className="mt-0.5 text-justify text-xs leading-relaxed text-white/82">{pt.body}</p>
                     </div>
                   </div>
                 ))}
@@ -491,7 +493,7 @@ function CompanyProfilePage() {
                   </p>
                   <h3 className="mt-3 font-display text-2xl font-semibold text-white sm:text-3xl">{c.title}</h3>
                   <div className="mt-3 h-px w-12" style={{ background: GOLD }} />
-                  <p className="mt-4 text-sm leading-relaxed text-white/85">{c.blurb}</p>
+                  <p className="mt-4 text-justify text-sm leading-relaxed text-white/85">{c.blurb}</p>
                   <Link
                     to={c.href}
                     className="mt-5 inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold transition-colors hover:bg-white/5"
@@ -518,7 +520,8 @@ function CompanyProfilePage() {
 
             <div className="mt-8 space-y-5">
               <ContactRow Icon={MapPin} label="Address">
-                <p className="font-semibold text-base" style={{ color: GOLD_SOFT }}>
+                <p className="flex items-center gap-1.5 font-semibold text-base" style={{ color: GOLD_SOFT }}>
+                  <LogoLeafIcon size={14} />
                   Moments Packaging (K) Ltd
                 </p>
                 <p className="text-base">{DISPLAY_ADDRESS}</p>
@@ -601,7 +604,8 @@ function CompanyProfilePage() {
       {/* ─── Closing strip ─── */}
       <section className="relative" style={{ background: FOREST_DEEP }}>
         <div className="mx-auto max-w-5xl px-5 py-12 text-center lg:px-8">
-          <p className="font-display text-xl font-light italic" style={{ color: GOLD_SOFT }}>
+          <p className="flex items-center justify-center gap-2 font-display text-xl font-light italic" style={{ color: GOLD_SOFT }}>
+            <LogoLeafIcon size={18} />
             Quality packaging <span className="text-white">for every moment.</span>
           </p>
           <div className="mx-auto mt-4 flex w-fit items-center gap-3">

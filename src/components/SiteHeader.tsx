@@ -18,7 +18,7 @@ type SimpleNav = { to: string; label: string };
 
 // Order: Company, Sustainability, [Shop dropdown], Track Order, Deals.
 const navBeforeShop: readonly SimpleNav[] = [
-  { to: "/company-profile", label: "Company" },
+  { to: "/company-profile", label: "About Us" },
   { to: "/sustainability", label: "Sustainability" },
 ];
 const navAfterShop: readonly SimpleNav[] = [
