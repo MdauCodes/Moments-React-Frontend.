@@ -7,7 +7,9 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, statusLabel, ORDER_STATUS_SEQUENCE } from "@/components/admin/analyticsUi";
 import { TrendLineChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { WhatChangedPanel } from "@/components/admin/WhatChangedPanel";
 import { STATUS, CATEGORICAL } from "@/lib/analyticsPalette";
+import { priorRange } from "@/lib/analyticsInsights";
 import {
   getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRevenueTrend,
   type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RevenueTrend,
@@ -28,6 +30,9 @@ function AdminAnalyticsPage() {
   const [opsLoading, setOpsLoading] = useState(false);
   const [trend, setTrend] = useState<RevenueTrend | null>(null);
   const [trendLoading, setTrendLoading] = useState(false);
+  const [priorRevenue, setPriorRevenue] = useState<RevenueSummary | null>(null);
+  const [priorOps, setPriorOps] = useState<OperationsSummary | null>(null);
+  const [priorLoading, setPriorLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -73,6 +78,19 @@ function AdminAnalyticsPage() {
       .then((res) => { if (!cancelled) setTrend(res); })
       .catch((err) => reportAdminError(err, "Failed to load revenue trend"))
       .finally(() => { if (!cancelled) setTrendLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setPriorLoading(true);
+    const { from, to } = priorRange(range.from, range.to);
+    Promise.all([getRevenueSummary(from, to), getOperationsSummary(from, to)])
+      .then(([rev, ops2]) => { if (!cancelled) { setPriorRevenue(rev); setPriorOps(ops2); } })
+      .catch((err) => reportAdminError(err, "Failed to load prior-period comparison"))
+      .finally(() => { if (!cancelled) setPriorLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
@@ -124,6 +142,10 @@ function AdminAnalyticsPage() {
             </button>
           </div>
         </div>
+
+        {!priorLoading && revenue && ops && priorRevenue && priorOps && (
+          <WhatChangedPanel current={revenue} prior={priorRevenue} currentOps={ops} priorOps={priorOps} />
+        )}
 
         {/* Revenue & payment health — filterable by date range. */}
         <div className="admin-panel" style={{ padding: 14 }}>
