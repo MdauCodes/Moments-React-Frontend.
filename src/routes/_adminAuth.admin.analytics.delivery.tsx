@@ -49,15 +49,20 @@ function AdminAnalyticsDeliveryPage() {
           {!deliveryLoading && delivery && delivery.byFulfillmentType.length > 0 && (
             <>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>
-                {delivery.byFulfillmentType.map((d) => (
-                  <KpiCard
-                    key={d.fulfillmentType}
-                    label={fulfillmentLabel(d.fulfillmentType)}
-                    value={`${d.deliveryRatePercent}%`}
-                    sub={`${d.deliveredCount} delivered · ${d.cancelledCount} cancelled · ${d.totalOrders} total orders`}
-                    badges={d.deliverySampleCount === 0 ? undefined : [{ label: `avg ${d.avgDeliveryHours}h dispatch→delivery`, tone: "info" }]}
-                  />
-                ))}
+                {delivery.byFulfillmentType.map((d) => {
+                  const resolvedCount = d.deliveredCount + d.cancelledCount;
+                  return (
+                    <KpiCard
+                      key={d.fulfillmentType}
+                      label={fulfillmentLabel(d.fulfillmentType)}
+                      value={resolvedCount === 0 ? "—" : `${d.deliveryRatePercent}%`}
+                      sub={resolvedCount === 0
+                        ? `${d.totalOrders} order(s), none resolved yet (still in transit)`
+                        : `${d.deliveredCount} delivered · ${d.cancelledCount} cancelled · ${d.totalOrders} total orders`}
+                      badges={d.deliverySampleCount === 0 ? undefined : [{ label: `avg ${d.avgDeliveryHours}h dispatch→delivery`, tone: "info" }]}
+                    />
+                  );
+                })}
               </div>
 
               <div style={{ marginTop: 16 }}>
