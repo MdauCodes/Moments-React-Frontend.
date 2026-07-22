@@ -100,7 +100,6 @@ const navSections: NavSection[] = [
     items: [
       // Dashboard adapts internally — show whenever there's anything to show.
       { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard, requiresAny: [PERM.ANALYTICS_VIEW, PERM.ORDER_VIEW, PERM.USER_MANAGE_ROLES, PERM.PRODUCT_MANAGE, PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.USER_VIEW] },
-      { label: "Analytics", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
     ],
   },
   {
@@ -164,6 +163,17 @@ const navSections: NavSection[] = [
     label: "Help",
     items: [
       { label: "Feature Guide", to: "/admin/feature-guide", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { label: "Overview", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Rewards & Referrals", to: "/admin/analytics/rewards", icon: Gift, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Tax Report", to: "/admin/analytics/tax", icon: Receipt, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Products & Inventory", to: "/admin/analytics/products", icon: Boxes, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Profitability", to: "/admin/analytics/profitability", icon: TrendingUp, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Customers", to: "/admin/analytics/customers", icon: Users, requiresAny: [PERM.ANALYTICS_VIEW] },
     ],
   },
   {

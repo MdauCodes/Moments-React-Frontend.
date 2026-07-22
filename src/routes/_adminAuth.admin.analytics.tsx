@@ -4,56 +4,14 @@ import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "lucide-react";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { formatKes, ORDER_STATUS_OPTIONS } from "@/components/admin/commerceUi";
+import { formatKes } from "@/components/admin/commerceUi";
+import { KpiCard, statusLabel } from "@/components/admin/analyticsUi";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRewardsEconomics, getTaxReport, getProductsInventory,
-  getProfitability, getMonthlyProjection, getCustomerAnalytics,
-  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RewardsEconomics, type TaxReport, type ProductsInventory,
-  type Profitability, type MonthlyProjection, type CustomerAnalytics,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary,
+  type AnalyticsResult, type RevenueSummary, type OperationsSummary,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
-
-
-
-function KpiCard({
-  label, value, sub, badges, icon,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  badges?: { label: string; tone?: "warn" | "info" | "ok" }[];
-  icon?: React.ReactNode;
-}) {
-  return (
-    <div className="admin-panel" style={{ padding: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-        <div className="admin-label">{label}</div>
-        {icon && <div style={{ color: "var(--admin-muted)" }}>{icon}</div>}
-      </div>
-      <div style={{ fontFamily: "var(--font-display)", fontSize: 26, marginTop: 6 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 4 }}>{sub}</div>}
-      {badges && badges.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-          {badges.map((b, i) => {
-            const tones: Record<string, { bg: string; fg: string }> = {
-              warn: { bg: "#fef3c7", fg: "#92400e" },
-              info: { bg: "#dbeafe", fg: "#1e40af" },
-              ok:   { bg: "#dcfce7", fg: "#166534" },
-            };
-            const t = tones[b.tone ?? "info"];
-            return (
-              <span key={i} style={{
-                fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 999,
-                background: t.bg, color: t.fg,
-              }}>{b.label}</span>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsResult | null>(null);
@@ -66,18 +24,6 @@ function AdminAnalyticsPage() {
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [ops, setOps] = useState<OperationsSummary | null>(null);
   const [opsLoading, setOpsLoading] = useState(false);
-  const [rewards, setRewards] = useState<RewardsEconomics | null>(null);
-  const [rewardsLoading, setRewardsLoading] = useState(false);
-  const [tax, setTax] = useState<TaxReport | null>(null);
-  const [taxLoading, setTaxLoading] = useState(false);
-  const [inventory, setInventory] = useState<ProductsInventory | null>(null);
-  const [inventoryLoading, setInventoryLoading] = useState(false);
-  const [profitability, setProfitability] = useState<Profitability | null>(null);
-  const [profitabilityLoading, setProfitabilityLoading] = useState(false);
-  const [projection, setProjection] = useState<MonthlyProjection | null>(null);
-  const [projectionLoading, setProjectionLoading] = useState(false);
-  const [customers, setCustomers] = useState<CustomerAnalytics | null>(null);
-  const [customersLoading, setCustomersLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -115,95 +61,6 @@ function AdminAnalyticsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
 
-  useEffect(() => {
-    if (!range) return;
-    let cancelled = false;
-    setRewardsLoading(true);
-    getRewardsEconomics(range.from, range.to)
-      .then((res) => { if (!cancelled) setRewards(res); })
-      .catch((err) => reportAdminError(err, "Failed to load rewards economics"))
-      .finally(() => { if (!cancelled) setRewardsLoading(false); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, reloadKey]);
-
-  useEffect(() => {
-    if (!range) return;
-    let cancelled = false;
-    setTaxLoading(true);
-    getTaxReport(range.from, range.to)
-      .then((res) => { if (!cancelled) setTax(res); })
-      .catch((err) => reportAdminError(err, "Failed to load tax report"))
-      .finally(() => { if (!cancelled) setTaxLoading(false); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, reloadKey]);
-
-  useEffect(() => {
-    if (!range) return;
-    let cancelled = false;
-    setInventoryLoading(true);
-    getProductsInventory(range.from, range.to)
-      .then((res) => { if (!cancelled) setInventory(res); })
-      .catch((err) => reportAdminError(err, "Failed to load products & inventory"))
-      .finally(() => { if (!cancelled) setInventoryLoading(false); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, reloadKey]);
-
-  useEffect(() => {
-    if (!range) return;
-    let cancelled = false;
-    setProfitabilityLoading(true);
-    getProfitability(range.from, range.to)
-      .then((res) => { if (!cancelled) setProfitability(res); })
-      .catch((err) => reportAdminError(err, "Failed to load profitability"))
-      .finally(() => { if (!cancelled) setProfitabilityLoading(false); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, reloadKey]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setProjectionLoading(true);
-    getMonthlyProjection()
-      .then((res) => { if (!cancelled) setProjection(res); })
-      .catch((err) => reportAdminError(err, "Failed to load monthly projection"))
-      .finally(() => { if (!cancelled) setProjectionLoading(false); });
-    return () => { cancelled = true; };
-  }, [reloadKey]);
-
-  useEffect(() => {
-    if (!range) return;
-    let cancelled = false;
-    setCustomersLoading(true);
-    getCustomerAnalytics(range.from, range.to)
-      .then((res) => { if (!cancelled) setCustomers(res); })
-      .catch((err) => reportAdminError(err, "Failed to load customer analytics"))
-      .finally(() => { if (!cancelled) setCustomersLoading(false); });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range, reloadKey]);
-
-  function accountTypeLabel(type: string): string {
-    return type === "INDIVIDUAL_SHOPPER" ? "Individual shoppers" : type === "BUSINESS" ? "Business accounts" : type;
-  }
-
-  function bundleStatusLabel(status: string): string {
-    const labels: Record<string, string> = {
-      PENDING: "Awaiting ETR upload", SENT: "Sent to customer", FAILED: "Failed to send", EXPIRED: "Expired",
-    };
-    return labels[status] ?? status;
-  }
-
-  function sourceLabel(source: string): string {
-    return source.replace(/^EARNED_/, "").replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
-  }
-
-  function statusLabel(status: string): string {
-    return ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status.replace(/_/g, " ");
-  }
-
   async function handleExport(kind: "orders" | "customers") {
     try {
       setExporting(kind);
@@ -236,11 +93,11 @@ function AdminAnalyticsPage() {
   const placeholder = loading || !data ? "—" : null;
 
   return (
-    <AdminLayout title="Analytics" onReload={() => setReloadKey((k) => k + 1)}>
+    <AdminLayout title="Analytics · Overview" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
           <div style={{ fontSize: 13, color: "var(--admin-muted)" }}>
-            Live operational snapshot from the backend.
+            Live operational snapshot from the backend. See the Analytics section in the sidebar for Rewards, Tax, Products, Profitability and Customers.
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="admin-btn admin-btn-ghost" disabled={!!exporting} onClick={() => handleExport("orders")}>
@@ -252,8 +109,7 @@ function AdminAnalyticsPage() {
           </div>
         </div>
 
-        {/* Revenue & payment health — filterable by date range, the foundation the rest of
-            the comprehensive dashboard builds on phase by phase. */}
+        {/* Revenue & payment health — filterable by date range. */}
         <div className="admin-panel" style={{ padding: 14 }}>
           <div className="admin-label" style={{ marginBottom: 10 }}>Revenue & payment health</div>
           <DateRangePicker onChange={setRange} />
@@ -349,258 +205,6 @@ function AdminAnalyticsPage() {
           )}
         </div>
 
-        {/* Reward Coupons & referral economics — same date range as above. */}
-        <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Reward Coupons & referral economics</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-            <KpiCard
-              label="Outstanding coupon balance"
-              value={rewardsLoading || !rewards ? "—" : rewards.outstandingBalanceCoupons.toLocaleString()}
-              sub={rewardsLoading || !rewards ? undefined : `${formatKes(rewards.outstandingBalanceValueKes)} liability if all redeemed`}
-            />
-            <KpiCard
-              label="Redeemed this period"
-              value={rewardsLoading || !rewards ? "—" : formatKes(rewards.redeemedValueKesInRange)}
-              sub={rewardsLoading || !rewards ? undefined : `${rewards.redeemedCouponsInRange.toLocaleString()} coupon(s) · this is the program's actual cost`}
-            />
-            <KpiCard
-              label="Referral conversion"
-              value={rewardsLoading || !rewards ? "—" : `${rewards.referralConversionRatePercent}%`}
-              sub={rewardsLoading || !rewards ? undefined : `${rewards.referralConfirmedInRange} confirmed of ${rewards.referralSignupsInRange} signup(s)`}
-            />
-            <KpiCard
-              label="Median wallet balance"
-              value={rewardsLoading || !rewards ? "—" : rewards.medianWalletBalance.toLocaleString()}
-              sub="coupons, across all wallets"
-            />
-          </div>
-
-          {!rewardsLoading && rewards && rewards.earnedInRange.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>Coupons earned by source (this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {rewards.earnedInRange.map((s) => (
-                  <div key={s.source} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{sourceLabel(s.source)}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.coupons.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(s.valueKes)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!rewardsLoading && rewards && rewards.topHolders.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>Top wallet holders</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {rewards.topHolders.map((h, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{h.name || "—"}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{h.balance.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(h.valueKes)}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Tax report — same date range as above. */}
-        <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Tax report</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-            <KpiCard
-              label="VAT to remit"
-              value={taxLoading || !tax ? "—" : formatKes(tax.vatToRemitKes)}
-              sub={taxLoading || !tax ? undefined : `on ${formatKes(tax.vatableSalesKes)} vatable sales, ${tax.paidOrderCount} paid order(s)`}
-            />
-            <KpiCard
-              label="Tax invoices requested"
-              value={taxLoading || !tax ? "—" : tax.taxInvoiceRequestedCount.toLocaleString()}
-              sub={taxLoading || !tax ? undefined : "paid orders in this period"}
-            />
-            <KpiCard
-              label="ETR bundles requested"
-              value={taxLoading || !tax ? "—" : tax.etrRequestedCount.toLocaleString()}
-              sub={taxLoading || !tax ? undefined : "paid orders in this period"}
-            />
-          </div>
-
-          {!taxLoading && tax && tax.documentBundleStatusCounts.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>ETR bundle delivery status</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {tax.documentBundleStatusCounts.map((s) => (
-                  <div key={s.status} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{bundleStatusLabel(s.status)}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.count}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Products & inventory — top sellers are date-ranged, stock/valuation are a live snapshot. */}
-        <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Products & inventory</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-            <KpiCard
-              label="In stock / low / out"
-              value={inventoryLoading || !inventory ? "—" : `${inventory.inStockCount} / ${inventory.lowStockCount} / ${inventory.outOfStockCount}`}
-              sub="active products, live snapshot"
-              badges={inventoryLoading || !inventory || inventory.outOfStockCount === 0 ? undefined : [{ label: `${inventory.outOfStockCount} out of stock`, tone: "warn" }]}
-            />
-            <KpiCard
-              label="Inventory value (cost)"
-              value={inventoryLoading || !inventory ? "—" : formatKes(inventory.totalInventoryCostValueKes)}
-              sub={inventoryLoading || !inventory ? undefined : inventory.productsMissingCostPriceCount > 0 ? `${inventory.productsMissingCostPriceCount} product(s) missing a cost price` : "all stocked products have a cost price"}
-              badges={inventoryLoading || !inventory || inventory.productsMissingCostPriceCount === 0 ? undefined : [{ label: "floor, not exact", tone: "warn" }]}
-            />
-            <KpiCard
-              label="Inventory value (retail)"
-              value={inventoryLoading || !inventory ? "—" : formatKes(inventory.totalInventoryRetailValueKes)}
-              sub="at current base price"
-            />
-          </div>
-
-          {!inventoryLoading && inventory && inventory.topSellingByRevenue.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>Top sellers (this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {inventory.topSellingByRevenue.map((p, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.productName}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(p.revenueKes)}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{p.unitsSold} unit(s) sold</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!inventoryLoading && inventory && inventory.lowStockAlerts.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>Restock attention needed</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {inventory.lowStockAlerts.map((s, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{s.productName}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.stockCount}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
-                      threshold {s.lowStockThreshold} · {s.stockStatus.replace(/_/g, " ").toLowerCase()}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Profitability — same date range as above. COGS uses each product's CURRENT cost price
-            (no historical snapshot exists), so this is an estimate, labelled as such below. */}
-        <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Profitability (estimated)</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-            <KpiCard
-              label="Gross profit"
-              value={profitabilityLoading || !profitability ? "—" : formatKes(profitability.estimatedGrossProfitKes)}
-              sub={profitabilityLoading || !profitability ? undefined : `${profitability.grossMarginPercent}% margin on ${formatKes(profitability.paidRevenueKes)} revenue`}
-            />
-            <KpiCard
-              label="Estimated COGS"
-              value={profitabilityLoading || !profitability ? "—" : formatKes(profitability.estimatedCogsKes)}
-              sub={profitabilityLoading || !profitability ? undefined : profitability.unitsMissingCostPriceCount > 0 ? `${profitability.unitsMissingCostPriceCount} unit(s) sold with no cost price on file` : "all sold units have a cost price"}
-              badges={profitabilityLoading || !profitability || profitability.unitsMissingCostPriceCount === 0 ? undefined : [{ label: "floor, not exact", tone: "warn" }]}
-            />
-            <KpiCard
-              label="Net profit"
-              value={profitabilityLoading || !profitability ? "—" : formatKes(profitability.estimatedNetProfitKes)}
-              sub={profitabilityLoading || !profitability ? undefined : `${profitability.netMarginPercent}% margin, after ${formatKes(profitability.couponRedemptionCostKes)} coupon cost`}
-            />
-          </div>
-        </div>
-
-        {/* Monthly projection — always the current month, not tied to the date-range picker above. */}
-        <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>
-            Monthly projection
-            {!projectionLoading && projection && (
-              <span style={{ fontWeight: 400, color: "var(--admin-muted)", marginLeft: 8 }}>
-                — run-rate from the first {projection.sampleDays} day(s) of this month, scaled to {projection.daysInMonth} days
-              </span>
-            )}
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-            <KpiCard
-              label="Projected revenue"
-              value={projectionLoading || !projection ? "—" : formatKes(projection.projectedRevenueKes)}
-              sub={projectionLoading || !projection ? undefined : `${formatKes(projection.sampleRevenueKes)} so far`}
-            />
-            <KpiCard
-              label="Projected gross profit"
-              value={projectionLoading || !projection ? "—" : formatKes(projection.projectedGrossProfitKes)}
-              sub={projectionLoading || !projection ? undefined : `${formatKes(projection.sampleGrossProfitKes)} so far`}
-            />
-            <KpiCard
-              label="Projected costs"
-              value={projectionLoading || !projection ? "—" : formatKes(projection.projectedCostsKes)}
-              sub="COGS + coupon redemption cost"
-            />
-          </div>
-        </div>
-
-        {/* Customers — same date range as above. */}
-        <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Customers</div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
-            <KpiCard
-              label="New paying customers"
-              value={customersLoading || !customers ? "—" : customers.newPayingCustomersInRange.toLocaleString()}
-              sub={customersLoading || !customers ? undefined : `${formatKes(customers.newCustomerFirstOrderValueKes)} in first-order value`}
-            />
-          </div>
-
-          {!customersLoading && customers && customers.byAccountType.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>Revenue by account type (this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {customers.byAccountType.map((a) => (
-                  <div key={a.accountType} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{accountTypeLabel(a.accountType)}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(a.revenueKes)}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{a.customerCount} customer(s)</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {!customersLoading && customers && customers.topCustomersByLifetimeValue.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div className="admin-label" style={{ marginBottom: 8 }}>Top customers by lifetime value</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {customers.topCustomersByLifetimeValue.map((c, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{c.name || "—"}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(c.lifetimeRevenueKes)}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
-                      {accountTypeLabel(c.accountType)} · {c.lifetimeOrderCount} order(s)
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Legacy operational snapshot — fixed today/week/MTD windows and counts (products, users,
             enquiries, leads) that the date-ranged sections above don't cover. Kept as-is: still the
             only source for these specific figures. Note its revenue figures use a different
@@ -643,7 +247,6 @@ function AdminAnalyticsPage() {
             icon={<Sparkles size={16} />}
           />
         </div>
-
       </div>
     </AdminLayout>
   );

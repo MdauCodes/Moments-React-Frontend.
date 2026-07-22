@@ -72,6 +72,11 @@ import AdminResetPasswordPage from "@/routes/admin.reset-password";
 // ── Admin pages (auth required) ─────────────────────────────────────────────
 import { AdminDashboardPage } from "@/routes/_adminAuth.admin.index";
 import AdminAnalyticsPage from "@/routes/_adminAuth.admin.analytics";
+import AdminAnalyticsRewardsPage from "@/routes/_adminAuth.admin.analytics.rewards";
+import AdminAnalyticsTaxPage from "@/routes/_adminAuth.admin.analytics.tax";
+import AdminAnalyticsProductsPage from "@/routes/_adminAuth.admin.analytics.products";
+import AdminAnalyticsProfitabilityPage from "@/routes/_adminAuth.admin.analytics.profitability";
+import AdminAnalyticsCustomersPage from "@/routes/_adminAuth.admin.analytics.customers";
 import AdminAuditLogsPage from "@/routes/_adminAuth.admin.audit-logs";
 import AdminBlogsPage from "@/routes/_adminAuth.admin.blogs";
 import AdminBlogsNewPage from "@/routes/_adminAuth.admin.blogs.new";
@@ -187,6 +192,11 @@ export default function App() {
                       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                       <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                       <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                      <Route path="/admin/analytics/rewards" element={<AdminAnalyticsRewardsPage />} />
+                      <Route path="/admin/analytics/tax" element={<AdminAnalyticsTaxPage />} />
+                      <Route path="/admin/analytics/products" element={<AdminAnalyticsProductsPage />} />
+                      <Route path="/admin/analytics/profitability" element={<AdminAnalyticsProfitabilityPage />} />
+                      <Route path="/admin/analytics/customers" element={<AdminAnalyticsCustomersPage />} />
                       <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
                       <Route path="/admin/blogs" element={<AdminBlogsPage />} />
                       <Route path="/admin/blogs/new" element={<AdminBlogsNewPage />} />
