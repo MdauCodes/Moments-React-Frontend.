@@ -85,7 +85,7 @@ export function RankedBarChart({
         <XAxis type="number" tick={AXIS_STYLE} axisLine={false} tickLine={false} tickFormatter={format} />
         <YAxis type="category" dataKey={nameKey} tick={AXIS_STYLE} axisLine={false} tickLine={false} width={140} />
         <Tooltip contentStyle={TOOLTIP_STYLE} formatter={(v: number) => format(v)} />
-        <Bar dataKey={dataKey} fill={color} radius={[0, 4, 4, 0]} maxBarSize={24}>
+        <Bar dataKey={dataKey} fill={color} radius={[0, 4, 4, 0]} maxBarSize={24} isAnimationActive={false}>
           <LabelList dataKey={dataKey} position="right" formatter={format} style={{ fontSize: 11, fill: CHART_TEXT_SECONDARY }} />
         </Bar>
       </BarChart>
@@ -120,6 +120,7 @@ export function ShareDonutChart({
           paddingAngle={2}
           stroke="var(--admin-surface)"
           strokeWidth={2}
+          isAnimationActive={false}
         >
           {data.map((d, i) => <Cell key={i} fill={d.color} />)}
         </Pie>
