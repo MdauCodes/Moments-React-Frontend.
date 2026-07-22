@@ -18,13 +18,18 @@ import avatarShrug from "@/assets/avatars/avatar_3.png";
 const SHOW_DELAY_MS = 1800;
 const REAPPEAR_DELAY_MS = 45_000;
 
-// Brand palette used on the Company Profile / Sustainability pages — the client asked for the
-// welcome modal to match that dark-green + gold look instead of the site's red/orange --accent,
-// which read wrong here ("remove the red... contrast with the dark green, like on the website").
+// Background matches the sign-in form's panel exactly, per explicit instruction (AuthModal.tsx
+// uses this same color-mix) — note this reintroduces --accent (red/orange) into a component the
+// client previously asked to keep to the dark-green/gold family; kept anyway on direct request.
+const MODAL_BG = "color-mix(in oklab, var(--accent) 24%, white 76%)";
+const MODAL_BORDER = "color-mix(in oklab, var(--accent) 40%, white 60%)";
+
+// Dark-green/gold ink, now used as TEXT/button color against the light background above
+// (previously these were used as light color against a dark modal background).
 const FOREST_DEEP = "#08231a";
 const FOREST = "#0d3320";
 const GOLD = "#c9a44c";
-const GOLD_SOFT = "#e8c878";
+const GOLD_DARK = "#8a6420"; // darkened gold for small text/links — GOLD_SOFT is unreadable on a light backdrop
 
 type View = "main" | "decline";
 
@@ -35,18 +40,19 @@ function shouldShow(): boolean {
 // Small CTA pill shown inside each option card so it's unmistakably a
 // button, even though the whole card is the real clickable target — clicks
 // on this pill bubble up to the card's own onClick, so it doesn't need one.
+// Sized up (was text-[10.5px]/px-3 py-1) so it reads as a real, tappable button on all screens.
 function CtaPill({ children, tone = "gold" }: { children: React.ReactNode; tone?: "gold" | "neutral" }) {
   return (
     <span
-      className="mt-1 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10.5px] font-semibold"
+      className="mt-1 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold"
       style={
         tone === "gold"
           ? { background: GOLD, color: FOREST_DEEP }
-          : { background: "rgba(255,255,255,0.12)", color: "#fff" }
+          : { background: FOREST_DEEP, color: "#fff" }
       }
     >
       {children}
-      <ArrowRight className="h-3 w-3" />
+      <ArrowRight className="h-3.5 w-3.5" />
     </span>
   );
 }
@@ -99,17 +105,15 @@ export function WelcomeStarterModal() {
         className={`relative w-full rounded-3xl border shadow-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
           view === "main" ? "max-w-3xl" : "max-w-lg"
         }`}
-        style={{
-          background: `radial-gradient(ellipse at 100% 0%, ${FOREST} 0%, ${FOREST_DEEP} 60%, #061a13 100%)`,
-          borderColor: `${GOLD}40`,
-        }}
+        style={{ background: MODAL_BG, borderColor: MODAL_BORDER }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={() => dismiss()}
           aria-label="Close"
-          className="absolute right-3 top-3 z-20 rounded-full p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-3 top-3 z-20 rounded-full p-1.5 transition hover:bg-black/10"
+          style={{ color: `${FOREST_DEEP}99` }}
         >
           <X className="h-4 w-4" />
         </button>
@@ -140,17 +144,17 @@ export function WelcomeStarterModal() {
             <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-14 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="min-w-0">
-                  <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug text-white sm:text-2xl sm:leading-tight">
+                  <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug sm:text-2xl sm:leading-tight" style={{ color: FOREST_DEEP }}>
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
-                  <p className="mt-1.5 text-[13px] leading-snug text-white/80 sm:mt-2 sm:text-sm sm:leading-normal">
+                  <p className="mt-1.5 text-[13px] leading-snug sm:mt-2 sm:text-sm sm:leading-normal" style={{ color: `${FOREST_DEEP}bf` }}>
                     Every account gets 1,000 Coupon Points (worth KES 100) free when you join. Earn more with every
                     order through discounts, referral rewards, and VIP perks. Open a Business Account to unlock a
                     one-time 5% promo code after your trade profile is approved.
                   </p>
-                  <p className="mt-1.5 text-[11px] text-white/70">
+                  <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}99` }}>
                     Full details in the{" "}
-                    <RewardsTermsLink className="underline underline-offset-2 text-[#e8c878]">
+                    <RewardsTermsLink className="underline underline-offset-2 font-semibold text-[#8a6420]">
                       offer terms
                     </RewardsTermsLink>
                     .
@@ -158,58 +162,58 @@ export function WelcomeStarterModal() {
                 </div>
               </div>
 
-              <p className="mt-4 text-center text-[11px] font-semibold uppercase tracking-wider sm:mt-6 sm:text-left" style={{ color: GOLD_SOFT }}>
+              <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-wider sm:mt-6 sm:text-left" style={{ color: FOREST }}>
                 Choose how you'd like to shop with us
               </p>
 
               <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <div
-                  className="flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center shadow-sm sm:gap-2 sm:py-4"
-                  style={{ borderColor: `${GOLD}33`, background: `${GOLD}14` }}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm sm:gap-2 sm:py-5"
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
                 >
                   <button
                     type="button"
                     onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
                     className="flex flex-col items-center gap-1.5 sm:gap-2"
                   >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: `${GOLD}26`, color: GOLD_SOFT }}>
-                      <Briefcase className="h-4.5 w-4.5" />
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: GOLD, color: FOREST_DEEP }}>
+                      <Briefcase className="h-5 w-5" />
                     </span>
-                    <span className="text-xs font-semibold text-white">Create a Business Account</span>
-                    <span className="text-[10.5px] leading-tight text-white/70">1,000 coupons + a one-time 5% welcome code</span>
+                    <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create a Business Account</span>
+                    <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 coupons + a one-time 5% welcome code</span>
                     <CtaPill>Get started</CtaPill>
                   </button>
                   <Link
                     to="/account-options#business"
                     onClick={() => dismiss(true)}
-                    className="text-[10px] font-medium underline underline-offset-2 hover:opacity-80"
-                    style={{ color: GOLD_SOFT }}
+                    className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
+                    style={{ color: GOLD_DARK }}
                   >
                     Learn more
                   </Link>
                 </div>
 
                 <div
-                  className="flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center shadow-sm sm:gap-2 sm:py-4"
-                  style={{ borderColor: `${GOLD}33`, background: `${GOLD}14` }}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm sm:gap-2 sm:py-5"
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
                 >
                   <button
                     type="button"
                     onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
                     className="flex flex-col items-center gap-1.5 sm:gap-2"
                   >
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: `${GOLD}26`, color: GOLD_SOFT }}>
-                      <Gift className="h-4.5 w-4.5" />
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: GOLD, color: FOREST_DEEP }}>
+                      <Gift className="h-5 w-5" />
                     </span>
-                    <span className="text-xs font-semibold text-white">Create an Individual Shopper account</span>
-                    <span className="text-[10.5px] leading-tight text-white/70">1,000 Reward Coupons on signup</span>
+                    <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create an Individual Shopper account</span>
+                    <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 Reward Coupons on signup</span>
                     <CtaPill>Get started</CtaPill>
                   </button>
                   <Link
                     to="/account-options#individual"
                     onClick={() => dismiss(true)}
-                    className="text-[10px] font-medium underline underline-offset-2 hover:opacity-80"
-                    style={{ color: GOLD_SOFT }}
+                    className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
+                    style={{ color: GOLD_DARK }}
                   >
                     Learn more
                   </Link>
@@ -218,14 +222,14 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => setView("decline")}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center shadow-sm transition-colors hover:bg-white/10 sm:gap-2 sm:py-4"
-                  style={{ borderColor: "rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)" }}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm transition-colors hover:bg-black/5 sm:gap-2 sm:py-5"
+                  style={{ borderColor: `${FOREST_DEEP}22`, background: "rgba(255,255,255,0.5)" }}
                 >
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-white/70">
-                    <ShoppingBag className="h-4.5 w-4.5" />
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: `${FOREST_DEEP}1a`, color: FOREST_DEEP }}>
+                    <ShoppingBag className="h-5 w-5" />
                   </span>
-                  <span className="text-xs font-semibold text-white">I don't want to create an account</span>
-                  <span className="text-[10.5px] leading-tight text-white/70">Just let me shop</span>
+                  <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>I don't want to create an account</span>
+                  <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>Just let me shop</span>
                   <CtaPill tone="neutral">Continue</CtaPill>
                 </button>
               </div>
@@ -233,12 +237,12 @@ export function WelcomeStarterModal() {
               <button
                 type="button"
                 onClick={() => pick(() => openLogin())}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 text-sm font-semibold shadow-sm transition-colors hover:bg-white/5"
-                style={{ borderColor: GOLD, color: GOLD_SOFT }}
+                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-base font-bold shadow-md transition-transform hover:scale-[1.01]"
+                style={{ background: FOREST_DEEP, color: "#fff" }}
               >
-                <Check className="h-4 w-4" aria-hidden="true" />
+                <Check className="h-4.5 w-4.5" aria-hidden="true" />
                 Already have an account? Sign in
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <ArrowRight className="h-4.5 w-4.5" aria-hidden="true" />
               </button>
             </div>
           </>
@@ -255,7 +259,8 @@ export function WelcomeStarterModal() {
               <button
                 type="button"
                 onClick={() => setView("main")}
-                className="mb-3 inline-flex items-center gap-1 text-xs font-medium text-white/70 hover:text-white"
+                className="mb-3 inline-flex items-center gap-1 text-xs font-semibold hover:opacity-70"
+                style={{ color: `${FOREST_DEEP}b3` }}
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Back
               </button>
@@ -267,10 +272,10 @@ export function WelcomeStarterModal() {
                 className="mx-auto h-24 w-24 object-contain sm:hidden"
               />
 
-              <p id="starter-modal-title" className="mt-3 font-display text-xl leading-tight text-white sm:mt-8 sm:text-2xl">
+              <p id="starter-modal-title" className="mt-3 font-display text-xl leading-tight sm:mt-8 sm:text-2xl" style={{ color: FOREST_DEEP }}>
                 Before you go — here's what you'd be skipping
               </p>
-              <p className="mx-auto mt-2 max-w-sm text-sm text-white/75">
+              <p className="mx-auto mt-2 max-w-sm text-sm" style={{ color: `${FOREST_DEEP}bf` }}>
                 Without an account, you can still shop as a guest—but you won't earn Reward Coupons, referral
                 rewards, or VIP discounts, and your order history won't be saved. Create an account to unlock these
                 benefits on future orders.
@@ -280,21 +285,21 @@ export function WelcomeStarterModal() {
                 <button
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center shadow-sm transition-colors hover:brightness-110"
-                  style={{ borderColor: `${GOLD}33`, background: `${GOLD}14` }}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm transition-colors hover:brightness-95"
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
                 >
-                  <span className="text-xs font-semibold text-white">Create a Business Account</span>
-                  <span className="text-[10.5px] leading-tight text-white/70">1,000 coupons + a one-time 5% welcome code</span>
+                  <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create a Business Account</span>
+                  <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 coupons + a one-time 5% welcome code</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
                 <button
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
-                  className="flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3.5 text-center shadow-sm transition-colors hover:brightness-110"
-                  style={{ borderColor: `${GOLD}33`, background: `${GOLD}14` }}
+                  className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm transition-colors hover:brightness-95"
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
                 >
-                  <span className="text-xs font-semibold text-white">Create an Individual Shopper account</span>
-                  <span className="text-[10.5px] leading-tight text-white/70">1,000 Reward Coupons on signup</span>
+                  <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create an Individual Shopper account</span>
+                  <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 Reward Coupons on signup</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
               </div>
@@ -302,18 +307,18 @@ export function WelcomeStarterModal() {
               <button
                 type="button"
                 onClick={() => pick(() => openLogin())}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors hover:bg-white/5"
-                style={{ borderColor: GOLD, color: GOLD_SOFT }}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-bold shadow-md transition-transform hover:scale-[1.01]"
+                style={{ background: FOREST_DEEP, color: "#fff" }}
               >
-                <Check className="h-4 w-4" aria-hidden="true" />
+                <Check className="h-4.5 w-4.5" aria-hidden="true" />
                 Already have an account? Sign in
               </button>
 
               <button
                 type="button"
                 onClick={() => dismiss()}
-                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border px-3 py-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-white/10"
-                style={{ borderColor: "rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.06)" }}
+                className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 px-3 py-3 text-sm font-bold shadow-sm transition-colors hover:bg-black/5"
+                style={{ borderColor: `${FOREST_DEEP}22`, background: "rgba(255,255,255,0.5)", color: FOREST_DEEP }}
               >
                 Continue without an account
                 <ArrowRight className="h-3.5 w-3.5" />

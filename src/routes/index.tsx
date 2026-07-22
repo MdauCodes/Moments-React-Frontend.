@@ -390,56 +390,56 @@ function Hero() {
             <div className="flex flex-col md:flex-row gap-3 max-w-sm md:max-w-none">
               <Link
                 to="/products"
-                className="inline-flex items-center justify-center gap-2 font-semibold"
+                className="inline-flex items-center justify-center gap-2 font-bold shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl"
                 style={{
                   background: "#e8c878",
                   color: "#0d3320",
                   borderRadius: "10px",
-                  padding: "13px 26px",
-                  fontSize: "14px",
+                  padding: "15px 30px",
+                  fontSize: "15px",
                 }}
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
 
-            {/* Account-type promo — styled with the same gold fill and weight as
-                "Browse all packaging" above so both paths read as equally primary,
-                not a bold CTA followed by two muted afterthoughts. */}
+            {/* Account-type promo — deliberately secondary to "Browse all packaging" above:
+                translucent/outline treatment (same family as the "company profile" pill below),
+                not a competing solid-gold fill, so there's one clear primary action. */}
             <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
               <button
                 type="button"
                 onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ padding: "14px 16px", background: "#e8c878" }}
+                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/25 bg-white/8 text-left backdrop-blur transition-colors hover:border-white/40 hover:bg-white/12"
+                style={{ padding: "12px 14px" }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(13,51,32,0.12)" }}>
-                    <Gift className="h-4.5 w-4.5" style={{ color: "#0d3320" }} />
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10">
+                    <Gift className="h-4 w-4 text-white/85" />
                   </span>
                   <div>
-                    <p className="text-[14px] font-bold" style={{ color: "#0d3320" }}>Individual Shopper Account</p>
-                    <p className="text-[11.5px] font-medium" style={{ color: "rgba(13,51,32,0.75)" }}>Welcome bonus + rewards</p>
+                    <p className="text-[13px] font-semibold text-white/90">Individual Shopper Account</p>
+                    <p className="text-[11px] font-medium text-white/60">Welcome bonus + rewards</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#0d3320" }} />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/60" />
               </button>
               <button
                 type="button"
                 onClick={() => openRegister({ accountType: "BUSINESS" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl text-left shadow-md transition-transform hover:-translate-y-0.5 hover:shadow-lg"
-                style={{ padding: "14px 16px", background: "#e8c878" }}
+                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/25 bg-white/8 text-left backdrop-blur transition-colors hover:border-white/40 hover:bg-white/12"
+                style={{ padding: "12px 14px" }}
               >
                 <div className="flex items-center gap-2.5">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full" style={{ background: "rgba(13,51,32,0.12)" }}>
-                    <Briefcase className="h-4.5 w-4.5" style={{ color: "#0d3320" }} />
+                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10">
+                    <Briefcase className="h-4 w-4 text-white/85" />
                   </span>
                   <div>
-                    <p className="text-[14px] font-bold" style={{ color: "#0d3320" }}>Business Account</p>
-                    <p className="text-[11.5px] font-medium" style={{ color: "rgba(13,51,32,0.75)" }}>Welcome bonus + order history</p>
+                    <p className="text-[13px] font-semibold text-white/90">Business Account</p>
+                    <p className="text-[11px] font-medium text-white/60">Welcome bonus + order history</p>
                   </div>
                 </div>
-                <ArrowRight className="h-4 w-4 shrink-0" style={{ color: "#0d3320" }} />
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/60" />
               </button>
             </div>
 
