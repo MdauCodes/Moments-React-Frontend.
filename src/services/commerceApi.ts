@@ -586,6 +586,79 @@ export async function getProductsInventory(from: Date, to: Date): Promise<Produc
   return getJson<ProductsInventory>(`/api/v1/admin/analytics/products?${params.toString()}`);
 }
 
+// ---------- Analytics: profitability (Phase 6) ----------
+// Backend GET /api/v1/admin/analytics/profitability?from=<ISO instant>&to=<ISO instant>
+
+export interface Profitability {
+  rangeStart: string;
+  rangeEnd: string;
+  paidRevenueKes: number;
+  estimatedCogsKes: number;
+  estimatedGrossProfitKes: number;
+  grossMarginPercent: number;
+  unitsMissingCostPriceCount: number;
+  couponRedemptionCostKes: number;
+  estimatedNetProfitKes: number;
+  netMarginPercent: number;
+}
+
+export async function getProfitability(from: Date, to: Date): Promise<Profitability> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<Profitability>(`/api/v1/admin/analytics/profitability?${params.toString()}`);
+}
+
+// ---------- Analytics: monthly projection (Phase 7) ----------
+// Backend GET /api/v1/admin/analytics/projection — no params, always the current month.
+
+export interface MonthlyProjection {
+  monthStart: string;
+  monthEnd: string;
+  sampleStart: string;
+  sampleEnd: string;
+  sampleDays: number;
+  daysInMonth: number;
+  sampleRevenueKes: number;
+  projectedRevenueKes: number;
+  sampleGrossProfitKes: number;
+  projectedGrossProfitKes: number;
+  sampleCostsKes: number;
+  projectedCostsKes: number;
+}
+
+export async function getMonthlyProjection(): Promise<MonthlyProjection> {
+  return getJson<MonthlyProjection>(`/api/v1/admin/analytics/projection`);
+}
+
+// ---------- Analytics: customers (Phase 8) ----------
+// Backend GET /api/v1/admin/analytics/customers?from=<ISO instant>&to=<ISO instant>
+
+export interface AccountTypeBreakdown {
+  accountType: string;
+  customerCount: number;
+  revenueKes: number;
+}
+
+export interface TopCustomer {
+  name: string;
+  accountType: string;
+  lifetimeOrderCount: number;
+  lifetimeRevenueKes: number;
+}
+
+export interface CustomerAnalytics {
+  rangeStart: string;
+  rangeEnd: string;
+  newPayingCustomersInRange: number;
+  newCustomerFirstOrderValueKes: number;
+  byAccountType: AccountTypeBreakdown[];
+  topCustomersByLifetimeValue: TopCustomer[];
+}
+
+export async function getCustomerAnalytics(from: Date, to: Date): Promise<CustomerAnalytics> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<CustomerAnalytics>(`/api/v1/admin/analytics/customers?${params.toString()}`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {

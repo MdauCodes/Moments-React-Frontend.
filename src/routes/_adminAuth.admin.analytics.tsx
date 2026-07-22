@@ -7,7 +7,9 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes, ORDER_STATUS_OPTIONS } from "@/components/admin/commerceUi";
 import {
   getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRewardsEconomics, getTaxReport, getProductsInventory,
+  getProfitability, getMonthlyProjection, getCustomerAnalytics,
   type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RewardsEconomics, type TaxReport, type ProductsInventory,
+  type Profitability, type MonthlyProjection, type CustomerAnalytics,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
@@ -70,6 +72,12 @@ function AdminAnalyticsPage() {
   const [taxLoading, setTaxLoading] = useState(false);
   const [inventory, setInventory] = useState<ProductsInventory | null>(null);
   const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [profitability, setProfitability] = useState<Profitability | null>(null);
+  const [profitabilityLoading, setProfitabilityLoading] = useState(false);
+  const [projection, setProjection] = useState<MonthlyProjection | null>(null);
+  const [projectionLoading, setProjectionLoading] = useState(false);
+  const [customers, setCustomers] = useState<CustomerAnalytics | null>(null);
+  const [customersLoading, setCustomersLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -142,6 +150,44 @@ function AdminAnalyticsPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setProfitabilityLoading(true);
+    getProfitability(range.from, range.to)
+      .then((res) => { if (!cancelled) setProfitability(res); })
+      .catch((err) => reportAdminError(err, "Failed to load profitability"))
+      .finally(() => { if (!cancelled) setProfitabilityLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setProjectionLoading(true);
+    getMonthlyProjection()
+      .then((res) => { if (!cancelled) setProjection(res); })
+      .catch((err) => reportAdminError(err, "Failed to load monthly projection"))
+      .finally(() => { if (!cancelled) setProjectionLoading(false); });
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setCustomersLoading(true);
+    getCustomerAnalytics(range.from, range.to)
+      .then((res) => { if (!cancelled) setCustomers(res); })
+      .catch((err) => reportAdminError(err, "Failed to load customer analytics"))
+      .finally(() => { if (!cancelled) setCustomersLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  function accountTypeLabel(type: string): string {
+    return type === "INDIVIDUAL_SHOPPER" ? "Individual shoppers" : type === "BUSINESS" ? "Business accounts" : type;
+  }
 
   function bundleStatusLabel(status: string): string {
     const labels: Record<string, string> = {
@@ -455,7 +501,111 @@ function AdminAnalyticsPage() {
           )}
         </div>
 
-        {/* Primary KPIs */}
+        {/* Profitability — same date range as above. COGS uses each product's CURRENT cost price
+            (no historical snapshot exists), so this is an estimate, labelled as such below. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>Profitability (estimated)</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <KpiCard
+              label="Gross profit"
+              value={profitabilityLoading || !profitability ? "—" : formatKes(profitability.estimatedGrossProfitKes)}
+              sub={profitabilityLoading || !profitability ? undefined : `${profitability.grossMarginPercent}% margin on ${formatKes(profitability.paidRevenueKes)} revenue`}
+            />
+            <KpiCard
+              label="Estimated COGS"
+              value={profitabilityLoading || !profitability ? "—" : formatKes(profitability.estimatedCogsKes)}
+              sub={profitabilityLoading || !profitability ? undefined : profitability.unitsMissingCostPriceCount > 0 ? `${profitability.unitsMissingCostPriceCount} unit(s) sold with no cost price on file` : "all sold units have a cost price"}
+              badges={profitabilityLoading || !profitability || profitability.unitsMissingCostPriceCount === 0 ? undefined : [{ label: "floor, not exact", tone: "warn" }]}
+            />
+            <KpiCard
+              label="Net profit"
+              value={profitabilityLoading || !profitability ? "—" : formatKes(profitability.estimatedNetProfitKes)}
+              sub={profitabilityLoading || !profitability ? undefined : `${profitability.netMarginPercent}% margin, after ${formatKes(profitability.couponRedemptionCostKes)} coupon cost`}
+            />
+          </div>
+        </div>
+
+        {/* Monthly projection — always the current month, not tied to the date-range picker above. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>
+            Monthly projection
+            {!projectionLoading && projection && (
+              <span style={{ fontWeight: 400, color: "var(--admin-muted)", marginLeft: 8 }}>
+                — run-rate from the first {projection.sampleDays} day(s) of this month, scaled to {projection.daysInMonth} days
+              </span>
+            )}
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <KpiCard
+              label="Projected revenue"
+              value={projectionLoading || !projection ? "—" : formatKes(projection.projectedRevenueKes)}
+              sub={projectionLoading || !projection ? undefined : `${formatKes(projection.sampleRevenueKes)} so far`}
+            />
+            <KpiCard
+              label="Projected gross profit"
+              value={projectionLoading || !projection ? "—" : formatKes(projection.projectedGrossProfitKes)}
+              sub={projectionLoading || !projection ? undefined : `${formatKes(projection.sampleGrossProfitKes)} so far`}
+            />
+            <KpiCard
+              label="Projected costs"
+              value={projectionLoading || !projection ? "—" : formatKes(projection.projectedCostsKes)}
+              sub="COGS + coupon redemption cost"
+            />
+          </div>
+        </div>
+
+        {/* Customers — same date range as above. */}
+        <div className="admin-panel" style={{ padding: 14 }}>
+          <div className="admin-label" style={{ marginBottom: 10 }}>Customers</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
+            <KpiCard
+              label="New paying customers"
+              value={customersLoading || !customers ? "—" : customers.newPayingCustomersInRange.toLocaleString()}
+              sub={customersLoading || !customers ? undefined : `${formatKes(customers.newCustomerFirstOrderValueKes)} in first-order value`}
+            />
+          </div>
+
+          {!customersLoading && customers && customers.byAccountType.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Revenue by account type (this period)</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {customers.byAccountType.map((a) => (
+                  <div key={a.accountType} className="admin-panel" style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{accountTypeLabel(a.accountType)}</div>
+                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(a.revenueKes)}</div>
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{a.customerCount} customer(s)</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {!customersLoading && customers && customers.topCustomersByLifetimeValue.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Top customers by lifetime value</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                {customers.topCustomersByLifetimeValue.map((c, i) => (
+                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600 }}>{c.name || "—"}</div>
+                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(c.lifetimeRevenueKes)}</div>
+                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
+                      {accountTypeLabel(c.accountType)} · {c.lifetimeOrderCount} order(s)
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Legacy operational snapshot — fixed today/week/MTD windows and counts (products, users,
+            enquiries, leads) that the date-ranged sections above don't cover. Kept as-is: still the
+            only source for these specific figures. Note its revenue figures use a different
+            definition (not PAID-only) than "Revenue & payment health" above — treat them as a quick
+            operational glance, not a reconciliation source. */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }} data-admin-stats>
           <KpiCard
             label="Revenue (today)"
@@ -494,21 +644,6 @@ function AdminAnalyticsPage() {
           />
         </div>
 
-        {/* Top products */}
-        <div className="admin-panel" style={{ padding: 16 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Top products</div>
-          {loading || !data ? (
-            <div className="admin-empty">Loading…</div>
-          ) : data.topProducts.length === 0 ? (
-            <div className="admin-empty">No product data yet</div>
-          ) : (
-            <ol style={{ margin: 0, paddingLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-              {data.topProducts.map((name, i) => (
-                <li key={i} style={{ fontSize: 14 }}>{name}</li>
-              ))}
-            </ol>
-          )}
-        </div>
       </div>
     </AdminLayout>
   );
