@@ -680,6 +680,66 @@ export async function getCustomerAnalytics(from: Date, to: Date): Promise<Custom
   return getJson<CustomerAnalytics>(`/api/v1/admin/analytics/customers?${params.toString()}`);
 }
 
+// ---------- Analytics: geographic ----------
+// Backend GET /api/v1/admin/analytics/geographic?from=<ISO instant>&to=<ISO instant>
+
+export interface GeographicBreakdown {
+  region: string;
+  orderCount: number;
+  revenueKes: number;
+}
+
+export interface GeographicAnalytics {
+  rangeStart: string;
+  rangeEnd: string;
+  byCounty: GeographicBreakdown[];
+}
+
+export async function getGeographicAnalytics(from: Date, to: Date): Promise<GeographicAnalytics> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<GeographicAnalytics>(`/api/v1/admin/analytics/geographic?${params.toString()}`);
+}
+
+// ---------- Analytics: delivery ----------
+// Backend GET /api/v1/admin/analytics/delivery?from=<ISO instant>&to=<ISO instant>
+
+export interface DeliveryPerformance {
+  fulfillmentType: string;
+  totalOrders: number;
+  deliveredCount: number;
+  cancelledCount: number;
+  deliveryRatePercent: number;
+  avgDeliveryHours: number;
+  deliverySampleCount: number;
+}
+
+export interface DeliveryAnalytics {
+  rangeStart: string;
+  rangeEnd: string;
+  byFulfillmentType: DeliveryPerformance[];
+}
+
+export async function getDeliveryAnalytics(from: Date, to: Date): Promise<DeliveryAnalytics> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<DeliveryAnalytics>(`/api/v1/admin/analytics/delivery?${params.toString()}`);
+}
+
+// ---------- Analytics: alerts ----------
+// Backend GET /api/v1/admin/analytics/alerts — no params, always the current live snapshot.
+
+export interface Alerts {
+  checkedAt: string;
+  stalePendingOrders: number;
+  failedPaymentsRecent: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  unresolvedRefunds: number;
+}
+
+export async function getAlerts(): Promise<Alerts> {
+  return getJson<Alerts>(`/api/v1/admin/analytics/alerts`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {

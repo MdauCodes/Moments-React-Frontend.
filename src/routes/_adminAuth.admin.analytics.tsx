@@ -8,11 +8,12 @@ import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, statusLabel, ORDER_STATUS_SEQUENCE } from "@/components/admin/analyticsUi";
 import { TrendLineChart, RankedBarChart } from "@/components/admin/analyticsCharts";
 import { WhatChangedPanel } from "@/components/admin/WhatChangedPanel";
+import { AlertsPanel } from "@/components/admin/AlertsPanel";
 import { STATUS, CATEGORICAL } from "@/lib/analyticsPalette";
 import { priorRange } from "@/lib/analyticsInsights";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRevenueTrend,
-  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RevenueTrend,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRevenueTrend, getAlerts,
+  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RevenueTrend, type Alerts,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
@@ -33,6 +34,7 @@ function AdminAnalyticsPage() {
   const [priorRevenue, setPriorRevenue] = useState<RevenueSummary | null>(null);
   const [priorOps, setPriorOps] = useState<OperationsSummary | null>(null);
   const [priorLoading, setPriorLoading] = useState(false);
+  const [alerts, setAlerts] = useState<Alerts | null>(null);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -69,6 +71,14 @@ function AdminAnalyticsPage() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getAlerts()
+      .then((res) => { if (!cancelled) setAlerts(res); })
+      .catch((err) => reportAdminError(err, "Failed to load alerts"));
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
   useEffect(() => {
     if (!range) return;
@@ -142,6 +152,8 @@ function AdminAnalyticsPage() {
             </button>
           </div>
         </div>
+
+        {alerts && <AlertsPanel alerts={alerts} />}
 
         {!priorLoading && revenue && ops && priorRevenue && priorOps && (
           <WhatChangedPanel current={revenue} prior={priorRevenue} currentOps={ops} priorOps={priorOps} />

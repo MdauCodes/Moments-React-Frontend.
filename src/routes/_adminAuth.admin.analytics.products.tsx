@@ -5,15 +5,22 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard } from "@/components/admin/analyticsUi";
 import { ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { PeriodDeltaGrid, type MetricDeltaSpec } from "@/components/admin/PeriodDeltaGrid";
 import { STATUS, CATEGORICAL } from "@/lib/analyticsPalette";
+import { priorRange } from "@/lib/analyticsInsights";
 import { getProductsInventory, type ProductsInventory } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+
+function topSellersTotal(inv: ProductsInventory): number {
+  return inv.topSellingByRevenue.reduce((sum, p) => sum + p.revenueKes, 0);
+}
 
 function AdminAnalyticsProductsPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [range, setRange] = useState<DateRange | null>(null);
   const [inventory, setInventory] = useState<ProductsInventory | null>(null);
   const [inventoryLoading, setInventoryLoading] = useState(false);
+  const [priorInventory, setPriorInventory] = useState<ProductsInventory | null>(null);
 
   useEffect(() => { document.title = "Products & Inventory · Moments admin"; }, []);
 
@@ -29,9 +36,33 @@ function AdminAnalyticsProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
 
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    const { from, to } = priorRange(range.from, range.to);
+    getProductsInventory(from, to)
+      .then((res) => { if (!cancelled) setPriorInventory(res); })
+      .catch((err) => reportAdminError(err, "Failed to load prior-period products comparison"));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  const productMetrics: MetricDeltaSpec[] | null = inventory && priorInventory ? [
+    { label: "Top-seller revenue (top 10)", current: topSellersTotal(inventory), prior: topSellersTotal(priorInventory), goodDirection: "up", formatValue: formatKes },
+    { label: "Out of stock (live)", current: inventory.outOfStockCount, prior: priorInventory.outOfStockCount, goodDirection: "down", formatValue: (v) => v.toLocaleString() },
+  ] : null;
+
   return (
     <AdminLayout title="Analytics · Products & Inventory" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
+        {productMetrics && (
+          <PeriodDeltaGrid
+            title="What changed vs the prior period"
+            metrics={productMetrics}
+            insights={["Out-of-stock is a live snapshot, not tied to the date range — its comparison here just shows two points in time, not period-over-period activity."]}
+          />
+        )}
+
         <div className="admin-panel" style={{ padding: 14 }}>
           <div className="admin-label" style={{ marginBottom: 10 }}>Products & inventory</div>
           <DateRangePicker onChange={setRange} />

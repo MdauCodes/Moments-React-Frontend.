@@ -5,7 +5,9 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard } from "@/components/admin/analyticsUi";
 import { RankedBarChart } from "@/components/admin/analyticsCharts";
+import { PeriodDeltaGrid, type MetricDeltaSpec } from "@/components/admin/PeriodDeltaGrid";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
+import { priorRange } from "@/lib/analyticsInsights";
 import { getProfitability, getMonthlyProjection, type Profitability, type MonthlyProjection } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -14,6 +16,7 @@ function AdminAnalyticsProfitabilityPage() {
   const [range, setRange] = useState<DateRange | null>(null);
   const [profitability, setProfitability] = useState<Profitability | null>(null);
   const [profitabilityLoading, setProfitabilityLoading] = useState(false);
+  const [priorProfitability, setPriorProfitability] = useState<Profitability | null>(null);
   const [projection, setProjection] = useState<MonthlyProjection | null>(null);
   const [projectionLoading, setProjectionLoading] = useState(false);
 
@@ -32,6 +35,22 @@ function AdminAnalyticsProfitabilityPage() {
   }, [range, reloadKey]);
 
   useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    const { from, to } = priorRange(range.from, range.to);
+    getProfitability(from, to)
+      .then((res) => { if (!cancelled) setPriorProfitability(res); })
+      .catch((err) => reportAdminError(err, "Failed to load prior-period profitability comparison"));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  const profitabilityMetrics: MetricDeltaSpec[] | null = profitability && priorProfitability ? [
+    { label: "Gross profit", current: profitability.estimatedGrossProfitKes, prior: priorProfitability.estimatedGrossProfitKes, goodDirection: "up", formatValue: formatKes },
+    { label: "Net margin", current: profitability.netMarginPercent, prior: priorProfitability.netMarginPercent, isPercent: true, goodDirection: "up", formatValue: (v) => `${v}%` },
+  ] : null;
+
+  useEffect(() => {
     let cancelled = false;
     setProjectionLoading(true);
     getMonthlyProjection()
@@ -44,6 +63,8 @@ function AdminAnalyticsProfitabilityPage() {
   return (
     <AdminLayout title="Analytics · Profitability" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
+        {profitabilityMetrics && <PeriodDeltaGrid title="What changed vs the prior period" metrics={profitabilityMetrics} />}
+
         {/* Profitability — COGS uses each product's CURRENT cost price (no historical snapshot
             exists), so this is an estimate, labelled as such below. */}
         <div className="admin-panel" style={{ padding: 14 }}>

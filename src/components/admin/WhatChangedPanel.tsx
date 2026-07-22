@@ -1,53 +1,7 @@
-import { ArrowUp, ArrowDown, Minus, AlertTriangle } from "lucide-react";
-import { STATUS } from "@/lib/analyticsPalette";
 import { pctDelta, ptsDelta } from "@/lib/analyticsInsights";
 import { formatKes } from "@/components/admin/commerceUi";
+import { PeriodDeltaGrid, type MetricDeltaSpec } from "@/components/admin/PeriodDeltaGrid";
 import type { RevenueSummary, OperationsSummary } from "@/services/commerceApi";
-
-/** A metric's direction can mean "good" or "bad" depending what it is (revenue up = good,
- *  cancellation rate up = bad) — this decides which status color and arrow to show, per the
- *  dataviz skill's rule that a series meaning good/bad wears status tokens, always icon + label. */
-function DeltaChip({ label, current, prior, isPercent, goodDirection, formatValue }: {
-  label: string;
-  current: number;
-  prior: number;
-  isPercent?: boolean;
-  goodDirection: "up" | "down";
-  formatValue: (v: number) => string;
-}) {
-  const delta = isPercent ? ptsDelta(current, prior) : pctDelta(current, prior);
-  const noPriorBase = !isPercent && prior === 0;
-
-  let Icon = Minus;
-  let color: string = STATUS.serious;
-  let text = "flat vs prior period";
-
-  if (noPriorBase) {
-    Icon = current > 0 ? ArrowUp : Minus;
-    color = current > 0 ? STATUS.good : STATUS.serious;
-    text = current > 0 ? "new this period (no prior activity)" : "no activity, either period";
-  } else if (delta !== null) {
-    const isUp = delta > 0.5;
-    const isDown = delta < -0.5;
-    Icon = isUp ? ArrowUp : isDown ? ArrowDown : Minus;
-    const isGood = (isUp && goodDirection === "up") || (isDown && goodDirection === "down");
-    const isBad = (isUp && goodDirection === "down") || (isDown && goodDirection === "up");
-    color = isGood ? STATUS.good : isBad ? STATUS.critical : STATUS.serious;
-    const sign = delta > 0 ? "+" : "";
-    text = isPercent ? `${sign}${delta.toFixed(1)}pts vs prior period` : `${sign}${delta.toFixed(1)}% vs prior period`;
-  }
-
-  return (
-    <div className="admin-panel" style={{ padding: "10px 14px" }}>
-      <div style={{ fontSize: 11, fontWeight: 600, color: "var(--admin-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
-      <div style={{ fontSize: 18, fontFamily: "var(--font-display)", marginTop: 2 }}>{formatValue(current)}</div>
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4, fontSize: 11, color }}>
-        <Icon size={12} />
-        <span>{text}</span>
-      </div>
-    </div>
-  );
-}
 
 function buildInsights(current: RevenueSummary, prior: RevenueSummary, currentOps: OperationsSummary, priorOps: OperationsSummary): string[] {
   const insights: string[] = [];
@@ -99,34 +53,19 @@ export function WhatChangedPanel({
   currentOps: OperationsSummary;
   priorOps: OperationsSummary;
 }) {
-  const insights = buildInsights(current, prior, currentOps, priorOps);
-  const lowSample = current.paidOrderCount < 10 || prior.paidOrderCount < 10;
+  const metrics: MetricDeltaSpec[] = [
+    { label: "Paid revenue", current: current.paidRevenue, prior: prior.paidRevenue, goodDirection: "up", formatValue: formatKes },
+    { label: "Paid orders", current: current.paidOrderCount, prior: prior.paidOrderCount, goodDirection: "up", formatValue: (v) => v.toLocaleString() },
+    { label: "Average order value", current: current.averageOrderValue, prior: prior.averageOrderValue, goodDirection: "up", formatValue: formatKes },
+    { label: "Cancellation rate", current: currentOps.cancellationRatePercent, prior: priorOps.cancellationRatePercent, isPercent: true, goodDirection: "down", formatValue: (v) => `${v}%` },
+  ];
 
   return (
-    <div className="admin-panel" style={{ padding: 14 }}>
-      <div className="admin-label" style={{ marginBottom: 10 }}>What changed vs the prior period</div>
-
-      {lowSample && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: STATUS.serious, marginBottom: 10 }}>
-          <AlertTriangle size={13} />
-          <span>Fewer than 10 paid orders in one of these periods — read these as early signals, not firm trends.</span>
-        </div>
-      )}
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-        <DeltaChip label="Paid revenue" current={current.paidRevenue} prior={prior.paidRevenue} goodDirection="up" formatValue={formatKes} />
-        <DeltaChip label="Paid orders" current={current.paidOrderCount} prior={prior.paidOrderCount} goodDirection="up" formatValue={(v) => v.toLocaleString()} />
-        <DeltaChip label="Average order value" current={current.averageOrderValue} prior={prior.averageOrderValue} goodDirection="up" formatValue={formatKes} />
-        <DeltaChip label="Cancellation rate" current={currentOps.cancellationRatePercent} prior={priorOps.cancellationRatePercent} isPercent goodDirection="down" formatValue={(v) => `${v}%`} />
-      </div>
-
-      {insights.length > 0 && (
-        <ul style={{ marginTop: 14, paddingLeft: 18, display: "flex", flexDirection: "column", gap: 6 }}>
-          {insights.map((s, i) => (
-            <li key={i} style={{ fontSize: 13, color: "var(--admin-text)" }}>{s}</li>
-          ))}
-        </ul>
-      )}
-    </div>
+    <PeriodDeltaGrid
+      title="What changed vs the prior period"
+      metrics={metrics}
+      insights={buildInsights(current, prior, currentOps, priorOps)}
+      lowSample={current.paidOrderCount < 10 || prior.paidOrderCount < 10}
+    />
   );
 }

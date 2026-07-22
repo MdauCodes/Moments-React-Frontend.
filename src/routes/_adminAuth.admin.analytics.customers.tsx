@@ -5,7 +5,9 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, accountTypeLabel } from "@/components/admin/analyticsUi";
 import { ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { PeriodDeltaGrid, type MetricDeltaSpec } from "@/components/admin/PeriodDeltaGrid";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
+import { priorRange } from "@/lib/analyticsInsights";
 import { getCustomerAnalytics, type CustomerAnalytics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -14,6 +16,7 @@ function AdminAnalyticsCustomersPage() {
   const [range, setRange] = useState<DateRange | null>(null);
   const [customers, setCustomers] = useState<CustomerAnalytics | null>(null);
   const [customersLoading, setCustomersLoading] = useState(false);
+  const [priorCustomers, setPriorCustomers] = useState<CustomerAnalytics | null>(null);
 
   useEffect(() => { document.title = "Customers · Moments admin"; }, []);
 
@@ -29,9 +32,27 @@ function AdminAnalyticsCustomersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
 
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    const { from, to } = priorRange(range.from, range.to);
+    getCustomerAnalytics(from, to)
+      .then((res) => { if (!cancelled) setPriorCustomers(res); })
+      .catch((err) => reportAdminError(err, "Failed to load prior-period customer comparison"));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  const customerMetrics: MetricDeltaSpec[] | null = customers && priorCustomers ? [
+    { label: "New paying customers", current: customers.newPayingCustomersInRange, prior: priorCustomers.newPayingCustomersInRange, goodDirection: "up", formatValue: (v) => v.toLocaleString() },
+    { label: "First-order value", current: customers.newCustomerFirstOrderValueKes, prior: priorCustomers.newCustomerFirstOrderValueKes, goodDirection: "up", formatValue: formatKes },
+  ] : null;
+
   return (
     <AdminLayout title="Analytics · Customers" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
+        {customerMetrics && <PeriodDeltaGrid title="What changed vs the prior period" metrics={customerMetrics} />}
+
         <div className="admin-panel" style={{ padding: 14 }}>
           <div className="admin-label" style={{ marginBottom: 10 }}>Customers</div>
           <DateRangePicker onChange={setRange} />

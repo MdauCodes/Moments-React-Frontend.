@@ -77,6 +77,8 @@ import AdminAnalyticsTaxPage from "@/routes/_adminAuth.admin.analytics.tax";
 import AdminAnalyticsProductsPage from "@/routes/_adminAuth.admin.analytics.products";
 import AdminAnalyticsProfitabilityPage from "@/routes/_adminAuth.admin.analytics.profitability";
 import AdminAnalyticsCustomersPage from "@/routes/_adminAuth.admin.analytics.customers";
+import AdminAnalyticsGeographicPage from "@/routes/_adminAuth.admin.analytics.geographic";
+import AdminAnalyticsDeliveryPage from "@/routes/_adminAuth.admin.analytics.delivery";
 import AdminAuditLogsPage from "@/routes/_adminAuth.admin.audit-logs";
 import AdminBlogsPage from "@/routes/_adminAuth.admin.blogs";
 import AdminBlogsNewPage from "@/routes/_adminAuth.admin.blogs.new";
@@ -197,6 +199,8 @@ export default function App() {
                       <Route path="/admin/analytics/products" element={<AdminAnalyticsProductsPage />} />
                       <Route path="/admin/analytics/profitability" element={<AdminAnalyticsProfitabilityPage />} />
                       <Route path="/admin/analytics/customers" element={<AdminAnalyticsCustomersPage />} />
+                      <Route path="/admin/analytics/geographic" element={<AdminAnalyticsGeographicPage />} />
+                      <Route path="/admin/analytics/delivery" element={<AdminAnalyticsDeliveryPage />} />
                       <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
                       <Route path="/admin/blogs" element={<AdminBlogsPage />} />
                       <Route path="/admin/blogs/new" element={<AdminBlogsNewPage />} />

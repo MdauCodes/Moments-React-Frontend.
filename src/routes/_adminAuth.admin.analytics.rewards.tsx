@@ -5,7 +5,9 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, sourceLabel } from "@/components/admin/analyticsUi";
 import { ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { PeriodDeltaGrid, type MetricDeltaSpec } from "@/components/admin/PeriodDeltaGrid";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
+import { priorRange } from "@/lib/analyticsInsights";
 import { getRewardsEconomics, type RewardsEconomics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -14,6 +16,7 @@ function AdminAnalyticsRewardsPage() {
   const [range, setRange] = useState<DateRange | null>(null);
   const [rewards, setRewards] = useState<RewardsEconomics | null>(null);
   const [rewardsLoading, setRewardsLoading] = useState(false);
+  const [priorRewards, setPriorRewards] = useState<RewardsEconomics | null>(null);
 
   useEffect(() => { document.title = "Rewards & Referrals · Moments admin"; }, []);
 
@@ -29,9 +32,27 @@ function AdminAnalyticsRewardsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
 
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    const { from, to } = priorRange(range.from, range.to);
+    getRewardsEconomics(from, to)
+      .then((res) => { if (!cancelled) setPriorRewards(res); })
+      .catch((err) => reportAdminError(err, "Failed to load prior-period rewards comparison"));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  const rewardsMetrics: MetricDeltaSpec[] | null = rewards && priorRewards ? [
+    { label: "Referral conversion", current: rewards.referralConversionRatePercent, prior: priorRewards.referralConversionRatePercent, isPercent: true, goodDirection: "up", formatValue: (v) => `${v}%` },
+    { label: "Redeemed value (program cost)", current: rewards.redeemedValueKesInRange, prior: priorRewards.redeemedValueKesInRange, goodDirection: "down", formatValue: formatKes },
+  ] : null;
+
   return (
     <AdminLayout title="Analytics · Rewards & Referrals" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
+        {rewardsMetrics && <PeriodDeltaGrid title="What changed vs the prior period" metrics={rewardsMetrics} />}
+
         <div className="admin-panel" style={{ padding: 14 }}>
           <div className="admin-label" style={{ marginBottom: 10 }}>Reward Coupons & referral economics</div>
           <DateRangePicker onChange={setRange} />
