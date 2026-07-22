@@ -4,6 +4,8 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard } from "@/components/admin/analyticsUi";
+import { ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { STATUS, CATEGORICAL } from "@/lib/analyticsPalette";
 import { getProductsInventory, type ProductsInventory } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -57,18 +59,30 @@ function AdminAnalyticsProductsPage() {
             />
           </div>
 
+          <div style={{ marginTop: 16 }}>
+            <div className="admin-label" style={{ marginBottom: 8 }}>Stock health (live snapshot)</div>
+            {!inventoryLoading && inventory && (
+              <ShareDonutChart
+                data={[
+                  { name: "In stock", value: inventory.inStockCount, color: STATUS.good },
+                  { name: "Low stock", value: inventory.lowStockCount, color: STATUS.warning },
+                  { name: "Out of stock", value: inventory.outOfStockCount, color: STATUS.critical },
+                ]}
+                height={180}
+              />
+            )}
+          </div>
+
           {!inventoryLoading && inventory && inventory.topSellingByRevenue.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Top sellers (this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {inventory.topSellingByRevenue.map((p, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{p.productName}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(p.revenueKes)}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{p.unitsSold} unit(s) sold</div>
-                  </div>
-                ))}
-              </div>
+              <RankedBarChart
+                data={inventory.topSellingByRevenue.map((p) => ({ name: p.productName, revenue: p.revenueKes }))}
+                dataKey="revenue"
+                nameKey="name"
+                color={CATEGORICAL[0]}
+                valueFormatter={(v) => formatKes(v)}
+              />
             </div>
           )}
 

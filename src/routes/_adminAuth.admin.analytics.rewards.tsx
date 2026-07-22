@@ -4,6 +4,8 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, sourceLabel } from "@/components/admin/analyticsUi";
+import { ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { getRewardsEconomics, type RewardsEconomics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -60,30 +62,21 @@ function AdminAnalyticsRewardsPage() {
           {!rewardsLoading && rewards && rewards.earnedInRange.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Coupons earned by source (this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {rewards.earnedInRange.map((s) => (
-                  <div key={s.source} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{sourceLabel(s.source)}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.coupons.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(s.valueKes)}</div>
-                  </div>
-                ))}
-              </div>
+              <ShareDonutChart
+                data={rewards.earnedInRange.map((s, i) => ({ name: sourceLabel(s.source), value: s.coupons, color: CATEGORICAL[i % CATEGORICAL.length] }))}
+              />
             </div>
           )}
 
           {!rewardsLoading && rewards && rewards.topHolders.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Top wallet holders</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {rewards.topHolders.map((h, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{h.name || "—"}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{h.balance.toLocaleString()}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{formatKes(h.valueKes)}</div>
-                  </div>
-                ))}
-              </div>
+              <RankedBarChart
+                data={rewards.topHolders.map((h) => ({ name: h.name || "—", balance: h.balance }))}
+                dataKey="balance"
+                nameKey="name"
+                color={CATEGORICAL[0]}
+              />
             </div>
           )}
         </div>

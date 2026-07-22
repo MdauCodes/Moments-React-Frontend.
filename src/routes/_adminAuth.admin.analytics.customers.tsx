@@ -4,6 +4,8 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, accountTypeLabel } from "@/components/admin/analyticsUi";
+import { ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { getCustomerAnalytics, type CustomerAnalytics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -45,32 +47,24 @@ function AdminAnalyticsCustomersPage() {
           {!customersLoading && customers && customers.byAccountType.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Revenue by account type (this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {customers.byAccountType.map((a) => (
-                  <div key={a.accountType} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{accountTypeLabel(a.accountType)}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(a.revenueKes)}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{a.customerCount} customer(s)</div>
-                  </div>
-                ))}
-              </div>
+              <ShareDonutChart
+                data={customers.byAccountType.map((a, i) => ({ name: accountTypeLabel(a.accountType), value: a.revenueKes, color: CATEGORICAL[i % CATEGORICAL.length] }))}
+                valueFormatter={(v) => formatKes(v)}
+                height={180}
+              />
             </div>
           )}
 
           {!customersLoading && customers && customers.topCustomersByLifetimeValue.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Top customers by lifetime value</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {customers.topCustomersByLifetimeValue.map((c, i) => (
-                  <div key={i} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{c.name || "—"}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{formatKes(c.lifetimeRevenueKes)}</div>
-                    <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
-                      {accountTypeLabel(c.accountType)} · {c.lifetimeOrderCount} order(s)
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <RankedBarChart
+                data={customers.topCustomersByLifetimeValue.map((c) => ({ name: c.name || "—", value: c.lifetimeRevenueKes }))}
+                dataKey="value"
+                nameKey="name"
+                color={CATEGORICAL[0]}
+                valueFormatter={(v) => formatKes(v)}
+              />
             </div>
           )}
         </div>

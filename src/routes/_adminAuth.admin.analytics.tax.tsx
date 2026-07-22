@@ -4,7 +4,13 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard, bundleStatusLabel } from "@/components/admin/analyticsUi";
+import { ShareDonutChart } from "@/components/admin/analyticsCharts";
+import { STATUS } from "@/lib/analyticsPalette";
 import { getTaxReport, type TaxReport } from "@/services/commerceApi";
+
+const BUNDLE_STATUS_COLOR: Record<string, string> = {
+  PENDING: STATUS.warning, SENT: STATUS.good, FAILED: STATUS.critical, EXPIRED: STATUS.serious,
+};
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
 function AdminAnalyticsTaxPage() {
@@ -55,14 +61,11 @@ function AdminAnalyticsTaxPage() {
           {!taxLoading && tax && tax.documentBundleStatusCounts.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>ETR bundle delivery status</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
-                {tax.documentBundleStatusCounts.map((s) => (
-                  <div key={s.status} className="admin-panel" style={{ padding: "10px 14px" }}>
-                    <div style={{ fontSize: 12, fontWeight: 600 }}>{bundleStatusLabel(s.status)}</div>
-                    <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{s.count}</div>
-                  </div>
-                ))}
-              </div>
+              <ShareDonutChart
+                data={tax.documentBundleStatusCounts.map((s) => ({
+                  name: bundleStatusLabel(s.status), value: s.count, color: BUNDLE_STATUS_COLOR[s.status] ?? STATUS.serious,
+                }))}
+              />
             </div>
           )}
         </div>

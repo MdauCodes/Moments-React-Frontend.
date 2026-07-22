@@ -461,6 +461,27 @@ export async function getRevenueSummary(from: Date, to: Date): Promise<RevenueSu
   return getJson<RevenueSummary>(`/api/v1/admin/analytics/revenue?${params.toString()}`);
 }
 
+// ---------- Analytics: revenue trend chart ----------
+// Backend GET /api/v1/admin/analytics/revenue-trend?from=<ISO instant>&to=<ISO instant>
+
+export interface DailyRevenuePoint {
+  date: string;
+  paidKes: number;
+  pendingKes: number;
+  failedKes: number;
+}
+
+export interface RevenueTrend {
+  rangeStart: string;
+  rangeEnd: string;
+  points: DailyRevenuePoint[];
+}
+
+export async function getRevenueTrend(from: Date, to: Date): Promise<RevenueTrend> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<RevenueTrend>(`/api/v1/admin/analytics/revenue-trend?${params.toString()}`);
+}
+
 // ---------- Analytics: operations summary (Phase 2) ----------
 // Backend GET /api/v1/admin/analytics/operations?from=<ISO instant>&to=<ISO instant>
 

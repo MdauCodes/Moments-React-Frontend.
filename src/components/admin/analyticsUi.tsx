@@ -40,6 +40,13 @@ export function KpiCard({
   );
 }
 
+/** Pipeline order (matches backend OrderStatus enum) — used to sort funnel bars so the x-axis
+ *  itself carries the sequence, not just the color. */
+export const ORDER_STATUS_SEQUENCE = [
+  "PENDING_PAYMENT", "PAID", "PAYMENT_VERIFIED", "IN_PRODUCTION", "READY_FOR_DISPATCH",
+  "DISPATCHED", "DELIVERED", "CANCELLED", "REFUNDED",
+];
+
 export function statusLabel(status: string): string {
   return ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status.replace(/_/g, " ");
 }

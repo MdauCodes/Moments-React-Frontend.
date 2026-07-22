@@ -5,10 +5,12 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { Download, Package, ShoppingBag, Users, MessageSquare, Sparkles } from "lucide-react";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
-import { KpiCard, statusLabel } from "@/components/admin/analyticsUi";
+import { KpiCard, statusLabel, ORDER_STATUS_SEQUENCE } from "@/components/admin/analyticsUi";
+import { TrendLineChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { STATUS, CATEGORICAL } from "@/lib/analyticsPalette";
 import {
-  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary,
-  type AnalyticsResult, type RevenueSummary, type OperationsSummary,
+  getAnalyticsOverview, exportOrders, exportCustomers, getRevenueSummary, getOperationsSummary, getRevenueTrend,
+  type AnalyticsResult, type RevenueSummary, type OperationsSummary, type RevenueTrend,
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
@@ -24,6 +26,8 @@ function AdminAnalyticsPage() {
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [ops, setOps] = useState<OperationsSummary | null>(null);
   const [opsLoading, setOpsLoading] = useState(false);
+  const [trend, setTrend] = useState<RevenueTrend | null>(null);
+  const [trendLoading, setTrendLoading] = useState(false);
 
   useEffect(() => { document.title = "Analytics · Moments admin"; }, []);
 
@@ -57,6 +61,18 @@ function AdminAnalyticsPage() {
       .then((res) => { if (!cancelled) setOps(res); })
       .catch((err) => reportAdminError(err, "Failed to load operations summary"))
       .finally(() => { if (!cancelled) setOpsLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range, reloadKey]);
+
+  useEffect(() => {
+    if (!range) return;
+    let cancelled = false;
+    setTrendLoading(true);
+    getRevenueTrend(range.from, range.to)
+      .then((res) => { if (!cancelled) setTrend(res); })
+      .catch((err) => reportAdminError(err, "Failed to load revenue trend"))
+      .finally(() => { if (!cancelled) setTrendLoading(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range, reloadKey]);
@@ -138,6 +154,21 @@ function AdminAnalyticsPage() {
             />
           </div>
 
+          {!trendLoading && trend && trend.points.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Revenue trend (daily)</div>
+              <TrendLineChart
+                data={trend.points.map((p) => ({ label: p.date.slice(5), paid: p.paidKes, pending: p.pendingKes, failed: p.failedKes }))}
+                series={[
+                  { key: "paid", label: "Paid", color: STATUS.good },
+                  { key: "pending", label: "Pending", color: STATUS.warning },
+                  { key: "failed", label: "Failed", color: STATUS.critical },
+                ]}
+                valueFormatter={(v) => formatKes(v)}
+              />
+            </div>
+          )}
+
           {!revenueLoading && revenue && revenue.byMethod.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Payment success rate by method</div>
@@ -185,18 +216,24 @@ function AdminAnalyticsPage() {
           {!opsLoading && ops && ops.funnel.length > 0 && (
             <div style={{ marginTop: 16 }}>
               <div className="admin-label" style={{ marginBottom: 8 }}>Status funnel (orders placed in this period)</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              <RankedBarChart
+                data={[...ops.funnel]
+                  .sort((a, b) => ORDER_STATUS_SEQUENCE.indexOf(a.status) - ORDER_STATUS_SEQUENCE.indexOf(b.status))
+                  .map((f) => ({ name: statusLabel(f.status), count: f.count }))}
+                dataKey="count"
+                nameKey="name"
+                color={CATEGORICAL[0]}
+              />
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 10 }}>
                 {ops.funnel.map((f) => {
                   const duration = ops.avgTimeInStage.find((d) => d.status === f.status);
+                  if (!duration) return null;
                   return (
-                    <div key={f.status} className="admin-panel" style={{ padding: "10px 14px" }}>
-                      <div style={{ fontSize: 12, fontWeight: 600 }}>{statusLabel(f.status)}</div>
-                      <div style={{ fontSize: 20, fontFamily: "var(--font-display)" }}>{f.count}</div>
-                      {duration && (
-                        <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
-                          avg {duration.avgHours}h in stage ({duration.sampleCount} completed)
-                        </div>
-                      )}
+                    <div key={f.status} className="admin-panel" style={{ padding: "8px 12px" }}>
+                      <div style={{ fontSize: 11, fontWeight: 600 }}>{statusLabel(f.status)}</div>
+                      <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>
+                        avg {duration.avgHours}h in stage ({duration.sampleCount} completed)
+                      </div>
                     </div>
                   );
                 })}

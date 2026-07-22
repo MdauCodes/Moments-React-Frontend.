@@ -4,6 +4,8 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { formatKes } from "@/components/admin/commerceUi";
 import { KpiCard } from "@/components/admin/analyticsUi";
+import { RankedBarChart } from "@/components/admin/analyticsCharts";
+import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { getProfitability, getMonthlyProjection, type Profitability, type MonthlyProjection } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 
@@ -66,6 +68,25 @@ function AdminAnalyticsProfitabilityPage() {
               sub={profitabilityLoading || !profitability ? undefined : `${profitability.netMarginPercent}% margin, after ${formatKes(profitability.couponRedemptionCostKes)} coupon cost`}
             />
           </div>
+
+          {!profitabilityLoading && profitability && (
+            <div style={{ marginTop: 16 }}>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Where the money goes (this period)</div>
+              <RankedBarChart
+                data={[
+                  { name: "Paid revenue", amount: profitability.paidRevenueKes },
+                  { name: "Estimated COGS", amount: profitability.estimatedCogsKes },
+                  { name: "Gross profit", amount: profitability.estimatedGrossProfitKes },
+                  { name: "Coupon cost", amount: profitability.couponRedemptionCostKes },
+                  { name: "Net profit", amount: profitability.estimatedNetProfitKes },
+                ]}
+                dataKey="amount"
+                nameKey="name"
+                color={CATEGORICAL[0]}
+                valueFormatter={(v) => formatKes(v)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Monthly projection — always the current month, not tied to the date-range picker above. */}
