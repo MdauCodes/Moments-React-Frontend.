@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Accessibility, Minus, Plus, RotateCcw, X } from "lucide-react";
 import { useAccessibility, FONT_SCALE_MIN, FONT_SCALE_MAX } from "@/contexts/AccessibilityContext";
+import { ReadingMask } from "@/components/ReadingMask";
 
 export function AccessibilityToolbar() {
   const { pathname } = useLocation();
@@ -24,6 +25,8 @@ export function AccessibilityToolbar() {
     cycleLineHeight,
     toggleForceLeftAlign,
     toggleLowSaturation,
+    toggleReadingMask,
+    toggleBigCursor,
   } = useAccessibility();
 
   const lineHeightLabel = ["Normal", "Relaxed", "Loose"][prefs.lineHeightLevel];
@@ -68,7 +71,9 @@ export function AccessibilityToolbar() {
     }`;
 
   return (
-    <div className="fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6">
+    <>
+      <ReadingMask />
+      <div className="fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6">
       <button
         ref={triggerRef}
         type="button"
@@ -194,6 +199,14 @@ export function AccessibilityToolbar() {
               Low saturation
               <span className="text-xs text-muted-foreground">{prefs.lowSaturation ? "On" : "Off"}</span>
             </button>
+            <button type="button" onClick={toggleReadingMask} aria-pressed={prefs.readingMask} className={toggleCls(prefs.readingMask)}>
+              Reading mask
+              <span className="text-xs text-muted-foreground">{prefs.readingMask ? "On" : "Off"}</span>
+            </button>
+            <button type="button" onClick={toggleBigCursor} aria-pressed={prefs.bigCursor} className={toggleCls(prefs.bigCursor)}>
+              Big cursor
+              <span className="text-xs text-muted-foreground">{prefs.bigCursor ? "On" : "Off"}</span>
+            </button>
           </div>
 
           <Link
@@ -205,6 +218,7 @@ export function AccessibilityToolbar() {
           </Link>
         </div>
       )}
-    </div>
+      </div>
+    </>
   );
 }

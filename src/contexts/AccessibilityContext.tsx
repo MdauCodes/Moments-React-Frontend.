@@ -12,6 +12,8 @@ export interface A11yPrefs {
   lineHeightLevel: 0 | 1 | 2;
   forceLeftAlign: boolean;
   lowSaturation: boolean;
+  readingMask: boolean;
+  bigCursor: boolean;
 }
 
 const STORAGE_KEY = "moments.a11yPrefs.v1";
@@ -35,6 +37,8 @@ const DEFAULT_PREFS: A11yPrefs = {
   lineHeightLevel: 0,
   forceLeftAlign: false,
   lowSaturation: false,
+  readingMask: false,
+  bigCursor: false,
 };
 
 function clampFontScale(n: unknown): number {
@@ -64,6 +68,8 @@ function readPrefs(): A11yPrefs {
       lineHeightLevel: clampLineHeightLevel(parsed.lineHeightLevel),
       forceLeftAlign: parsed.forceLeftAlign === true,
       lowSaturation: parsed.lowSaturation === true,
+      readingMask: parsed.readingMask === true,
+      bigCursor: parsed.bigCursor === true,
     };
   } catch {
     return DEFAULT_PREFS;
@@ -104,6 +110,8 @@ interface AccessibilityContextValue {
   cycleLineHeight: () => void;
   toggleForceLeftAlign: () => void;
   toggleLowSaturation: () => void;
+  toggleReadingMask: () => void;
+  toggleBigCursor: () => void;
 }
 
 const AccessibilityContext = createContext<AccessibilityContextValue | undefined>(undefined);
@@ -125,6 +133,10 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     html.style.setProperty("--a11y-line-height", String(LINE_HEIGHT_VALUES[prefs.lineHeightLevel]));
     if (prefs.dyslexiaFont) ensureDyslexiaFontLoaded();
     html.classList.toggle("a11y-dyslexia-font", prefs.dyslexiaFont);
+    html.classList.toggle("a11y-big-cursor", prefs.bigCursor);
+    // readingMask has no CSS class of its own — the ReadingMask component
+    // reads prefs.readingMask directly since it needs live mouse-position
+    // JS, not just a static style toggle.
     writePrefs(prefs);
   }, [prefs]);
 
@@ -142,6 +154,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const cycleLineHeight = () => setPrefs((p) => ({ ...p, lineHeightLevel: clampLineHeightLevel((p.lineHeightLevel + 1) % 3) }));
   const toggleForceLeftAlign = () => setPrefs((p) => ({ ...p, forceLeftAlign: !p.forceLeftAlign }));
   const toggleLowSaturation = () => setPrefs((p) => ({ ...p, lowSaturation: !p.lowSaturation }));
+  const toggleReadingMask = () => setPrefs((p) => ({ ...p, readingMask: !p.readingMask }));
+  const toggleBigCursor = () => setPrefs((p) => ({ ...p, bigCursor: !p.bigCursor }));
 
   return (
     <AccessibilityContext.Provider
@@ -159,6 +173,8 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         cycleLineHeight,
         toggleForceLeftAlign,
         toggleLowSaturation,
+        toggleReadingMask,
+        toggleBigCursor,
       }}
     >
       {children}

@@ -541,6 +541,15 @@ html { font-size: calc(16px * var(--a11y-font-scale)); }
    (all fixed, all siblings of <main>, not descendants of it). */
 .a11y-low-saturation main { filter: saturate(0.55); }
 
+/* Big cursor: one enlarged arrow applied everywhere (not a separate pointer
+   variant for links/buttons) — the point is visibility/trackability for low
+   vision or motor-impaired visitors, not preserving the hover affordance,
+   which is handled separately by focus states for keyboard/AT users. */
+.a11y-big-cursor,
+.a11y-big-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24'%3E%3Cpath d='M2 2 L2 22 L8 17 L11 23 L14 21 L11 15 L18 15 Z' fill='black' stroke='white' stroke-width='1.5'/%3E%3C/svg%3E") 2 2, auto !important;
+}
+
 .a11y-high-contrast {
   --background: oklch(1 0 0);
   --foreground: oklch(0 0 0);
