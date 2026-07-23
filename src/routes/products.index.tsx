@@ -12,62 +12,6 @@ import { api, type Segment, type Category as TaxCategory, type Subcategory, type
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
 import { CATEGORY_OPTIONS } from "@/data/categoryOptions";
 
-// Customer-intent chips shown when an industry is selected.
-// label = plain English the customer thinks in.
-// search = backend keyword that returns the right products.
-const INDUSTRY_QUICK_FINDS: Record<string, Array<{ label: string; search: string }>> = {
-  "food-and-beverage": [
-    { label: "Serving hot drinks",          search: "hot cup" },
-    { label: "Cold drinks & juice bar",     search: "cold cup" },
-    { label: "Takeaway & delivery orders",  search: "takeaway box" },
-    { label: "POS & billing receipts",      search: "thermal roll" },
-    { label: "Cutlery & plates",            search: "cutlery" },
-    { label: "Straws & stirrers",           search: "straw" },
-    { label: "Wrapping food",               search: "cling film" },
-  ],
-  "retail-and-ecommerce": [
-    { label: "Customer carry bags",         search: "twisted handle" },
-    { label: "POS receipt paper",           search: "thermal roll" },
-    { label: "Fresh produce display",       search: "punnet" },
-    { label: "Cold drinks & juice",         search: "cold cup" },
-  ],
-  "health-and-beauty": [
-    { label: "Gloves & hand protection",    search: "gloves" },
-    { label: "Face masks & safety",         search: "face mask" },
-    { label: "Cosmetics & skincare jars",   search: "jar" },
-    { label: "Salon & spa carry bags",      search: "non-woven" },
-    { label: "Hairnets & food hygiene",     search: "hairnet" },
-  ],
-  "agriculture": [
-    { label: "Storing grain & cereals",     search: "panel sack" },
-    { label: "Packaging fresh produce",     search: "punnet" },
-    { label: "Keeping produce fresh",       search: "cling film" },
-    { label: "Netting for fresh fruit",     search: "net bag" },
-    { label: "Honey & bee products",        search: "honey jar" },
-  ],
-  "manufacturing": [
-    { label: "Sealing & securing goods",    search: "tape" },
-    { label: "Worker safety & PPE",         search: "gloves" },
-    { label: "Pallet & stretch wrapping",   search: "stretch wrap" },
-    { label: "Foil & barrier lining",       search: "aluminium foil" },
-  ],
-  "hospitality": [
-    { label: "Serving food (plates & cutlery)", search: "plates" },
-    { label: "Hot & cold cups",             search: "cups" },
-    { label: "Takeaway & room service",     search: "takeaway" },
-    { label: "Waste & housekeeping",        search: "garbage bag" },
-  ],
-  "fashion-and-apparel": [
-    { label: "Boutique shopping bags",      search: "twisted handle" },
-    { label: "Reusable carry bags",         search: "non-woven" },
-    { label: "Premium gift packaging",      search: "millinary" },
-  ],
-  "electronics": [
-    { label: "Protective wrapping",         search: "stretch wrap" },
-    { label: "Sealing boxes & cartons",     search: "tape" },
-  ],
-};
-
 import type { Product, Industry } from "@/data/products";
 import { getStockInfo } from "@/lib/stock";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
@@ -820,28 +764,6 @@ function ProductsPage() {
                 See all
               </button>
             </div>
-            {/* What do you need chips — plain-English needs, not product names */}
-            {INDUSTRY_QUICK_FINDS[selectedIndustry.slug] && (
-              <div className="mt-3">
-                <p className="mb-2 text-[11px] text-muted-foreground">What do you need?</p>
-                <div className="flex flex-wrap gap-2">
-                  {INDUSTRY_QUICK_FINDS[selectedIndustry.slug].map((item) => (
-                    <button
-                      key={item.search}
-                      type="button"
-                      onClick={() => { setQuery(item.search); setSearchResults(null); }}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        query === item.search
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/5"
-                      }`}
-                    >
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         )}
 

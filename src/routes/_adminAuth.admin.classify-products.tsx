@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { LayoutGrid, Loader2, Rows3, Search, Trash2, X } from "lucide-react";
+import { LayoutGrid, Loader2, Rows3, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
@@ -11,7 +11,6 @@ import {
   type ProductDto,
   type SegmentDto,
   type SubcategoryDto,
-  type TagDto,
 } from "@/services/adminResources";
 
 function AdminClassifyProductsPage() {
@@ -33,9 +32,6 @@ function AdminClassifyProductsPage() {
   const [allSubcategories, setAllSubcategories] = useState<SubcategoryDto[]>([]);
   const [subcategorySearch, setSubcategorySearch] = useState("");
   const [industries, setIndustries] = useState<IndustryDto[]>([]);
-  const [tags, setTags] = useState<TagDto[]>([]);
-  const [newTagName, setNewTagName] = useState("");
-  const [savingTag, setSavingTag] = useState(false);
 
   const [classifyOpen, setClassifyOpen] = useState(false);
   const [classifying, setClassifying] = useState(false);
@@ -44,7 +40,6 @@ function AdminClassifyProductsPage() {
   const [targetSubcategoryId, setTargetSubcategoryId] = useState("");
   const [clearSubcategory, setClearSubcategory] = useState(false);
   const [targetIndustryIds, setTargetIndustryIds] = useState<Set<string>>(new Set());
-  const [targetTagIds, setTargetTagIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim().toLowerCase()), 250);
@@ -65,13 +60,10 @@ function AdminClassifyProductsPage() {
   };
   useEffect(() => { void load(); }, [page, debouncedQ]);
 
-  const loadTags = () => adminResources.tags.list().then(setTags).catch(() => undefined);
-
   useEffect(() => {
     adminResources.segments.list().then(setSegments).catch(() => undefined);
     adminResources.industries.list().then(setIndustries).catch(() => undefined);
     adminResources.subcategories.list().then(setAllSubcategories).catch(() => undefined);
-    void loadTags();
   }, []);
 
   const subcategorySearchResults = useMemo(() => {
@@ -138,24 +130,16 @@ function AdminClassifyProductsPage() {
     });
   };
 
-  const toggleTargetTag = (id: string) => {
-    setTargetTagIds((prev) => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
-
   const openClassify = () => {
     setTargetSegmentId(""); setTargetCategoryId(""); setTargetSubcategoryId("");
-    setTargetIndustryIds(new Set()); setTargetTagIds(new Set()); setSubcategorySearch(""); setClearSubcategory(false);
+    setTargetIndustryIds(new Set()); setSubcategorySearch(""); setClearSubcategory(false);
     setClassifyOpen(true);
   };
 
   const submitClassify = async (e: FormEvent) => {
     e.preventDefault();
-    if (!targetSubcategoryId && !clearSubcategory && targetIndustryIds.size === 0 && targetTagIds.size === 0) {
-      toast.error("Pick a subcategory, industry, and/or tag — or tick 'Clear subcategory'");
+    if (!targetSubcategoryId && !clearSubcategory && targetIndustryIds.size === 0) {
+      toast.error("Pick a subcategory and/or industry — or tick 'Clear subcategory'");
       return;
     }
     setClassifying(true);
@@ -165,7 +149,6 @@ function AdminClassifyProductsPage() {
         subcategoryId: clearSubcategory ? undefined : targetSubcategoryId || undefined,
         clearSubcategory: clearSubcategory || undefined,
         industryIds: targetIndustryIds.size > 0 ? Array.from(targetIndustryIds) : undefined,
-        tagIds: targetTagIds.size > 0 ? Array.from(targetTagIds) : undefined,
       });
       toast.success(`Classified ${result.updatedCount} product${result.updatedCount === 1 ? "" : "s"}`);
       setClassifyOpen(false);
@@ -175,32 +158,6 @@ function AdminClassifyProductsPage() {
       reportAdminError(err, "Bulk classify products");
     } finally {
       setClassifying(false);
-    }
-  };
-
-  const addTag = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newTagName.trim()) return;
-    setSavingTag(true);
-    try {
-      await adminResources.tags.create({ name: newTagName.trim() });
-      setNewTagName("");
-      await loadTags();
-    } catch (err) {
-      reportAdminError(err, "Create tag");
-    } finally {
-      setSavingTag(false);
-    }
-  };
-
-  const removeTag = async (tag: TagDto) => {
-    if (!confirm(`Delete tag "${tag.name}"? Products keep their other tags.`)) return;
-    try {
-      await adminResources.tags.remove(tag.id);
-      toast.success("Tag deleted");
-      await loadTags();
-    } catch (err) {
-      reportAdminError(err, "Delete tag");
     }
   };
 
@@ -259,44 +216,6 @@ function AdminClassifyProductsPage() {
             </div>
           </div>
 
-          {/* Tag management lives here, together with classification — creating/
-              deleting a tag is separate from assigning it to products below. */}
-          <div className="admin-panel" style={{ padding: 12 }}>
-            <div className="admin-label" style={{ marginBottom: 8 }}>Manage tags</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-              {tags.length === 0 && <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>No tags yet.</span>}
-              {tags.map((t) => (
-                <span
-                  key={t.id}
-                  style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, border: "1px solid var(--admin-border)", borderRadius: 999, padding: "4px 6px 4px 10px" }}
-                >
-                  {t.name}
-                  <button
-                    type="button"
-                    onClick={() => void removeTag(t)}
-                    aria-label={`Delete tag ${t.name}`}
-                    style={{ display: "inline-flex", background: "transparent", border: 0, cursor: "pointer", color: "var(--admin-muted)", padding: 2 }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </span>
-              ))}
-            </div>
-            <form onSubmit={addTag} style={{ display: "flex", gap: 8 }}>
-              <input
-                className="admin-input"
-                style={{ maxWidth: 220 }}
-                placeholder="New tag name…"
-                value={newTagName}
-                onChange={(e) => setNewTagName(e.target.value)}
-              />
-              <button type="submit" className="admin-btn admin-btn-ghost" disabled={savingTag || !newTagName.trim()}>
-                {savingTag && <Loader2 size={14} className="animate-spin" />}
-                Add tag
-              </button>
-            </form>
-          </div>
-
           {selectedIds.size > 0 && (
             <div className="admin-panel" style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
               <span className="admin-label" style={{ margin: 0 }}>{selectedIds.size} product{selectedIds.size === 1 ? "" : "s"} selected</span>
@@ -337,11 +256,6 @@ function AdminClassifyProductsPage() {
                           <span style={{ fontSize: 12 }}>{p.segmentName} › {p.categoryName} › {p.subcategoryName}</span>
                         ) : (
                           <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>Unclassified</span>
-                        )}
-                        {p.curatedTags && p.curatedTags.length > 0 && (
-                          <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
-                            {p.curatedTags.map((t) => t.name).join(", ")}
-                          </div>
                         )}
                       </td>
                     </tr>
@@ -386,11 +300,6 @@ function AdminClassifyProductsPage() {
                       <span style={{ position: "relative", fontSize: 12 }}>{p.segmentName} › {p.categoryName} › {p.subcategoryName}</span>
                     ) : (
                       <span style={{ position: "relative", fontSize: 12, color: "var(--admin-muted)" }}>Unclassified</span>
-                    )}
-                    {p.curatedTags && p.curatedTags.length > 0 && (
-                      <span style={{ position: "relative", fontSize: 11, color: "var(--admin-muted)" }}>
-                        {p.curatedTags.map((t) => t.name).join(", ")}
-                      </span>
                     )}
                   </button>
                 );
@@ -486,18 +395,6 @@ function AdminClassifyProductsPage() {
                     <label key={i.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, border: "1px solid var(--admin-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
                       <input type="checkbox" checked={targetIndustryIds.has(i.id)} onChange={() => toggleIndustry(i.id)} />
                       {i.name}
-                    </label>
-                  ))}
-                </div>
-              </label>
-              <label style={{ gridColumn: "1/-1" }}>
-                <span className="admin-label">Tags (optional — leave unchecked to keep unchanged)</span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                  {tags.length === 0 && <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>No tags yet — add one above first.</span>}
-                  {tags.map((t) => (
-                    <label key={t.id} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, border: "1px solid var(--admin-border)", borderRadius: 6, padding: "4px 8px", cursor: "pointer" }}>
-                      <input type="checkbox" checked={targetTagIds.has(t.id)} onChange={() => toggleTargetTag(t.id)} />
-                      {t.name}
                     </label>
                   ))}
                 </div>
