@@ -15,6 +15,7 @@
 import { jsPDF } from "jspdf";
 import autoTable, { type RowInput, type UserOptions } from "jspdf-autotable";
 import logoUrl from "@/assets/moments_logo_without_background.png";
+import type { AnalyticsExportPayload } from "@/lib/analyticsExport";
 
 // ── Logo — loaded once, converted to a PNG data URL so jsPDF can embed it ──────
 interface LogoData {
@@ -935,5 +936,59 @@ export async function downloadCustomerStatementPdf(customer: StatementCustomer, 
     doc,
     `statement-${customer.name.replace(/\s+/g, "-").toLowerCase()}.pdf`,
     `${BRAND.name}  ·  Statement for ${customer.name}  ·  ${BRAND.site}`,
+  );
+}
+
+// ── 5. Generic analytics dashboard report ─────────────────────────────────────
+// One PDF builder shared by all 8 admin analytics pages — see
+// src/lib/analyticsExport.ts for the CSV/Excel siblings and the payload shape
+// every page already builds from its own fetched state.
+
+export async function downloadAnalyticsReportPdf(payload: AnalyticsExportPayload) {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const logo = await loadLogo();
+
+  let y = masthead(doc, { docType: payload.pageTitle, logo });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text(payload.rangeLabel, 14, y);
+  y += 6;
+
+  if (payload.kpis.length > 0) {
+    const perRow = 4;
+    const cw = (pw - 28 - (perRow - 1) * 6) / perRow;
+    payload.kpis.forEach((kpi, i) => {
+      const col = i % perRow;
+      const row = Math.floor(i / perRow);
+      kpiCard(doc, 14 + col * (cw + 6), y + row * 26, cw, 20, kpi.label, kpi.value);
+    });
+    y += Math.ceil(payload.kpis.length / perRow) * 26 + 4;
+  }
+
+  for (const table of payload.tables) {
+    if (table.rows.length === 0) continue;
+    if (y > ph - 50) {
+      doc.addPage();
+      y = 20;
+    }
+    sectionLabel(doc, table.title, 14, y);
+    y += 5;
+    autoTable(doc, {
+      ...TABLE_DEFAULTS,
+      startY: y,
+      head: [table.columns],
+      body: table.rows as RowInput[],
+    });
+    y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+  }
+
+  save(
+    doc,
+    `${payload.filenamePrefix}-${new Date().toISOString().slice(0, 10)}.pdf`,
+    `${BRAND.name}  ·  ${payload.pageTitle}  ·  ${payload.rangeLabel}`,
   );
 }

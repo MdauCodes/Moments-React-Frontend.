@@ -12,6 +12,8 @@ const BUNDLE_STATUS_COLOR: Record<string, string> = {
   PENDING: STATUS.warning, SENT: STATUS.good, FAILED: STATUS.critical, EXPIRED: STATUS.serious,
 };
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function AdminAnalyticsTaxPage() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -37,7 +39,30 @@ function AdminAnalyticsTaxPage() {
     <AdminLayout title="Analytics · Tax Report" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Tax report</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Tax report</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Tax Report",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-tax",
+                kpis: [
+                  { label: "VAT to remit", value: tax ? formatKes(tax.vatToRemitKes) : "—" },
+                  { label: "Vatable sales", value: tax ? formatKes(tax.vatableSalesKes) : "—" },
+                  { label: "Paid orders", value: String(tax?.paidOrderCount ?? 0) },
+                  { label: "Tax invoices requested", value: String(tax?.taxInvoiceRequestedCount ?? 0) },
+                  { label: "ETR bundles requested", value: String(tax?.etrRequestedCount ?? 0) },
+                ],
+                tables: [
+                  {
+                    title: "ETR bundle delivery status",
+                    columns: ["Status", "Count"],
+                    rows: (tax?.documentBundleStatusCounts ?? []).map((s) => [bundleStatusLabel(s.status), s.count]),
+                  },
+                ],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>

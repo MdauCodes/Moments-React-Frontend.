@@ -10,6 +10,8 @@ import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { priorRange } from "@/lib/analyticsInsights";
 import { getRewardsEconomics, type RewardsEconomics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function AdminAnalyticsRewardsPage() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -54,7 +56,34 @@ function AdminAnalyticsRewardsPage() {
         {rewardsMetrics && <PeriodDeltaGrid title="What changed vs the prior period" metrics={rewardsMetrics} />}
 
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Reward Coupons & referral economics</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Reward Coupons &amp; referral economics</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Rewards & Referrals",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-rewards",
+                kpis: [
+                  { label: "Outstanding coupon balance", value: rewards ? rewards.outstandingBalanceCoupons.toLocaleString() : "—" },
+                  { label: "Redeemed this period", value: rewards ? formatKes(rewards.redeemedValueKesInRange) : "—" },
+                  { label: "Referral conversion", value: rewards ? `${rewards.referralConversionRatePercent}%` : "—" },
+                  { label: "Median wallet balance", value: rewards ? rewards.medianWalletBalance.toLocaleString() : "—" },
+                ],
+                tables: [
+                  {
+                    title: "Coupons earned by source",
+                    columns: ["Source", "Coupons", "Value (KES)"],
+                    rows: (rewards?.earnedInRange ?? []).map((s) => [sourceLabel(s.source), s.coupons, s.valueKes]),
+                  },
+                  {
+                    title: "Top wallet holders",
+                    columns: ["Name", "Balance (coupons)", "Value (KES)"],
+                    rows: (rewards?.topHolders ?? []).map((h) => [h.name || "—", h.balance, h.valueKes]),
+                  },
+                ],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>

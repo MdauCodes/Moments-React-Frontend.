@@ -10,6 +10,8 @@ import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { priorRange } from "@/lib/analyticsInsights";
 import { getProfitability, getMonthlyProjection, type Profitability, type MonthlyProjection } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function AdminAnalyticsProfitabilityPage() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -68,7 +70,39 @@ function AdminAnalyticsProfitabilityPage() {
         {/* Profitability — COGS uses each product's CURRENT cost price (no historical snapshot
             exists), so this is an estimate, labelled as such below. */}
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Profitability (estimated)</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Profitability (estimated)</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Profitability",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-profitability",
+                kpis: [
+                  { label: "Gross profit", value: profitability ? formatKes(profitability.estimatedGrossProfitKes) : "—" },
+                  { label: "Gross margin", value: profitability ? `${profitability.grossMarginPercent}%` : "—" },
+                  { label: "Estimated COGS", value: profitability ? formatKes(profitability.estimatedCogsKes) : "—" },
+                  { label: "Net profit", value: profitability ? formatKes(profitability.estimatedNetProfitKes) : "—" },
+                  { label: "Net margin", value: profitability ? `${profitability.netMarginPercent}%` : "—" },
+                  { label: "Projected revenue (month)", value: projection ? formatKes(projection.projectedRevenueKes) : "—" },
+                  { label: "Projected gross profit (month)", value: projection ? formatKes(projection.projectedGrossProfitKes) : "—" },
+                  { label: "Projected costs (month)", value: projection ? formatKes(projection.projectedCostsKes) : "—" },
+                ],
+                tables: profitability ? [
+                  {
+                    title: "Where the money goes (this period)",
+                    columns: ["Line", "Amount (KES)"],
+                    rows: [
+                      ["Paid revenue", profitability.paidRevenueKes],
+                      ["Estimated COGS", profitability.estimatedCogsKes],
+                      ["Gross profit", profitability.estimatedGrossProfitKes],
+                      ["Coupon cost", profitability.couponRedemptionCostKes],
+                      ["Net profit", profitability.estimatedNetProfitKes],
+                    ],
+                  },
+                ] : [],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>

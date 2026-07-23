@@ -17,6 +17,8 @@ import {
 } from "@/services/commerceApi";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsResult | null>(null);
@@ -143,13 +145,47 @@ function AdminAnalyticsPage() {
           <div style={{ fontSize: 13, color: "var(--admin-muted)" }}>
             Live operational snapshot from the backend. See the Analytics section in the sidebar for Rewards, Tax, Products, Profitability and Customers.
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <button className="admin-btn admin-btn-ghost" disabled={!!exporting} onClick={() => handleExport("orders")}>
               <Download size={14} style={{ marginRight: 6 }} />Orders CSV
             </button>
             <button className="admin-btn admin-btn-ghost" disabled={!!exporting} onClick={() => handleExport("customers")}>
               <Download size={14} style={{ marginRight: 6 }} />Customers CSV
             </button>
+            {/* Full row-level dumps above (every order/customer); this exports the
+                summarized KPIs/tables actually shown on this page, in CSV/Excel/PDF. */}
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Overview",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-overview",
+                kpis: [
+                  { label: "Paid revenue", value: revenue ? formatKes(revenue.paidRevenue) : "—" },
+                  { label: "Pending payment", value: revenue ? formatKes(revenue.pendingPaymentValue) : "—" },
+                  { label: "Failed payment", value: revenue ? formatKes(revenue.failedPaymentValue) : "—" },
+                  { label: "Refunded", value: revenue ? formatKes(revenue.refundedValue) : "—" },
+                  { label: "Total orders", value: ops ? ops.totalOrders.toLocaleString() : "—" },
+                  { label: "Cancellation rate", value: ops ? `${ops.cancellationRatePercent}%` : "—" },
+                  { label: "Repeat customers", value: ops ? `${ops.repeatCustomerRatePercent}%` : "—" },
+                  { label: "Revenue (today)", value: data ? formatKes(data.revenueToday) : "—" },
+                  { label: "Revenue (MTD)", value: data ? formatKes(data.revenueMTD) : "—" },
+                  { label: "Total products", value: data ? data.totalProducts.toLocaleString() : "—" },
+                  { label: "Total users", value: data ? data.totalUsers.toLocaleString() : "—" },
+                ],
+                tables: [
+                  {
+                    title: "Payment success rate by method",
+                    columns: ["Method", "Success rate %", "Success", "Failed", "Other"],
+                    rows: (revenue?.byMethod ?? []).map((m) => [m.method, m.successRatePercent, m.successCount, m.failedCount, m.otherCount]),
+                  },
+                  {
+                    title: "Order status funnel (this period)",
+                    columns: ["Status", "Count"],
+                    rows: (ops?.funnel ?? []).map((f) => [statusLabel(f.status), f.count]),
+                  },
+                ],
+              })}
+            />
           </div>
         </div>
 

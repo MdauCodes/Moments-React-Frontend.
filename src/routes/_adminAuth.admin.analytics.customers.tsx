@@ -10,6 +10,8 @@ import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { priorRange } from "@/lib/analyticsInsights";
 import { getCustomerAnalytics, type CustomerAnalytics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function AdminAnalyticsCustomersPage() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -54,7 +56,34 @@ function AdminAnalyticsCustomersPage() {
         {customerMetrics && <PeriodDeltaGrid title="What changed vs the prior period" metrics={customerMetrics} />}
 
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Customers</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Customers</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Customers",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-customers",
+                kpis: [
+                  { label: "New paying customers", value: customers ? customers.newPayingCustomersInRange.toLocaleString() : "—" },
+                  { label: "First-order value", value: customers ? formatKes(customers.newCustomerFirstOrderValueKes) : "—" },
+                ],
+                tables: [
+                  {
+                    title: "Revenue by account type",
+                    columns: ["Account type", "Customers", "Revenue (KES)"],
+                    rows: (customers?.byAccountType ?? []).map((a) => [accountTypeLabel(a.accountType), a.customerCount, a.revenueKes]),
+                  },
+                  {
+                    title: "Top customers by lifetime value",
+                    columns: ["Name", "Account type", "Lifetime orders", "Lifetime revenue (KES)"],
+                    rows: (customers?.topCustomersByLifetimeValue ?? []).map((c) => [
+                      c.name || "—", accountTypeLabel(c.accountType), c.lifetimeOrderCount, c.lifetimeRevenueKes,
+                    ]),
+                  },
+                ],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>

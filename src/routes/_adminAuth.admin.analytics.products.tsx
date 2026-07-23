@@ -10,6 +10,8 @@ import { STATUS, CATEGORICAL } from "@/lib/analyticsPalette";
 import { priorRange } from "@/lib/analyticsInsights";
 import { getProductsInventory, type ProductsInventory } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function topSellersTotal(inv: ProductsInventory): number {
   return inv.topSellingByRevenue.reduce((sum, p) => sum + p.revenueKes, 0);
@@ -64,7 +66,35 @@ function AdminAnalyticsProductsPage() {
         )}
 
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Products & inventory</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Products &amp; inventory</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Products & Inventory",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-products",
+                kpis: [
+                  { label: "In stock", value: String(inventory?.inStockCount ?? 0) },
+                  { label: "Low stock", value: String(inventory?.lowStockCount ?? 0) },
+                  { label: "Out of stock", value: String(inventory?.outOfStockCount ?? 0) },
+                  { label: "Inventory value (cost)", value: inventory ? formatKes(inventory.totalInventoryCostValueKes) : "—" },
+                  { label: "Inventory value (retail)", value: inventory ? formatKes(inventory.totalInventoryRetailValueKes) : "—" },
+                ],
+                tables: [
+                  {
+                    title: "Top sellers (this period)",
+                    columns: ["Product", "Units sold", "Revenue (KES)"],
+                    rows: (inventory?.topSellingByRevenue ?? []).map((p) => [p.productName, p.unitsSold, p.revenueKes]),
+                  },
+                  {
+                    title: "Restock attention needed",
+                    columns: ["Product", "Stock", "Threshold", "Status"],
+                    rows: (inventory?.lowStockAlerts ?? []).map((s) => [s.productName, s.stockCount, s.lowStockThreshold, s.stockStatus.replace(/_/g, " ")]),
+                  },
+                ],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
           <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 6 }}>
             Top sellers are date-ranged above; stock levels and valuation below are a live snapshot, not tied to the date range.

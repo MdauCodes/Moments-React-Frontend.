@@ -7,6 +7,8 @@ import { RankedBarChart } from "@/components/admin/analyticsCharts";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { getDeliveryAnalytics, type DeliveryAnalytics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function fulfillmentLabel(type: string): string {
   const labels: Record<string, string> = {
@@ -39,7 +41,30 @@ function AdminAnalyticsDeliveryPage() {
     <AdminLayout title="Analytics · Delivery" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Delivery performance</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Delivery performance</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Delivery",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-delivery",
+                kpis: (delivery?.byFulfillmentType ?? []).map((d) => ({
+                  label: fulfillmentLabel(d.fulfillmentType),
+                  value: d.deliveredCount + d.cancelledCount === 0 ? "—" : `${d.deliveryRatePercent}%`,
+                })),
+                tables: [
+                  {
+                    title: "Delivery performance by fulfillment type",
+                    columns: ["Type", "Total orders", "Delivered", "Cancelled", "Delivery rate %", "Avg hours"],
+                    rows: (delivery?.byFulfillmentType ?? []).map((d) => [
+                      fulfillmentLabel(d.fulfillmentType), d.totalOrders, d.deliveredCount, d.cancelledCount,
+                      d.deliveryRatePercent, d.avgDeliveryHours,
+                    ]),
+                  },
+                ],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
           <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 6 }}>
             Delivery rate counts only orders that reached a resolved outcome (delivered or cancelled) —

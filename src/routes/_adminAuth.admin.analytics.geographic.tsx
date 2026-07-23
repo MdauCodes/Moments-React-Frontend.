@@ -8,6 +8,8 @@ import { RankedBarChart } from "@/components/admin/analyticsCharts";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
 import { getGeographicAnalytics, type GeographicAnalytics } from "@/services/commerceApi";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
+import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
+import { formatRangeLabel } from "@/lib/analyticsExport";
 
 function AdminAnalyticsGeographicPage() {
   const [reloadKey, setReloadKey] = useState(0);
@@ -36,7 +38,28 @@ function AdminAnalyticsGeographicPage() {
     <AdminLayout title="Analytics · Geographic" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14 }}>
-          <div className="admin-label" style={{ marginBottom: 10 }}>Revenue by county</div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10, marginBottom: 10 }}>
+            <div className="admin-label" style={{ marginBottom: 0 }}>Revenue by county</div>
+            <AnalyticsExportButtons
+              getPayload={() => ({
+                pageTitle: "Analytics · Geographic",
+                rangeLabel: formatRangeLabel(range),
+                filenamePrefix: "analytics-geographic",
+                kpis: [
+                  { label: "Counties with paid orders", value: String(geo?.byCounty.length ?? 0) },
+                  { label: "Top county", value: topCounty?.region ?? "—" },
+                  { label: "Total paid revenue", value: formatKes(totalRevenue) },
+                ],
+                tables: [
+                  {
+                    title: "Revenue by county",
+                    columns: ["County", "Orders", "Revenue (KES)"],
+                    rows: (geo?.byCounty ?? []).map((c) => [c.region, c.orderCount, c.revenueKes]),
+                  },
+                ],
+              })}
+            />
+          </div>
           <DateRangePicker onChange={setRange} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginTop: 14 }}>
