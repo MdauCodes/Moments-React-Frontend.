@@ -15,20 +15,18 @@ import {
   getNextAction,
 } from "@/components/admin/commerceUi";
 import {
-  assignOrder,
   getOrder,
-  listAssignableUsers,
   updateOrderStatus,
   requestOrderRefund,
   resolveOrderRefundRequest,
   markOrderPaymentRefunded,
   restoreOrderInventory,
-  type AssignableUser,
 } from "@/services/commerceApi";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
 import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
+import { AssignSelect } from "@/components/admin/AssignSelect";
 
 interface Props {
   orderId: string | null;
@@ -63,14 +61,11 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
     const role = resolveStaffRole(user);
     return !!role && STAFF_ROLE_RANK[role] <= STAFF_ROLE_RANK.ADMIN;
   })();
-  const [assignees, setAssignees] = useState<AssignableUser[]>([]);
-  const [assigning, setAssigning] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
   const [refundActionBusy, setRefundActionBusy] = useState(false);
   const [documentBundle, setDocumentBundle] = useState<DocumentBundleAdminDto | null>(null);
-  useEffect(() => { if (canAssign) listAssignableUsers().then(setAssignees).catch(() => {}); }, [canAssign]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -600,47 +595,19 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
 
               {/* Staff */}
               <Section title="Staff">
-                {canAssign ? (() => {
-                  const notPaid = o.paymentStatus !== "PAID";
-                  const terminal = ["DISPATCHED", "DELIVERED", "CANCELLED", "REFUNDED"].includes(String(o.status));
-                  const block = notPaid
-                    ? "Order must be paid before it can be assigned"
-                    : terminal
-                      ? `Order is ${String(o.status).toLowerCase()} — assignment locked`
-                      : null;
-                  return (
-                    <div className="space-y-2">
-                      <div className="text-xs text-muted-foreground">
-                        {block ?? (o.assignedTo ? `Assigned to: ${o.assignedTo}` : "Unassigned")}
-                      </div>
-                      <select
-                        className="w-full rounded-md border bg-background px-3 py-2 text-sm disabled:opacity-60"
-                        value={o.assignedToId ?? ""}
-                        disabled={assigning || !!block}
-                        title={block ?? undefined}
-                        onChange={async (e) => {
-                          const id = e.target.value;
-                          const u = assignees.find((a) => a.id === id);
-                          if (!u) return;
-                          setAssigning(true);
-                          try {
-                            const res = await assignOrder(o.id, u.name, u.id);
-                            if (res.order) setOrder(res.order);
-                            toast.success(`Assigned to ${u.name}`);
-                            onChanged?.();
-                          } catch (err) {
-                            reportAdminError(err, "Assignment failed");
-                          } finally {
-                            setAssigning(false);
-                          }
-                        }}
-                      >
-                        <option value="" disabled>{block ? (notPaid ? "Awaiting payment" : "Locked") : "Assign to…"}</option>
-                        {assignees.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                      </select>
-                    </div>
-                  );
-                })() : (
+                {canAssign ? (
+                  <AssignSelect
+                    orderId={o.id}
+                    assignedTo={o.assignedTo}
+                    assignedToId={o.assignedToId}
+                    paymentStatus={o.paymentStatus}
+                    orderStatus={o.status}
+                    onAssigned={(patch) => {
+                      setOrder({ ...o, ...patch } as OrderRecord);
+                      onChanged?.();
+                    }}
+                  />
+                ) : (
                   <Row label="Assigned to" value={o.assignedTo || "—"} />
                 )}
                 <label className="block mt-2">
