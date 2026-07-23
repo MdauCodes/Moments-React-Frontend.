@@ -56,6 +56,12 @@ export type CourierType = "MATATU" | "PARCEL_SERVICE" | "BOLT_SEND" | "RIDER" | 
 export interface CustomerOrder {
   id?: string;
   reference: string;
+  /**
+   * True only when this record came from an email-matched tracking lookup (or this browser's
+   * own checkout-time cache). References are sequential/guessable, so a reference-only lookup
+   * returns this as false with financials/address/contact name stripped server-side.
+   */
+  verified?: boolean;
   invoiceNumber?: string | null;
   paidAt?: string | null;
   status: CustomerOrderStatus;
@@ -201,6 +207,7 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
   return {
     id: raw.id,
     reference: raw.reference,
+    verified: raw.verified ?? false,
     invoiceNumber: raw.invoiceNumber ?? null,
     paidAt: raw.paidAt ?? null,
     status: raw.status,
@@ -211,6 +218,7 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     customerPhone: raw.customerPhone ?? "",
     shippingAddress: raw.shippingAddress ?? raw.deliveryAddress ?? "",
     city: raw.city ?? "",
+    county: raw.county ?? "",
     items: (raw.items ?? []).map((it: any) => ({
       productId: it.productId ?? "",
       productName: it.productName ?? "",
@@ -430,9 +438,13 @@ export const orderStore = {
 
   /**
    * Public order tracking by reference — no auth required.
+   * @param email When supplied and it matches the order's own email, the backend returns the
+   *              full record (financials, contact name, delivery address) instead of the
+   *              redacted status-only view — see OrderTrackingDto.verified.
    */
-  async getStatus(reference: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    const live = await tryLiveJson<Record<string, any>>(`/api/v1/orders/track/${encodeURIComponent(reference)}`);
+  async getStatus(reference: string, email?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
+    const qs = email?.trim() ? `?email=${encodeURIComponent(email.trim())}` : "";
+    const live = await tryLiveJson<Record<string, any>>(`/api/v1/orders/track/${encodeURIComponent(reference)}${qs}`);
     if (live) {
       const order = normalizeTrackingDto(live);
       const all = readAll();
@@ -513,8 +525,8 @@ export const orderStore = {
   },
 
   /** Public order tracking by reference (alias for getStatus). */
-  async trackByReference(reference: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    return this.getStatus(reference);
+  async trackByReference(reference: string, email?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
+    return this.getStatus(reference, email);
   },
 
   /** Public order lookup by email (paginated, masked results). */

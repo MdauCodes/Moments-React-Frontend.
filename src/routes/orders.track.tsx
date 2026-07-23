@@ -60,13 +60,17 @@ function TrackPage() {
           </button>
         </div>
 
-        {tab === "ref" ? <ByReferenceTab initialRef={initial.ref ?? ""} /> : <ByEmailTab />}
+        {tab === "ref" ? (
+          <ByReferenceTab initialRef={initial.ref ?? ""} onSwitchToEmail={() => setTab("email")} />
+        ) : (
+          <ByEmailTab />
+        )}
       </section>
     </SiteLayout>
   );
 }
 
-function ByReferenceTab({ initialRef }: { initialRef: string }) {
+function ByReferenceTab({ initialRef, onSwitchToEmail }: { initialRef: string; onSwitchToEmail: () => void }) {
   const [ref, setRef] = useState(initialRef);
   const [loading, setLoading] = useState(false);
   const [order, setOrder] = useState<CustomerOrder | null>(null);
@@ -113,19 +117,38 @@ function ByReferenceTab({ initialRef }: { initialRef: string }) {
         </div>
       )}
 
-      {order && <OrderCard order={order} />}
+      {order && (
+        <>
+          <OrderCard order={order} />
+          {order.verified === false && (
+            <div className="mt-3 rounded-xl border border-dashed border-border bg-card p-4 text-sm text-muted-foreground">
+              For full order details — including items, pricing, and your delivery address —{" "}
+              <button type="button" onClick={onSwitchToEmail} className="font-medium text-accent hover:underline">
+                search by the email used at checkout
+              </button>{" "}
+              instead. A reference alone only shows status, since it isn't tied to your identity.
+            </div>
+          )}
+        </>
+      )}
     </>
   );
 }
 
 function ByEmailTab() {
   const [email, setEmail] = useState("");
+  const [searchedEmail, setSearchedEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [rows, setRows] = useState<CustomerOrder[]>([]);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
+  // The by-email list is a masked summary — expanding a row fetches the full,
+  // email-verified record (items, pricing, delivery address) using the same
+  // email that was searched, which the backend checks against the order's own email.
+  const [details, setDetails] = useState<Record<string, CustomerOrder>>({});
+  const [detailsLoading, setDetailsLoading] = useState<string | null>(null);
 
   async function search(pageNum = 0) {
     if (!email.trim()) return;
@@ -136,10 +159,30 @@ function ByEmailTab() {
       setRows(res.rows);
       setTotalPages(res.totalPages);
       setPage(res.page);
+      setSearchedEmail(email.trim());
+      setDetails({});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Search failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function toggleExpand(reference: string) {
+    if (expanded === reference) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(reference);
+    if (details[reference]) return;
+    setDetailsLoading(reference);
+    try {
+      const { order } = await orderStore.trackByReference(reference, searchedEmail);
+      if (order) setDetails((prev) => ({ ...prev, [reference]: order }));
+    } catch {
+      // Fall back to the summary row already shown — non-fatal.
+    } finally {
+      setDetailsLoading(null);
     }
   }
 
@@ -175,7 +218,7 @@ function ByEmailTab() {
               <div key={o.reference} className="rounded-2xl border border-border bg-card">
                 <button
                   type="button"
-                  onClick={() => setExpanded(isOpen ? null : o.reference)}
+                  onClick={() => toggleExpand(o.reference)}
                   className="flex w-full items-center justify-between gap-3 p-4 text-left"
                 >
                   <div className="min-w-0">
@@ -198,7 +241,11 @@ function ByEmailTab() {
 
                 {isOpen && (
                   <div className="border-t border-border p-4">
-                    <OrderCard order={o} compact />
+                    {detailsLoading === o.reference ? (
+                      <InlineProgress size="sm" />
+                    ) : (
+                      <OrderCard order={details[o.reference] ?? o} compact />
+                    )}
                   </div>
                 )}
               </div>
