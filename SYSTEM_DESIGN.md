@@ -64,9 +64,11 @@ Payment Queue ──Verify Payment──► Preparation Queue ──Start Produc
 
 Each queue page only shows orders in the right state and disappears them correctly once actioned — this full chain was manually walked end-to-end against production data and confirmed consistent across every queue, the order list, and the detail drawer.
 
-**Known issue**: the order list's "Assigned" column shows **"No staff available"** for orders that the detail drawer correctly shows real assignable staff for — see `components/admin/AssignSelect.tsx` (`visible.length === 0` → that label). The `visible` list is filtered by a role-hierarchy check (`canAssignTo`) against the logged-in admin's resolved role; the label is misleading when it fires transiently or incorrectly (reads as "no staff exist" rather than "not yet assigned"). Worth fixing the copy at minimum, and investigating why the list-view instances and the drawer instance disagree for the same order + same session.
+**Fixed 2026-07-23**: the order list's "Assigned" column used to show "No staff available" for orders the detail drawer correctly showed real assignable staff for. Root cause: `OrderDetailDrawer.tsx` had its own hand-rolled assign-to-staff dropdown, duplicating `AssignSelect.tsx` (used in the list) but without its role-hierarchy check (`canAssignTo`) — the drawer mapped over the raw, unfiltered assignee list, silently letting staff assign orders to someone above their own rank. Fixed by deleting the duplicate and having the drawer use the shared `AssignSelect` component, so both surfaces now enforce (and agree on) the same rule.
 
 **Known gap** (backend-adjacent): many real orders sit in `PENDING_PAYMENT` for weeks with no automated expiry — there's no frontend or backend job that surfaces/cleans these up.
+
+**Track-order security, fixed 2026-07-23**: order references are sequential/guessable, so `orders.track.tsx`'s "By Reference" tab now only shows redacted status/progress (backend enforces this — see the backend `SYSTEM_DESIGN.md` §8). Full details (items, pricing, delivery address) require searching "By Email" instead — `CustomerOrder.verified` (new field) tells you which you're looking at. The by-email tab now does a follow-up `trackByReference(reference, email)` call per expanded row to unlock the full record, rather than just showing the masked summary.
 
 ## 7. Analytics dashboard
 
