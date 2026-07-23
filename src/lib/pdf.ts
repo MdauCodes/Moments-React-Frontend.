@@ -223,7 +223,15 @@ function kpiCard(doc: jsPDF, x: number, y: number, w: number, h: number, label: 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(7);
   doc.setTextColor(...ACCENT);
-  doc.text(label.toUpperCase(), x + 4, y + 6.5, { charSpace: 0.6 });
+  // Wrap onto up to 2 lines rather than clip — the analytics report (unlike the fixed short
+  // labels this was originally built for, e.g. "Orders"/"Revenue") passes real KPI names like
+  // "Outstanding coupon balance" that don't fit some card widths as one line. splitTextToSize
+  // doesn't know about the charSpace letter-spacing below, hence the 0.85 slack factor.
+  const upper = label.toUpperCase();
+  const lines = doc.splitTextToSize(upper, (w - 8) * 0.85).slice(0, 2);
+  lines.forEach((line: string, i: number) => {
+    doc.text(line, x + 4, y + 6.5 + i * 3.6, { charSpace: 0.6 });
+  });
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.setTextColor(...INK);
@@ -950,16 +958,22 @@ export async function downloadAnalyticsReportPdf(payload: AnalyticsExportPayload
   const ph = doc.internal.pageSize.getHeight();
   const logo = await loadLogo();
 
-  let y = masthead(doc, { docType: payload.pageTitle, logo });
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(...MUTED);
-  doc.text(payload.rangeLabel, 14, y);
-  y += 6;
+  // The "meta" masthead layout (title top-left, metadata rows beneath) — not the "legacy"
+  // layout (title right-aligned next to the logo), which was sized for short titles like
+  // "Orders Report" and visibly collides with the logo once the title is as long as
+  // "Analytics · Profitability" or similar.
+  let y = masthead(doc, {
+    docType: payload.pageTitle,
+    meta: [{ label: "Period", value: payload.rangeLabel }],
+    logo,
+  });
+  y += 3;
 
   if (payload.kpis.length > 0) {
-    const perRow = 4;
+    // Capped at 4/row for pages with many KPIs (e.g. Overview), but sized to the actual
+    // count when there are fewer — a fixed 4-wide layout squeezed 3 real KPIs (Geographic,
+    // Tax, Profitability) into cards too narrow for their labels, clipping the text.
+    const perRow = Math.min(4, payload.kpis.length);
     const cw = (pw - 28 - (perRow - 1) * 6) / perRow;
     payload.kpis.forEach((kpi, i) => {
       const col = i % perRow;
