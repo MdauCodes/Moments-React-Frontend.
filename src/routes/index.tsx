@@ -121,7 +121,7 @@ function HomeNav() {
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
           <Link to="/company-profile" className="hover:opacity-80">
-            Company
+            About Us
           </Link>
           <Link to="/sustainability" className="hover:opacity-80">
             Sustainability
