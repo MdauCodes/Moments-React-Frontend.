@@ -10,13 +10,53 @@ import avatarShrug from "@/assets/avatars/avatar_3.png";
 
 // Shows a few seconds after any page loads (mounted globally in SiteLayout) — long enough to
 // clear the branded splash — and, for a visitor who dismisses it while still not logged in,
-// keeps re-appearing as they keep browsing or navigate to a new page. No show-count cap: per
-// the client's explicit call, this stays up for as long as the visitor is unauthenticated,
-// on every page. Two-screen flow: the main offer screen, and — only if the visitor picks
-// "no account" — a single second-thoughts screen explaining what they'd be skipping, with an
-// easy way back to either path or to just continue anonymously.
+// keeps re-appearing as they keep browsing or navigate to a new page. Two-screen flow: the
+// main offer screen, and — only if the visitor picks "no account" — a single second-thoughts
+// screen explaining what they'd be skipping, with an easy way back to either path or to just
+// continue anonymously.
+//
+// Capped per browser session (sessionStorage, so it resets on the next visit): at most
+// MAX_SHOWS_PER_SESSION appearances total, and an explicit "Continue without an account" stops
+// it from reappearing for the rest of the session outright — a plain close (X / backdrop click)
+// still gets the shorter 45s reappear, but only up to the session cap. Supersedes the previous
+// "no cap, ever" behavior.
 const SHOW_DELAY_MS = 1800;
 const REAPPEAR_DELAY_MS = 45_000;
+const MAX_SHOWS_PER_SESSION = 3;
+const DECLINED_KEY = "moments_welcome_declined";
+const SHOWN_COUNT_KEY = "moments_welcome_shown_count";
+
+function hasDeclined(): boolean {
+  try {
+    return sessionStorage.getItem(DECLINED_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function getShownCount(): number {
+  try {
+    return Number(sessionStorage.getItem(SHOWN_COUNT_KEY) ?? "0");
+  } catch {
+    return 0;
+  }
+}
+
+function recordShown(): void {
+  try {
+    sessionStorage.setItem(SHOWN_COUNT_KEY, String(getShownCount() + 1));
+  } catch {
+    // sessionStorage unavailable (e.g. private browsing) — fail open, just skip the cap.
+  }
+}
+
+function recordDeclined(): void {
+  try {
+    sessionStorage.setItem(DECLINED_KEY, "true");
+  } catch {
+    // ignore
+  }
+}
 
 // Background matches the sign-in form's panel exactly, per explicit instruction (AuthModal.tsx
 // uses this same color-mix) — note this reintroduces --accent (red/orange) into a component the
@@ -34,7 +74,7 @@ const GOLD_DARK = "#8a6420"; // darkened gold for small text/links — GOLD_SOFT
 type View = "main" | "decline";
 
 function shouldShow(): boolean {
-  return true;
+  return !hasDeclined() && getShownCount() < MAX_SHOWS_PER_SESSION;
 }
 
 // Small CTA pill shown inside each option card so it's unmistakably a
@@ -66,6 +106,8 @@ export function WelcomeStarterModal() {
   useEffect(() => {
     if (!shouldShow() || isAuthenticated) return;
     const t = setTimeout(() => {
+      if (!shouldShow() || isAuthenticated) return;
+      recordShown();
       setView("main");
       setOpen(true);
     }, SHOW_DELAY_MS);
@@ -73,13 +115,14 @@ export function WelcomeStarterModal() {
   }, [isAuthenticated]);
 
   /** @param final true when the visitor engaged (register/login) — no re-appearance on this
-   *  page. false for a plain close/"continue without an account", which re-arms another
-   *  appearance shortly after if the visitor is still around and still unauthenticated. */
+   *  page. false for a plain close, which re-arms another appearance shortly after if the
+   *  visitor is still around, still unauthenticated, and under the session show cap. */
   function dismiss(final = false) {
     setOpen(false);
     if (final || isAuthenticated || !shouldShow()) return;
     const t = setTimeout(() => {
       if (!shouldShow() || isAuthenticated) return;
+      recordShown();
       setView("main");
       setOpen(true);
     }, REAPPEAR_DELAY_MS);
@@ -89,6 +132,13 @@ export function WelcomeStarterModal() {
   function pick(action: () => void) {
     dismiss(true);
     action();
+  }
+
+  /** The decline screen's "Continue without an account" — a definitive signal, unlike a plain
+   *  close, so it stops the modal for the rest of this session instead of just this page. */
+  function declineFinal() {
+    recordDeclined();
+    dismiss(true);
   }
 
   if (!open) return null;
@@ -316,7 +366,7 @@ export function WelcomeStarterModal() {
 
               <button
                 type="button"
-                onClick={() => dismiss()}
+                onClick={declineFinal}
                 className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 px-3 py-3 text-sm font-bold shadow-sm transition-colors hover:bg-black/5"
                 style={{ borderColor: `${FOREST_DEEP}22`, background: "rgba(255,255,255,0.5)", color: FOREST_DEEP }}
               >
