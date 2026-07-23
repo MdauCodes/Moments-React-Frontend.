@@ -63,8 +63,12 @@ export function AccessibilityToolbar() {
 
   if (pathname.startsWith("/admin")) return null;
 
+  // Sized generously on purpose — this panel is itself an accessibility
+  // control, so its own text and touch targets shouldn't require the
+  // visitor to already have working eyesight/dexterity to use it. Buttons
+  // are ~48px tall to clear the WCAG 2.5.5 target-size guidance.
   const toggleCls = (active: boolean) =>
-    `flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${
+    `flex w-full items-center justify-between rounded-lg border px-4 py-3.5 text-base font-medium transition-colors ${
       active
         ? "border-accent bg-accent/10 text-foreground"
         : "border-border bg-background text-foreground hover:bg-secondary"
@@ -92,10 +96,10 @@ export function AccessibilityToolbar() {
           role="dialog"
           aria-modal="false"
           aria-label="Accessibility settings"
-          className="absolute bottom-full right-0 mb-3 max-h-[80vh] w-72 overflow-y-auto rounded-2xl border border-border bg-background p-4 shadow-xl"
+          className="absolute bottom-full right-0 mb-3 max-h-[80vh] w-80 overflow-y-auto rounded-2xl border border-border bg-background p-5 shadow-xl sm:w-96"
         >
           <div className="flex items-center justify-between">
-            <p className="font-display text-sm font-semibold text-foreground">Accessibility</p>
+            <p className="font-display text-lg font-bold text-foreground">Accessibility</p>
             <button
               ref={closeButtonRef}
               type="button"
@@ -104,56 +108,56 @@ export function AccessibilityToolbar() {
                 triggerRef.current?.focus();
               }}
               aria-label="Close accessibility settings"
-              className="grid h-7 w-7 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="grid h-10 w-10 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
-              <X className="h-4 w-4" />
+              <X className="h-5 w-5" />
             </button>
           </div>
 
-          <div className="mt-3">
-            <p className="mb-1.5 text-xs font-medium text-muted-foreground">Text size</p>
-            <div className="flex items-center gap-1.5">
+          <div className="mt-4">
+            <p className="mb-2 text-sm font-semibold text-foreground">Text size</p>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={decreaseFontSize}
                 disabled={prefs.fontScale <= FONT_SCALE_MIN}
                 aria-label="Decrease text size"
-                className="grid h-9 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                className="grid h-12 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Minus className="h-4 w-4" />
+                <Minus className="h-5 w-5" />
               </button>
               <button
                 type="button"
                 onClick={resetFontSize}
                 aria-label="Reset text size"
-                className="grid h-9 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary"
+                className="grid h-12 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
+                <RotateCcw className="h-5 w-5" />
               </button>
               <button
                 type="button"
                 onClick={increaseFontSize}
                 disabled={prefs.fontScale >= FONT_SCALE_MAX}
                 aria-label="Increase text size"
-                className="grid h-9 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                className="grid h-12 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <Plus className="h-4 w-4" />
+                <Plus className="h-5 w-5" />
               </button>
             </div>
           </div>
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2.5">
             <button type="button" onClick={toggleHighContrast} aria-pressed={prefs.highContrast} className={toggleCls(prefs.highContrast)}>
               High contrast
-              <span className="text-xs text-muted-foreground">{prefs.highContrast ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.highContrast ? "On" : "Off"}</span>
             </button>
             <button type="button" onClick={toggleReduceMotion} aria-pressed={prefs.reduceMotion} className={toggleCls(prefs.reduceMotion)}>
               Reduce motion
-              <span className="text-xs text-muted-foreground">{prefs.reduceMotion ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.reduceMotion ? "On" : "Off"}</span>
             </button>
             <button type="button" onClick={toggleUnderlineLinks} aria-pressed={prefs.underlineLinks} className={toggleCls(prefs.underlineLinks)}>
               Underline links
-              <span className="text-xs text-muted-foreground">{prefs.underlineLinks ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.underlineLinks ? "On" : "Off"}</span>
             </button>
             <button
               type="button"
@@ -162,15 +166,15 @@ export function AccessibilityToolbar() {
               className={toggleCls(prefs.readableSpacing)}
             >
               Readable spacing
-              <span className="text-xs text-muted-foreground">{prefs.readableSpacing ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.readableSpacing ? "On" : "Off"}</span>
             </button>
             <button type="button" onClick={toggleDyslexiaFont} aria-pressed={prefs.dyslexiaFont} className={toggleCls(prefs.dyslexiaFont)}>
               Dyslexia-friendly font
-              <span className="text-xs text-muted-foreground">{prefs.dyslexiaFont ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.dyslexiaFont ? "On" : "Off"}</span>
             </button>
             <button type="button" onClick={toggleHideImages} aria-pressed={prefs.hideImages} className={toggleCls(prefs.hideImages)}>
               Hide images
-              <span className="text-xs text-muted-foreground">{prefs.hideImages ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.hideImages ? "On" : "Off"}</span>
             </button>
             <button
               type="button"
@@ -179,7 +183,7 @@ export function AccessibilityToolbar() {
               className={toggleCls(prefs.lineHeightLevel > 0)}
             >
               Line height
-              <span className="text-xs text-muted-foreground">{lineHeightLabel}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{lineHeightLabel}</span>
             </button>
             <button
               type="button"
@@ -188,7 +192,7 @@ export function AccessibilityToolbar() {
               className={toggleCls(prefs.forceLeftAlign)}
             >
               Left-align text
-              <span className="text-xs text-muted-foreground">{prefs.forceLeftAlign ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.forceLeftAlign ? "On" : "Off"}</span>
             </button>
             <button
               type="button"
@@ -197,22 +201,22 @@ export function AccessibilityToolbar() {
               className={toggleCls(prefs.lowSaturation)}
             >
               Low saturation
-              <span className="text-xs text-muted-foreground">{prefs.lowSaturation ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.lowSaturation ? "On" : "Off"}</span>
             </button>
             <button type="button" onClick={toggleReadingMask} aria-pressed={prefs.readingMask} className={toggleCls(prefs.readingMask)}>
               Reading mask
-              <span className="text-xs text-muted-foreground">{prefs.readingMask ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.readingMask ? "On" : "Off"}</span>
             </button>
             <button type="button" onClick={toggleBigCursor} aria-pressed={prefs.bigCursor} className={toggleCls(prefs.bigCursor)}>
               Big cursor
-              <span className="text-xs text-muted-foreground">{prefs.bigCursor ? "On" : "Off"}</span>
+              <span className="text-sm font-semibold text-muted-foreground">{prefs.bigCursor ? "On" : "Off"}</span>
             </button>
           </div>
 
           <Link
             to="/accessibility-policy"
             onClick={() => setOpen(false)}
-            className="mt-3 block text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            className="mt-4 block text-center text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             Read our Accessibility Policy
           </Link>
