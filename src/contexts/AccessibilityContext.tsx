@@ -6,12 +6,20 @@ export interface A11yPrefs {
   reduceMotion: boolean;
   underlineLinks: boolean;
   readableSpacing: boolean;
+  dyslexiaFont: boolean;
+  hideImages: boolean;
+  /** 0 = normal (no override), 1 = relaxed, 2 = loose. */
+  lineHeightLevel: 0 | 1 | 2;
+  forceLeftAlign: boolean;
+  lowSaturation: boolean;
 }
 
 const STORAGE_KEY = "moments.a11yPrefs.v1";
 const FONT_SCALE_MIN = 0.85;
 const FONT_SCALE_MAX = 1.5;
 const FONT_SCALE_STEP = 0.125;
+const LINE_HEIGHT_VALUES = [1.5, 1.8, 2.15] as const;
+const DYSLEXIA_FONT_HREF = "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap";
 
 // Site loads at the smallest available size by default — visitors who want
 // larger text can size up from here via the existing +/- controls, rather
@@ -22,11 +30,21 @@ const DEFAULT_PREFS: A11yPrefs = {
   reduceMotion: false,
   underlineLinks: false,
   readableSpacing: false,
+  dyslexiaFont: false,
+  hideImages: false,
+  lineHeightLevel: 0,
+  forceLeftAlign: false,
+  lowSaturation: false,
 };
 
 function clampFontScale(n: unknown): number {
   const num = typeof n === "number" && Number.isFinite(n) ? n : DEFAULT_PREFS.fontScale;
   return Math.min(FONT_SCALE_MAX, Math.max(FONT_SCALE_MIN, num));
+}
+
+function clampLineHeightLevel(n: unknown): 0 | 1 | 2 {
+  const num = typeof n === "number" && Number.isFinite(n) ? Math.round(n) : 0;
+  return (Math.min(2, Math.max(0, num)) as 0 | 1 | 2);
 }
 
 function readPrefs(): A11yPrefs {
@@ -41,10 +59,26 @@ function readPrefs(): A11yPrefs {
       reduceMotion: parsed.reduceMotion === true,
       underlineLinks: parsed.underlineLinks === true,
       readableSpacing: parsed.readableSpacing === true,
+      dyslexiaFont: parsed.dyslexiaFont === true,
+      hideImages: parsed.hideImages === true,
+      lineHeightLevel: clampLineHeightLevel(parsed.lineHeightLevel),
+      forceLeftAlign: parsed.forceLeftAlign === true,
+      lowSaturation: parsed.lowSaturation === true,
     };
   } catch {
     return DEFAULT_PREFS;
   }
+}
+
+// The dyslexia-friendly font is a real webfont — only fetched if a visitor
+// actually turns the toggle on, so the other 99% of visitors never pay for it.
+function ensureDyslexiaFontLoaded() {
+  if (typeof document === "undefined") return;
+  if (document.querySelector(`link[href="${DYSLEXIA_FONT_HREF}"]`)) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = DYSLEXIA_FONT_HREF;
+  document.head.appendChild(link);
 }
 
 function writePrefs(prefs: A11yPrefs) {
@@ -65,6 +99,11 @@ interface AccessibilityContextValue {
   toggleReduceMotion: () => void;
   toggleUnderlineLinks: () => void;
   toggleReadableSpacing: () => void;
+  toggleDyslexiaFont: () => void;
+  toggleHideImages: () => void;
+  cycleLineHeight: () => void;
+  toggleForceLeftAlign: () => void;
+  toggleLowSaturation: () => void;
 }
 
 const AccessibilityContext = createContext<AccessibilityContextValue | undefined>(undefined);
@@ -79,6 +118,13 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
     html.classList.toggle("a11y-reduce-motion", prefs.reduceMotion);
     html.classList.toggle("a11y-underline-links", prefs.underlineLinks);
     html.classList.toggle("a11y-readable-spacing", prefs.readableSpacing);
+    html.classList.toggle("a11y-hide-images", prefs.hideImages);
+    html.classList.toggle("a11y-force-left-align", prefs.forceLeftAlign);
+    html.classList.toggle("a11y-low-saturation", prefs.lowSaturation);
+    html.classList.toggle("a11y-line-height-boosted", prefs.lineHeightLevel > 0);
+    html.style.setProperty("--a11y-line-height", String(LINE_HEIGHT_VALUES[prefs.lineHeightLevel]));
+    if (prefs.dyslexiaFont) ensureDyslexiaFontLoaded();
+    html.classList.toggle("a11y-dyslexia-font", prefs.dyslexiaFont);
     writePrefs(prefs);
   }, [prefs]);
 
@@ -91,6 +137,11 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
   const toggleReduceMotion = () => setPrefs((p) => ({ ...p, reduceMotion: !p.reduceMotion }));
   const toggleUnderlineLinks = () => setPrefs((p) => ({ ...p, underlineLinks: !p.underlineLinks }));
   const toggleReadableSpacing = () => setPrefs((p) => ({ ...p, readableSpacing: !p.readableSpacing }));
+  const toggleDyslexiaFont = () => setPrefs((p) => ({ ...p, dyslexiaFont: !p.dyslexiaFont }));
+  const toggleHideImages = () => setPrefs((p) => ({ ...p, hideImages: !p.hideImages }));
+  const cycleLineHeight = () => setPrefs((p) => ({ ...p, lineHeightLevel: clampLineHeightLevel((p.lineHeightLevel + 1) % 3) }));
+  const toggleForceLeftAlign = () => setPrefs((p) => ({ ...p, forceLeftAlign: !p.forceLeftAlign }));
+  const toggleLowSaturation = () => setPrefs((p) => ({ ...p, lowSaturation: !p.lowSaturation }));
 
   return (
     <AccessibilityContext.Provider
@@ -103,6 +154,11 @@ export function AccessibilityProvider({ children }: { children: ReactNode }) {
         toggleReduceMotion,
         toggleUnderlineLinks,
         toggleReadableSpacing,
+        toggleDyslexiaFont,
+        toggleHideImages,
+        cycleLineHeight,
+        toggleForceLeftAlign,
+        toggleLowSaturation,
       }}
     >
       {children}

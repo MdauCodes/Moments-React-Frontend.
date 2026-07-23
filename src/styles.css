@@ -521,6 +521,26 @@ html { font-size: calc(16px * var(--a11y-font-scale)); }
 .a11y-readable-spacing body { line-height: 1.7; letter-spacing: 0.01em; }
 .a11y-readable-spacing p, .a11y-readable-spacing li { line-height: 1.8; }
 
+.a11y-dyslexia-font, .a11y-dyslexia-font * { font-family: "Atkinson Hyperlegible", sans-serif !important; }
+
+/* Scoped to <main> only — decorative nav/logo imagery in the header/footer
+   stays visible, only in-page content images are hidden. */
+.a11y-hide-images main img { visibility: hidden !important; }
+
+:root { --a11y-line-height: 1.5; }
+.a11y-line-height-boosted p,
+.a11y-line-height-boosted li { line-height: var(--a11y-line-height) !important; }
+
+/* Targets <p> specifically (where justified body copy lives), not headings
+   or button/nav layouts, so it doesn't fight intentional centered design. */
+.a11y-force-left-align p { text-align: left !important; }
+
+/* Scoped to <main>, not html/body — CSS filter on an ancestor creates a
+   containing block for position:fixed descendants, which would break the
+   WhatsApp float button, bottom nav, and accessibility toolbar itself
+   (all fixed, all siblings of <main>, not descendants of it). */
+.a11y-low-saturation main { filter: saturate(0.55); }
+
 .a11y-high-contrast {
   --background: oklch(1 0 0);
   --foreground: oklch(0 0 0);

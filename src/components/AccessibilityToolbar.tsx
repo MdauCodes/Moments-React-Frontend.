@@ -19,7 +19,14 @@ export function AccessibilityToolbar() {
     toggleReduceMotion,
     toggleUnderlineLinks,
     toggleReadableSpacing,
+    toggleDyslexiaFont,
+    toggleHideImages,
+    cycleLineHeight,
+    toggleForceLeftAlign,
+    toggleLowSaturation,
   } = useAccessibility();
+
+  const lineHeightLabel = ["Normal", "Relaxed", "Loose"][prefs.lineHeightLevel];
 
   useEffect(() => {
     if (!open) return;
@@ -80,7 +87,7 @@ export function AccessibilityToolbar() {
           role="dialog"
           aria-modal="false"
           aria-label="Accessibility settings"
-          className="absolute bottom-full right-0 mb-3 w-72 rounded-2xl border border-border bg-background p-4 shadow-xl"
+          className="absolute bottom-full right-0 mb-3 max-h-[80vh] w-72 overflow-y-auto rounded-2xl border border-border bg-background p-4 shadow-xl"
         >
           <div className="flex items-center justify-between">
             <p className="font-display text-sm font-semibold text-foreground">Accessibility</p>
@@ -151,6 +158,41 @@ export function AccessibilityToolbar() {
             >
               Readable spacing
               <span className="text-xs text-muted-foreground">{prefs.readableSpacing ? "On" : "Off"}</span>
+            </button>
+            <button type="button" onClick={toggleDyslexiaFont} aria-pressed={prefs.dyslexiaFont} className={toggleCls(prefs.dyslexiaFont)}>
+              Dyslexia-friendly font
+              <span className="text-xs text-muted-foreground">{prefs.dyslexiaFont ? "On" : "Off"}</span>
+            </button>
+            <button type="button" onClick={toggleHideImages} aria-pressed={prefs.hideImages} className={toggleCls(prefs.hideImages)}>
+              Hide images
+              <span className="text-xs text-muted-foreground">{prefs.hideImages ? "On" : "Off"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={cycleLineHeight}
+              aria-pressed={prefs.lineHeightLevel > 0}
+              className={toggleCls(prefs.lineHeightLevel > 0)}
+            >
+              Line height
+              <span className="text-xs text-muted-foreground">{lineHeightLabel}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleForceLeftAlign}
+              aria-pressed={prefs.forceLeftAlign}
+              className={toggleCls(prefs.forceLeftAlign)}
+            >
+              Left-align text
+              <span className="text-xs text-muted-foreground">{prefs.forceLeftAlign ? "On" : "Off"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleLowSaturation}
+              aria-pressed={prefs.lowSaturation}
+              className={toggleCls(prefs.lowSaturation)}
+            >
+              Low saturation
+              <span className="text-xs text-muted-foreground">{prefs.lowSaturation ? "On" : "Off"}</span>
             </button>
           </div>
 
