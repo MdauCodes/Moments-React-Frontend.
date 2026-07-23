@@ -189,13 +189,13 @@ export function SiteFooter() {
         <div>
           <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Contact</h4>
           <ul className="mt-4 space-y-2 text-sm text-primary-foreground/90">
-            <li className="flex items-center gap-2">
+            <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <Phone className="h-4 w-4 shrink-0" aria-hidden />
-              <a href="tel:+254119556688" className="hover:text-accent">
+              <a href="tel:+254119556688" className="whitespace-nowrap hover:text-accent">
                 {COMPANY_PHONE}
               </a>
               <span aria-hidden>/</span>
-              <a href="tel:+254119556699" className="hover:text-accent">
+              <a href="tel:+254119556699" className="whitespace-nowrap hover:text-accent">
                 {COMPANY_PHONE_ALT}
               </a>
             </li>
