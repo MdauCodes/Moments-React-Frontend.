@@ -172,26 +172,30 @@ export function WelcomeStarterModal() {
           <>
             {/* Avatar 1's job: introduce the offer copy — breaks the card's
                 top-left corner so it reads as a mascot standing in front of
-                the panel, not artwork pasted inside it. Smaller on mobile —
-                same corner-break idea, scaled to the narrower card and the
-                backdrop margin around it (p-4 on the overlay), so it never
-                overlaps the centered heading below. */}
+                the panel, not artwork pasted inside it. Sized down on mobile
+                but kept close to the card edge (not the old -left-4/-top-4,
+                which pushed it further into the overlay's tight p-4 margin
+                and risked clipping on narrow phones) so it still reads as a
+                deliberate mascot rather than a stray sticker. pt-20 below
+                clears its full mobile height so it never overlaps the
+                centered heading. */}
             <img
               src={avatarLeft}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -left-4 -top-4 z-[5] h-16 w-16 select-none object-contain object-bottom drop-shadow-xl sm:-left-10 sm:-top-9 sm:h-40 sm:w-40 sm:drop-shadow-2xl"
+              className="pointer-events-none absolute -left-3 -top-3 z-[5] h-20 w-20 select-none object-contain object-bottom drop-shadow-xl sm:-left-10 sm:-top-9 sm:h-40 sm:w-40 sm:drop-shadow-2xl"
             />
             {/* Avatar 2's job: usher the button choices — breaks the
-                bottom-right corner near the button row. */}
+                bottom-right corner near the button row. Same edge-clipping
+                fix as avatar 1 above. */}
             <img
               src={avatarRight}
               alt=""
               aria-hidden="true"
-              className="pointer-events-none absolute -right-3 -bottom-3 z-[5] h-14 w-14 select-none object-contain object-bottom drop-shadow-xl sm:-right-8 sm:-bottom-6 sm:h-32 sm:w-32 sm:drop-shadow-2xl"
+              className="pointer-events-none absolute -right-2 -bottom-2 z-[5] h-16 w-16 select-none object-contain object-bottom drop-shadow-xl sm:-right-8 sm:-bottom-6 sm:h-32 sm:w-32 sm:drop-shadow-2xl"
             />
 
-            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-14 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200">
+            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-20 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="min-w-0">
                   <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug sm:text-2xl sm:leading-tight" style={{ color: FOREST_DEEP }}>
