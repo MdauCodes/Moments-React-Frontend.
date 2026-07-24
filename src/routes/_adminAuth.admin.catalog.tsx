@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { ChevronDown, ChevronRight, Loader2, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -16,12 +16,52 @@ import {
 
 type Level = "segment" | "category" | "subcategory";
 type LevelRow = SegmentDto | CategoryDto | SubcategoryDto;
+/** Which of the two root branches is expanded — mutually exclusive, both start collapsed. */
+type RootBranch = "segments" | "industries" | null;
 
 const emptyForm = { name: "", description: "", sortOrder: "", industryIds: [] as string[] };
+const emptyIndustryForm = { name: "", description: "", iconUrl: "" };
+
+function CollapsibleHeader({
+  label,
+  open,
+  onClick,
+  count,
+}: {
+  label: string;
+  open: boolean;
+  onClick: () => void;
+  count?: number;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: "flex", alignItems: "center", gap: 8, width: "100%",
+        padding: "12px 14px", background: "transparent", border: 0, cursor: "pointer",
+        fontFamily: "var(--font-display)", fontSize: 16, fontWeight: 600, textAlign: "left",
+      }}
+    >
+      {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+      {label}
+      {count !== undefined && (
+        <span style={{ fontSize: 12, fontWeight: 400, color: "var(--admin-muted)" }}>({count})</span>
+      )}
+    </button>
+  );
+}
 
 function AdminCatalogPage() {
   const { isAdmin } = useAuth();
 
+  // ---- Root-level accordion: Segments vs Industries, both collapsed by default ----
+  const [openRoot, setOpenRoot] = useState<RootBranch>(null);
+  const toggleRoot = (branch: "segments" | "industries") => {
+    setOpenRoot((prev) => (prev === branch ? null : branch));
+  };
+
+  // ---- Segment -> Category -> Subcategory branch ----
   const [segments, setSegments] = useState<SegmentDto[]>([]);
   const [categories, setCategories] = useState<CategoryDto[]>([]);
   const [subcategories, setSubcategories] = useState<SubcategoryDto[]>([]);
@@ -79,9 +119,18 @@ function AdminCatalogPage() {
     }
   };
 
+  const loadIndustries = async () => {
+    try {
+      setIndustries(await adminResources.industries.list());
+    } catch {
+      // Non-fatal here — only blocks the industry-tag checkboxes on seg/cat/subcat
+      // forms and the Industries branch below, both of which show their own empty states.
+    }
+  };
+
   useEffect(() => {
     void loadSegments();
-    adminResources.industries.list().then(setIndustries).catch(() => undefined);
+    void loadIndustries();
   }, []);
 
   const selectSegment = (id: string) => {
@@ -286,147 +335,431 @@ function AdminCatalogPage() {
     return row.name;
   };
 
+  // ---- Industries branch ----
+  const [selectedIndustryId, setSelectedIndustryId] = useState<string | null>(null);
+  const [industryModalOpen, setIndustryModalOpen] = useState(false);
+  const [editingIndustry, setEditingIndustry] = useState<IndustryDto | null>(null);
+  const [industryForm, setIndustryForm] = useState(emptyIndustryForm);
+  const [industrySaving, setIndustrySaving] = useState(false);
+
+  // All categories/subcategories (unscoped by segment) — needed for the linking
+  // checklists below, loaded once an industry is actually selected.
+  const [allCategories, setAllCategories] = useState<CategoryDto[]>([]);
+  const [allSubcategories, setAllSubcategories] = useState<SubcategoryDto[]>([]);
+  const [linksLoading, setLinksLoading] = useState(false);
+  const [checkedCategoryIds, setCheckedCategoryIds] = useState<Set<string>>(new Set());
+  const [checkedSubcategoryIds, setCheckedSubcategoryIds] = useState<Set<string>>(new Set());
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [subcategoryFilter, setSubcategoryFilter] = useState("");
+  const [linksSaving, setLinksSaving] = useState(false);
+  // Categories checklist collapsed by default (like the Segments branch's categories
+  // column) — Subcategories has no such toggle, always visible once an industry is picked.
+  const [industryCategoriesOpen, setIndustryCategoriesOpen] = useState(false);
+
+  const selectIndustry = async (industry: IndustryDto) => {
+    setSelectedIndustryId(industry.id);
+    setIndustryCategoriesOpen(false);
+    setCategoryFilter("");
+    setSubcategoryFilter("");
+    setLinksLoading(true);
+    try {
+      const [cats, subs] = await Promise.all([
+        adminResources.categories.list(),
+        adminResources.subcategories.list(),
+      ]);
+      setAllCategories(cats);
+      setAllSubcategories(subs);
+      setCheckedCategoryIds(new Set(cats.filter((c) => c.industryIds?.includes(industry.id)).map((c) => c.id)));
+      setCheckedSubcategoryIds(new Set(subs.filter((sc) => sc.industryIds?.includes(industry.id)).map((sc) => sc.id)));
+    } catch (err) {
+      reportAdminError(err, "Failed to load categories/subcategories");
+    } finally {
+      setLinksLoading(false);
+    }
+  };
+
+  const toggleLinkCategory = (id: string) => {
+    setCheckedCategoryIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleLinkSubcategory = (id: string) => {
+    setCheckedSubcategoryIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const beginCreateIndustry = () => {
+    setEditingIndustry(null);
+    setIndustryForm(emptyIndustryForm);
+    setIndustryModalOpen(true);
+  };
+
+  const beginEditIndustry = (industry: IndustryDto) => {
+    setEditingIndustry(industry);
+    setIndustryForm({ name: industry.name, description: industry.description ?? "", iconUrl: industry.iconUrl ?? "" });
+    setIndustryModalOpen(true);
+  };
+
+  const saveIndustry = async (e: FormEvent) => {
+    e.preventDefault();
+    setIndustrySaving(true);
+    try {
+      editingIndustry
+        ? await adminResources.industries.update(editingIndustry.id, industryForm)
+        : await adminResources.industries.create(industryForm);
+      toast.success(editingIndustry ? "Industry updated" : "Industry created");
+      setIndustryModalOpen(false);
+      await loadIndustries();
+    } catch (err) {
+      reportAdminError(err, "Save failed");
+    } finally {
+      setIndustrySaving(false);
+    }
+  };
+
+  const removeIndustry = async (industry: IndustryDto) => {
+    if (!isAdmin || !confirm(`Delete "${industry.name}"?`)) return;
+    setIndustrySaving(true);
+    try {
+      await adminResources.industries.remove(industry.id);
+      toast.success("Industry deleted");
+      if (selectedIndustryId === industry.id) setSelectedIndustryId(null);
+      await loadIndustries();
+    } catch (err) {
+      reportAdminError(err, "Delete failed");
+    } finally {
+      setIndustrySaving(false);
+    }
+  };
+
+  // Only pushes updates for rows whose membership actually changed — adds/removes just
+  // this industry's id from each row's existing industryIds list, never overwrites the
+  // whole list (other industries may already be linked to the same category/subcategory).
+  const saveLinks = async () => {
+    if (!selectedIndustryId) return;
+    setLinksSaving(true);
+    try {
+      const categoryUpdates = allCategories
+        .filter((c) => (c.industryIds ?? []).includes(selectedIndustryId) !== checkedCategoryIds.has(c.id))
+        .map((c) => {
+          const current = new Set(c.industryIds ?? []);
+          checkedCategoryIds.has(c.id) ? current.add(selectedIndustryId) : current.delete(selectedIndustryId);
+          // Category's update DTO reuses the create shape, which requires segmentId/name
+          // even on a partial update — send its current values, not just the changed field.
+          return adminResources.categories.update(c.id, {
+            segmentId: c.segmentId, name: c.name, description: c.description,
+            sortOrder: c.sortOrder, industryIds: Array.from(current),
+          });
+        });
+      const subcategoryUpdates = allSubcategories
+        .filter((sc) => (sc.industryIds ?? []).includes(selectedIndustryId) !== checkedSubcategoryIds.has(sc.id))
+        .map((sc) => {
+          const current = new Set(sc.industryIds ?? []);
+          checkedSubcategoryIds.has(sc.id) ? current.add(selectedIndustryId) : current.delete(selectedIndustryId);
+          return adminResources.subcategories.update(sc.id, {
+            categoryId: sc.categoryId, name: sc.name, description: sc.description,
+            sortOrder: sc.sortOrder, industryIds: Array.from(current),
+          });
+        });
+      await Promise.all([...categoryUpdates, ...subcategoryUpdates]);
+      toast.success("Industry classifications updated");
+    } catch (err) {
+      reportAdminError(err, "Save failed");
+    } finally {
+      setLinksSaving(false);
+    }
+  };
+
+  const filteredLinkCategories = useMemo(
+    () => allCategories.filter((c) => c.name.toLowerCase().includes(categoryFilter.toLowerCase())),
+    [allCategories, categoryFilter],
+  );
+  const filteredLinkSubcategories = useMemo(
+    () => allSubcategories.filter((sc) =>
+      sc.name.toLowerCase().includes(subcategoryFilter.toLowerCase())
+      || (sc.categoryName ?? "").toLowerCase().includes(subcategoryFilter.toLowerCase())),
+    [allSubcategories, subcategoryFilter],
+  );
+
   return (
-    <AdminLayout title="Catalog Structure" onReload={loadSegments}>
+    <AdminLayout title="Classifications" onReload={loadSegments}>
       <HelpAnchor>
-        <HelpPanel title="Segment → Category → Subcategory">
+        <HelpPanel title="Segments, Categories, Subcategories & Industries — one place">
           <p style={{ margin: 0 }}>
             Every product belongs to exactly one Subcategory, which fixes its Category and Segment.
-            Pick a Segment to see its Categories, then a Category to see its Subcategories. A level
-            can't be deleted while it still has children or products attached — reassign or remove
-            those first.
+            A Category or Subcategory can <em>also</em> be tagged to one or more Industries — that's
+            the connection this page is built around: drill down by Segment, or work industry-first
+            below. Only one of the two is open at a time to keep things compact.
           </p>
         </HelpPanel>
 
         <div className="admin-page-stack">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }} data-admin-grid>
-            {/* Segments */}
-            <div className="admin-panel" style={{ padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Segments</h2>
-                <button className="admin-btn admin-btn-primary" onClick={() => beginCreate("segment")}>New</button>
-              </div>
-              {loadingSegments ? (
-                <div className="admin-empty">Loading…</div>
-              ) : segments.length === 0 ? (
-                <div className="admin-empty">No segments yet.</div>
-              ) : (
-                <div style={{ display: "grid", gap: 6 }}>
-                  {segments.map((s) => (
-                    <div
-                      key={s.id}
-                      onClick={() => selectSegment(s.id)}
-                      style={{
-                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                        padding: "8px 10px", borderRadius: 8, cursor: "pointer",
-                        background: selectedSegmentId === s.id ? "var(--admin-accent-soft, rgba(0,0,0,0.06))" : "transparent",
-                        border: "1px solid var(--admin-border)",
-                      }}
-                    >
-                      <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
-                      <span style={{ display: "flex", gap: 4 }}>
-                        <button className="admin-btn admin-btn-ghost" onClick={(e) => { e.stopPropagation(); beginEdit("segment", s); }}><Pencil size={12} /></button>
-                        {isAdmin && (
-                          <button className="admin-btn admin-btn-danger" disabled={saving} onClick={(e) => { e.stopPropagation(); void remove("segment", s); }}><Trash2 size={12} /></button>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Categories */}
-            <div className="admin-panel" style={{ padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Categories</h2>
-                <button className="admin-btn admin-btn-primary" disabled={!selectedSegmentId} onClick={() => beginCreate("category")}>New</button>
-              </div>
-              {!selectedSegmentId ? (
-                <div className="admin-empty">Select a segment.</div>
-              ) : loadingCategories ? (
-                <div className="admin-empty">Loading…</div>
-              ) : categories.length === 0 ? (
-                <div className="admin-empty">No categories yet.</div>
-              ) : (
-                <div style={{ display: "grid", gap: 6 }}>
-                  {categories.map((c) => (
-                    <div
-                      key={c.id}
-                      onClick={() => selectCategory(c.id)}
-                      style={{
-                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                        padding: "8px 10px", borderRadius: 8, cursor: "pointer",
-                        background: selectedCategoryId === c.id ? "var(--admin-accent-soft, rgba(0,0,0,0.06))" : "transparent",
-                        border: "1px solid var(--admin-border)",
-                      }}
-                    >
-                      <span>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</span>
-                        {c.industryNames && c.industryNames.length > 0 && (
-                          <span style={{ display: "block", fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
-                            {c.industryNames.join(", ")}
+          {/* ── Segments root branch ── */}
+          <div className="admin-panel">
+            <CollapsibleHeader
+              label="Segments"
+              open={openRoot === "segments"}
+              onClick={() => toggleRoot("segments")}
+              count={segments.length}
+            />
+            {openRoot === "segments" && (
+              <div style={{ padding: "0 14px 14px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14 }} data-admin-grid>
+                {/* Segments */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Segments</h2>
+                    <button className="admin-btn admin-btn-primary" onClick={() => beginCreate("segment")}>New</button>
+                  </div>
+                  {loadingSegments ? (
+                    <div className="admin-empty">Loading…</div>
+                  ) : segments.length === 0 ? (
+                    <div className="admin-empty">No segments yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {segments.map((s) => (
+                        <div
+                          key={s.id}
+                          onClick={() => selectSegment(s.id)}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                            background: selectedSegmentId === s.id ? "var(--admin-accent-soft, rgba(0,0,0,0.06))" : "transparent",
+                            border: "1px solid var(--admin-border)",
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{s.name}</span>
+                          <span style={{ display: "flex", gap: 4 }}>
+                            <button className="admin-btn admin-btn-ghost" onClick={(e) => { e.stopPropagation(); beginEdit("segment", s); }}><Pencil size={12} /></button>
+                            {isAdmin && (
+                              <button className="admin-btn admin-btn-danger" disabled={saving} onClick={(e) => { e.stopPropagation(); void remove("segment", s); }}><Trash2 size={12} /></button>
+                            )}
                           </span>
-                        )}
-                      </span>
-                      <span style={{ display: "flex", gap: 4 }}>
-                        <button className="admin-btn admin-btn-ghost" onClick={(e) => { e.stopPropagation(); beginEdit("category", c); }}><Pencil size={12} /></button>
-                        {isAdmin && (
-                          <button className="admin-btn admin-btn-danger" disabled={saving} onClick={(e) => { e.stopPropagation(); void remove("category", c); }}><Trash2 size={12} /></button>
-                        )}
-                      </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Subcategories */}
-            <div className="admin-panel" style={{ padding: 14 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Subcategories</h2>
-                <button className="admin-btn admin-btn-primary" disabled={!selectedCategoryId} onClick={() => beginCreate("subcategory")}>New</button>
-              </div>
-              {!selectedCategoryId ? (
-                <div className="admin-empty">Select a category.</div>
-              ) : loadingSubcategories ? (
-                <div className="admin-empty">Loading…</div>
-              ) : subcategories.length === 0 ? (
-                <div className="admin-empty">No subcategories yet.</div>
-              ) : (
-                <div style={{ display: "grid", gap: 6 }}>
-                  {subcategories.map((sc) => (
-                    <div
-                      key={sc.id}
-                      style={{
-                        display: "flex", justifyContent: "space-between", alignItems: "center",
-                        padding: "8px 10px", borderRadius: 8,
-                        border: "1px solid var(--admin-border)",
-                      }}
-                    >
-                      <span>
-                        <span style={{ fontWeight: 600, fontSize: 13 }}>{sc.name}</span>
-                        {sc.industryNames && sc.industryNames.length > 0 && (
-                          <span style={{ display: "block", fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
-                            {sc.industryNames.join(", ")}
+                {/* Categories — hidden until a segment is picked, same as before */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Categories</h2>
+                    <button className="admin-btn admin-btn-primary" disabled={!selectedSegmentId} onClick={() => beginCreate("category")}>New</button>
+                  </div>
+                  {!selectedSegmentId ? (
+                    <div className="admin-empty">Select a segment.</div>
+                  ) : loadingCategories ? (
+                    <div className="admin-empty">Loading…</div>
+                  ) : categories.length === 0 ? (
+                    <div className="admin-empty">No categories yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {categories.map((c) => (
+                        <div
+                          key={c.id}
+                          onClick={() => selectCategory(c.id)}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                            background: selectedCategoryId === c.id ? "var(--admin-accent-soft, rgba(0,0,0,0.06))" : "transparent",
+                            border: "1px solid var(--admin-border)",
+                          }}
+                        >
+                          <span>
+                            <span style={{ fontWeight: 600, fontSize: 13 }}>{c.name}</span>
+                            {c.industryNames && c.industryNames.length > 0 && (
+                              <span style={{ display: "block", fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
+                                {c.industryNames.join(", ")}
+                              </span>
+                            )}
                           </span>
-                        )}
-                      </span>
-                      <span style={{ display: "flex", gap: 4 }}>
-                        <button className="admin-btn admin-btn-ghost" onClick={() => beginEdit("subcategory", sc)}><Pencil size={12} /></button>
-                        {isAdmin && (
-                          <button className="admin-btn admin-btn-danger" disabled={saving} onClick={() => void remove("subcategory", sc)}><Trash2 size={12} /></button>
-                        )}
-                      </span>
+                          <span style={{ display: "flex", gap: 4 }}>
+                            <button className="admin-btn admin-btn-ghost" onClick={(e) => { e.stopPropagation(); beginEdit("category", c); }}><Pencil size={12} /></button>
+                            {isAdmin && (
+                              <button className="admin-btn admin-btn-danger" disabled={saving} onClick={(e) => { e.stopPropagation(); void remove("category", c); }}><Trash2 size={12} /></button>
+                            )}
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
-              )}
-            </div>
+
+                {/* Subcategories — always visible once a category is picked, never collapsed */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Subcategories</h2>
+                    <button className="admin-btn admin-btn-primary" disabled={!selectedCategoryId} onClick={() => beginCreate("subcategory")}>New</button>
+                  </div>
+                  {!selectedCategoryId ? (
+                    <div className="admin-empty">Select a category.</div>
+                  ) : loadingSubcategories ? (
+                    <div className="admin-empty">Loading…</div>
+                  ) : subcategories.length === 0 ? (
+                    <div className="admin-empty">No subcategories yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {subcategories.map((sc) => (
+                        <div
+                          key={sc.id}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "8px 10px", borderRadius: 8,
+                            border: "1px solid var(--admin-border)",
+                          }}
+                        >
+                          <span>
+                            <span style={{ fontWeight: 600, fontSize: 13 }}>{sc.name}</span>
+                            {sc.industryNames && sc.industryNames.length > 0 && (
+                              <span style={{ display: "block", fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
+                                {sc.industryNames.join(", ")}
+                              </span>
+                            )}
+                          </span>
+                          <span style={{ display: "flex", gap: 4 }}>
+                            <button className="admin-btn admin-btn-ghost" onClick={() => beginEdit("subcategory", sc)}><Pencil size={12} /></button>
+                            {isAdmin && (
+                              <button className="admin-btn admin-btn-danger" disabled={saving} onClick={() => void remove("subcategory", sc)}><Trash2 size={12} /></button>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Industries root branch ── */}
+          <div className="admin-panel">
+            <CollapsibleHeader
+              label="Industries"
+              open={openRoot === "industries"}
+              onClick={() => toggleRoot("industries")}
+              count={industries.length}
+            />
+            {openRoot === "industries" && (
+              <div style={{ padding: "0 14px 14px", display: "grid", gridTemplateColumns: "minmax(220px, 320px) 1fr", gap: 14 }} data-admin-grid>
+                {/* Industries list */}
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 15 }}>Industries</h2>
+                    <button className="admin-btn admin-btn-primary" onClick={beginCreateIndustry}>New</button>
+                  </div>
+                  {industries.length === 0 ? (
+                    <div className="admin-empty">No industries yet.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 6 }}>
+                      {industries.map((ind) => (
+                        <div
+                          key={ind.id}
+                          onClick={() => void selectIndustry(ind)}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "8px 10px", borderRadius: 8, cursor: "pointer",
+                            background: selectedIndustryId === ind.id ? "var(--admin-accent-soft, rgba(0,0,0,0.06))" : "transparent",
+                            border: "1px solid var(--admin-border)",
+                          }}
+                        >
+                          <span style={{ fontWeight: 600, fontSize: 13 }}>{ind.name}</span>
+                          <span style={{ display: "flex", gap: 4 }}>
+                            <button className="admin-btn admin-btn-ghost" onClick={(e) => { e.stopPropagation(); beginEditIndustry(ind); }}><Pencil size={12} /></button>
+                            {isAdmin && (
+                              <button className="admin-btn admin-btn-danger" disabled={industrySaving} onClick={(e) => { e.stopPropagation(); void removeIndustry(ind); }}><Trash2 size={12} /></button>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Linking panel for the selected industry */}
+                <div>
+                  {!selectedIndustryId ? (
+                    <div className="admin-empty">Select an industry to add categories and subcategories to it.</div>
+                  ) : (
+                    <div style={{ display: "grid", gap: 14 }}>
+                      {/* Categories in this industry — collapsed by default */}
+                      <div style={{ border: "1px solid var(--admin-border)", borderRadius: 8 }}>
+                        <CollapsibleHeader
+                          label="Categories in this industry"
+                          open={industryCategoriesOpen}
+                          onClick={() => setIndustryCategoriesOpen((v) => !v)}
+                          count={checkedCategoryIds.size}
+                        />
+                        {industryCategoriesOpen && (
+                          <div style={{ padding: "0 14px 14px" }}>
+                            <input
+                              className="admin-input" placeholder="Search categories…" style={{ marginBottom: 6 }}
+                              value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}
+                            />
+                            <div style={{ maxHeight: 220, overflowY: "auto", border: "1px solid var(--admin-border)", borderRadius: 8, padding: 8 }}>
+                              {linksLoading ? (
+                                <div style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>Loading…</div>
+                              ) : filteredLinkCategories.length === 0 ? (
+                                <div style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>No categories match.</div>
+                              ) : (
+                                filteredLinkCategories.map((c) => (
+                                  <label key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 2px", fontSize: 13 }}>
+                                    <input type="checkbox" checked={checkedCategoryIds.has(c.id)} onChange={() => toggleLinkCategory(c.id)} />
+                                    {c.name}
+                                    <span style={{ color: "var(--admin-muted)", fontSize: 11 }}>{c.segmentName}</span>
+                                  </label>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Subcategories in this industry — always visible, never collapsed */}
+                      <div>
+                        <span className="admin-label">Subcategories in this industry</span>
+                        <input
+                          className="admin-input" placeholder="Search subcategories…" style={{ marginTop: 4, marginBottom: 6 }}
+                          value={subcategoryFilter} onChange={(e) => setSubcategoryFilter(e.target.value)}
+                        />
+                        <div style={{ maxHeight: 260, overflowY: "auto", border: "1px solid var(--admin-border)", borderRadius: 8, padding: 8 }}>
+                          {linksLoading ? (
+                            <div style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>Loading…</div>
+                          ) : filteredLinkSubcategories.length === 0 ? (
+                            <div style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>No subcategories match.</div>
+                          ) : (
+                            filteredLinkSubcategories.map((sc) => (
+                              <label key={sc.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 2px", fontSize: 13 }}>
+                                <input type="checkbox" checked={checkedSubcategoryIds.has(sc.id)} onChange={() => toggleLinkSubcategory(sc.id)} />
+                                {sc.name}
+                                <span style={{ color: "var(--admin-muted)", fontSize: 11 }}>{sc.categoryName}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <button className="admin-btn admin-btn-primary" disabled={linksSaving || linksLoading} onClick={() => void saveLinks()}>
+                          {linksSaving && <Loader2 size={14} className="animate-spin" />}
+                          Save classifications
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </HelpAnchor>
 
+      {/* Segment/Category/Subcategory create-edit modal */}
       {modalLevel && (
         <div className="admin-modal-backdrop">
           <form className="admin-modal" onSubmit={save}>
@@ -456,7 +789,7 @@ function AdminCatalogPage() {
                   </span>
                   {industries.length === 0 ? (
                     <p style={{ fontSize: 12.5, color: "var(--admin-muted)", margin: "4px 0 0" }}>
-                      No industries created yet — add some under Industries first.
+                      No industries created yet — add one in the Industries section above first.
                     </p>
                   ) : (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
@@ -486,6 +819,40 @@ function AdminCatalogPage() {
             <div className="admin-toolbar">
               <button className="admin-btn admin-btn-primary" disabled={saving}>
                 {saving && <Loader2 size={14} className="animate-spin" />}
+                Save
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Industry create/edit modal — name/description/icon only; category & subcategory
+          linking happens inline in the branch above, not here, so it's always one click
+          away instead of hidden behind "edit industry". */}
+      {industryModalOpen && (
+        <div className="admin-modal-backdrop">
+          <form className="admin-modal" onSubmit={saveIndustry}>
+            <div className="admin-toolbar">
+              <h2>{editingIndustry ? "Edit industry" : "Create industry"}</h2>
+              <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setIndustryModalOpen(false)}>Close</button>
+            </div>
+            <div className="admin-form-grid">
+              <label>
+                <span className="admin-label">Name</span>
+                <input required className="admin-input" value={industryForm.name} onChange={(e) => setIndustryForm({ ...industryForm, name: e.target.value })} />
+              </label>
+              <label>
+                <span className="admin-label">Icon URL</span>
+                <input className="admin-input" value={industryForm.iconUrl} onChange={(e) => setIndustryForm({ ...industryForm, iconUrl: e.target.value })} />
+              </label>
+              <label style={{ gridColumn: "1/-1" }}>
+                <span className="admin-label">Description</span>
+                <textarea className="admin-textarea" value={industryForm.description} onChange={(e) => setIndustryForm({ ...industryForm, description: e.target.value })} />
+              </label>
+            </div>
+            <div className="admin-toolbar">
+              <button className="admin-btn admin-btn-primary" disabled={industrySaving}>
+                {industrySaving && <Loader2 size={14} className="animate-spin" />}
                 Save
               </button>
             </div>

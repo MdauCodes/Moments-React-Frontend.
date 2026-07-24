@@ -9,7 +9,6 @@ import {
   Search,
   FileText,
   LayoutDashboard,
-  Factory,
   LogOut,
   Menu,
   X,
@@ -129,9 +128,8 @@ const navSections: NavSection[] = [
     items: [
       { label: "Products", to: "/admin/products", icon: Package, requiresAny: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE] },
       { label: "Stock Levels", to: "/admin/inventory", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Categories & Segments", to: "/admin/catalog", icon: ListTree, requiresAny: [PERM.PRODUCT_MANAGE] },
+      { label: "Classifications", to: "/admin/catalog", icon: ListTree, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Classify Products", to: "/admin/classify-products", icon: LayoutList, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Industries", to: "/admin/industries", icon: Factory, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Delivery Zones", to: "/admin/delivery-zones", icon: Truck, requiresAny: [PERM.SETTINGS_MANAGE] },
     ],
   },

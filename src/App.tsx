@@ -95,7 +95,6 @@ import AdminDeliveryZonesPage from "@/routes/_adminAuth.admin.delivery-zones";
 import AdminEnquiriesPage from "@/routes/_adminAuth.admin.enquiries";
 import AdminEnquiriesNewPage from "@/routes/_adminAuth.admin.enquiries.new";
 import AdminEnquiryDetailPage from "@/routes/_adminAuth.admin.enquiries.$id";
-import AdminIndustriesPage from "@/routes/_adminAuth.admin.industries";
 import AdminInventoryPage from "@/routes/_adminAuth.admin.inventory";
 import AdminOrdersPage from "@/routes/_adminAuth.admin.orders";
 import AdminOrderDetailPage from "@/routes/_adminAuth.admin.orders.$id";
@@ -217,7 +216,6 @@ export default function App() {
                       <Route path="/admin/enquiries" element={<AdminEnquiriesPage />} />
                       <Route path="/admin/enquiries/new" element={<AdminEnquiriesNewPage />} />
                       <Route path="/admin/enquiries/:id" element={<AdminEnquiryDetailPage />} />
-                      <Route path="/admin/industries" element={<AdminIndustriesPage />} />
                       <Route path="/admin/inventory" element={<AdminInventoryPage />} />
                       <Route path="/admin/orders" element={<AdminOrdersPage />} />
                       <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
