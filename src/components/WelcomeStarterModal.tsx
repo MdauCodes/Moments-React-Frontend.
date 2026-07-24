@@ -58,18 +58,20 @@ function recordDeclined(): void {
   }
 }
 
-// Background matches the sign-in form's panel exactly, per explicit instruction (AuthModal.tsx
-// uses this same color-mix) — note this reintroduces --accent (red/orange) into a component the
-// client previously asked to keep to the dark-green/gold family; kept anyway on direct request.
-const MODAL_BG = "color-mix(in oklab, var(--accent) 24%, white 76%)";
-const MODAL_BORDER = "color-mix(in oklab, var(--accent) 40%, white 60%)";
+// Client feedback: drop the red/gold tint entirely — white/gray as the accent against the
+// dark-green anchor color, not warm tones (this replaces the earlier "match AuthModal's
+// red-tinted panel" background, and the gold card/badge/pill treatment below it).
+const MODAL_BG = "#ffffff";
+const MODAL_BORDER = "#e4e4e0";
 
-// Dark-green/gold ink, now used as TEXT/button color against the light background above
-// (previously these were used as light color against a dark modal background).
 const FOREST_DEEP = "#08231a";
 const FOREST = "#0d3320";
-const GOLD = "#c9a44c";
-const GOLD_DARK = "#8a6420"; // darkened gold for small text/links — GOLD_SOFT is unreadable on a light backdrop
+// Light gray wash for the two highlighted option cards — keeps them visually distinct from the
+// plain-white "no account" card below without reaching for gold.
+const CARD_BG = "#f4f4f2";
+// Secondary link/CTA color — a neutral gray in place of the old gold-brown, checked against both
+// CARD_BG and MODAL_BG for WCAG AA (4.5:1+) same as the contrast pass done on the gold version.
+const GRAY_INK = "#57534e";
 
 type View = "main" | "decline";
 
@@ -81,15 +83,13 @@ function shouldShow(): boolean {
 // button, even though the whole card is the real clickable target — clicks
 // on this pill bubble up to the card's own onClick, so it doesn't need one.
 // Sized up (was text-[10.5px]/px-3 py-1) so it reads as a real, tappable button on all screens.
-function CtaPill({ children, tone = "gold" }: { children: React.ReactNode; tone?: "gold" | "neutral" }) {
+// One consistent dark-green/white style across all three options now — the old gold-vs-neutral
+// tone split went away along with the gold accent itself.
+function CtaPill({ children }: { children: React.ReactNode }) {
   return (
     <span
       className="mt-1 inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-bold"
-      style={
-        tone === "gold"
-          ? { background: GOLD, color: FOREST_DEEP }
-          : { background: FOREST_DEEP, color: "#fff" }
-      }
+      style={{ background: FOREST_DEEP, color: "#fff" }}
     >
       {children}
       <ArrowRight className="h-3.5 w-3.5" />
@@ -163,7 +163,7 @@ export function WelcomeStarterModal() {
           onClick={() => dismiss()}
           aria-label="Close"
           className="absolute right-3 top-3 z-20 rounded-full p-1.5 transition hover:bg-black/10"
-          style={{ color: `${FOREST_DEEP}99` }}
+          style={{ color: `${FOREST_DEEP}b3` }}
         >
           <X className="h-4 w-4" />
         </button>
@@ -206,9 +206,9 @@ export function WelcomeStarterModal() {
                     order through discounts, referral rewards, and VIP perks. Open a Business Account to unlock a
                     one-time 5% promo code after your trade profile is approved.
                   </p>
-                  <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}99` }}>
+                  <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}b3` }}>
                     Full details in the{" "}
-                    <RewardsTermsLink className="underline underline-offset-2 font-semibold text-[#8a6420]">
+                    <RewardsTermsLink className="underline underline-offset-2 font-semibold text-[#57534e]">
                       offer terms
                     </RewardsTermsLink>
                     .
@@ -223,14 +223,14 @@ export function WelcomeStarterModal() {
               <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
                 <div
                   className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm sm:gap-2 sm:py-5"
-                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: CARD_BG }}
                 >
                   <button
                     type="button"
                     onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
                     className="flex flex-col items-center gap-1.5 sm:gap-2"
                   >
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: GOLD, color: FOREST_DEEP }}>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border shadow-sm" style={{ background: "#ffffff", borderColor: `${FOREST_DEEP}22`, color: FOREST_DEEP }}>
                       <Briefcase className="h-5 w-5" />
                     </span>
                     <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create a Business Account</span>
@@ -241,7 +241,7 @@ export function WelcomeStarterModal() {
                     to="/account-options#business"
                     onClick={() => dismiss(true)}
                     className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
-                    style={{ color: GOLD_DARK }}
+                    style={{ color: GRAY_INK }}
                   >
                     Learn more
                   </Link>
@@ -249,14 +249,14 @@ export function WelcomeStarterModal() {
 
                 <div
                   className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm sm:gap-2 sm:py-5"
-                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: CARD_BG }}
                 >
                   <button
                     type="button"
                     onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
                     className="flex flex-col items-center gap-1.5 sm:gap-2"
                   >
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: GOLD, color: FOREST_DEEP }}>
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border shadow-sm" style={{ background: "#ffffff", borderColor: `${FOREST_DEEP}22`, color: FOREST_DEEP }}>
                       <Gift className="h-5 w-5" />
                     </span>
                     <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create an Individual Shopper account</span>
@@ -267,7 +267,7 @@ export function WelcomeStarterModal() {
                     to="/account-options#individual"
                     onClick={() => dismiss(true)}
                     className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
-                    style={{ color: GOLD_DARK }}
+                    style={{ color: GRAY_INK }}
                   >
                     Learn more
                   </Link>
@@ -279,12 +279,12 @@ export function WelcomeStarterModal() {
                   className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm transition-colors hover:bg-black/5 sm:gap-2 sm:py-5"
                   style={{ borderColor: `${FOREST_DEEP}22`, background: "rgba(255,255,255,0.5)" }}
                 >
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full" style={{ background: `${FOREST_DEEP}1a`, color: FOREST_DEEP }}>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border shadow-sm" style={{ background: "#ffffff", borderColor: `${FOREST_DEEP}22`, color: FOREST_DEEP }}>
                     <ShoppingBag className="h-5 w-5" />
                   </span>
                   <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>I don't want to create an account</span>
                   <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>Just let me shop</span>
-                  <CtaPill tone="neutral">Continue</CtaPill>
+                  <CtaPill>Continue</CtaPill>
                 </button>
               </div>
 
@@ -340,7 +340,7 @@ export function WelcomeStarterModal() {
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "BUSINESS" }))}
                   className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm transition-colors hover:brightness-95"
-                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: CARD_BG }}
                 >
                   <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create a Business Account</span>
                   <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 coupons + a one-time 5% welcome code</span>
@@ -350,7 +350,7 @@ export function WelcomeStarterModal() {
                   type="button"
                   onClick={() => pick(() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" }))}
                   className="flex flex-col items-center gap-1.5 rounded-xl border-2 px-3 py-4 text-center shadow-sm transition-colors hover:brightness-95"
-                  style={{ borderColor: `${FOREST_DEEP}2e`, background: `${GOLD}22` }}
+                  style={{ borderColor: `${FOREST_DEEP}2e`, background: CARD_BG }}
                 >
                   <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create an Individual Shopper account</span>
                   <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 Reward Coupons on signup</span>
