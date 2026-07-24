@@ -192,7 +192,10 @@ export const api = {
     isNewArrival?: boolean;
     isFastMoving?: boolean;
     category?: string;
-    subcategoryId?: string;
+    /** Repeated query params — the backend combines several with OR (union of matching
+     *  products), for picking multiple subcategories/categories within an industry. */
+    subcategoryId?: string[];
+    categoryId?: string[];
     tagId?: string;
     page?: number;
     size?: number;
@@ -204,7 +207,6 @@ export const api = {
       isNewArrival: params?.isNewArrival,
       isFastMoving: params?.isFastMoving,
       category: params?.category,
-      subcategoryId: params?.subcategoryId,
       tagId: params?.tagId,
       page: params?.page ?? 0,
       size: params?.size ?? 20,
@@ -216,6 +218,12 @@ export const api = {
     });
     if (params?.industryIds?.length) {
       params.industryIds.forEach((id) => search.append("industryId", id));
+    }
+    if (params?.subcategoryId?.length) {
+      params.subcategoryId.forEach((id) => search.append("subcategoryId", id));
+    }
+    if (params?.categoryId?.length) {
+      params.categoryId.forEach((id) => search.append("categoryId", id));
     }
     const data = await getJson<PageResponse<Product> | Product[]>(`/api/v1/public/products?${search.toString()}`);
     return (Array.isArray(data) ? data : data.content).map(normalizeProduct);

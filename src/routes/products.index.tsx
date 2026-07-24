@@ -99,7 +99,12 @@ function ProductsPage() {
   const { isAuthenticated } = useAuth();
   const [_searchParams, setSearchParams] = useSearchParams();
   const search = Object.fromEntries(_searchParams.entries());
-  const { category, segmentId, subcategoryId, tagId, industry: industrySlug, q, sort = "newest" } = search;
+  const { category, segmentId, tagId, industry: industrySlug, q, sort = "newest" } = search;
+  // Repeated query params (?subcategoryId=a&subcategoryId=b&categoryId=c) — picking several
+  // subcategories and/or whole categories within the same industry combines them (the backend
+  // ORs subcategoryId/categoryId together), instead of the old single-value "last click wins".
+  const subcategoryIds = _searchParams.getAll("subcategoryId");
+  const categoryIds = _searchParams.getAll("categoryId");
   const newArrivals = search.newArrivals === "true";
   const deals = search.deals === "true";
   const fastMoving = search.fastMoving === "true";
@@ -173,7 +178,7 @@ function ProductsPage() {
   }, [sort]);
 
   const anyFilterActive = !!(
-    industrySlug || category || subcategoryId || tagId || newArrivals || deals || fastMoving ||
+    industrySlug || category || subcategoryIds.length > 0 || categoryIds.length > 0 || tagId || newArrivals || deals || fastMoving ||
     inStock || minPrice !== undefined || maxPrice !== undefined ||
     (q && q.length > 1)
   );
@@ -272,37 +277,51 @@ function ProductsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Restore the Segment/Category selection from a bookmarked/shared subcategoryId link.
+  // Restore the Segment/Category accordion-expansion state from a bookmarked/shared
+  // subcategoryId link — just picks the first selected subcategory to decide which
+  // segment/category to auto-expand; doesn't affect which products are actually shown.
+  const firstSubcategoryId = subcategoryIds[0];
   useEffect(() => {
-    if (!subcategoryId) return;
-    const sub = subcategories.find((s) => s.id === subcategoryId);
+    if (!firstSubcategoryId) return;
+    const sub = subcategories.find((s) => s.id === firstSubcategoryId);
     if (sub) {
       setSelectedCategoryId(sub.categoryId);
       setSelectedSegmentId(sub.segmentId ?? taxCategories.find((c) => c.id === sub.categoryId)?.segmentId ?? null);
     }
-  }, [subcategoryId, subcategories, taxCategories]);
+  }, [firstSubcategoryId, subcategories, taxCategories]);
 
   // Deep link from a homepage "Shop by category" tile: expand that segment in
   // the "Browse by category" panel and scroll it into view.
   useEffect(() => {
-    if (!segmentId || subcategoryId) return;
+    if (!segmentId || subcategoryIds.length > 0) return;
     if (!segments.some((s) => s.id === segmentId)) return;
     setSelectedSegmentId(segmentId);
     const scroll = () => document.getElementById("browse-by-category")?.scrollIntoView({ behavior: "smooth", block: "start" });
     const timers = [100, 500].map((ms) => window.setTimeout(scroll, ms));
     return () => timers.forEach(window.clearTimeout);
-  }, [segmentId, subcategoryId, segments]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segmentId, subcategoryIds.length, segments]);
 
   const selectSegment = (id: string) => {
     setSelectedSegmentId((prev) => (prev === id ? null : id));
     setSelectedCategoryId(null);
-    setParam("subcategoryId", undefined);
+    setParams({ subcategoryId: undefined, categoryId: undefined });
   };
+
+  // Toggles one subcategory's membership in the current multi-select, combining with whatever
+  // else is already selected (within the same industry) rather than replacing it — picking a
+  // second subcategory shows the union of both, not just the latest pick.
   const selectSubcategory = (id: string, categoryId?: string | null) => {
-    const turningOn = subcategoryId !== id;
-    // category cleared here — mutually exclusive with the legacy flat category filter
-    setParams({ category: undefined, subcategoryId: turningOn ? id : undefined });
-    setSelectedCategoryId(turningOn ? (categoryId ?? null) : null);
+    const turningOn = !subcategoryIds.includes(id);
+    setSearchParams((prev) => {
+      prev.delete("category"); // mutually exclusive with the legacy flat category filter
+      const current = prev.getAll("subcategoryId");
+      const next = turningOn ? [...current, id] : current.filter((v) => v !== id);
+      prev.delete("subcategoryId");
+      next.forEach((v) => prev.append("subcategoryId", v));
+      return prev;
+    });
+    setSelectedCategoryId(categoryId ?? null);
     if (turningOn) {
       // Results load async (debounced fetch) — retry the scroll a few times
       // so it lands correctly once the grid has actually re-rendered.
@@ -311,10 +330,33 @@ function ProductsPage() {
     }
   };
 
-  // Reset on filter change
+  // Same idea, at the whole-Category level — clicking a category name selects every product
+  // under it (regardless of subcategory), combined with any other category/subcategory picks.
+  const selectCategory = (id: string, segId?: string | null) => {
+    const turningOn = !categoryIds.includes(id);
+    setSearchParams((prev) => {
+      prev.delete("category");
+      const current = prev.getAll("categoryId");
+      const next = turningOn ? [...current, id] : current.filter((v) => v !== id);
+      prev.delete("categoryId");
+      next.forEach((v) => prev.append("categoryId", v));
+      return prev;
+    });
+    setSelectedSegmentId(segId ?? null);
+    if (turningOn) {
+      const scroll = () => document.getElementById("results-anchor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      [100, 500, 1000].forEach((ms) => window.setTimeout(scroll, ms));
+    }
+  };
+
+  // Reset on filter change. subcategoryIds/categoryIds are new array instances every render
+  // (from _searchParams.getAll), so a joined string is used as the dependency key instead of
+  // the arrays themselves — otherwise this (and the fetch effect below) would re-run every render.
+  const subcategoryIdsKey = subcategoryIds.join(",");
+  const categoryIdsKey = categoryIds.join(",");
   useEffect(() => {
     setPage(0);
-  }, [industrySlug, category, subcategoryId, tagId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sort]);
+  }, [industrySlug, category, subcategoryIdsKey, categoryIdsKey, tagId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sort]);
 
   // Fetch (wrapped with smart fallback handling — does not change API calls).
   useEffect(() => {
@@ -332,7 +374,8 @@ function ProductsPage() {
       : api.getProducts({
           industryId: selectedIndustry?.id,
           category: category || undefined,
-          subcategoryId: subcategoryId || undefined,
+          subcategoryId: subcategoryIds.length > 0 ? subcategoryIds : undefined,
+          categoryId: categoryIds.length > 0 ? categoryIds : undefined,
           tagId: tagId || undefined,
           isNewArrival: newArrivals || undefined,
           isDiscount: deals || undefined,
@@ -386,7 +429,8 @@ function ProductsPage() {
       });
 
     return () => { cancelled = true; };
-  }, [selectedIndustry, category, subcategoryId, tagId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sortParam, page, searchResults, anyFilterActive, retryTick, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndustry, category, subcategoryIdsKey, categoryIdsKey, tagId, newArrivals, deals, fastMoving, inStock, minPrice, maxPrice, sortParam, page, searchResults, anyFilterActive, retryTick, sort]);
 
   // Debounced search
   useEffect(() => {
@@ -471,8 +515,20 @@ function ProductsPage() {
     });
   };
 
+  // Switching (or clearing) the industry also drops any category/subcategory selections —
+  // they were scoped to whichever industry's accordion they were picked from, so carrying them
+  // over to a different (or no) industry would silently keep filtering by something that's no
+  // longer visible in the UI.
   const toggleIndustry = (slug: string) => {
-    setSearchParams((prev) => { if (prev.get("industry") === slug) prev.delete("industry"); else prev.set("industry", slug); return prev; });
+    setSearchParams((prev) => {
+      if (prev.get("industry") === slug) prev.delete("industry");
+      else prev.set("industry", slug);
+      prev.delete("subcategoryId");
+      prev.delete("categoryId");
+      return prev;
+    });
+    setSelectedSegmentId(null);
+    setSelectedCategoryId(null);
   };
 
   const toggle = (key: "newArrivals" | "deals" | "fastMoving" | "inStock") => {
@@ -528,15 +584,29 @@ function ProductsPage() {
     const cat = CATEGORY_OPTIONS.find((c) => c.value === category);
     chips.push({ label: cat?.label ?? category, clear: () => setParam("category", undefined) });
   }
-  if (subcategoryId) {
-    const sub = subcategories.find((s) => s.id === subcategoryId);
+  // One chip per selected subcategory/category — multi-select means there can be several at once.
+  for (const id of subcategoryIds) {
+    const sub = subcategories.find((s) => s.id === id);
     chips.push({
-      label: sub ? `${sub.segmentName ?? ""} › ${sub.categoryName ?? ""} › ${sub.name}` : "Category",
-      clear: () => {
-        setParam("subcategoryId", undefined);
-        setSelectedSegmentId(null);
-        setSelectedCategoryId(null);
-      },
+      label: sub ? `${sub.segmentName ?? ""} › ${sub.categoryName ?? ""} › ${sub.name}` : "Subcategory",
+      clear: () => setSearchParams((prev) => {
+        const next = prev.getAll("subcategoryId").filter((v) => v !== id);
+        prev.delete("subcategoryId");
+        next.forEach((v) => prev.append("subcategoryId", v));
+        return prev;
+      }),
+    });
+  }
+  for (const id of categoryIds) {
+    const cat = taxCategories.find((c) => c.id === id);
+    chips.push({
+      label: cat ? `${cat.segmentName ?? ""} › ${cat.name} (all)` : "Category",
+      clear: () => setSearchParams((prev) => {
+        const next = prev.getAll("categoryId").filter((v) => v !== id);
+        prev.delete("categoryId");
+        next.forEach((v) => prev.append("categoryId", v));
+        return prev;
+      }),
     });
   }
   if (tagId) {
@@ -629,7 +699,7 @@ function ProductsPage() {
                 ))}
               </select>
             </div>
-            <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
+            <div className="mt-3 hidden gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {industries.map((ind) => {
                 const Icon = ind.icon;
                 const isActive = industrySlug === ind.slug;
@@ -639,23 +709,23 @@ function ProductsPage() {
                     type="button"
                     onClick={() => toggleIndustry(ind.slug)}
                     aria-pressed={isActive}
-                    className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+                    className={`group flex items-start gap-2 rounded-xl border p-2.5 text-left transition-all ${
                       isActive
                         ? "border-primary bg-primary/10 shadow-sm"
                         : "border-border bg-card hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
                     }`}
                   >
                     {Icon && (
-                      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-primary ${
+                      <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-primary ${
                         isActive ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/15"
                       }`}>
-                        <Icon className="h-4 w-4" />
+                        <Icon className="h-3.5 w-3.5" />
                       </span>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground">{ind.name}</p>
+                      <p className="text-xs font-medium text-foreground">{ind.name}</p>
                       {ind.description && (
-                        <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        <p className="mt-0.5 line-clamp-1 text-[11px] leading-snug text-muted-foreground">
                           {ind.description}
                         </p>
                       )}
@@ -684,7 +754,7 @@ function ProductsPage() {
                 {suggestedSubcategories.map((sub) => (
                   <ChipButton
                     key={sub.id}
-                    active={subcategoryId === sub.id}
+                    active={subcategoryIds.includes(sub.id)}
                     onClick={() => selectSubcategory(sub.id, sub.categoryId)}
                   >
                     {sub.name}
@@ -746,20 +816,27 @@ function ProductsPage() {
                           {segCategories.map((cat) => {
                             const catSubs = subcategories.filter((s) => s.categoryId === cat.id && isSubcategoryAssociated(s));
                             if (catSubs.length === 0) return null;
+                            const categorySelected = categoryIds.includes(cat.id);
                             return (
                               <div key={cat.id}>
-                                <p
-                                  className={`text-sm font-bold ${
-                                    selectedCategoryId === cat.id ? "text-primary" : "text-foreground"
+                                {/* Clicking the category name selects every product under it
+                                    (all its subcategories at once), combined with whatever
+                                    subcategories/categories are already picked elsewhere. */}
+                                <button
+                                  type="button"
+                                  onClick={() => selectCategory(cat.id, seg.id)}
+                                  className={`text-sm font-bold hover:underline ${
+                                    categorySelected ? "text-primary" : "text-foreground"
                                   }`}
+                                  title={`Show all products in ${cat.name}`}
                                 >
-                                  {cat.name}
-                                </p>
+                                  {cat.name}{categorySelected ? " ✓" : ""}
+                                </button>
                                 <div className="mt-1 flex flex-wrap gap-1.5">
                                   {catSubs.map((sub) => (
                                     <ChipButton
                                       key={sub.id}
-                                      active={subcategoryId === sub.id}
+                                      active={subcategoryIds.includes(sub.id)}
                                       onClick={() => selectSubcategory(sub.id, cat.id)}
                                       size="sm"
                                     >
@@ -791,10 +868,12 @@ function ProductsPage() {
                 // here clears the industry filter (browsing becomes segment-scoped again,
                 // not industry-scoped) since that's what the picked subcategory belongs to.
                 <select
-                  value={subcategoryId ?? ""}
+                  value={subcategoryIds.length === 1 ? subcategoryIds[0] : ""}
                   onChange={(e) => {
                     const id = e.target.value || undefined;
-                    setParams({ subcategoryId: id, category: undefined, industry: undefined });
+                    // .set() (via setParams) replaces the whole subcategoryId set with just this
+                    // one — deliberately single-select here, unlike the multi-select chips above.
+                    setParams({ subcategoryId: id, categoryId: undefined, category: undefined, industry: undefined });
                     const sub = id ? subcategories.find((s) => s.id === id) : undefined;
                     setSelectedCategoryId(sub?.categoryId ?? null);
                     setSelectedSegmentId(sub?.segmentId ?? null);
