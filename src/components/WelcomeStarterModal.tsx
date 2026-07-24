@@ -58,11 +58,10 @@ function recordDeclined(): void {
   }
 }
 
-// Background intentionally kept matching the sign-in form's panel (AuthModal.tsx uses this same
-// color-mix) — client confirmed this should stay as-is even after the white/gray accent pass
-// below removed the gold/red tint from every other element (cards, badges, pills, links).
-const MODAL_BG = "color-mix(in oklab, var(--accent) 24%, white 76%)";
-const MODAL_BORDER = "color-mix(in oklab, var(--accent) 40%, white 60%)";
+// Background matches the cream hero section at the top of the products browsing page
+// (products.index.tsx's "bg-cream" section) instead of the sign-in form's accent-tinted panel.
+const MODAL_BG = "var(--cream)";
+const MODAL_BORDER = "color-mix(in oklab, var(--cream) 80%, black 12%)";
 
 const FOREST_DEEP = "#08231a";
 const FOREST = "#0d3320";

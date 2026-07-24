@@ -124,7 +124,7 @@ function HomeNav() {
             About Us
           </Link>
           <Link to="/sustainability" className="hover:opacity-80">
-            Sustainability
+            Our Sustainability Pledge
           </Link>
           <Link to="/products" className="hover:opacity-80">
             Shop

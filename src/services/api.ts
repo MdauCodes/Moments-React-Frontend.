@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { industries } from "@/data/products";
 import { blogStore } from "@/services/blogStore";
-import { apiUrl } from "@/config/api";
+import { apiUrl, apiFetch } from "@/config/api";
 import type { Product, Industry } from "@/data/products";
 import type { Blog, BlogStatus, BlogTemplate } from "@/data/blogs";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
@@ -256,6 +256,19 @@ export const api = {
 
   getSubcategories: async (params?: { categoryId?: string; industryId?: string }) =>
     getJson<Subcategory[]>(`/api/v1/public/subcategories${qs({ categoryId: params?.categoryId, industryId: params?.industryId })}`),
+
+  // "Popular subcategories" — anonymous-visitor suggestion, ranked by aggregate product clicks.
+  getPopularSubcategories: async (params?: { industryId?: string; limit?: number }) =>
+    getJson<Subcategory[]>(`/api/v1/public/subcategories/popular${qs({ industryId: params?.industryId, limit: params?.limit })}`),
+
+  // "Recommended for you" — signed-in customer's own past-purchase-based suggestion. Auth
+  // required, so this goes through apiFetch (auth: true) rather than the plain getJson used by
+  // every other call in this file.
+  getRecommendedSubcategories: async (limit?: number): Promise<Subcategory[]> => {
+    const res = await apiFetch(`/api/v1/customer/orders/recommended-subcategories${qs({ limit })}`, { auth: true });
+    if (!res.ok) throw new Error(`API request failed: ${res.status}`);
+    return res.json() as Promise<Subcategory[]>;
+  },
 
   getTags: async () => getJson<Tag[]>("/api/v1/public/tags"),
 

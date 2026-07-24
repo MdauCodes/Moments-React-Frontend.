@@ -11,6 +11,7 @@ import { ConfiguratorModal } from "@/components/ConfiguratorModal";
 import { api, type Segment, type Category as TaxCategory, type Subcategory, type Tag } from "@/services/api";
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
 import { CATEGORY_OPTIONS } from "@/data/categoryOptions";
+import { useAuth } from "@/contexts/AuthContext";
 
 import type { Product, Industry } from "@/data/products";
 import { getStockInfo } from "@/lib/stock";
@@ -95,6 +96,7 @@ const ALL_PRICE_MAX = 500;
 
 
 function ProductsPage() {
+  const { isAuthenticated } = useAuth();
   const [_searchParams, setSearchParams] = useSearchParams();
   const search = Object.fromEntries(_searchParams.entries());
   const { category, segmentId, subcategoryId, tagId, industry: industrySlug, q, sort = "newest" } = search;
@@ -110,6 +112,8 @@ function ProductsPage() {
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [tagsList, setTagsList] = useState<Tag[]>([]);
+  const [suggestedSubcategories, setSuggestedSubcategories] = useState<Subcategory[]>([]);
+  const [suggestionsArePersonalized, setSuggestionsArePersonalized] = useState(false);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -121,6 +125,13 @@ function ProductsPage() {
   const [moreProducts, setMoreProducts] = useState<Product[] | null>(null);
   const [query, setQuery] = useState(q ?? "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Local, uncommitted price input text — only pushed into the URL params (and
+  // thus the product fetch) after the visitor pauses typing, same debounce
+  // pattern as search below. Without this, every keystroke on a price field
+  // fired its own full-grid reload (the "constant loading" complaint).
+  const [minPriceInput, setMinPriceInput] = useState(minPrice != null ? String(minPrice) : "");
+  const [maxPriceInput, setMaxPriceInput] = useState(maxPrice != null ? String(maxPrice) : "");
+  const priceDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [configuring, setConfiguring] = useState<Product | null>(null);
   const [preTier, setPreTier] = useState<string | null>(null);
   const handleConfigure = (p: Product, tierId?: string) => {
@@ -199,6 +210,41 @@ function ProductsPage() {
     ).catch(() => undefined);
     return () => { cancelled = true; };
   }, [selectedIndustry?.id]);
+
+  // Subcategory suggestions — signed-in customers get their own past-purchase-based picks
+  // ("Recommended for you"); anonymous visitors (or a signed-in customer with no purchase
+  // history yet) get click-popularity, scoped to the selected industry if one's active
+  // ("Popular subcategories"). Falls back from personalized to popular, never the reverse.
+  useEffect(() => {
+    let cancelled = false;
+    const industryId = selectedIndustry?.id;
+    async function load() {
+      if (isAuthenticated) {
+        try {
+          const personal = await api.getRecommendedSubcategories(6);
+          if (cancelled) return;
+          if (personal.length > 0) {
+            setSuggestedSubcategories(personal);
+            setSuggestionsArePersonalized(true);
+            return;
+          }
+        } catch {
+          // fall through to popular
+        }
+      }
+      try {
+        const popular = await api.getPopularSubcategories({ industryId, limit: 6 });
+        if (!cancelled) {
+          setSuggestedSubcategories(popular);
+          setSuggestionsArePersonalized(false);
+        }
+      } catch {
+        if (!cancelled) setSuggestedSubcategories([]);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, selectedIndustry?.id]);
 
   // Admin-managed tags, driving "What do you need?" once populated. Additive
   // to the verified keyword quick-finds below, not a replacement — there are
@@ -342,13 +388,42 @@ function ProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  // "Keep browsing" — search results are capped (12 items, no pagination),
-  // so without this a customer who searched hits a hard dead end. Fetch a
-  // diversified mix and exclude anything already shown above.
+  // Debounced price range — commits to URL params (and so the product fetch)
+  // only after the visitor pauses typing, not on every keystroke. Both bounds
+  // are set in ONE setSearchParams call (not two separate setParam calls) —
+  // two back-to-back calls here meant the second silently clobbered the
+  // first, so minPrice never actually stuck.
   useEffect(() => {
-    if (!searchResults || searchResults.length === 0) { setMoreProducts(null); return; }
+    if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current);
+    priceDebounceRef.current = setTimeout(() => {
+      setSearchParams((prev) => {
+        if (minPriceInput) prev.set("minPrice", minPriceInput); else prev.delete("minPrice");
+        if (maxPriceInput) prev.set("maxPrice", maxPriceInput); else prev.delete("maxPrice");
+        return prev;
+      });
+    }, 400);
+    return () => { if (priceDebounceRef.current) clearTimeout(priceDebounceRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minPriceInput, maxPriceInput]);
+
+  // Keeps the latest fetched grid available to the "more to consider" effect
+  // below without adding `products` to its dependency list — otherwise every
+  // "load more" page would re-trigger it and reshuffle the suggestions.
+  const productsRef = useRef<Product[]>([]);
+  useEffect(() => { productsRef.current = products; }, [products]);
+
+  // "Keep browsing" / "You might also like" — whatever the visitor is looking
+  // at (a text search, capped at 12 with no pagination; or an industry/
+  // category/subcategory filter) is shown first and in full; this is a
+  // distinct, clearly-separate section of other products underneath, so a
+  // narrow filter or search doesn't feel like a dead end. Diversified mix,
+  // excluding whatever's already shown above.
+  useEffect(() => {
+    if (isLoading) return;
+    const shown = searchResults ?? (anyFilterActive ? productsRef.current : null);
+    if (!shown || shown.length === 0) { setMoreProducts(null); return; }
     let cancelled = false;
-    const shownIds = new Set(searchResults.map((p) => p.id));
+    const shownIds = new Set(shown.map((p) => p.id));
     void api
       .getDiversifiedProducts({ size: 20 })
       .then((data) => {
@@ -358,7 +433,8 @@ function ProductsPage() {
         if (!cancelled) setMoreProducts([]);
       });
     return () => { cancelled = true; };
-  }, [searchResults]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchResults, anyFilterActive, isLoading]);
 
   const setParam = (key: string, value: string | number | boolean | undefined) => {
     setSearchParams((prev) => { const v = value; if (v !== undefined && v !== "") prev.set(key, String(v)); else prev.delete(key); return prev; });
@@ -377,6 +453,8 @@ function ProductsPage() {
     setSearchResults(null);
     setSelectedSegmentId(null);
     setSelectedCategoryId(null);
+    setMinPriceInput("");
+    setMaxPriceInput("");
     setSearchParams(new URLSearchParams());
   };
 
@@ -438,8 +516,8 @@ function ProductsPage() {
   if (deals) chips.push({ label: "Deals", clear: () => setParam("deals", undefined) });
   if (fastMoving) chips.push({ label: "Fast Moving", clear: () => setParam("fastMoving", undefined) });
   if (inStock) chips.push({ label: "In stock only", clear: () => setParam("inStock", undefined) });
-  if (minPrice !== undefined) chips.push({ label: `Min KES ${minPrice}`, clear: () => setParam("minPrice", undefined) });
-  if (maxPrice !== undefined) chips.push({ label: `Max KES ${maxPrice}`, clear: () => setParam("maxPrice", undefined) });
+  if (minPrice !== undefined) chips.push({ label: `Min KES ${minPrice}`, clear: () => { setMinPriceInput(""); setParam("minPrice", undefined); } });
+  if (maxPrice !== undefined) chips.push({ label: `Max KES ${maxPrice}`, clear: () => { setMaxPriceInput(""); setParam("maxPrice", undefined); } });
 
   return (
     <SiteLayout>
@@ -495,25 +573,26 @@ function ProductsPage() {
           <ToggleChip active={!!inStock} onClick={() => toggle("inStock")}>In stock</ToggleChip>
         </div>
 
-        {/* Browse by industry — shown first, above categories, when no filter
-            active and data is loaded. A card grid works fine on tablet/desktop,
-            but on a phone it pushes the actual product grid several screens
-            down — a compact dropdown gets to the same result (?industry=slug)
-            in the same footprint as any other filter control. */}
-        {!anyFilterActive && !isLoading && !searchResults && industries.length > 0 && (
+        {/* Browse by industry — stays visible even once one is picked (the
+            selected tile just highlights) so switching industries is a single
+            click, not "See all" then re-pick. Only hidden during a text search,
+            since search results replace the whole grid below anyway. A card
+            grid works fine on tablet/desktop, but on a phone it pushes the
+            actual product grid several screens down — a compact dropdown gets
+            to the same result (?industry=slug) in the same footprint as any
+            other filter control. */}
+        {!isLoading && !searchResults && industries.length > 0 && (
           <div className="mt-5">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Browse by industry
             </p>
             <div className="mt-3 sm:hidden">
               <select
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) setParam("industry", e.target.value);
-                }}
+                value={industrySlug ?? ""}
+                onChange={(e) => setParam("industry", e.target.value || undefined)}
                 className="w-full rounded-full border border-foreground/20 bg-background px-4 py-2.5 text-sm text-foreground"
               >
-                <option value="">Select your business type…</option>
+                <option value="">All industries</option>
                 {industries.map((ind) => (
                   <option key={ind.id} value={ind.slug}>{ind.name}</option>
                 ))}
@@ -522,15 +601,23 @@ function ProductsPage() {
             <div className="mt-3 hidden gap-2.5 sm:grid sm:grid-cols-4">
               {industries.map((ind) => {
                 const Icon = ind.icon;
+                const isActive = industrySlug === ind.slug;
                 return (
                   <button
                     key={ind.id}
                     type="button"
                     onClick={() => toggleIndustry(ind.slug)}
-                    className="group flex items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-all hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
+                    aria-pressed={isActive}
+                    className={`group flex items-start gap-3 rounded-xl border p-4 text-left transition-all ${
+                      isActive
+                        ? "border-primary bg-primary/10 shadow-sm"
+                        : "border-border bg-card hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
+                    }`}
                   >
                     {Icon && (
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15">
+                      <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-primary ${
+                        isActive ? "bg-primary/20" : "bg-primary/10 group-hover:bg-primary/15"
+                      }`}>
                         <Icon className="h-4 w-4" />
                       </span>
                     )}
@@ -553,6 +640,28 @@ function ProductsPage() {
             lives here alongside the legacy flat category list, sort, and price,
             all in one panel so there's one place to refine, not two competing ones. */}
         <div id="browse-by-category" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4">
+          {!searchResults && suggestedSubcategories.length > 0 && (
+            <div className="mb-4 border-b border-border pb-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                {suggestionsArePersonalized
+                  ? "Recommended for you"
+                  : selectedIndustry
+                  ? `Popular in ${selectedIndustry.name}`
+                  : "Popular subcategories"}
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {suggestedSubcategories.map((sub) => (
+                  <ChipButton
+                    key={sub.id}
+                    active={subcategoryId === sub.id}
+                    onClick={() => selectSubcategory(sub.id, sub.categoryId)}
+                  >
+                    {sub.name}
+                  </ChipButton>
+                ))}
+              </div>
+            </div>
+          )}
           {selectedIndustry && taxCategories.length === 0 && (
             <div className="mb-4 rounded-xl border border-dashed border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
               No categories have been tagged for <span className="font-semibold text-foreground">{selectedIndustry.name}</span> yet —
@@ -704,8 +813,8 @@ function ProductsPage() {
                 type="number"
                 min={0}
                 placeholder="min"
-                value={minPrice ?? ""}
-                onChange={(e) => setParam("minPrice", e.target.value ? Number(e.target.value) : undefined)}
+                value={minPriceInput}
+                onChange={(e) => setMinPriceInput(e.target.value)}
                 className="w-20 rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
               />
               <span className="text-muted-foreground">–</span>
@@ -713,8 +822,8 @@ function ProductsPage() {
                 type="number"
                 min={0}
                 placeholder="max"
-                value={maxPrice ?? ""}
-                onChange={(e) => setParam("maxPrice", e.target.value ? Number(e.target.value) : undefined)}
+                value={maxPriceInput}
+                onChange={(e) => setMaxPriceInput(e.target.value)}
                 className="w-20 rounded-full border border-foreground/20 bg-background px-3 py-1.5 text-xs"
               />
             </label>
@@ -748,8 +857,9 @@ function ProductsPage() {
           </div>
         )}
 
-        {/* Context banner: shows which industry is active */}
-        {selectedIndustry && !isLoading && (
+        {/* Context banner: shows which industry is active. No `!isLoading` gate — it should
+            stay put while a new industry's results load in, not flicker out and back. */}
+        {selectedIndustry && (
           <div className="mt-4 rounded-xl bg-primary/8 px-4 py-3">
             <div className="flex items-start justify-between">
               <div>
@@ -776,13 +886,14 @@ function ProductsPage() {
 
         {/* Grid */}
         <div id="results-anchor" className="scroll-mt-20" />
-        {isLoading ? (
+        {isLoading && grid.length === 0 ? (
+          // True first load / nothing to show yet — the only time we blank to skeletons.
           <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
               <ProductCardSkeleton key={i} />
             ))}
           </div>
-        ) : !searchResults && loadState === "unauthorized" ? (
+        ) : !searchResults && !isLoading && loadState === "unauthorized" ? (
           <div className="mt-16 rounded-2xl border border-dashed border-border p-16 text-center">
             <h3 className="font-display text-2xl text-foreground">Sign in to view products.</h3>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -795,7 +906,7 @@ function ProductsPage() {
               Sign in
             </Link>
           </div>
-        ) : !searchResults && loadState === "server_error" ? (
+        ) : !searchResults && !isLoading && loadState === "server_error" ? (
           <div className="mt-16 rounded-2xl border border-dashed border-border p-16 text-center">
             <h3 className="font-display text-2xl text-foreground">
               Something went wrong on our end. Please try again.
@@ -808,7 +919,7 @@ function ProductsPage() {
               Retry
             </button>
           </div>
-        ) : !searchResults && loadState === "empty" ? (
+        ) : !searchResults && !isLoading && loadState === "empty" ? (
           <div className="mt-16 rounded-2xl border border-dashed border-border p-16 text-center">
             <h3 className="font-display text-2xl text-foreground">No products listed yet</h3>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -855,15 +966,28 @@ function ProductsPage() {
           <>
             {/* Result count */}
             {grid.length > 0 && (
-              <p className="mt-6 text-xs text-muted-foreground">
+              <p className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
                 {searchResults
                   ? `${grid.length} result${grid.length === 1 ? "" : "s"} for "${query}"`
                   : selectedIndustry
                   ? `${grid.length}${hasMore ? "+" : ""} product${grid.length === 1 ? "" : "s"} for ${selectedIndustry.name}`
                   : `${grid.length}${hasMore ? "+" : ""} product${grid.length === 1 ? "" : "s"}`}
+                {isLoading && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                    Updating…
+                  </span>
+                )}
               </p>
             )}
-            <div className="mt-4 grid animate-in fade-in grid-cols-2 gap-3 duration-300 sm:mt-5 sm:gap-5 md:grid-cols-3 lg:gap-6">
+            {/* isLoading here means a filter/sort/search change is refetching while these are
+                still last period's results — dim them instead of blanking to skeletons, so
+                refining a filter doesn't feel like the whole page reloading. */}
+            <div
+              className={`mt-4 grid animate-in fade-in grid-cols-2 gap-3 duration-300 sm:mt-5 sm:gap-5 md:grid-cols-3 lg:gap-6 transition-opacity ${
+                isLoading ? "opacity-40 pointer-events-none" : "opacity-100"
+              }`}
+            >
               {grid.map((p) => (
                 <ProductCard key={p.id} product={p} onConfigure={handleConfigure} />
               ))}
@@ -881,14 +1005,18 @@ function ProductsPage() {
               </div>
             )}
 
-            {/* Keep browsing — search results are capped with no pagination,
-                so without this a customer who used quick-find or the search
-                box hits a dead end after 12 items. */}
-            {searchResults && moreProducts && moreProducts.length > 0 && (
+            {/* Keep browsing / You might also like — search results are capped
+                with no pagination, so without this a customer who used
+                quick-find or the search box hits a dead end after 12 items.
+                Also shown after a filtered (industry/category/subcategory)
+                grid, as a distinct, clearly-separate section underneath —
+                the filtered results the visitor asked for stay first and in
+                full, this is just a further "other things to consider" nudge. */}
+            {(searchResults || anyFilterActive) && moreProducts && moreProducts.length > 0 && (
               <div className="mt-14 border-t border-border pt-10">
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    Keep browsing
+                    {searchResults ? "Keep browsing" : "You might also like"}
                   </p>
                   <Link
                     to="/products"
