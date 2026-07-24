@@ -1,19 +1,26 @@
 import type { ReactNode } from "react";
 import { ORDER_STATUS_OPTIONS } from "@/components/admin/commerceUi";
+import { MetricInfoTooltip } from "@/components/admin/MetricInfoTooltip";
 
 export function KpiCard({
-  label, value, sub, badges, icon,
+  label, value, sub, badges, icon, info,
 }: {
   label: string;
   value: string;
   sub?: string;
   badges?: { label: string; tone?: "warn" | "info" | "ok" }[];
   icon?: ReactNode;
+  /** Short explanation of what this number means and how it's calculated — rendered as a small
+   *  info-icon popover next to the label, via MetricInfoTooltip. */
+  info?: ReactNode;
 }) {
   return (
     <div className="admin-panel" style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-        <div className="admin-label">{label}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="admin-label">{label}</div>
+          {info && <MetricInfoTooltip title={label}>{info}</MetricInfoTooltip>}
+        </div>
         {icon && <div style={{ color: "var(--admin-muted)" }}>{icon}</div>}
       </div>
       <div style={{ fontFamily: "var(--font-display)", fontSize: 26, marginTop: 6 }}>{value}</div>

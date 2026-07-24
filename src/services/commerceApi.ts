@@ -561,7 +561,11 @@ export interface TaxReport {
   rangeStart: string;
   rangeEnd: string;
   vatableSalesKes: number;
+  outputVatKes: number;
+  cogsForInputVatKes: number;
+  inputVatKes: number;
   vatToRemitKes: number;
+  unitsMissingCostOrVatRateCount: number;
   paidOrderCount: number;
   taxInvoiceRequestedCount: number;
   etrRequestedCount: number;
@@ -626,6 +630,67 @@ export interface Profitability {
 export async function getProfitability(from: Date, to: Date): Promise<Profitability> {
   const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
   return getJson<Profitability>(`/api/v1/admin/analytics/profitability?${params.toString()}`);
+}
+
+// ---------- Analytics: profitability breakdown & daily trend ----------
+// Backend GET /api/v1/admin/analytics/profitability-breakdown, /profitability-trend
+
+export interface ProfitabilityByProduct {
+  productId: string;
+  productName: string;
+  unitsSold: number;
+  revenueKes: number;
+  cogsKes: number;
+  grossProfitKes: number;
+  marginPercent: number;
+  listGrossProfitPercent: number | null;
+  marginGapPercent: number | null;
+}
+
+export interface ProfitabilityLine {
+  groupId: string;
+  groupName: string;
+  unitsSold: number;
+  revenueKes: number;
+  cogsKes: number;
+  grossProfitKes: number;
+  marginPercent: number;
+}
+
+export interface ProfitabilityBreakdown {
+  rangeStart: string;
+  rangeEnd: string;
+  byProduct: ProfitabilityByProduct[];
+  byCategory: ProfitabilityLine[];
+  bySubcategory: ProfitabilityLine[];
+  byIndustry: ProfitabilityLine[];
+  unitsMissingCostPriceCount: number;
+  unitsUnclassifiedCount: number;
+}
+
+export async function getProfitabilityBreakdown(from: Date, to: Date): Promise<ProfitabilityBreakdown> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<ProfitabilityBreakdown>(`/api/v1/admin/analytics/profitability-breakdown?${params.toString()}`);
+}
+
+export interface DailyProfitPoint {
+  date: string;
+  revenueKes: number;
+  netRevenueKes: number;
+  cogsKes: number;
+  grossProfitKes: number;
+}
+
+export interface DailyProfitTrend {
+  rangeStart: string;
+  rangeEnd: string;
+  points: DailyProfitPoint[];
+  unitsMissingCostPriceCount: number;
+}
+
+export async function getDailyProfitTrend(from: Date, to: Date): Promise<DailyProfitTrend> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<DailyProfitTrend>(`/api/v1/admin/analytics/profitability-trend?${params.toString()}`);
 }
 
 // ---------- Analytics: monthly projection (Phase 7) ----------
