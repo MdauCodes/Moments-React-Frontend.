@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
-import { ChevronDown } from "lucide-react";
+import { Camera, ChevronDown } from "lucide-react";
 import { adminJson } from "@/services/adminApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import {
@@ -588,6 +588,23 @@ function ImagePicker({
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
+            onChange={handleFile}
+            disabled={uploading}
+            style={{ display: "none" }}
+          />
+        </label>
+        {/* capture="environment" opens the device's rear camera directly on mobile/tablet
+            instead of the gallery picker — no effect on desktop, where the attribute is
+            simply ignored and this behaves like a normal file input. Kept as a separate
+            button from "Choose file" so an admin can still pick an existing photo when
+            that's what they actually want. */}
+        <label style={{ ...s.fileBtn, opacity: uploading ? 0.6 : 1, pointerEvents: uploading ? "none" : "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Camera size={14} />
+          Take photo
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
             onChange={handleFile}
             disabled={uploading}
             style={{ display: "none" }}
