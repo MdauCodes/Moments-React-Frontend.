@@ -58,11 +58,11 @@ function recordDeclined(): void {
   }
 }
 
-// Client feedback: drop the red/gold tint entirely — white/gray as the accent against the
-// dark-green anchor color, not warm tones (this replaces the earlier "match AuthModal's
-// red-tinted panel" background, and the gold card/badge/pill treatment below it).
-const MODAL_BG = "#ffffff";
-const MODAL_BORDER = "#e4e4e0";
+// Background intentionally kept matching the sign-in form's panel (AuthModal.tsx uses this same
+// color-mix) — client confirmed this should stay as-is even after the white/gray accent pass
+// below removed the gold/red tint from every other element (cards, badges, pills, links).
+const MODAL_BG = "color-mix(in oklab, var(--accent) 24%, white 76%)";
+const MODAL_BORDER = "color-mix(in oklab, var(--accent) 40%, white 60%)";
 
 const FOREST_DEEP = "#08231a";
 const FOREST = "#0d3320";
