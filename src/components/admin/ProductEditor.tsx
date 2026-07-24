@@ -600,7 +600,7 @@ function ImagePicker({
             that's what they actually want. */}
         <label style={{ ...s.fileBtn, opacity: uploading ? 0.6 : 1, pointerEvents: uploading ? "none" : "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Camera size={14} />
-          Take photo
+          {pendingFile ? "Retake photo" : "Take photo"}
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
