@@ -187,19 +187,16 @@ function ProductsPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Segment -> Category -> Subcategory taxonomy for "Browse by category".
-  // Counts stay small (dozens, not product-scale) even once the full catalogue
-  // is classified, so fetching all three flat and filtering client-side is fine.
-  // Scoped to the selected industry when one's active, so a visitor who
-  // clicked "Food & Beverage" only sees categories relevant to it, not the
-  // full unfiltered taxonomy tree.
+  // Segment -> Category -> Subcategory taxonomy for "Browse by category". Fetched once, fully
+  // unscoped — counts stay small (dozens, not product-scale) even once the full catalogue is
+  // classified, so fetching everything and partitioning it client-side (below) is fine, and
+  // means switching industries doesn't need a re-fetch.
   useEffect(() => {
     let cancelled = false;
-    const industryId = selectedIndustry?.id;
     void Promise.all([
       api.getSegments(),
-      api.getCategories({ industryId }),
-      api.getSubcategories({ industryId }),
+      api.getCategories(),
+      api.getSubcategories(),
     ]).then(
       ([segs, cats, subs]) => {
         if (cancelled) return;
@@ -209,7 +206,27 @@ function ProductsPage() {
       },
     ).catch(() => undefined);
     return () => { cancelled = true; };
-  }, [selectedIndustry?.id]);
+  }, []);
+
+  // A subcategory is "in" the selected industry either because it's directly tagged with it, or
+  // because it inherits the tag from its parent category — same union rule the backend already
+  // applies (SubcategoryService.getByIndustry). Everything else is "other" — shown collapsed in
+  // the edge dropdown rather than cluttering the main accordion with dead, empty rows.
+  const associatedSubcategoryIds = useMemo(() => {
+    if (!selectedIndustry) return null; // no industry selected = nothing is "other"
+    const categoriesById = new Map(taxCategories.map((c) => [c.id, c]));
+    const ids = new Set<string>();
+    for (const sub of subcategories) {
+      const category = categoriesById.get(sub.categoryId);
+      const categoryTagged = category?.industryIds?.includes(selectedIndustry.id);
+      const subTagged = sub.industryIds?.includes(selectedIndustry.id);
+      if (categoryTagged || subTagged) ids.add(sub.id);
+    }
+    return ids;
+  }, [selectedIndustry, taxCategories, subcategories]);
+
+  const isSubcategoryAssociated = (sub: Subcategory) =>
+    !associatedSubcategoryIds || associatedSubcategoryIds.has(sub.id);
 
   // Subcategory suggestions — signed-in customers get their own past-purchase-based picks
   // ("Recommended for you"); anonymous visitors (or a signed-in customer with no purchase
@@ -283,8 +300,8 @@ function ProductsPage() {
   };
   const selectSubcategory = (id: string, categoryId?: string | null) => {
     const turningOn = subcategoryId !== id;
-    setParam("category", undefined); // mutually exclusive with the legacy flat category filter
-    setParam("subcategoryId", turningOn ? id : undefined);
+    // category cleared here — mutually exclusive with the legacy flat category filter
+    setParams({ category: undefined, subcategoryId: turningOn ? id : undefined });
     setSelectedCategoryId(turningOn ? (categoryId ?? null) : null);
     if (turningOn) {
       // Results load async (debounced fetch) — retry the scroll a few times
@@ -438,6 +455,20 @@ function ProductsPage() {
 
   const setParam = (key: string, value: string | number | boolean | undefined) => {
     setSearchParams((prev) => { const v = value; if (v !== undefined && v !== "") prev.set(key, String(v)); else prev.delete(key); return prev; });
+  };
+
+  // Set several params in ONE setSearchParams call. Calling setParam multiple times in a row for
+  // different keys in the same handler silently drops all but the last update (the price-input
+  // debounce hit this exact bug earlier) — anywhere more than one param needs to change together,
+  // use this instead.
+  const setParams = (updates: Record<string, string | number | boolean | undefined>) => {
+    setSearchParams((prev) => {
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined && value !== "") prev.set(key, String(value));
+        else prev.delete(key);
+      }
+      return prev;
+    });
   };
 
   const toggleIndustry = (slug: string) => {
@@ -662,21 +693,26 @@ function ProductsPage() {
               </div>
             </div>
           )}
-          {selectedIndustry && taxCategories.length === 0 && (
+          {selectedIndustry && associatedSubcategoryIds && associatedSubcategoryIds.size === 0 && (
             <div className="mb-4 rounded-xl border border-dashed border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
               No categories have been tagged for <span className="font-semibold text-foreground">{selectedIndustry.name}</span> yet —
               showing all matching products below instead.
             </div>
           )}
-          {segments.length > 0 && (!selectedIndustry || taxCategories.length > 0) && (
+          {segments.length > 0 && (!selectedIndustry || (associatedSubcategoryIds && associatedSubcategoryIds.size > 0)) && (
             <div className="mb-4 border-b border-border pb-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Browse by category
+                {selectedIndustry ? `Categories in ${selectedIndustry.name}` : "Browse by category"}
               </p>
               {/* Each segment is a disclosure row: clicking it expands its own
                   categories/subcategories directly beneath it (indented, with
                   a rail), instead of the old two-step chip-reveals-chip flow
-                  where it wasn't visually clear what belonged under what. */}
+                  where it wasn't visually clear what belonged under what.
+                  When an industry is selected, only segments/categories/
+                  subcategories actually associated with it show here — the
+                  rest live in the "Other categories" dropdown below, so
+                  picking an industry doesn't leave a wall of dead, empty
+                  segment rows that expand to nothing. */}
               {/* Grid, not a single column — a collapsed segment button is
                   narrow, so a 1-column list left most of the panel's width
                   empty. Multiple segments now sit side by side; an expanded
@@ -684,7 +720,12 @@ function ProductsPage() {
                   panel, and the grid continues below it. */}
               <div className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
                 {segments.map((seg) => {
-                  const segCategories = taxCategories.filter((c) => c.segmentId === seg.id);
+                  const segCategories = taxCategories.filter((c) => {
+                    if (c.segmentId !== seg.id) return false;
+                    if (!selectedIndustry) return true;
+                    return subcategories.some((s) => s.categoryId === c.id && isSubcategoryAssociated(s));
+                  });
+                  if (segCategories.length === 0) return null;
                   const isOpen = selectedSegmentId === seg.id;
                   return (
                     <div key={seg.id} className={isOpen ? "sm:col-span-2 lg:col-span-3" : ""}>
@@ -703,7 +744,7 @@ function ProductsPage() {
                       {isOpen && segCategories.length > 0 && (
                         <div className="ml-3 mt-1.5 space-y-2 border-l-2 border-border pl-3">
                           {segCategories.map((cat) => {
-                            const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
+                            const catSubs = subcategories.filter((s) => s.categoryId === cat.id && isSubcategoryAssociated(s));
                             if (catSubs.length === 0) return null;
                             return (
                               <div key={cat.id}>
@@ -742,16 +783,18 @@ function ProductsPage() {
             <label className="flex items-center gap-2 text-xs font-medium text-foreground">
               {segments.length > 0 ? "Other categories" : "Category"}
               {segments.length > 0 ? (
-                // Once the admin has set up real Segments/Categories/Subcategories,
-                // this dropdown offers the same real data as a compact flat picklist
-                // (useful once there are many subcategories) instead of the legacy
-                // hardcoded category strings.
+                // With no industry active, this is the full flat Segment › Category ›
+                // Subcategory picklist (useful once there are many subcategories). With an
+                // industry active, it narrows to just what's NOT associated with it — the
+                // main accordion above already covers the associated ones, so this is
+                // specifically the "browse outside this industry" escape hatch. Picking one
+                // here clears the industry filter (browsing becomes segment-scoped again,
+                // not industry-scoped) since that's what the picked subcategory belongs to.
                 <select
                   value={subcategoryId ?? ""}
                   onChange={(e) => {
                     const id = e.target.value || undefined;
-                    setParam("subcategoryId", id);
-                    setParam("category", undefined);
+                    setParams({ subcategoryId: id, category: undefined, industry: undefined });
                     const sub = id ? subcategories.find((s) => s.id === id) : undefined;
                     setSelectedCategoryId(sub?.categoryId ?? null);
                     setSelectedSegmentId(sub?.segmentId ?? null);
@@ -767,7 +810,7 @@ function ProductsPage() {
                     taxCategories
                       .filter((cat) => cat.segmentId === seg.id)
                       .map((cat) => {
-                        const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
+                        const catSubs = subcategories.filter((s) => s.categoryId === cat.id && (!selectedIndustry || !isSubcategoryAssociated(s)));
                         if (catSubs.length === 0) return null;
                         return (
                           <optgroup key={cat.id} label={`${seg.name} › ${cat.name}`}>

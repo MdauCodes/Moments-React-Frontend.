@@ -25,7 +25,7 @@ import { MOCK_PRODUCTS } from "@/data/mockProducts";
 type PageResponse<T> = { content: T[] };
 export type Segment = { id: string; name: string; slug?: string; description?: string; sortOrder?: number };
 export type Category = { id: string; segmentId: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number; industryIds?: string[]; industryNames?: string[] };
-export type Subcategory = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number };
+export type Subcategory = { id: string; categoryId: string; categoryName?: string; segmentId?: string; segmentName?: string; name: string; slug?: string; description?: string; sortOrder?: number; industryIds?: string[]; industryNames?: string[] };
 export type Tag = { id: string; name: string; slug?: string; description?: string };
 type ProductApiDto = Partial<Product> & {
   id: string;
