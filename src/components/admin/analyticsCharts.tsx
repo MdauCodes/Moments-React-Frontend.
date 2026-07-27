@@ -99,13 +99,16 @@ export interface DonutSlice {
   color: string;
 }
 
-/** Donut for share-of-whole — 2px surface gaps between slices via paddingAngle, legend always shown. */
+/** Donut (default) or true pie (variant="pie", innerRadius 0) for share-of-whole — 2px surface
+ *  gaps between slices via paddingAngle, legend always shown. Existing call sites don't pass
+ *  `variant` and keep rendering as a donut. */
 export function ShareDonutChart({
-  data, valueFormatter, height = 220,
+  data, valueFormatter, height = 220, variant = "donut",
 }: {
   data: DonutSlice[];
   valueFormatter?: (v: number) => string;
   height?: number;
+  variant?: "donut" | "pie";
 }) {
   const format = valueFormatter ?? ((v: number) => v.toLocaleString());
   return (
@@ -115,7 +118,7 @@ export function ShareDonutChart({
           data={data}
           dataKey="value"
           nameKey="name"
-          innerRadius="55%"
+          innerRadius={variant === "pie" ? 0 : "55%"}
           outerRadius="85%"
           paddingAngle={2}
           stroke="var(--admin-surface)"

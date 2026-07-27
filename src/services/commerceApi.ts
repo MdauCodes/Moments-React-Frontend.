@@ -789,6 +789,51 @@ export async function getDeliveryAnalytics(from: Date, to: Date): Promise<Delive
   return getJson<DeliveryAnalytics>(`/api/v1/admin/analytics/delivery?${params.toString()}`);
 }
 
+// ---------- Analytics: signups & demographics (Sales tab) ----------
+// Backend GET /api/v1/admin/analytics/signups-trend and /demographics — both new endpoints.
+// Deliberately distinct from CustomerAnalytics.newPayingCustomersInRange above (first PAID
+// order in range) — a raw signup and a first paid order for the same person can land in
+// different periods, so these must be labeled distinctly wherever both appear.
+
+export interface DailySignupPoint {
+  date: string;
+  signups: number;
+}
+
+export interface SignupTrend {
+  rangeStart: string;
+  rangeEnd: string;
+  points: DailySignupPoint[];
+}
+
+export async function getSignupTrend(from: Date, to: Date): Promise<SignupTrend> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<SignupTrend>(`/api/v1/admin/analytics/signups-trend?${params.toString()}`);
+}
+
+export interface GenderCount {
+  gender: string;
+  count: number;
+}
+
+export interface AgeBracketCount {
+  bracket: string;
+  count: number;
+}
+
+export interface DemographicsBreakdown {
+  rangeStart: string;
+  rangeEnd: string;
+  byGender: GenderCount[];
+  byAgeBracket: AgeBracketCount[];
+  excludedBusinessPathCount: number;
+}
+
+export async function getDemographicsBreakdown(from: Date, to: Date): Promise<DemographicsBreakdown> {
+  const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
+  return getJson<DemographicsBreakdown>(`/api/v1/admin/analytics/demographics?${params.toString()}`);
+}
+
 // ---------- Analytics: alerts ----------
 // Backend GET /api/v1/admin/analytics/alerts — no params, always the current live snapshot.
 
