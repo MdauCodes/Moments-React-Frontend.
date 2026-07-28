@@ -39,6 +39,7 @@ import {
   MapPin,
   UserPlus,
   AlertTriangle,
+  Layers,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -158,6 +159,7 @@ const navSections: NavSection[] = [
       { label: "Users", to: "/admin/users", icon: Users, requiresAny: [PERM.USER_VIEW, PERM.USER_CREATE, PERM.USER_MANAGE_ROLES] },
       { label: "Roles", to: "/admin/roles", icon: ShieldCheck, requiresAny: [PERM.USER_MANAGE_ROLES] },
       { label: "Audit Logs", to: "/admin/audit-logs", icon: FileText, requiresAny: [PERM.AUDIT_VIEW] },
+      { label: "Changelog", to: "/admin/changelog", icon: BookOpen, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Settings", to: "/admin/settings", icon: Settings, requiresAny: [PERM.SETTINGS_MANAGE] },
     ],
   },
@@ -165,6 +167,7 @@ const navSections: NavSection[] = [
     label: "Help",
     items: [
       { label: "Feature Guide", to: "/admin/feature-guide", icon: BookOpen },
+      { label: "System Architecture", to: "/admin/architecture", icon: Layers, superAdminOnly: true },
     ],
   },
   {

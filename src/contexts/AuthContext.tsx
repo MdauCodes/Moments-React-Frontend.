@@ -29,8 +29,7 @@ interface AuthContextValue {
    * NOT the same as "is a session active." login()/logout() here mutate token state in place
    * without reloading the page, so a plain persisted dismissal flag (as WelcomeStarterModal
    * uses) would wrongly survive a logout→login in the same tab. Consumers that need to
-   * "reappear every login" (e.g. DobGenderNagModal) key their dismissal against this value
-   * instead of a fixed boolean.
+   * "reappear every login" key their dismissal against this value instead of a fixed boolean.
    */
   loginSessionId: string | null;
 }

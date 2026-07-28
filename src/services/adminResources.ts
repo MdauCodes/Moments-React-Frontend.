@@ -94,6 +94,12 @@ export type BlogDto = {
 };
 export type BlogRequest = Omit<BlogDto, "id" | "slug" | "status" | "publishedAt" | "createdAt" | "updatedAt">;
 
+export type ChangelogCategory = "FEATURE" | "IMPROVEMENT" | "FIX" | "SECURITY";
+export type ChangelogEntryDto = {
+  id: string; title: string; summary: string; category: ChangelogCategory; author?: string; createdAt?: string;
+};
+export type ChangelogEntryRequest = { title: string; summary: string; category: ChangelogCategory; author?: string };
+
 export type EnquiryPipelineStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL_SENT" | "WON" | "LOST" | "ARCHIVED";
 
 export type EnquiryNote = {
@@ -388,6 +394,12 @@ export const adminResources = {
     publish: (id: string) => adminJson<BlogDto>(`/api/v1/admin/blogs/${encodeURIComponent(id)}/publish`, { method: "POST" }),
     unpublish: (id: string) => adminJson<BlogDto>(`/api/v1/admin/blogs/${encodeURIComponent(id)}/unpublish`, { method: "POST" }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/blogs/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  changelog: {
+    list: () => adminJson<ChangelogEntryDto[]>("/api/v1/admin/changelog"),
+    create: (body: ChangelogEntryRequest) => adminJson<ChangelogEntryDto>("/api/v1/admin/changelog", { method: "POST", body: JSON.stringify(body) }),
+    update: (id: string, body: Partial<ChangelogEntryRequest>) => adminJson<ChangelogEntryDto>(`/api/v1/admin/changelog/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    remove: (id: string) => adminJson<void>(`/api/v1/admin/changelog/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   enquiries: {
     list: async (params: Record<string, string | number | undefined>) => unwrap(await adminJson<PageResponse<EnquiryDto> | EnquiryDto[]>(`/api/v1/admin/enquiries${qs(params)}`)),
