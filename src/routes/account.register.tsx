@@ -1,21 +1,14 @@
 import { Link, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 
-import { InlineProgress } from "@/components/InlineProgress";
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Gift, Briefcase, Check, ShoppingBag } from "lucide-react";
 
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
-import { PasswordInput } from "@/components/PasswordInput";
-import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiUrl, getSessionId } from "@/config/api";
-import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
-import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { RegistrationDetailsWizard } from "@/components/RegistrationDetailsWizard";
 
 type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
-
-const inputCls = "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
 
 const ACCOUNT_TYPES: {
   value: AccountType;
@@ -52,63 +45,18 @@ function RegisterPage() {
   const [accountType, setAccountType] = useState<AccountType | null>(
     preselect === "business" ? "BUSINESS" : preselect === "merchant" ? "INDIVIDUAL_SHOPPER" : null,
   );
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [consent, setConsent] = useState(false);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-    if (!consent) {
-      toast.error("Please tick the consent box to continue");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch(apiUrl("/api/v1/auth/register"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
-        body: JSON.stringify({
-          email: email.trim(),
-          firstName,
-          lastName,
-          phone,
-          password,
-          accountType,
-          ...(referralCode ? { referralCode } : {}),
-          ...toPayload(turnstileToken),
-        }),
-      });
-      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
-      if (!res.ok) {
-        throw new Error((data as { message?: string }).message ?? "Registration failed");
-      }
-      const accessToken = (data as { accessToken?: string }).accessToken;
-      const refreshTokenValue = (data as { refreshToken?: string }).refreshToken;
-      if (accessToken) setSession(accessToken, refreshTokenValue);
-      if (returnUrl) {
-        toast.success("Account created — you're in.");
-        navigate(returnUrl);
-      } else if (accountType === "BUSINESS") {
-        toast.success("Account created — let's set up your business profile.");
-        navigate("/account/business");
-      } else {
-        toast.success("Account created — you're in.");
-        navigate("/account/dashboard");
-      }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Registration failed");
-    } finally {
-      setSubmitting(false);
+  function handleSuccess(result: { accessToken?: string; refreshToken?: string }) {
+    if (result.accessToken) setSession(result.accessToken, result.refreshToken);
+    if (returnUrl) {
+      toast.success("Account created — you're in.");
+      navigate(returnUrl);
+    } else if (accountType === "BUSINESS") {
+      toast.success("Account created — let's set up your business profile.");
+      navigate("/account/business");
+    } else {
+      toast.success("Account created — you're in.");
+      navigate("/account/dashboard");
     }
   }
 
@@ -191,44 +139,13 @@ function RegisterPage() {
             ? "Your details as the account holder. You'll add your business profile (name, address, contact info) right after this."
             : "Takes about a minute — that's it, you're in."}
         </p>
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {accountType === "BUSINESS" ? "You, the account holder" : "Your details"}
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Your first name</label>
-              <input required className={inputCls} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Your last name</label>
-              <input required className={inputCls} value={lastName} onChange={(e) => setLastName(e.target.value)} />
-            </div>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Email</label>
-            <input type="email" required className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Phone</label>
-            <input required className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0712 345 678" />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium">Password</label>
-            <PasswordInput required minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
-            <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>
-          </div>
-          <HoneypotField value={honeypot} onChange={setHoneypot} />
-          <ConsentCheckbox
-            checked={consent}
-            onCheckedChange={setConsent}
-            purpose="create and manage your account"
+        <div className="mt-8">
+          <RegistrationDetailsWizard
+            accountType={accountType}
+            referralCode={referralCode}
+            onSuccess={handleSuccess}
           />
-          <TurnstileWidget onToken={setTurnstileToken} />
-          <button type="submit" disabled={submitting || !consent} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
-            {submitting && <InlineProgress size="sm" />} Create account
-          </button>
-        </form>
+        </div>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <Link to="/account/login" state={returnUrl ? { returnUrl } : undefined} className="text-accent hover:underline">

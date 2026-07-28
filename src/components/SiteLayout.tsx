@@ -9,6 +9,7 @@ import { BottomNav } from "./BottomNav";
 import { CookieConsent } from "./CookieConsent";
 import { AddToHomeScreenPrompt } from "./AddToHomeScreenPrompt";
 import { WelcomeStarterModal } from "./WelcomeStarterModal";
+import { CelebratoryRewardBanner } from "./CelebratoryRewardBanner";
 
 const SPLASH_KEY = "moments_splash_shown";
 
@@ -33,6 +34,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
       <PageProgressBar />
       <div className="flex min-h-screen flex-col bg-background">
         <AddToHomeScreenPrompt />
+        <CelebratoryRewardBanner />
         <SiteHeader />
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <SiteFooter />
@@ -49,4 +51,3 @@ function LayoutShell({ children }: { children: ReactNode }) {
 export function SiteLayout({ children }: { children: ReactNode }) {
   return <LayoutShell>{children}</LayoutShell>;
 }
-

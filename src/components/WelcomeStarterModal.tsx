@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { X, Gift, Briefcase, ShoppingBag, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Gift, Briefcase, ShoppingBag, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
@@ -9,19 +9,18 @@ import avatarRight from "@/assets/avatars/avatar_2.png";
 import avatarShrug from "@/assets/avatars/avatar_3.png";
 
 // Shows a few seconds after any page loads (mounted globally in SiteLayout) — long enough to
-// clear the branded splash — and, for a visitor who dismisses it while still not logged in,
-// keeps re-appearing as they keep browsing or navigate to a new page. Two-screen flow: the
-// main offer screen, and — only if the visitor picks "no account" — a single second-thoughts
-// screen explaining what they'd be skipping, with an easy way back to either path or to just
-// continue anonymously.
+// clear the branded splash. Two-screen flow: the main offer screen, and — only if the visitor
+// picks "no account" — a single second-thoughts screen explaining what they'd be skipping, with
+// an easy way back to either path or to explicitly continue anonymously.
 //
-// Capped per browser session (sessionStorage, so it resets on the next visit): at most
-// MAX_SHOWS_PER_SESSION appearances total, and an explicit "Continue without an account" stops
-// it from reappearing for the rest of the session outright — a plain close (X / backdrop click)
-// still gets the shorter 45s reappear, but only up to the session cap. Supersedes the previous
-// "no cap, ever" behavior.
+// No X button and no backdrop-click dismiss, deliberately — either one let a visitor "soft
+// close" the modal without deciding anything, which just re-armed it to pop back up a short
+// while later and read as nagging. Every path out now requires an explicit choice: pick an
+// account type, sign in, or hit "Continue without an account" on the decline screen (which sets
+// the permanent per-session decline flag). If the visitor never engages at all and just keeps
+// browsing/navigating, it can still show again on a later page load, capped at
+// MAX_SHOWS_PER_SESSION — that part is unchanged and isn't the disruptive behavior this fixes.
 const SHOW_DELAY_MS = 1800;
-const REAPPEAR_DELAY_MS = 45_000;
 const MAX_SHOWS_PER_SESSION = 3;
 const DECLINED_KEY = "moments_welcome_declined";
 const SHOWN_COUNT_KEY = "moments_welcome_shown_count";
@@ -113,31 +112,22 @@ export function WelcomeStarterModal() {
     return () => clearTimeout(t);
   }, [isAuthenticated]);
 
-  /** @param final true when the visitor engaged (register/login) — no re-appearance on this
-   *  page. false for a plain close, which re-arms another appearance shortly after if the
-   *  visitor is still around, still unauthenticated, and under the session show cap. */
-  function dismiss(final = false) {
+  // No non-final path anymore — every call site here represents an actual decision (pick an
+  // account type, sign in, or explicitly decline), so this just closes, full stop.
+  function dismiss() {
     setOpen(false);
-    if (final || isAuthenticated || !shouldShow()) return;
-    const t = setTimeout(() => {
-      if (!shouldShow() || isAuthenticated) return;
-      recordShown();
-      setView("main");
-      setOpen(true);
-    }, REAPPEAR_DELAY_MS);
-    return () => clearTimeout(t);
   }
 
   function pick(action: () => void) {
-    dismiss(true);
+    dismiss();
     action();
   }
 
-  /** The decline screen's "Continue without an account" — a definitive signal, unlike a plain
-   *  close, so it stops the modal for the rest of this session instead of just this page. */
+  /** The decline screen's "Continue without an account" — sets the permanent per-session
+   *  decline flag so the modal doesn't show again on a later page load either. */
   function declineFinal() {
     recordDeclined();
-    dismiss(true);
+    dismiss();
   }
 
   if (!open) return null;
@@ -148,25 +138,13 @@ export function WelcomeStarterModal() {
       aria-modal="true"
       aria-labelledby="starter-modal-title"
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300"
-      onClick={() => dismiss()}
     >
       <div
         className={`relative w-full rounded-3xl border shadow-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
           view === "main" ? "max-w-3xl" : "max-w-lg"
         }`}
         style={{ background: MODAL_BG, borderColor: MODAL_BORDER }}
-        onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
-          onClick={() => dismiss()}
-          aria-label="Close"
-          className="absolute right-3 top-3 z-20 rounded-full p-1.5 transition hover:bg-black/10"
-          style={{ color: `${FOREST_DEEP}b3` }}
-        >
-          <X className="h-4 w-4" />
-        </button>
-
         {view === "main" ? (
           <>
             {/* Avatar 1's job: introduce the offer copy — breaks the card's
@@ -238,7 +216,7 @@ export function WelcomeStarterModal() {
                   </button>
                   <Link
                     to="/account-options#business"
-                    onClick={() => dismiss(true)}
+                    onClick={() => dismiss()}
                     className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
                     style={{ color: GRAY_INK }}
                   >
@@ -264,7 +242,7 @@ export function WelcomeStarterModal() {
                   </button>
                   <Link
                     to="/account-options#individual"
-                    onClick={() => dismiss(true)}
+                    onClick={() => dismiss()}
                     className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
                     style={{ color: GRAY_INK }}
                   >

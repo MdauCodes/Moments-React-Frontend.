@@ -1,11 +1,7 @@
 import { KpiCard } from "@/components/admin/analyticsUi";
-import { TrendLineChart, ShareDonutChart, RankedBarChart } from "@/components/admin/analyticsCharts";
+import { TrendLineChart, RankedBarChart } from "@/components/admin/analyticsCharts";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
 import type { SignupTrend, DemographicsBreakdown } from "@/services/commerceApi";
-
-const GENDER_LABELS: Record<string, string> = {
-  MALE: "Male", FEMALE: "Female", OTHER: "Other", PREFER_NOT_TO_SAY: "Prefer not to say",
-};
 
 /** New section — no prior standalone page. Deliberately labeled "Signups" throughout, never
  *  "New Customers" (that's CustomerAnalytics.newPayingCustomersInRange, a different metric:
@@ -38,18 +34,6 @@ export function SignupsDemographicsSection({
             data={signupTrend.points.map((p) => ({ label: p.date.slice(5), signups: p.signups }))}
             series={[{ key: "signups", label: "Signups", color: CATEGORICAL[0] }]}
             height={200}
-          />
-        </div>
-      )}
-
-      {!demographicsLoading && demographics && demographics.byGender.length > 0 && (
-        <div style={{ marginTop: 16 }}>
-          <div className="admin-label" style={{ marginBottom: 8 }}>Gender (personal-birthday signups this period)</div>
-          <ShareDonutChart
-            data={demographics.byGender.map((g, i) => ({
-              name: GENDER_LABELS[g.gender] ?? g.gender, value: g.count, color: CATEGORICAL[i % CATEGORICAL.length],
-            }))}
-            height={180}
           />
         </div>
       )}
@@ -88,11 +72,6 @@ export function signupsDemographicsExportPayload(signupTrend: SignupTrend | null
         title: "Signups per day",
         columns: ["Date", "Signups"],
         rows: (signupTrend?.points ?? []).map((p) => [p.date, p.signups]),
-      },
-      {
-        title: "Gender breakdown",
-        columns: ["Gender", "Count"],
-        rows: (demographics?.byGender ?? []).map((g) => [GENDER_LABELS[g.gender] ?? g.gender, g.count]),
       },
       {
         title: "Age bracket breakdown",

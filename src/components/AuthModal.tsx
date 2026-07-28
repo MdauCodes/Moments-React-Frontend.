@@ -5,12 +5,11 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal, type ModalAccountType } from "@/contexts/AuthModalContext";
 import { PasswordInput } from "@/components/PasswordInput";
-import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
 import { InlineProgress } from "@/components/InlineProgress";
-import { apiUrl, getSessionId } from "@/config/api";
-import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
+import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { RegistrationDetailsWizard } from "@/components/RegistrationDetailsWizard";
 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
@@ -66,8 +65,8 @@ export function AuthModal() {
       onClick={close}
     >
       <div
-        className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/40 text-card-foreground shadow-2xl backdrop-blur-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
-        style={{ background: "color-mix(in oklab, var(--accent) 24%, white 76%)" }}
+        className="relative w-full max-w-md overflow-hidden rounded-3xl border text-card-foreground shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-2 duration-200"
+        style={{ background: MODAL_BG, borderColor: MODAL_BORDER }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -173,16 +172,12 @@ function RegisterStep() {
   const { setSession } = useAuth();
   const navigate = useNavigate();
   const [accountType, setAccountType] = useState<ModalAccountType | null>(preselectAccountType ?? null);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [consent, setConsent] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [welcome, setWelcome] = useState<{ firstName: string; accountType: ModalAccountType } | null>(null);
-  const [turnstileToken, setTurnstileToken] = useState("");
-  const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
+
+  function handleSuccess(result: { accessToken?: string; refreshToken?: string; firstName: string }) {
+    if (result.accessToken) setSession(result.accessToken, result.refreshToken);
+    setWelcome({ firstName: result.firstName, accountType: accountType as ModalAccountType });
+  }
 
   function finishAndContinue() {
     close();
@@ -194,47 +189,6 @@ function RegisterStep() {
       navigate("/account/business");
     } else {
       toast.success("Account created — you're in.");
-    }
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-    if (!consent) {
-      toast.error("Please tick the consent box to continue");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const res = await fetch(apiUrl("/api/v1/auth/register"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
-        body: JSON.stringify({
-          email: email.trim(),
-          firstName,
-          lastName,
-          phone,
-          password,
-          accountType,
-          ...(referralCode ? { referralCode } : {}),
-          ...toPayload(turnstileToken),
-        }),
-      });
-      const data = await res.json().catch(() => ({}) as Record<string, unknown>);
-      if (!res.ok) {
-        throw new Error((data as { message?: string }).message ?? "Registration failed");
-      }
-      const accessToken = (data as { accessToken?: string }).accessToken;
-      const refreshTokenValue = (data as { refreshToken?: string }).refreshToken;
-      if (accessToken) setSession(accessToken, refreshTokenValue);
-      setWelcome({ firstName: firstName.trim() || "there", accountType: accountType as ModalAccountType });
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Registration failed");
-    } finally {
-      setSubmitting(false);
     }
   }
 
@@ -347,43 +301,14 @@ function RegisterStep() {
           ? "Your details as the account holder. You'll add your business profile (name, address, contact info) right after this."
           : "Takes about a minute — that's it, you're in."}
       </p>
-      <form onSubmit={handleSubmit} className="mt-5 space-y-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          {accountType === "BUSINESS" ? "You, the account holder" : "Your details"}
-        </p>
-        <div className="grid grid-cols-2 gap-2.5">
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Your first name</label>
-            <input required className={inputCls} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Your last name</label>
-            <input required className={inputCls} value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </div>
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
-          <input type="email" required className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone</label>
-          <input required className={inputCls} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0712 345 678" />
-        </div>
-        <div>
-          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Password</label>
-          <PasswordInput required minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
-        </div>
-        <HoneypotField value={honeypot} onChange={setHoneypot} />
-        <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage your account" />
-        <TurnstileWidget onToken={setTurnstileToken} />
-        <button
-          type="submit"
-          disabled={submitting || !consent}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-        >
-          {submitting && <InlineProgress size="sm" />} Create account
-        </button>
-      </form>
+      <div className="mt-5">
+        <RegistrationDetailsWizard
+          accountType={accountType}
+          referralCode={referralCode}
+          compact
+          onSuccess={handleSuccess}
+        />
+      </div>
     </div>
   );
 }

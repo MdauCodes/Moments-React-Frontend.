@@ -45,6 +45,13 @@ export interface RewardsTier {
   perkDescription?: string;
 }
 
+export interface CelebratoryReward {
+  active: boolean;
+  type: "POINTS" | "PERCENTAGE" | null;
+  expiresAt: string | null;
+  summary: string | null;
+}
+
 async function getJson<T>(path: string, auth = false): Promise<T | null> {
   try {
     const res = await apiFetch(path, { auth, session: true });
@@ -114,6 +121,19 @@ export const referralStore = {
       minLifetimePoints: Number(data.minLifetimePoints ?? 0),
       discountPercent: Number(data.discountPercent ?? 0),
       perkDescription: data.perkDescription,
+    };
+  },
+
+  /** Backs the storefront's FOMO countdown banner. Null (not "active: false") on any failure,
+   *  including simply not being signed in — the banner treats null the same as inactive. */
+  async getCelebratoryReward(): Promise<CelebratoryReward | null> {
+    const data = await getJson<any>("/api/v1/customer/referral/celebratory-reward", true);
+    if (!data) return null;
+    return {
+      active: Boolean(data.active),
+      type: data.type ?? null,
+      expiresAt: data.expiresAt ?? null,
+      summary: data.summary ?? null,
     };
   },
 };

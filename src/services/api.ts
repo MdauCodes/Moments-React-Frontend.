@@ -257,6 +257,10 @@ export const api = {
     return data.map(normalizeIndustry);
   },
 
+  // Fetched once on the registration wizard's final step, same pattern as getIndustries — not
+  // re-queried per keystroke. "Other" free text is resolved server-side at submission.
+  getPurchasePurposes: async () => getJson<Array<{ id: string; label: string }>>("/api/v1/public/purchase-purposes"),
+
   getSegments: async () => getJson<Segment[]>("/api/v1/public/segments"),
 
   getCategories: async (params?: { segmentId?: string; industryId?: string }) =>
