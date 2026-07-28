@@ -216,13 +216,43 @@ export function TableSection({
       )}
 
       {view === "category" && (
-        breakdownLoading || !breakdown ? <div className="admin-empty">Loading…</div> :
-          <LineTable rows={breakdown.byCategory} caveat="Reflects each product's current classification, not its classification at time of sale." />
+        breakdownLoading || !breakdown ? <div className="admin-empty">Loading…</div> : (
+          <>
+            <LineTable rows={breakdown.byCategory} caveat="Reflects each product's current classification, not its classification at time of sale." />
+            {breakdown.byCategory.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div className="admin-label" style={{ marginBottom: 8 }}>Revenue by category (this period)</div>
+                <RankedBarChart
+                  data={breakdown.byCategory.map((c) => ({ name: c.groupName, revenue: c.revenueKes }))}
+                  dataKey="revenue"
+                  nameKey="name"
+                  color={CATEGORICAL[0]}
+                  valueFormatter={(v) => formatKes(v)}
+                />
+              </div>
+            )}
+          </>
+        )
       )}
 
       {view === "subcategory" && (
-        breakdownLoading || !breakdown ? <div className="admin-empty">Loading…</div> :
-          <LineTable rows={breakdown.bySubcategory} caveat="Reflects each product's current classification, not its classification at time of sale." />
+        breakdownLoading || !breakdown ? <div className="admin-empty">Loading…</div> : (
+          <>
+            <LineTable rows={breakdown.bySubcategory} caveat="Reflects each product's current classification, not its classification at time of sale." />
+            {breakdown.bySubcategory.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div className="admin-label" style={{ marginBottom: 8 }}>Revenue by subcategory (this period)</div>
+                <RankedBarChart
+                  data={breakdown.bySubcategory.map((s) => ({ name: s.groupName, revenue: s.revenueKes }))}
+                  dataKey="revenue"
+                  nameKey="name"
+                  color={CATEGORICAL[1]}
+                  valueFormatter={(v) => formatKes(v)}
+                />
+              </div>
+            )}
+          </>
+        )
       )}
 
       {view === "industry" && (
@@ -234,6 +264,18 @@ export function TableSection({
               </span>
             </div>
             <LineTable rows={breakdown.byIndustry} />
+            {breakdown.byIndustry.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <div className="admin-label" style={{ marginBottom: 8 }}>Revenue by industry (this period)</div>
+                <RankedBarChart
+                  data={breakdown.byIndustry.map((i) => ({ name: i.groupName, revenue: i.revenueKes }))}
+                  dataKey="revenue"
+                  nameKey="name"
+                  color={CATEGORICAL[2]}
+                  valueFormatter={(v) => formatKes(v)}
+                />
+              </div>
+            )}
           </>
         )
       )}

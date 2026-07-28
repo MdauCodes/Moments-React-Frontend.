@@ -1,12 +1,27 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 
 import { SiteLayout } from "@/components/SiteLayout";
 import { ArrowRight } from "lucide-react";
-import { industries } from "@/data/products";
+import { api } from "@/services/api";
+import { filterVisibleIndustries, type Industry } from "@/data/products";
 
 
 
 function IndustriesPage() {
+  // Fetched live from the backend (same call /products uses) rather than the old static
+  // frontend list — an admin-added/edited/renamed industry now shows up here immediately
+  // instead of only on /products, where the two pages could previously drift out of sync.
+  const [industries, setIndustries] = useState<Industry[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void api.getIndustries().then((data) => {
+      if (!cancelled) setIndustries(filterVisibleIndustries(data));
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, []);
+
   return (
     <SiteLayout>
       <section className="bg-cream">
@@ -17,8 +32,8 @@ function IndustriesPage() {
               Packaging for every kind of business.
             </h1>
             <p className="mt-5 text-base text-muted-foreground sm:mt-6 sm:text-lg">
-              Whatever you sell, we've probably packed it. Eight industries — one production
-              line, one quality bar. Pick a sector to jump straight to the products we make for it.
+              Whatever you sell, we've probably got packaging for it. Eight industries — one
+              quality bar, every time. Pick a sector to jump straight to what's available for it.
             </p>
           </div>
         </div>

@@ -72,8 +72,14 @@ import AdminResetPasswordPage from "@/routes/admin.reset-password";
 // ── Admin pages (auth required) ─────────────────────────────────────────────
 import { AdminDashboardPage } from "@/routes/_adminAuth.admin.index";
 import AdminAnalyticsPage from "@/routes/_adminAuth.admin.analytics";
-import AdminAnalyticsSalesPage from "@/routes/_adminAuth.admin.analytics.sales";
-import AdminAnalyticsFinancePage from "@/routes/_adminAuth.admin.analytics.finance";
+import AdminAnalyticsCustomersPage from "@/routes/_adminAuth.admin.analytics.customers";
+import AdminAnalyticsSignupsDemographicsPage from "@/routes/_adminAuth.admin.analytics.signups-demographics";
+import AdminAnalyticsGeographicPage from "@/routes/_adminAuth.admin.analytics.geographic";
+import AdminAnalyticsDeliveryPage from "@/routes/_adminAuth.admin.analytics.delivery";
+import AdminAnalyticsProductsPage from "@/routes/_adminAuth.admin.analytics.products";
+import AdminAnalyticsProfitabilityPage from "@/routes/_adminAuth.admin.analytics.profitability";
+import AdminAnalyticsTaxPage from "@/routes/_adminAuth.admin.analytics.tax";
+import AdminAnalyticsRewardsPage from "@/routes/_adminAuth.admin.analytics.rewards";
 import AdminAnalyticsDataVisualizationPage from "@/routes/_adminAuth.admin.analytics.data-visualization";
 import AdminAuditLogsPage from "@/routes/_adminAuth.admin.audit-logs";
 import AdminBlogsPage from "@/routes/_adminAuth.admin.blogs";
@@ -189,18 +195,19 @@ export default function App() {
                       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                       <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                       <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
-                      <Route path="/admin/analytics/sales" element={<AdminAnalyticsSalesPage />} />
-                      <Route path="/admin/analytics/finance" element={<AdminAnalyticsFinancePage />} />
+                      <Route path="/admin/analytics/customers" element={<AdminAnalyticsCustomersPage />} />
+                      <Route path="/admin/analytics/signups-demographics" element={<AdminAnalyticsSignupsDemographicsPage />} />
+                      <Route path="/admin/analytics/geographic" element={<AdminAnalyticsGeographicPage />} />
+                      <Route path="/admin/analytics/delivery" element={<AdminAnalyticsDeliveryPage />} />
+                      <Route path="/admin/analytics/products" element={<AdminAnalyticsProductsPage />} />
+                      <Route path="/admin/analytics/profitability" element={<AdminAnalyticsProfitabilityPage />} />
+                      <Route path="/admin/analytics/tax" element={<AdminAnalyticsTaxPage />} />
+                      <Route path="/admin/analytics/rewards" element={<AdminAnalyticsRewardsPage />} />
                       <Route path="/admin/analytics/data-visualization" element={<AdminAnalyticsDataVisualizationPage />} />
-                      {/* Retired flat pages — redirect old bookmarks/links to their new consolidated home
-                          (see rippling-booping-lobster.md Phase 2) rather than 404ing. */}
-                      <Route path="/admin/analytics/customers" element={<Navigate to="/admin/analytics/sales" replace />} />
-                      <Route path="/admin/analytics/geographic" element={<Navigate to="/admin/analytics/sales" replace />} />
-                      <Route path="/admin/analytics/delivery" element={<Navigate to="/admin/analytics/sales" replace />} />
-                      <Route path="/admin/analytics/rewards" element={<Navigate to="/admin/analytics/finance" replace />} />
-                      <Route path="/admin/analytics/tax" element={<Navigate to="/admin/analytics/finance" replace />} />
-                      <Route path="/admin/analytics/profitability" element={<Navigate to="/admin/analytics/finance" replace />} />
-                      <Route path="/admin/analytics/products" element={<Navigate to="/admin/analytics/data-visualization" replace />} />
+                      {/* Retired composite pages from the prior analytics restructuring — redirect old
+                          bookmarks/links to a sensible standalone tab rather than 404ing. */}
+                      <Route path="/admin/analytics/sales" element={<Navigate to="/admin/analytics/customers" replace />} />
+                      <Route path="/admin/analytics/finance" element={<Navigate to="/admin/analytics/profitability" replace />} />
                       <Route path="/admin/audit-logs" element={<AdminAuditLogsPage />} />
                       <Route path="/admin/blogs" element={<AdminBlogsPage />} />
                       <Route path="/admin/blogs/new" element={<AdminBlogsNewPage />} />
