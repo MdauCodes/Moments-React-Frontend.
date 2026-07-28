@@ -38,6 +38,7 @@ import {
   LayoutGrid,
   MapPin,
   UserPlus,
+  AlertTriangle,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -170,6 +171,7 @@ const navSections: NavSection[] = [
     label: "Analytics",
     items: [
       { label: "Overview", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Needs Attention", to: "/admin/analytics/needs-attention", icon: AlertTriangle, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Customers", to: "/admin/analytics/customers", icon: Users, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Signups & Demographics", to: "/admin/analytics/signups-demographics", icon: UserPlus, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Geographic", to: "/admin/analytics/geographic", icon: MapPin, requiresAny: [PERM.ANALYTICS_VIEW] },

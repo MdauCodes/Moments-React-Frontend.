@@ -73,6 +73,7 @@ import AdminResetPasswordPage from "@/routes/admin.reset-password";
 import { AdminDashboardPage } from "@/routes/_adminAuth.admin.index";
 import AdminAnalyticsPage from "@/routes/_adminAuth.admin.analytics";
 import AdminAnalyticsCustomersPage from "@/routes/_adminAuth.admin.analytics.customers";
+import AdminAnalyticsNeedsAttentionPage from "@/routes/_adminAuth.admin.analytics.needs-attention";
 import AdminAnalyticsSignupsDemographicsPage from "@/routes/_adminAuth.admin.analytics.signups-demographics";
 import AdminAnalyticsGeographicPage from "@/routes/_adminAuth.admin.analytics.geographic";
 import AdminAnalyticsDeliveryPage from "@/routes/_adminAuth.admin.analytics.delivery";
@@ -196,6 +197,7 @@ export default function App() {
                       <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                       <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                       <Route path="/admin/analytics/customers" element={<AdminAnalyticsCustomersPage />} />
+                      <Route path="/admin/analytics/needs-attention" element={<AdminAnalyticsNeedsAttentionPage />} />
                       <Route path="/admin/analytics/signups-demographics" element={<AdminAnalyticsSignupsDemographicsPage />} />
                       <Route path="/admin/analytics/geographic" element={<AdminAnalyticsGeographicPage />} />
                       <Route path="/admin/analytics/delivery" element={<AdminAnalyticsDeliveryPage />} />

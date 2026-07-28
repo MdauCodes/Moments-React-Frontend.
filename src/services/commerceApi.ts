@@ -850,6 +850,52 @@ export async function getAlerts(): Promise<Alerts> {
   return getJson<Alerts>(`/api/v1/admin/analytics/alerts`);
 }
 
+// ---------- Analytics: needs attention ----------
+// Backend GET /api/v1/admin/analytics/needs-attention — no params, always the current live snapshot.
+
+export interface LapsedCustomer {
+  customerId: string;
+  name: string;
+  email: string;
+  lastOrderAt: string;
+  averageGapDays: number;
+  daysSinceLastOrder: number;
+}
+
+export interface SalesDropAlert {
+  metric: string;
+  currentValue: number;
+  priorValue: number;
+  dropPercent: number;
+}
+
+export interface UnderperformingProduct {
+  productId: string;
+  name: string;
+  stockCount: number;
+}
+
+export interface SuspiciousAccount {
+  userId: string;
+  name: string;
+  email: string;
+  registrationIp: string;
+  createdAt: string;
+  accountsSharingIp: number;
+}
+
+export interface NeedsAttentionSummary {
+  operationalAlerts: Alerts;
+  lapsedCustomers: LapsedCustomer[];
+  salesDropAlerts: SalesDropAlert[];
+  underperformingProducts: UnderperformingProduct[];
+  suspiciousAccounts: SuspiciousAccount[];
+}
+
+export async function getNeedsAttention(): Promise<NeedsAttentionSummary> {
+  return getJson<NeedsAttentionSummary>(`/api/v1/admin/analytics/needs-attention`);
+}
+
 // ---------- Exports ----------
 
 export async function exportOrders(params: ListOrdersParams = {}): Promise<{ rows: OrderRecord[]; source: Source }> {
