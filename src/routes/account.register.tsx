@@ -10,6 +10,8 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiUrl, getSessionId } from "@/config/api";
+import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
 
@@ -57,6 +59,8 @@ function RegisterPage() {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [consent, setConsent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -81,6 +85,7 @@ function RegisterPage() {
           password,
           accountType,
           ...(referralCode ? { referralCode } : {}),
+          ...toPayload(turnstileToken),
         }),
       });
       const data = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -213,11 +218,13 @@ function RegisterPage() {
             <PasswordInput required minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
             <p className="mt-1 text-xs text-muted-foreground">At least 8 characters.</p>
           </div>
+          <HoneypotField value={honeypot} onChange={setHoneypot} />
           <ConsentCheckbox
             checked={consent}
             onCheckedChange={setConsent}
             purpose="create and manage your account"
           />
+          <TurnstileWidget onToken={setTurnstileToken} />
           <button type="submit" disabled={submitting || !consent} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
             {submitting && <InlineProgress size="sm" />} Create account
           </button>

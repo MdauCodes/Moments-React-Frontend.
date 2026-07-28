@@ -8,7 +8,9 @@ import { Check, Mail, MessageCircle } from "lucide-react";
 import { usePersona } from "@/contexts/PersonaContext";
 import { useCart, type CartItem } from "@/contexts/CartContext";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
-import { apiUrl } from "@/config/api";
+import { api } from "@/services/api";
+import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 
 
@@ -45,6 +47,8 @@ function ContactPage() {
   const [referralSource, setReferralSource] = useState("");
   const [formState, setFormState] = useState<FormState>("idle");
   const [consent, setConsent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -54,34 +58,38 @@ function ContactPage() {
     }
     setFormState("submitting");
 
+    // The backend's EnquiryCreateRequest only has persona/contact/message/source — several
+    // fields this form collects (contact method preference, volume, timeline, basket, artwork
+    // filename) have no dedicated column yet, so they're folded into message as readable detail
+    // lines instead of being silently dropped.
+    const detailLines: string[] = [`Preferred contact method: ${contactMethod}`];
+    if (isCorp && estimatedVolume) detailLines.push(`Estimated monthly volume: ${estimatedVolume}`);
+    if (isCorp && timeline) detailLines.push(`Required timeline: ${timeline}`);
+    if (artworkFile) detailLines.push(`Artwork mentioned (not uploaded via this form): ${artworkFile.name}`);
+    if (basketProducts.length > 0) {
+      detailLines.push(
+        `Products: ${basketProducts
+          .map((item) => `${item.productName} x${item.quantity}${item.size ? ` (${item.size})` : ""}`)
+          .join(", ")}`,
+      );
+    }
+    if (message) detailLines.push("", message);
+
     const payload = {
-      customerType: isCorp ? "CORPORATE" : "SME",
-      preferredContactMethod: contactMethod.toUpperCase(),
-      name,
-      companyName: isCorp ? companyName : undefined,
-      email: email || undefined,
-      phone: phone || undefined,
-      message: message || undefined,
-      estimatedVolume: isCorp ? estimatedVolume : undefined,
-      timeline: isCorp ? timeline : undefined,
-      artworkUrl: undefined as string | undefined,
-      referralSource: !isCorp ? referralSource : undefined,
-      products: basketProducts.map((item) => ({
-        productId: item.productId,
-        name: item.productName,
-        qty: item.quantity,
-        size: item.size,
-        finish: item.finish,
-      })),
+      persona,
+      contact: {
+        name,
+        email: email || undefined,
+        phone: phone || undefined,
+        company: isCorp ? companyName : undefined,
+      },
+      message: detailLines.join("\n"),
+      source: isCorp ? "corporate-quote-form" : referralSource || "contact-form",
+      ...toPayload(turnstileToken),
     };
 
     try {
-      const response = await fetch(apiUrl("/api/enquiries"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      await api.submitEnquiry(payload);
       setFormState("success");
       clear();
     } catch (err) {
@@ -318,6 +326,8 @@ function ContactPage() {
                 </div>
               )}
 
+              <HoneypotField value={honeypot} onChange={setHoneypot} />
+
               <div className="mt-6">
                 <ConsentCheckbox
                   checked={consent}
@@ -325,6 +335,8 @@ function ContactPage() {
                   purpose="contact you about this enquiry"
                 />
               </div>
+
+              <TurnstileWidget onToken={setTurnstileToken} />
 
               <button
                 type="submit"

@@ -7,6 +7,7 @@ import { z } from "zod";
 import { SiteLayout } from "@/components/SiteLayout";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/contexts/AuthContext";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 
@@ -30,12 +31,15 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Only appears once this IP has 5+ recent failed attempts — a normal login never sees this.
+  const [challengeRequired, setChallengeRequired] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const loggedInUser = await login(email.trim(), password);
+      const loggedInUser = await login(email.trim(), password, turnstileToken || undefined);
       toast.success("Signed in");
       const roles = loggedInUser?.roles ?? [];
       const dest =
@@ -44,7 +48,13 @@ function LoginPage() {
           : (returnUrl ?? "/account/dashboard");
       navigate(dest);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign in failed");
+      const code = (err as { code?: string })?.code;
+      if (code === "CHALLENGE_REQUIRED") {
+        setChallengeRequired(true);
+        toast.error("Please complete the security check below and try again.");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Sign in failed");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -80,6 +90,7 @@ function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
+          {challengeRequired && <TurnstileWidget onToken={setTurnstileToken} />}
           <button
             type="submit"
             disabled={submitting}

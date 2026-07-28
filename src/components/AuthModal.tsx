@@ -9,6 +9,8 @@ import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
 import { InlineProgress } from "@/components/InlineProgress";
 import { apiUrl, getSessionId } from "@/config/api";
+import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
@@ -93,12 +95,15 @@ function LoginStep() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  // Only appears once this IP has 5+ recent failed attempts — a normal login never sees this.
+  const [challengeRequired, setChallengeRequired] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
-      const loggedInUser = await login(email.trim(), password);
+      const loggedInUser = await login(email.trim(), password, turnstileToken || undefined);
       toast.success("Signed in");
       close();
       const roles = loggedInUser?.roles ?? [];
@@ -114,7 +119,13 @@ function LoginStep() {
       // otherwise (no account type on the token, e.g. guest): stay on the
       // current page, it re-renders now that isAuthenticated is true
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Sign in failed");
+      const code = (err as { code?: string })?.code;
+      if (code === "CHALLENGE_REQUIRED") {
+        setChallengeRequired(true);
+        toast.error("Please complete the security check below and try again.");
+      } else {
+        toast.error(err instanceof Error ? err.message : "Sign in failed");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -138,6 +149,7 @@ function LoginStep() {
           </div>
           <PasswordInput required className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
+        {challengeRequired && <TurnstileWidget onToken={setTurnstileToken} />}
         <button
           type="submit"
           disabled={submitting}
@@ -169,6 +181,8 @@ function RegisterStep() {
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [welcome, setWelcome] = useState<{ firstName: string; accountType: ModalAccountType } | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
 
   function finishAndContinue() {
     close();
@@ -206,6 +220,7 @@ function RegisterStep() {
           password,
           accountType,
           ...(referralCode ? { referralCode } : {}),
+          ...toPayload(turnstileToken),
         }),
       });
       const data = await res.json().catch(() => ({}) as Record<string, unknown>);
@@ -358,7 +373,9 @@ function RegisterStep() {
           <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Password</label>
           <PasswordInput required minLength={8} className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
+        <HoneypotField value={honeypot} onChange={setHoneypot} />
         <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage your account" />
+        <TurnstileWidget onToken={setTurnstileToken} />
         <button
           type="submit"
           disabled={submitting || !consent}

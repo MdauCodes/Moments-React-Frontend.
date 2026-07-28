@@ -17,13 +17,22 @@ interface AuthContextValue {
   isCustomer: boolean;
   isStaff: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<AuthUser | null>;
+  login: (email: string, password: string, turnstileToken?: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
   setSession: (accessToken: string, refreshTokenValue?: string) => void;
   /** True when this tab is an admin previewing a customer's dashboard (see impersonateCustomer). */
   isImpersonating: boolean;
   exitImpersonation: () => void;
+  /**
+   * A fresh random value minted on every login()/setSession() call and cleared on logout() —
+   * NOT the same as "is a session active." login()/logout() here mutate token state in place
+   * without reloading the page, so a plain persisted dismissal flag (as WelcomeStarterModal
+   * uses) would wrongly survive a logout→login in the same tab. Consumers that need to
+   * "reappear every login" (e.g. DobGenderNagModal) key their dismissal against this value
+   * instead of a fixed boolean.
+   */
+  loginSessionId: string | null;
 }
 
 const RT_KEY = "mpk_rt";
@@ -33,6 +42,36 @@ const REFRESH_INTERVAL_MS = 840_000; // 14 min
 // previewing a customer's dashboard in a new tab can never collide with or overwrite a real
 // customer/admin session sitting in that browser's localStorage — closing the tab discards it.
 const IMPERSONATION_KEY = "mpk_impersonation_token";
+
+// See loginSessionId's doc comment on AuthContextValue for why this exists.
+const LOGIN_SESSION_NONCE_KEY = "mpk_login_session_nonce";
+
+function readLoginSessionNonce(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage.getItem(LOGIN_SESSION_NONCE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function mintLoginSessionNonce(): string {
+  const nonce = crypto.randomUUID();
+  try {
+    window.sessionStorage.setItem(LOGIN_SESSION_NONCE_KEY, nonce);
+  } catch {
+    /* ignore */
+  }
+  return nonce;
+}
+
+function clearLoginSessionNonce(): void {
+  try {
+    window.sessionStorage.removeItem(LOGIN_SESSION_NONCE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 function readImpersonationToken(): string | null {
   if (typeof window === "undefined") return null;
@@ -102,6 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [impersonationToken, setImpersonationToken] = useState<string | null>(
     () => bootstrapImpersonationFromUrl() ?? readImpersonationToken(),
   );
+  // Not minted fresh on every mount — a plain page reload keeps the same sessionStorage value
+  // (correct: that's still the same login session). Only login()/setSession() mint a new one.
+  // The one exception: an already-authenticated user whose session predates this field existing
+  // gets one minted silently here so downstream consumers always have a stable value to compare
+  // against, without that first-mint being treated as a fresh login for dismissal purposes.
+  const [loginSessionId, setLoginSessionId] = useState<string | null>(() => {
+    const existing = readLoginSessionNonce();
+    if (existing) return existing;
+    return getAuthToken() ? mintLoginSessionNonce() : null;
+  });
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const impersonatedUser = impersonationToken ? decodeJwt(impersonationToken) : null;
@@ -180,15 +229,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [accessToken, refreshToken, impersonationToken]);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string, turnstileToken?: string) => {
     const res = await fetch(apiUrl("/api/v1/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, turnstileToken }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error((err as { message?: string }).message ?? "Login failed");
+      // code "CHALLENGE_REQUIRED" (HTTP 428) means this IP has 5+ recent failures and must pass
+      // a Turnstile check before the credentials are even looked at — attached to the thrown
+      // Error so the login form can show the widget instead of a plain "login failed" message.
+      const message = (err as { message?: string }).message ?? "Login failed";
+      const loginError = new Error(message) as Error & { code?: string };
+      loginError.code = (err as { code?: string }).code;
+      throw loginError;
     }
     const data = await res.json();
     if (!data.accessToken) {
@@ -206,6 +261,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     }
+    setLoginSessionId(mintLoginSessionNonce());
     return decodeJwt(data.accessToken) ?? (data.user as AuthUser) ?? null;
   };
 
@@ -218,6 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         /* ignore */
       }
     }
+    setLoginSessionId(mintLoginSessionNonce());
   };
 
   const logout = async () => {
@@ -237,6 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    clearLoginSessionNonce();
+    setLoginSessionId(null);
   };
 
   const roles = effectiveUser?.roles ?? [];
@@ -253,6 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession,
     isImpersonating: !!impersonationToken,
     exitImpersonation,
+    loginSessionId,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
