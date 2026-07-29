@@ -29,7 +29,6 @@ import cupsBeverageImg from "@/assets/company-profile/cups-beverage.jpg";
 import woodenImg from "@/assets/company-profile/wooden-products.jpg";
 import dessertImg from "@/assets/company-profile/dessert-cups.jpg";
 import bagsImg from "@/assets/company-profile/bags-sacks.jpg";
-import introImg from "@/assets/company-profile/intro.jpg";
 import {
   COMPANY_EMAIL,
   COMPANY_PHONE,
@@ -151,7 +150,7 @@ function CompanyProfilePage() {
       <section
         className="relative flex items-center overflow-hidden"
         style={{
-          minHeight: "70dvh",
+          minHeight: "85dvh",
           background: `radial-gradient(ellipse at 100% 0%, ${FOREST} 0%, ${FOREST_DEEP} 60%, #061a13 100%)`,
         }}
       >
@@ -177,8 +176,8 @@ function CompanyProfilePage() {
           style={{ background: `radial-gradient(circle, ${GOLD_SOFT} 0%, transparent 70%)` }}
         />
 
-        <div className="relative mx-auto grid w-full max-w-7xl items-center gap-8 px-5 py-14 sm:py-16 lg:grid-cols-2 lg:gap-14 lg:px-8 lg:py-20">
-          <div>
+        <div className="relative grid w-full items-center gap-8 py-14 pl-8 pr-8 sm:py-16 lg:py-20 lg:pl-48 lg:pr-16">
+          <div className="max-w-3xl">
             <h1 className="font-display text-5xl font-medium leading-[1.02] text-white sm:text-6xl lg:text-7xl">
               Company
               <br />
@@ -191,7 +190,7 @@ function CompanyProfilePage() {
             >
               Quality packaging <span className="text-white/90">for every moment.</span>
             </p>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-white/85">
+            <p className="mt-5 max-w-lg text-justify text-base leading-relaxed text-white/85">
               We help Kenyan brands present, protect and promote their products through innovative, high-quality and
               cost-effective packaging — delivered countrywide.
             </p>
@@ -214,7 +213,7 @@ function CompanyProfilePage() {
               </a>
             </div>
 
-            <div className="mt-10 grid grid-cols-3 gap-5 border-t pt-7" style={{ borderColor: `${GOLD}33` }}>
+            <div className="mt-10 grid max-w-md grid-cols-3 gap-5 border-t pt-7" style={{ borderColor: `${GOLD}33` }}>
               {[
                 { Icon: Leaf, label: "Quality\nPackaging" },
                 { Icon: ShieldCheck, label: "Sustainable\nSolutions" },
@@ -233,15 +232,6 @@ function CompanyProfilePage() {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="mx-auto hidden w-full max-w-lg lg:block">
-            <img
-              src={coverImg}
-              alt="Moments Packaging product range"
-              className="w-full object-cover"
-              style={{ maxHeight: "520px" }}
-            />
           </div>
         </div>
       </section>
@@ -297,35 +287,32 @@ function CompanyProfilePage() {
 
       {/* ─── VISION / MISSION / COMMITMENT ─── */}
       <section className="relative" style={{ background: FOREST }}>
-        <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8 lg:py-20">
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-center lg:gap-12">
-            <img src={coverImg} alt="Vision — Moments packaging range" className="w-full" />
-            <div className="grid gap-5">
-              {[
-                {
-                  tag: "Vision",
-                  body: "To redefine packaging across Africa and beyond through innovation, excellence and sustainable solutions that inspire business growth and memorable customer experiences.",
-                },
-                {
-                  tag: "Mission",
-                  body: "To empower businesses through reliable, cost-effective and customised packaging solutions that enhance brand value, meet industry standards and drive sustainable growth.",
-                },
-                {
-                  tag: "Our Commitment",
-                  body: "Every package tells a story. We create solutions that protect products, strengthen brands, improve customer experience and drive business growth.",
-                },
-              ].map((c) => (
-                <div key={c.tag} className="text-center">
-                  <div className="flex items-center justify-center gap-3">
-                    <span className="inline-block h-2 w-2 rotate-45" style={{ background: GOLD }} />
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: GOLD }}>
-                      {c.tag}
-                    </p>
-                  </div>
-                  <p className="mt-3 text-justify text-sm leading-relaxed text-white/85">{c.body}</p>
+        <div className="mx-auto max-w-4xl px-5 py-16 lg:px-8 lg:py-20">
+          <div className="grid gap-8">
+            {[
+              {
+                tag: "Vision",
+                body: "To redefine packaging across Africa and beyond through innovation, excellence and sustainable solutions that inspire business growth and memorable customer experiences.",
+              },
+              {
+                tag: "Mission",
+                body: "To empower businesses through reliable, cost-effective and customised packaging solutions that enhance brand value, meet industry standards and drive sustainable growth.",
+              },
+              {
+                tag: "Our Commitment",
+                body: "Every package tells a story. We create solutions that protect products, strengthen brands, improve customer experience and drive business growth.",
+              },
+            ].map((c) => (
+              <div key={c.tag}>
+                <div className="flex items-center gap-3">
+                  <span className="inline-block h-2 w-2 rotate-45" style={{ background: GOLD }} />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: GOLD }}>
+                    {c.tag}
+                  </p>
                 </div>
-              ))}
-            </div>
+                <p className="mt-3 text-justify text-sm leading-relaxed text-white/85">{c.body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -333,12 +320,12 @@ function CompanyProfilePage() {
       {/* ─── VALUES ─── */}
       <section className="relative" style={{ background: FOREST_DEEP }}>
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8 lg:py-20">
-          <div className="text-center">
+          <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: GOLD }}>
               Our Values
             </p>
             <h2 className="mt-3 font-display text-3xl font-medium text-white sm:text-4xl">What we stand for.</h2>
-            <div className="mx-auto mt-4 flex w-fit items-center gap-3">
+            <div className="mt-4 flex items-center gap-3">
               <span className="block h-px w-12" style={{ background: GOLD }} />
               <Leaf className="h-4 w-4" style={{ color: GOLD }} />
               <span className="block h-px w-12" style={{ background: GOLD }} />
@@ -346,7 +333,7 @@ function CompanyProfilePage() {
           </div>
           <div className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
             {VALUES.map((v) => (
-              <div key={v.title} className="flex flex-col items-center text-center">
+              <div key={v.title} className="flex flex-col items-start text-left">
                 <span
                   className="inline-flex h-10 w-10 items-center justify-center rounded-full border"
                   style={{ borderColor: `${GOLD}80`, color: GOLD }}
@@ -364,14 +351,14 @@ function CompanyProfilePage() {
       {/* ─── INDUSTRIES WE SERVE ─── */}
       <section className="relative" style={{ background: FOREST }}>
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8 lg:py-20">
-          <div className="text-center">
+          <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: GOLD }}>
               Industries We Serve
             </p>
             <h2 className="mt-3 font-display text-3xl font-medium text-white sm:text-4xl lg:text-5xl">
               No matter your field, we package for it.
             </h2>
-            <div className="mx-auto mt-4 flex w-fit items-center gap-3">
+            <div className="mt-4 flex items-center gap-3">
               <span className="block h-px w-12" style={{ background: GOLD }} />
               <Leaf className="h-4 w-4" style={{ color: GOLD }} />
               <span className="block h-px w-12" style={{ background: GOLD }} />
@@ -400,8 +387,7 @@ function CompanyProfilePage() {
       {/* ─── WHY CHOOSE US ─── */}
       <section className="relative" style={{ background: FOREST_DEEP }}>
         <div className="mx-auto max-w-7xl px-5 py-16 lg:px-8 lg:py-20">
-          <div className="grid gap-10 lg:grid-cols-2 lg:items-center lg:gap-14">
-            {/* Left — text */}
+          <div className="mx-auto max-w-3xl">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: GOLD }}>
                 Why Choose Us
@@ -422,9 +408,6 @@ function CompanyProfilePage() {
                 ))}
               </div>
             </div>
-
-            {/* Right — graphic */}
-            <img src={introImg} alt="Why choose Moments Packaging" className="w-full" />
           </div>
         </div>
       </section>

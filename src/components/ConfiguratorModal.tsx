@@ -92,8 +92,11 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
   };
 
   const handleQtyChange = (v: string) => {
-    const n = Number(v);
-    if (Number.isNaN(n)) return;
+    // Pieces are always a whole count — strip everything but digits so a leading zero or a
+    // decimal point can never even reach state, rather than parsing then trying to reformat
+    // a native number input's own text buffer after the fact.
+    const digitsOnly = v.replace(/\D/g, "");
+    const n = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
     setQuantity(n);
     setError(n < minQty ? `Minimum: ${minQty.toLocaleString()}` : null);
   };
@@ -311,10 +314,10 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
               note={selectedTier ? undefined : `(Min. ${minQty.toLocaleString()})`}
             >
               <input
-                type="number"
-                min={minQty}
-                step={1}
-                value={quantity}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                value={quantity === 0 ? "" : String(quantity)}
                 onChange={(e) => handleQtyChange(e.target.value)}
                 onBlur={() => {
                   if (quantity < minQty) {

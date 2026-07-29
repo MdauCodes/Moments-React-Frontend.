@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { RegistrationDetailsWizard } from "@/components/RegistrationDetailsWizard";
+import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
+
+// Matches the welcome modal's cream/forest-green identity, per the brand-alignment request.
+const FOREST_DEEP = "#08231a";
 
 type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
 
@@ -63,11 +67,12 @@ function RegisterPage() {
   if (!accountType) {
     return (
       <SiteLayout>
-        <section
-          className="mx-auto max-w-2xl px-5 py-16 lg:px-8 lg:py-20"
-          style={{ background: "color-mix(in oklab, var(--accent) 8%, transparent)" }}
+        <section className="px-5 py-16 lg:px-8 lg:py-20" style={{ background: MODAL_BG }}>
+        <div
+          className="mx-auto max-w-2xl rounded-3xl border p-6 shadow-sm sm:p-8"
+          style={{ background: "#ffffff", borderColor: MODAL_BORDER }}
         >
-          <h1 className="font-display text-3xl text-foreground">Create your account</h1>
+          <h1 className="font-display text-3xl" style={{ color: FOREST_DEEP }}>Create your account</h1>
           <p className="mt-2 text-sm text-muted-foreground">Choose the account that fits how you order.</p>
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {ACCOUNT_TYPES.map((t) => (
@@ -113,6 +118,7 @@ function RegisterPage() {
               Sign in
             </Link>
           </p>
+        </div>
         </section>
       </SiteLayout>
     );
@@ -122,9 +128,10 @@ function RegisterPage() {
 
   return (
     <SiteLayout>
-      <section
-        className="mx-auto max-w-md px-5 py-16 lg:px-8 lg:py-20"
-        style={{ background: "color-mix(in oklab, var(--accent) 8%, transparent)" }}
+      <section className="px-5 py-16 lg:px-8 lg:py-20" style={{ background: MODAL_BG }}>
+      <div
+        className="mx-auto max-w-md rounded-3xl border p-6 shadow-sm sm:p-8"
+        style={{ background: "#ffffff", borderColor: MODAL_BORDER }}
       >
         <button
           type="button"
@@ -133,7 +140,7 @@ function RegisterPage() {
         >
           &larr; Change account type
         </button>
-        <h1 className="mt-2 font-display text-3xl text-foreground">{chosen.title}</h1>
+        <h1 className="mt-2 font-display text-3xl" style={{ color: FOREST_DEEP }}>{chosen.title}</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           {accountType === "BUSINESS"
             ? "Your details as the account holder. You'll add your business profile (name, address, contact info) right after this."
@@ -152,6 +159,7 @@ function RegisterPage() {
             Sign in
           </Link>
         </p>
+      </div>
       </section>
     </SiteLayout>
   );

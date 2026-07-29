@@ -8,10 +8,13 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { PasswordInput } from "@/components/PasswordInput";
 import { useAuth } from "@/contexts/AuthContext";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 
-
+// Matches the welcome modal's cream/forest-green identity, per the brand-alignment request —
+// a full-page wash of the same MODAL_BG behind a bordered card, rather than a bare white page.
+const FOREST_DEEP = "#08231a";
 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
@@ -62,8 +65,12 @@ function LoginPage() {
 
   return (
     <SiteLayout>
-      <section className="mx-auto max-w-md px-5 py-16 lg:px-8 lg:py-20">
-        <h1 className="font-display text-3xl">Sign in</h1>
+      <section className="px-5 py-16 lg:px-8 lg:py-20" style={{ background: MODAL_BG }}>
+        <div
+          className="mx-auto max-w-md rounded-3xl border p-6 shadow-sm sm:p-8"
+          style={{ background: "#ffffff", borderColor: MODAL_BORDER }}
+        >
+        <h1 className="font-display text-3xl" style={{ color: FOREST_DEEP }}>Sign in</h1>
         <p className="mt-2 text-sm text-muted-foreground">Welcome back.</p>
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>
@@ -109,6 +116,7 @@ function LoginPage() {
             Create an account
           </Link>
         </p>
+        </div>
       </section>
     </SiteLayout>
   );
