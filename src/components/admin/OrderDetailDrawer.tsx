@@ -250,6 +250,11 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <div className="font-mono text-base font-semibold">{o.reference}</div>
                 </div>
                 <OrderStatusBadge status={o.status} />
+                {o.isTestOrder && (
+                  <span className="inline-flex rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-yellow-700">
+                    TEST
+                  </span>
+                )}
               </div>
               <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100" aria-label="Close">
                 <X size={18} />

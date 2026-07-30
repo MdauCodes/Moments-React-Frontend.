@@ -12,21 +12,40 @@ import {
   formatDate,
   formatDateShort,
 } from "@/components/admin/commerceUi";
-import { getCustomer, impersonateCustomer } from "@/services/commerceApi";
+import { getCustomer, impersonateCustomer, setCustomerTestAccount } from "@/services/commerceApi";
 import type { CustomerRecord, OrderRecord } from "@/services/commerceMock";
 import { downloadCustomerStatementPdf } from "@/lib/pdf";
 import { FileText } from "lucide-react";
+import { useAuth } from "@/contexts/AdminAuthContext";
+import { resolveStaffRole } from "@/lib/roles";
 
 
 
 function AdminCustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
   const [customer, setCustomer] = useState<CustomerRecord | undefined>();
   const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [source, setSource] = useState<"live" | "mock">("mock");
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [savingTestAccount, setSavingTestAccount] = useState(false);
+
+  async function toggleTestAccount() {
+    if (!id || !customer) return;
+    setSavingTestAccount(true);
+    try {
+      const updated = await setCustomerTestAccount(id, !customer.isTestAccount);
+      setCustomer(updated);
+      toast.success(updated.isTestAccount ? "Marked as a test account" : "Unmarked as a test account");
+    } catch (err) {
+      reportAdminError(err, "Couldn't update test-account status");
+    } finally {
+      setSavingTestAccount(false);
+    }
+  }
 
   async function previewDashboard() {
     if (!id) return;
@@ -160,6 +179,32 @@ function AdminCustomerDetailPage() {
                 <div>Last order: {formatDate(customer.lastOrderAt ?? undefined)}</div>
               </div>
             </div>
+
+            {isSuperAdmin && (
+              <div className="admin-panel" style={{ padding: 18 }}>
+                <div className="admin-label">Sandbox / test mode</div>
+                <p style={{ marginTop: 8, fontSize: 12, color: "var(--admin-muted)", lineHeight: 1.6 }}>
+                  A designated test account. Any order it places routes to sandbox payment/courier
+                  gateways and is excluded from all revenue and analytics reporting. Never affects
+                  orders already placed.
+                </p>
+                <label style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                  <input
+                    type="checkbox"
+                    checked={!!customer.isTestAccount}
+                    disabled={savingTestAccount}
+                    onChange={() => void toggleTestAccount()}
+                  />
+                  This is a test account
+                  {customer.isTestAccount && (
+                    <span style={{
+                      display: "inline-flex", padding: "1px 6px", borderRadius: 999,
+                      fontSize: 10, fontWeight: 700, background: "rgba(234, 179, 8, 0.18)", color: "#a16207",
+                    }}>TEST</span>
+                  )}
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </div>

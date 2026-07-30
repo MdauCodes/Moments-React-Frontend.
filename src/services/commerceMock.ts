@@ -73,6 +73,9 @@ export interface OrderRecord {
   promoCode?: string;
   paymentMethod?: string;
   fulfillmentType?: string;
+  /** Sandbox/test-mode system — true only for orders placed by a designated internal test
+   *  account. Never real revenue; shown as a "TEST" badge, filterable in the Orders list. */
+  isTestOrder?: boolean;
   refundRequestedAt?: string;
   refundRequestReason?: string;
   refundRequestedBy?: string;
@@ -138,4 +141,7 @@ export interface CustomerRecord {
   createdAt: string;
   accountType?: "INDIVIDUAL_SHOPPER" | "BUSINESS";
   rewardsPoints?: number | null;
+  /** Sandbox/test-mode system — a Super-Admin-designated internal account. Any order this
+   *  customer places routes to sandbox gateways and is excluded from all reporting. */
+  isTestAccount?: boolean;
 }

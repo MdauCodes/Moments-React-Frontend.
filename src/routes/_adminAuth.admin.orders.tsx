@@ -51,6 +51,7 @@ function AdminOrdersPage() {
   const [debouncedQ, setDebouncedQ] = useState("");
   const [page, setPage] = useState(0);
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
+  const [hideTestOrders, setHideTestOrders] = useState(false);
 
   useEffect(() => { document.title = "Orders · Moments admin"; }, []);
   useEffect(() => { if (isAssignedOnly) setScope("MINE"); }, [isAssignedOnly]);
@@ -72,12 +73,13 @@ function AdminOrdersPage() {
         if (scope === "UNASSIGNED" && o.assignedToId) return false;
       }
       if (status !== "ALL" && o.status !== status) return false;
+      if (hideTestOrders && o.isTestOrder) return false;
       if (!needle) return true;
       return [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.city, o.trackingNumber]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle));
     });
-  }, [orders, isAssignedOnly, scope, currentUserId, status, debouncedQ]);
+  }, [orders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const pageRows = useMemo(
@@ -143,6 +145,14 @@ function AdminOrdersPage() {
                 >
                   {ORDER_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--admin-muted)", whiteSpace: "nowrap" }}>
+                  <input
+                    type="checkbox"
+                    checked={hideTestOrders}
+                    onChange={(e) => { setPage(0); setHideTestOrders(e.target.checked); }}
+                  />
+                  Hide test orders
+                </label>
                 {canAssign && currentUserId && (
                   <div role="tablist" aria-label="Assignment scope" style={{ display: "inline-flex", border: "1px solid var(--admin-border)", borderRadius: 8, overflow: "hidden" }}>
                     {(["ALL", "MINE", "UNASSIGNED"] as const).map((s) => {
@@ -229,7 +239,7 @@ function AdminOrdersPage() {
                   ) : (
                     pageRows.map((o) => (
                       <tr key={o.id}>
-                        <td><b>{o.reference}</b></td>
+                        <td><b>{o.reference}</b>{o.isTestOrder && <TestBadge />}</td>
                         <td>
                           <div>{o.customerName}</div>
                           <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{o.city}</div>
@@ -280,7 +290,7 @@ function AdminOrdersPage() {
               ) : pageRows.map((o) => (
                 <div key={o.id} className="admin-card">
                   <div className="admin-card-row">
-                    <b>{o.reference}</b>
+                    <span><b>{o.reference}</b>{o.isTestOrder && <TestBadge />}</span>
                     <b>{formatKes(o.total)}</b>
                   </div>
                   <div className="admin-card-row">
@@ -378,6 +388,22 @@ function helpContent(role: ReturnType<typeof resolveStaffRole>) {
         <li>Open any order for full details and history</li>
       </ul>
     </div>
+  );
+}
+
+/** Sandbox/test-mode system — marks an order placed by a designated internal test account, so
+ *  staff never confuse it with a real customer order while it flows through the same queues. */
+function TestBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-flex", marginLeft: 6, padding: "1px 6px", borderRadius: 999,
+        fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+        background: "rgba(234, 179, 8, 0.18)", color: "#a16207",
+      }}
+    >
+      TEST
+    </span>
   );
 }
 

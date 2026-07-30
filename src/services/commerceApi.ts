@@ -129,6 +129,7 @@ function normalizeOrder(raw: any): OrderRecord {
     promoCode: raw?.promoCode,
     paymentMethod: raw?.paymentMethod,
     fulfillmentType: raw?.fulfillmentType,
+    isTestOrder: raw?.isTestOrder ?? false,
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
@@ -372,6 +373,18 @@ export interface ImpersonationSession {
   expiresIn: number;
   customerName: string;
   accountType: "INDIVIDUAL_SHOPPER" | "BUSINESS" | null;
+}
+
+/** Sandbox/test-mode system — Super-Admin only. Flags/unflags a customer account as a
+ *  designated internal test account; any order it places from this point on routes to sandbox
+ *  gateways and is excluded from all revenue/analytics reporting. Never affects orders already placed. */
+export async function setCustomerTestAccount(id: string, isTestAccount: boolean): Promise<CustomerRecord> {
+  const res = await adminFetch(`/api/v1/admin/customers/${encodeURIComponent(id)}/test-account`, {
+    method: "PATCH",
+    body: JSON.stringify({ isTestAccount }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  return (await res.json()) as CustomerRecord;
 }
 
 /** Mints a short-lived session that lets an admin preview/act inside this customer's real dashboard. */
