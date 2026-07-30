@@ -1,17 +1,19 @@
 import {
   UtensilsCrossed,
+  Croissant,
   Sprout,
   Shirt,
   ShoppingCart,
   Gift,
   Sparkles,
+  Pill,
+  Stamp,
   Zap,
   Wrench,
   PencilLine,
   HardHat,
   Truck,
   SprayCan,
-  HeartPulse,
   Building2,
   type LucideIcon,
 } from "lucide-react";
@@ -128,14 +130,21 @@ const iconBySlug = new Map(industries.map((industry) => [industry.slug, industry
 // distinct industries all looked identical. Matched against name + slug + description, first
 // keyword group that hits wins; genuinely unmatched industries fall back to a neutral building
 // icon rather than silently reusing an unrelated one.
+// Ordered most-specific-first — Array.find stops at the first hit, so a narrower
+// group (e.g. bakeries) must be listed before a broader one that would otherwise
+// steal the match (e.g. general food & beverage). Keyword lists are also kept
+// mutually exclusive on ambiguous terms like "wellness" so two different real
+// industries (e.g. Beauty vs. Pharmaceutical) don't collapse onto the same icon.
 const ICON_KEYWORDS: Array<{ icon: LucideIcon; words: string[] }> = [
-  { icon: UtensilsCrossed, words: ["food", "beverage", "restaurant", "cafe", "coffee", "kitchen", "bakery"] },
-  { icon: Sprout, words: ["agri", "farm", "produce", "horticulture"] },
+  { icon: Croissant, words: ["bak", "pastry", "confection", "patisserie"] },
+  { icon: UtensilsCrossed, words: ["food", "beverage", "restaurant", "cafe", "coffee", "kitchen"] },
+  { icon: Sprout, words: ["agri", "farm", "produce", "horticulture", "dairy"] },
+  { icon: Sparkles, words: ["beauty", "cosmetic", "skincare", "haircare", "spa", "wellness", "personal care"] },
+  { icon: Pill, words: ["health", "medical", "pharma", "clinic", "prescription", "hospital"] },
   { icon: Shirt, words: ["fashion", "apparel", "clothing", "textile", "garment", "boutique"] },
   { icon: ShoppingCart, words: ["retail", "ecommerce", "e-commerce", "wholesale", "shop", "store"] },
+  { icon: Stamp, words: ["brand", "branding", "custom", "private label"] },
   { icon: Gift, words: ["hospitality", "hotel", "event", "catering", "wedding", "gifting"] },
-  { icon: HeartPulse, words: ["health", "medical", "pharma", "clinic", "wellness"] },
-  { icon: Sparkles, words: ["beauty", "cosmetic", "skincare", "haircare", "spa"] },
   { icon: Zap, words: ["electronic", "gadget", "tech", "device"] },
   { icon: Wrench, words: ["manufactur", "industrial", "hardware", "tools", "spares", "factory"] },
   { icon: HardHat, words: ["construction", "building material", "cement"] },

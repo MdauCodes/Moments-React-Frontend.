@@ -28,16 +28,15 @@ export function getTermsContent() {
       body: (
         <ul>
           <li>
-            Catalogue prices on the site apply to standard stock and standard print. Custom
-            artwork, custom sizes or rush turnarounds may be quoted separately.
+            Catalogue prices on the site apply to the stock packaging as listed. Bulk or
+            wholesale quantities may be quoted separately.
           </li>
           <li>
             A quote is valid for 14 days unless stated otherwise. Prices may change after that due
-            to paper or print-cost movements.
+            to paper or stock-cost movements.
           </li>
           <li>
-            An order is only confirmed once we receive payment (or the agreed deposit) and you
-            have approved the final artwork proof.
+            An order is only confirmed once we receive payment (or the agreed deposit).
           </li>
         </ul>
       ),
@@ -51,7 +50,7 @@ export function getTermsContent() {
           <li>
             We accept <strong>M-Pesa</strong>, <strong>bank transfer</strong>, and (for select
             customers) <strong>cash on delivery</strong>. For large or enterprise orders we may
-            require a 50% deposit before production starts.
+            require a 50% deposit before dispatch.
           </li>
           <li>
             M-Pesa payments are processed via Safaricom. You are responsible for entering the
@@ -85,22 +84,21 @@ export function getTermsContent() {
     },
     {
       id: "returns",
-      title: "Returns, refunds & reprints",
+      title: "Returns, refunds & replacements",
       body: (
         <ul>
           <li>
-            Custom-printed products are made specifically for you and cannot be returned for a
-            change of mind.
+            Our packaging is ready-made stock, not printed or branded to order — we don't offer
+            change-of-mind returns once an order has been delivered or collected.
           </li>
           <li>
-            If a product is defective or differs materially from the approved proof, contact us
-            within 7 days of delivery. We will reprint or refund at our discretion after reviewing
+            If a product is defective, or differs materially from what you ordered, contact us
+            within 7 days of delivery. We will replace or refund at our discretion after reviewing
             the issue. Full details are in our{" "}
             <a href="/refunds">Refund &amp; Returns Policy</a>.
           </li>
           <li>
-            We are not responsible for losses caused by errors in artwork you approved, or by
-            third-party couriers you chose.
+            We are not responsible for losses caused by third-party couriers you chose.
           </li>
         </ul>
       ),
@@ -110,9 +108,7 @@ export function getTermsContent() {
       title: "Cancellations",
       body: (
         <p>
-          You can cancel an order at no cost before artwork is approved and production starts.
-          Once production has started, cancellation may incur charges for materials, plates and
-          labour already used.
+          Once an order has been paid, it cannot be cancelled.
         </p>
       ),
     },
@@ -134,34 +130,43 @@ export function getTermsContent() {
       body: (
         <>
           <p>
-            Every registered customer — Individual Shopper and Business Account alike — earns
-            Reward Coupons: a 100-coupon bonus for creating an account, coupons for every paid
-            order, and coupons for submitting a product review. The number of coupons awarded per
-            order and their KES redemption value are set by us and may change; the current rate is
-            shown in your account dashboard before you redeem.
+            Every registered customer — whether an Individual Shopper or a Business Account —
+            earns Reward Coupons, including:
           </p>
           <ul>
-            <li>
-              Reward Coupons can be redeemed for a discount at checkout, up to a maximum
-              percentage of that order's total (also shown in your dashboard). They cannot be
-              exchanged for cash, transferred to another customer, or combined with a promo code
-              on the same order.
-            </li>
-            <li>
-              Sharing your referral code and having a friend register with it earns both of you
-              Reward Coupons once their first qualifying order is confirmed.
-            </li>
-            <li>
-              The validity period of Reward Coupons, referral credits, and any other offer is set
-              and controlled by Moments Packaging — for example, coupons earned a very long time
-              ago may no longer be redeemable. Redemption above a small free allowance also
-              requires a verified email address, to protect against abuse.
-            </li>
-            <li>
-              We may adjust or reverse a Reward Coupons balance where it resulted from a technical
-              error, fraud, or abuse of the referral program.
-            </li>
+            <li>1000 Coupon Points when creating an account.</li>
+            <li>Coupon Points for every completed and paid order.</li>
+            <li>Coupon Points for submitting eligible product reviews.</li>
           </ul>
+          <p>
+            The number of Coupon Points awarded per order, as well as their redemption value in
+            KES, is determined by Moments Packaging and may change from time to time. The current
+            earning and redemption rates are always displayed in your account dashboard before
+            redemption.
+          </p>
+          <p>
+            Coupon Points may be redeemed for discounts at checkout, up to the maximum percentage
+            allowed for each order, as shown in your dashboard. Coupon Points cannot be redeemed
+            for cash, transferred to another customer, or combined with a promotional code on the
+            same order.
+          </p>
+          <p>
+            When you share your referral code and a new customer registers using it, both you and
+            your referral will receive Reward Coupons once their first qualifying order has been
+            successfully completed.
+          </p>
+          <p>
+            The validity period of Reward Coupons, referral rewards, and promotional offers is
+            determined by Moments Packaging. Coupon Points earned beyond their validity period may
+            expire and no longer be eligible for redemption. Redeeming Coupon Points above the
+            free redemption threshold may also require a verified email address to help prevent
+            fraud.
+          </p>
+          <p>
+            Moments Packaging reserves the right to adjust or reverse Reward Coupon balances that
+            result from technical errors, fraudulent activity, misuse of the referral program, or
+            any other abuse of the rewards system.
+          </p>
         </>
       ),
     },
@@ -171,36 +176,45 @@ export function getTermsContent() {
       body: (
         <>
           <p>
-            Any registered customer may open a free Business Account — sole proprietorships, SMEs
-            and registered companies alike — by providing basic details: business name, business
-            type, location, road and building address, phone number, and a contact person with
-            their designation. Your KRA PIN is optional at this stage; we only require it later if
-            you apply for a trade credit account. Opening a Business Account is instant and does
-            not require our approval.
+            Any registered customer — including sole proprietors, SMEs, and registered
+            companies — may open a Business Account free of charge by providing the following
+            information:
           </p>
           <ul>
-            <li>
-              Opening a Business Account issues a single-use welcome discount code, valid only on
-              that account and redeemable once against a future order. It does not itself grant any
-              ongoing discount, credit terms, or special pricing.
-            </li>
-            <li>
-              We use the information you provide, together with your order history on the account,
-              to understand your business's purchasing pattern. This is not shared or sold to third
-              parties, and is used only for verification and, where you choose to apply, for
-              assessing eligibility for trade credit.
-            </li>
-            <li>
-              A Business Account is a separate, later application from a trade credit (buy-on-account)
-              facility. Trade credit requires additional documentation — including your KRA PIN — and
-              a credit assessment, and is granted at our discretion.
-            </li>
-            <li>
-              We may suspend a Business Account, or request further verification of the details
-              provided, at any time — for example if information appears inaccurate or the account
-              is being misused.
-            </li>
+            <li>Business name</li>
+            <li>Business type</li>
+            <li>Business location</li>
+            <li>Road and building address</li>
+            <li>Phone number</li>
+            <li>Contact person and designation</li>
           </ul>
+          <p>
+            Providing a KRA PIN is optional when opening a Business Account. It is only required
+            if you later apply for a Trade Credit Account.
+          </p>
+          <p>Business Accounts are created instantly and do not require prior approval.</p>
+          <p>
+            Opening a Business Account automatically qualifies the account for a single-use
+            welcome discount code, which may be redeemed once on a future eligible order. The
+            welcome offer does not provide ongoing discounts, trade credit, special pricing, or
+            any other permanent benefits.
+          </p>
+          <p>
+            The information you provide, together with your order history, helps us better
+            understand your business's purchasing needs. This information is never sold or shared
+            with third parties and is used solely for account verification and, where applicable,
+            assessing eligibility for Trade Credit.
+          </p>
+          <p>
+            A Business Account is separate from a Trade Credit (Buy-on-Account) facility. Trade
+            Credit requires additional documentation — including a valid KRA PIN — and is subject
+            to a credit assessment and approval at the sole discretion of Moments Packaging.
+          </p>
+          <p>
+            We reserve the right to request additional verification or suspend a Business Account
+            at any time if the information provided appears inaccurate, incomplete, fraudulent, or
+            if the account is being misused.
+          </p>
         </>
       ),
     },
@@ -227,9 +241,8 @@ export function getTermsContent() {
       title: "Acceptable use",
       body: (
         <p>
-          You agree not to misuse the site (for example: hacking, scraping at abusive rates,
-          uploading malware, or submitting artwork that is unlawful, defamatory or infringes
-          third-party rights).
+          You agree not to misuse the site (for example: hacking, scraping at abusive rates, or
+          uploading malware).
         </p>
       ),
     },
@@ -240,7 +253,7 @@ export function getTermsContent() {
         <p>
           The Moments Packaging name, logo, website design, product photography and catalogue
           copy are owned by Moments Packaging Kenya Ltd. You may not copy, republish or use them
-          commercially without our written permission. Your own artwork remains your property.
+          commercially without our written permission.
         </p>
       ),
     },
@@ -299,9 +312,9 @@ export function getTermsContent() {
     updated: "May 19, 2026",
     intro: (
       <>
-        The terms that govern quotes, orders, payment, production, delivery and returns when
-        you buy paper packaging from Moments Packaging Kenya. By placing an order or using the
-        site, you agree to these Terms.
+        The terms that govern quotes, orders, payment, delivery and returns when you buy
+        packaging from Moments Packaging Kenya. By placing an order or using the site, you agree
+        to these Terms.
       </>
     ),
     sections,

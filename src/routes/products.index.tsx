@@ -235,11 +235,16 @@ function ProductsPage() {
 
   // Subcategory suggestions — signed-in customers get their own past-purchase-based picks
   // ("Recommended for you"); anonymous visitors (or a signed-in customer with no purchase
-  // history yet) get click-popularity, scoped to the selected industry if one's active
-  // ("Popular subcategories"). Falls back from personalized to popular, never the reverse.
+  // history yet) get click-popularity ("Popular subcategories"). Falls back from personalized
+  // to popular, never the reverse. Only shown/fetched with no industry selected — once an
+  // industry is active, the "Categories in {industry}" accordion covers that need already,
+  // and per client feedback a separate industry-scoped strip here was redundant.
   useEffect(() => {
+    if (selectedIndustry) {
+      setSuggestedSubcategories([]);
+      return;
+    }
     let cancelled = false;
-    const industryId = selectedIndustry?.id;
     async function load() {
       if (isAuthenticated) {
         try {
@@ -255,7 +260,7 @@ function ProductsPage() {
         }
       }
       try {
-        const popular = await api.getPopularSubcategories({ industryId, limit: 6 });
+        const popular = await api.getPopularSubcategories({ limit: 6 });
         if (!cancelled) {
           setSuggestedSubcategories(popular);
           setSuggestionsArePersonalized(false);
@@ -266,7 +271,7 @@ function ProductsPage() {
     }
     void load();
     return () => { cancelled = true; };
-  }, [isAuthenticated, selectedIndustry?.id]);
+  }, [isAuthenticated, !!selectedIndustry]);
 
   // Admin-managed tags, driving "What do you need?" once populated. Additive
   // to the verified keyword quick-finds below, not a replacement — there are
@@ -699,7 +704,7 @@ function ProductsPage() {
                 ))}
               </select>
             </div>
-            <div className="mt-3 hidden gap-2 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div className="mt-3 hidden gap-x-3 gap-y-3 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
               {industries.map((ind) => {
                 const Icon = ind.icon;
                 const isActive = industrySlug === ind.slug;
@@ -709,7 +714,7 @@ function ProductsPage() {
                     type="button"
                     onClick={() => toggleIndustry(ind.slug)}
                     aria-pressed={isActive}
-                    className={`group flex items-start gap-2 rounded-xl border p-2.5 text-left transition-all ${
+                    className={`group flex items-start gap-2 rounded-xl border p-3 text-left transition-all ${
                       isActive
                         ? "border-primary bg-primary/10 shadow-sm"
                         : "border-border bg-card hover:border-primary/40 hover:bg-primary/5 hover:shadow-sm"
@@ -741,14 +746,14 @@ function ProductsPage() {
             lives here alongside the legacy flat category list, sort, and price,
             all in one panel so there's one place to refine, not two competing ones. */}
         <div id="browse-by-category" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4">
-          {!searchResults && suggestedSubcategories.length > 0 && (
+          {/* Only shown with no industry selected — once an industry is picked, the
+              "Categories in {industry}" accordion below already surfaces what's actually
+              tagged to it, so a separate "Popular in {industry}" strip was redundant and,
+              per client feedback, could drift out of alignment with it. */}
+          {!searchResults && !selectedIndustry && suggestedSubcategories.length > 0 && (
             <div className="mb-4 border-b border-border pb-4">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                {suggestionsArePersonalized
-                  ? "Recommended for you"
-                  : selectedIndustry
-                  ? `Popular in ${selectedIndustry.name}`
-                  : "Popular subcategories"}
+                {suggestionsArePersonalized ? "Recommended for you" : "Popular subcategories"}
               </p>
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {suggestedSubcategories.map((sub) => (

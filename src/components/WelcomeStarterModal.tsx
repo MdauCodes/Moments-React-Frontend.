@@ -4,6 +4,7 @@ import { Gift, Briefcase, ShoppingBag, Check, ArrowLeft, ArrowRight } from "luci
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
+import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
 import avatarLeft from "@/assets/avatars/avatar_1.png";
 import avatarRight from "@/assets/avatars/avatar_2.png";
 import avatarShrug from "@/assets/avatars/avatar_3.png";
@@ -56,11 +57,6 @@ function recordDeclined(): void {
     // ignore
   }
 }
-
-// Background matches the cream hero section at the top of the products browsing page
-// (products.index.tsx's "bg-cream" section) instead of the sign-in form's accent-tinted panel.
-const MODAL_BG = "var(--cream)";
-const MODAL_BORDER = "color-mix(in oklab, var(--cream) 80%, black 12%)";
 
 const FOREST_DEEP = "#08231a";
 const FOREST = "#0d3320";

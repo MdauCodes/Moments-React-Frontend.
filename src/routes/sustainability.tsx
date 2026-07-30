@@ -94,7 +94,7 @@ function SustainabilityPage() {
               />
               <div>
                 <p className="text-sm leading-relaxed text-white/88">
-                  Every package we produce carries an opportunity to make a positive impact. When you see the{" "}
+                  Every package we supply carries an opportunity to make a positive impact. When you see the{" "}
                   <LogoLeafIcon size={14} className="mr-1 inline-block align-text-bottom" />
                   sprouting leaf
                   and ♻️ recycling symbol in our logo, we invite you to see more than a brand — our commitment to protecting

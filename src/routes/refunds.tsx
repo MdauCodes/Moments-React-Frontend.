@@ -11,25 +11,24 @@ export function getRefundsContent() {
   const sections: LegalSection[] = [
     {
       id: "when-applies",
-      title: "When a refund or reprint applies",
+      title: "When a refund, replacement or exchange applies",
       body: (
         <>
-          <p>You may request a refund, free reprint or replacement if:</p>
+          <p>You may be eligible for a refund, replacement, or exchange if:</p>
           <ul>
             <li>
               The goods arrive <strong>materially defective</strong> (e.g. torn, wet, mis-glued,
-              badly mis-printed).
+              or damaged in transit).
             </li>
             <li>
-              The order <strong>differs materially from the approved artwork proof</strong>{" "}
-              (wrong colours beyond normal print tolerance, missing text/logo, wrong size).
+              You receive the <strong>wrong product, size, colour, or quantity</strong>.
             </li>
             <li>
-              We delivered the <strong>wrong product or wrong quantity</strong>.
+              The products supplied <strong>differ significantly from what you ordered</strong>.
             </li>
             <li>
-              An order paid for in full was <strong>never produced or dispatched</strong> due to
-              our error.
+              An order paid for in full was <strong>never dispatched</strong> due to an error on
+              our part.
             </li>
           </ul>
         </>
@@ -41,16 +40,12 @@ export function getRefundsContent() {
       body: (
         <ul>
           <li>
-            <strong>Change of mind</strong> on custom-printed items. Once you approve the artwork
-            proof, the print run is made for you and cannot be resold.
+            <strong>Change of mind</strong> once an order has been delivered or collected,
+            provided the goods match what was ordered and are not defective.
           </li>
           <li>
-            Errors in artwork you supplied and approved (typos, wrong logo version, wrong
-            Pantone).
-          </li>
-          <li>
-            Minor colour variation between batches or between screen and print — this is normal
-            in commercial printing and is not a defect.
+            Minor variation in packaging design or supplier batch — this is normal and is not a
+            defect.
           </li>
           <li>
             Damage caused by a <strong>third-party courier or sacco that you nominated</strong>{" "}
@@ -83,10 +78,9 @@ export function getRefundsContent() {
             <li>A clear description of the issue and the reason for the refund request.</li>
             <li>
               <strong>Supporting evidence</strong>: clear photos or short videos of the defective
-              goods, the packaging they arrived in, and (where relevant) a photo of the approved
-              artwork proof alongside the printed item.
+              goods and the packaging they arrived in.
             </li>
-            <li>Whether you would prefer a refund, a free reprint, or store credit.</li>
+            <li>Whether you would prefer a refund, a free replacement, or store credit.</li>
           </ul>
           <p>
             You can also message us on WhatsApp at{" "}
@@ -106,8 +100,8 @@ export function getRefundsContent() {
             We acknowledge every refund request within <strong>2 business days</strong>.
           </li>
           <li>
-            Our production team reviews the evidence and, if needed, asks for the affected goods
-            to be returned to our shop in Nairobi (we will arrange and cover return transport for
+            Our team reviews the evidence and, if needed, asks for the affected goods to be
+            returned to our shop in Nairobi (we will arrange and cover return transport for
             confirmed defects).
           </li>
           <li>
@@ -123,14 +117,13 @@ export function getRefundsContent() {
     },
     {
       id: "alternatives",
-      title: "Reprints, exchanges and store credit",
+      title: "Replacements, exchanges and store credit",
       body: (
         <>
           <p>
-            Because most issues with custom packaging are best fixed by re-running the affected
-            portion of the print job, our default remedy is a <strong>free reprint</strong> of
-            the defective units, on the same artwork and stock, with priority production. Where
-            a reprint isn&apos;t practical we offer:
+            Our default remedy for a confirmed defect or wrong item is a{" "}
+            <strong>free replacement</strong> of the affected units from stock. Where a
+            replacement isn&apos;t practical (e.g. out of stock) we offer:
           </p>
           <ul>
             <li>
@@ -142,20 +135,18 @@ export function getRefundsContent() {
             </li>
           </ul>
           <p>
-            Direct product-for-product exchanges only apply to standard (non-printed) stock
-            items — custom-printed items cannot be exchanged.
+            Direct product-for-product exchanges are available for any standard stock item,
+            subject to availability.
           </p>
         </>
       ),
     },
     {
       id: "cancellations",
-      title: "Cancellations before production",
+      title: "Cancellations",
       body: (
         <p>
-          You can cancel an order at no cost <strong>before</strong> you approve the artwork proof
-          and before production starts. Once we have started cutting, printing or plate-making,
-          cancellation fees may apply to cover materials and labour already used.
+          Once an order has been paid, it cannot be cancelled.
         </p>
       ),
     },
@@ -214,9 +205,10 @@ export function getRefundsContent() {
     updated: "May 19, 2026",
     intro: (
       <>
-        Most of what we make is custom-printed for your brand, so refunds and returns work a
-        little differently than at a standard retail shop. Here&apos;s when a refund applies,
-        how to request one, and what to expect.
+        At Moments Packaging, we are committed to supplying high-quality packaging products. If
+        there is an issue with your order, we&apos;re here to help. This policy explains when
+        refunds, replacements, or exchanges apply, how to request them, and what you can expect
+        from our review process.
       </>
     ),
     sections,

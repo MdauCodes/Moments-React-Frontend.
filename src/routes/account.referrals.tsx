@@ -100,6 +100,12 @@ function ReferralsPage() {
       ? `${window.location.origin}/account/register?ref=${encodeURIComponent(code)}`
       : "";
 
+  const copyLink = async () => {
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl);
+    toast.success("Referral link copied");
+  };
+
   const copyCode = async () => {
     if (!code) return;
     await navigator.clipboard.writeText(code);
@@ -112,15 +118,14 @@ function ReferralsPage() {
       try {
         await navigator.share({
           title: "Moments Packaging",
-          text: `Use my code ${code} to get a discount at Moments Packaging Kenya`,
+          text: `Use my link to get a discount at Moments Packaging Kenya`,
           url: shareUrl,
         });
       } catch {
         /* cancelled */
       }
     } else {
-      await navigator.clipboard.writeText(shareUrl);
-      toast.success("Share link copied");
+      await copyLink();
     }
   };
 
@@ -136,30 +141,47 @@ function ReferralsPage() {
         <div className="mt-8 grid gap-5 lg:grid-cols-3">
           <div className="rounded-2xl border border-border bg-card p-6 lg:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Your referral code
+              Your referral link
             </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <code className="rounded-lg bg-secondary px-4 py-3 font-mono text-xl font-bold tracking-widest text-foreground">
-                {code || "—"}
-              </code>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Send this to a friend — it signs them up with your code automatically, no typing needed.
+            </p>
+            {/* Link leads, code is secondary — a new customer is far more likely to tap a
+                link than to notice and manually enter a bare referral code at registration. */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                readOnly
+                value={shareUrl}
+                onFocus={(e) => e.currentTarget.select()}
+                className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-4 py-3 font-mono text-sm text-foreground"
+              />
               <button
                 type="button"
-                onClick={copyCode}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-secondary"
+                onClick={copyLink}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                <Copy className="h-4 w-4" /> Copy
+                <Copy className="h-4 w-4" /> Copy link
               </button>
               <button
                 type="button"
                 onClick={shareLink}
-                className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2.5 text-sm font-medium hover:bg-secondary"
               >
-                <Share2 className="h-4 w-4" /> Share link
+                <Share2 className="h-4 w-4" /> Share
               </button>
             </div>
-            {shareUrl && (
-              <p className="mt-3 break-all text-xs text-muted-foreground">{shareUrl}</p>
-            )}
+            <div className="mt-4 flex items-center gap-2 border-t border-border pt-3">
+              <p className="text-xs text-muted-foreground">
+                Or share the code directly: <code className="font-mono font-semibold text-foreground">{code || "—"}</code>
+              </p>
+              <button
+                type="button"
+                onClick={copyCode}
+                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
+              >
+                <Copy className="h-3 w-3" /> Copy code
+              </button>
+            </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground">
