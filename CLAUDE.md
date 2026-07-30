@@ -34,6 +34,8 @@ There is no test runner configured (no `test` script, no test files).
 
 **Forms** use `react-hook-form` + `zod` resolvers (`@hookform/resolvers`) consistently; follow that pattern rather than uncontrolled inputs or ad hoc validation for new forms.
 
-## Current focus (as of 2026-07-23)
+## Current focus (as of 2026-07-30)
 
-Building out the admin analytics dashboard in phases, in lockstep with the backend repo: revenue/payment KPIs, order funnel, tax reporting, reward coupons/referral economics, products & inventory, profitability, monthly projections, customer analytics, geographic/delivery breakdowns, and alerts, plus period-over-period "what changed" comparisons on top of each.
+The admin analytics dashboard build-out from earlier this project is done and has since been restructured into more granular tabs.
+
+**Active engagement: TumaBoda delivery-partner integration.** Full plan at `~/.claude/plans/rippling-booping-lobster.md` on the machine this was built on — read it before touching this area. Short version: real-time-quoted, trackable TumaBoda courier delivery as an option at checkout, TumaBoda handling only pricing/booking/tracking while Moments' own Daraja checkout stays untouched. Sequenced so a sandbox/test-mode system (Phase 1, TumaBoda-independent) ships first — see the sibling backend repo's CLAUDE.md for exact status. On this side, Phase 1 shipped: a "TEST" badge + hide-filter on the admin Orders page and order detail drawer, and a Super-Admin-only test-account toggle on the customer detail page. TumaBoda's own checkout UI (step-wise flow, pin-drop address, live tracking map) hasn't started.
