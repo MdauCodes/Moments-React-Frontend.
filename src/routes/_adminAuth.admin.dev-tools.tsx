@@ -1,10 +1,19 @@
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X } from "lucide-react";
+import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
+import { Forbidden } from "@/components/admin/Forbidden";
 import { reportAdminError } from "@/lib/adminErrorToast";
-import { adminResources, type CheckoutDryRunResult, type ProductDto } from "@/services/adminResources";
+import {
+  adminResources,
+  type CheckoutDryRunResult,
+  type ProductDto,
+  type BirthdayJobRunResult,
+  type LeadPreviewDto,
+} from "@/services/adminResources";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { resolveStaffRole } from "@/lib/roles";
 
 type DryRunItemRow = { product: ProductDto | null; quantity: string };
 
@@ -415,11 +424,210 @@ function TestTaxInvoiceEmailCard() {
   );
 }
 
+// ── Birthday reward job test ─────────────────────────────────────────────────
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function BirthdayJobTestCard() {
+  const [date, setDate] = useState(todayStr());
+  const [running, setRunning] = useState<"preview" | "run" | null>(null);
+  const [result, setResult] = useState<BirthdayJobRunResult | null>(null);
+  const [previewedDate, setPreviewedDate] = useState<string | null>(null);
+
+  async function preview() {
+    setRunning("preview");
+    try {
+      const res = await adminResources.devTools.previewBirthdayJob(date);
+      setResult(res);
+      setPreviewedDate(date);
+    } catch (err) {
+      reportAdminError(err, "Preview failed");
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  async function runForReal() {
+    if (!window.confirm(
+      `This will really credit wallets / issue codes and send real birthday emails for every account matching ${date}. Continue?`
+    )) return;
+    setRunning("run");
+    try {
+      const res = await adminResources.devTools.runBirthdayJob(date);
+      setResult(res);
+      setPreviewedDate(date);
+      toast.success(`Birthday job ran for ${date} — ${res.rewardedCount} of ${res.totalMatches} rewarded.`);
+    } catch (err) {
+      reportAdminError(err, "Run failed");
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  const canRun = previewedDate === date && !running;
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <Cake size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Birthday reward job</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        Pick any date to see who would match (personal birthday or business founding date) and what they'd be
+        awarded under the current rewards settings — Preview never credits a wallet, issues a code, or sends an
+        email. Run for real actually does all three, exactly like the daily 11:59am job.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        <input
+          type="date" className="admin-input" style={{ width: 170 }}
+          value={date} onChange={(e) => { setDate(e.target.value); setResult(null); setPreviewedDate(null); }}
+        />
+        <button type="button" className="admin-btn admin-btn-ghost" disabled={!!running} onClick={() => void preview()}>
+          {running === "preview" && <Loader2 size={14} className="animate-spin" />} Preview
+        </button>
+        <button type="button" className="admin-btn admin-btn-primary" disabled={!canRun} onClick={() => void runForReal()}>
+          {running === "run" && <Loader2 size={14} className="animate-spin" />} Run for real
+        </button>
+      </div>
+
+      {result && (
+        <div style={{ marginTop: 4 }}>
+          <p style={{ fontSize: 12.5, marginBottom: 8 }}>
+            {result.dryRun ? "Preview" : "Real run"} for <b>{result.date}</b> — {result.rewardedCount} of {result.totalMatches} would be rewarded.
+          </p>
+          {result.matches.length > 0 && (
+            <table className="admin-table">
+              <thead><tr><th>Email</th><th>Path</th><th>Outcome</th></tr></thead>
+              <tbody>
+                {result.matches.map((m, i) => (
+                  <tr key={i}>
+                    <td>{m.email ?? "—"}</td>
+                    <td>{m.isBusinessAnniversary ? "Business anniversary" : "Personal birthday"}</td>
+                    <td style={!m.rewarded ? { color: "var(--admin-muted)" } : undefined}>
+                      {m.rewarded ? m.rewardSummary : `Skipped — ${m.skippedReason}`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Lead digest email test ───────────────────────────────────────────────────
+
+function LeadDigestTestCard() {
+  const [running, setRunning] = useState<"preview" | "run" | null>(null);
+  const [leads, setLeads] = useState<LeadPreviewDto[] | null>(null);
+  const [hasPreviewed, setHasPreviewed] = useState(false);
+
+  async function preview() {
+    setRunning("preview");
+    try {
+      setLeads(await adminResources.devTools.previewLeadDigest());
+      setHasPreviewed(true);
+    } catch (err) {
+      reportAdminError(err, "Preview failed");
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  async function sendForReal() {
+    if (!window.confirm("This sends the real lead digest email now, to the real configured recipients. Continue?")) return;
+    setRunning("run");
+    try {
+      const res = await adminResources.devTools.sendLeadDigestNow();
+      setLeads(res);
+      toast.success(`Digest sent with ${res.length} lead${res.length === 1 ? "" : "s"}.`);
+    } catch (err) {
+      reportAdminError(err, "Send failed");
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <Mail size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Lead digest email</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        Preview shows the uncontacted leads from the last 24 hours that would appear in today's digest — no email
+        is sent. Send for real sends the actual digest email now, same as the weekday 8am job.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button type="button" className="admin-btn admin-btn-ghost" disabled={!!running} onClick={() => void preview()}>
+          {running === "preview" && <Loader2 size={14} className="animate-spin" />} Preview
+        </button>
+        <button type="button" className="admin-btn admin-btn-primary" disabled={!hasPreviewed || !!running} onClick={() => void sendForReal()}>
+          {running === "run" && <Loader2 size={14} className="animate-spin" />} Send for real
+        </button>
+      </div>
+      {leads && (
+        leads.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>No uncontacted leads in the last 24 hours.</p>
+        ) : (
+          <table className="admin-table">
+            <thead><tr><th>Email</th><th>Source</th><th>Persona</th></tr></thead>
+            <tbody>
+              {leads.map((l) => (
+                <tr key={l.id}><td>{l.email}</td><td>{l.source ?? "—"}</td><td>{l.persona ?? "—"}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        )
+      )}
+    </div>
+  );
+}
+
+// ── Riseller sync test ───────────────────────────────────────────────────────
+
+function RisellerSyncTestCard() {
+  const [running, setRunning] = useState(false);
+
+  async function runNow() {
+    if (!window.confirm("This runs a real Riseller catalog + stock sync now (writes real price/stock changes). Continue?")) return;
+    setRunning(true);
+    try {
+      const res = await adminResources.devTools.runRisellerSyncNow();
+      toast.success(res.message);
+    } catch (err) {
+      reportAdminError(err, "Sync failed");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <RefreshCw size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Riseller catalog + stock sync</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        <b>No preview available</b> — this integration reads live from Riseller and writes price/stock changes
+        directly, so there's no way to show a diff without actually running it. This always runs for real,
+        exactly like the scheduled sync jobs. Check server logs for a full summary after running.
+      </p>
+      <button type="button" className="admin-btn admin-btn-primary" disabled={running} onClick={() => void runNow()}>
+        {running && <Loader2 size={14} className="animate-spin" />} Run sync now
+      </button>
+    </div>
+  );
+}
+
 // ── Coming soon placeholders ──────────────────────────────────────────────────
 
 const COMING_SOON = [
   "WhatsApp forward-to-developer test",
-  "Referral/rewards calculation sandbox",
   "Cache inspector (view/evict Caffeine caches)",
 ];
 
@@ -438,6 +646,10 @@ function ComingSoonCard() {
 }
 
 function AdminDevToolsPage() {
+  const { user } = useAdminAuth();
+  const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
+  if (!isSuperAdmin) return <AdminLayout title="Developer Tools"><Forbidden resource="Developer Tools" /></AdminLayout>;
+
   return (
     <AdminLayout title="Developer Tools">
       <div className="admin-page-stack">
@@ -451,6 +663,9 @@ function AdminDevToolsPage() {
         <StkPushTestCard />
         <PdfPreviewCard />
         <TestTaxInvoiceEmailCard />
+        <BirthdayJobTestCard />
+        <LeadDigestTestCard />
+        <RisellerSyncTestCard />
         <ComingSoonCard />
       </div>
     </AdminLayout>

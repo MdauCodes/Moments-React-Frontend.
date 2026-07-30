@@ -198,6 +198,32 @@ export type CheckoutDryRunResult = {
   warnings: string[];
 };
 
+export type BirthdayJobMatchResult = {
+  userId: string | null;
+  email: string | null;
+  fullName: string | null;
+  isBusinessAnniversary: boolean;
+  rewarded: boolean;
+  rewardSummary: string | null;
+  skippedReason: string | null;
+};
+export type BirthdayJobRunResult = {
+  date: string;
+  dryRun: boolean;
+  totalMatches: number;
+  rewardedCount: number;
+  matches: BirthdayJobMatchResult[];
+};
+export type LeadPreviewDto = {
+  id: string;
+  email: string;
+  persona?: string | null;
+  source?: string | null;
+  trigger?: string | null;
+  contacted: boolean;
+  createdAt: string;
+};
+
 export type TaxDocumentStatus = "PENDING" | "GENERATING" | "SENT" | "FAILED" | "EXPIRED";
 export type TaxDocumentAdminDto = {
   id: string;
@@ -306,6 +332,16 @@ export const adminResources = {
     },
     sendTestTaxInvoiceEmail: (body: { orderReference: string; email: string }) =>
       adminJson<{ message: string }>("/api/v1/admin/dev-tools/test-tax-invoice-email", { method: "POST", body: JSON.stringify(body) }),
+    previewBirthdayJob: (date: string) =>
+      adminJson<BirthdayJobRunResult>(`/api/v1/admin/dev-tools/birthday-job/preview${qs({ date })}`),
+    runBirthdayJob: (date: string) =>
+      adminJson<BirthdayJobRunResult>(`/api/v1/admin/dev-tools/birthday-job/run${qs({ date })}`, { method: "POST" }),
+    previewLeadDigest: () =>
+      adminJson<LeadPreviewDto[]>("/api/v1/admin/dev-tools/lead-digest/preview"),
+    sendLeadDigestNow: () =>
+      adminJson<LeadPreviewDto[]>("/api/v1/admin/dev-tools/lead-digest/run", { method: "POST" }),
+    runRisellerSyncNow: () =>
+      adminJson<{ message: string }>("/api/v1/admin/dev-tools/riseller-sync/run", { method: "POST" }),
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),
