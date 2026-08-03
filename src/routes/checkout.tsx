@@ -1032,6 +1032,15 @@ function CheckoutModal() {
                 {fulfillment === "PICKUP" && (
                   <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
                     No delivery fee — we'll prepare your order and call you when it's ready for pickup at our shop.
+                    <label className="mt-3 flex cursor-not-allowed items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/50 px-3 py-2.5 opacity-60">
+                      <input type="checkbox" disabled className="h-4 w-4 rounded border-border" />
+                      <span className="text-xs">
+                        <span className="font-medium">Pay in cash at pickup</span>
+                        <span className="ml-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                          Coming soon
+                        </span>
+                      </span>
+                    </label>
                   </div>
                 )}
               </div>
