@@ -28,6 +28,15 @@ import { Download, FileText } from "lucide-react";
 
 const PAGE_SIZE = 20;
 type Scope = "ALL" | "MINE" | "UNASSIGNED";
+type DeliveryTab = "ALL" | "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY" | "FAILED_DROPPED";
+
+const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
+  { value: "ALL", label: "All orders" },
+  { value: "PICKUP", label: "Pickup" },
+  { value: "MANUAL_DELIVERY", label: "Manual Delivery" },
+  { value: "TUMABODA_DELIVERY", label: "Partner Delivery" },
+  { value: "FAILED_DROPPED", label: "Failed / Dropped" },
+];
 
 // Age/urgency coloring makes no sense once an order is done — don't show a
 // red "3d ago" badge on something already delivered.
@@ -52,6 +61,7 @@ function AdminOrdersPage() {
   const [page, setPage] = useState(0);
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
   const [hideTestOrders, setHideTestOrders] = useState(false);
+  const [deliveryTab, setDeliveryTab] = useState<DeliveryTab>("ALL");
 
   useEffect(() => { document.title = "Orders · Moments admin"; }, []);
   useEffect(() => { if (isAssignedOnly) setScope("MINE"); }, [isAssignedOnly]);
@@ -72,6 +82,19 @@ function AdminOrdersPage() {
         if (scope === "MINE" && (!currentUserId || o.assignedToId !== currentUserId)) return false;
         if (scope === "UNASSIGNED" && o.assignedToId) return false;
       }
+
+      // Delivery-mode tab: FAILED_DROPPED is the complement of the paid-only default below —
+      // it's specifically where a checkout never completed, surfaced separately from the
+      // operational queues rather than left to just look like noise inside them.
+      if (deliveryTab === "FAILED_DROPPED") {
+        if (o.status !== "PENDING_PAYMENT") return false;
+      } else {
+        if (deliveryTab !== "ALL" && o.fulfillmentType !== deliveryTab) return false;
+        // Every tab defaults to successful/paid orders only — an incomplete checkout is noise in
+        // an operational queue, not a real order to act on; it has its own tab above.
+        if (status === "ALL" && o.status === "PENDING_PAYMENT") return false;
+      }
+
       if (status !== "ALL" && o.status !== status) return false;
       if (hideTestOrders && o.isTestOrder) return false;
       if (!needle) return true;
@@ -79,7 +102,7 @@ function AdminOrdersPage() {
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle));
     });
-  }, [orders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders]);
+  }, [orders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders, deliveryTab]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const pageRows = useMemo(
@@ -123,6 +146,29 @@ function AdminOrdersPage() {
                 {ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label}
               </div>
             </div>
+          </div>
+
+          <div role="tablist" aria-label="Delivery mode" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {DELIVERY_TABS.map((t) => {
+              const active = deliveryTab === t.value;
+              return (
+                <button
+                  key={t.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => { setPage(0); setDeliveryTab(t.value); }}
+                  className="admin-btn"
+                  style={{
+                    background: active ? "var(--admin-accent)" : undefined,
+                    color: active ? "var(--cream)" : undefined,
+                    fontWeight: active ? 600 : 500,
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="admin-panel">
