@@ -319,8 +319,8 @@ function AdminOrderDetailPage() {
               )}
             </div>
 
-            {/* Courier details — only when OWN_COURIER */}
-            {(order as any).fulfillmentType === "OWN_COURIER" && (
+            {/* Courier details — only when MANUAL_DELIVERY */}
+            {(order as any).fulfillmentType === "MANUAL_DELIVERY" && (
               <div className="admin-panel" style={{ padding: 16 }}>
                 <div className="admin-label">Courier details</div>
                 <div style={{ marginTop: 8, fontSize: 13 }}>

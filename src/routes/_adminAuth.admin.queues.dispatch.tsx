@@ -102,7 +102,7 @@ function DispatchQueuePage() {
       <td>{o.county ?? "—"}</td>
       <td>
         {o.fulfillmentType ?? "—"}
-        {o.fulfillmentType === "OWN_COURIER" && o.courierType && (
+        {o.fulfillmentType === "MANUAL_DELIVERY" && o.courierType && (
           <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{o.courierType}</div>
         )}
       </td>

@@ -18,7 +18,6 @@ import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth, authFetch } from "@/contexts/AuthContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
-import { fetchDeliveryZones, type DeliveryZone } from "@/services/deliveryZoneService";
 import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
 import { apiUrl } from "@/config/api";
@@ -164,7 +163,7 @@ function CheckoutModal() {
   );
 
   // Fulfillment
-  const [fulfillment, setFulfillment] = useState<FulfillmentType>("OWN_COURIER");
+  const [fulfillment, setFulfillment] = useState<FulfillmentType>("MANUAL_DELIVERY");
   const [courierType, setCourierType] = useState<CourierType | "">("");
   const [courierServiceName, setCourierServiceName] = useState("");
   const [courierStageOrOffice, setCourierStageOrOffice] = useState("");
@@ -380,22 +379,52 @@ function CheckoutModal() {
     setRedeemError(null);
   }
 
-  const [zones, setZones] = useState<DeliveryZone[]>([]);
-  const [selectedZone, setSelectedZone] = useState<DeliveryZone | null>(null);
-  const [zoneSearch, setZoneSearch] = useState("");
-  const [zoneOpen, setZoneOpen] = useState(false);
-  const zoneRef = useRef<HTMLDivElement>(null);
+  // Destination-driven coverage check — resolves whether real-time-quoted courier delivery is
+  // available for the chosen county. Never surfaced to the customer as a named partner, just
+  // "Courier Delivery" vs the Manual Delivery fallback. Static-allowlist-backed for now.
+  const [covered, setCovered] = useState<boolean | null>(null);
+  const [coverageChecking, setCoverageChecking] = useState(false);
 
   useEffect(() => {
-    if (!zoneOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (zoneRef.current && !zoneRef.current.contains(e.target as Node)) {
-        setZoneOpen(false);
+    if (!county.trim()) {
+      setCovered(null);
+      return;
+    }
+    let cancelled = false;
+    setCoverageChecking(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/v1/public/delivery-coverage?county=${encodeURIComponent(county.trim())}`));
+        if (cancelled) return;
+        const data = await res.json();
+        setCovered(!!data.covered);
+      } catch {
+        if (!cancelled) setCovered(null);
+      } finally {
+        if (!cancelled) setCoverageChecking(false);
       }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
     };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [zoneOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [county]);
+
+  // Coverage resolving to a different answer than what's currently selected shouldn't silently
+  // leave the customer on an option that just disappeared or leave a just-revealed better option
+  // unnoticed — reset back to the safe, always-available Manual Delivery default so they consciously
+  // pick again, rather than defaulting to Manual Delivery every time (Slice 2 keeps this simple).
+  const prevCoveredRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (prevCoveredRef.current !== null && prevCoveredRef.current !== covered) {
+      if (fulfillment === "TUMABODA_DELIVERY" && covered !== true) {
+        setFulfillment("MANUAL_DELIVERY");
+      }
+    }
+    prevCoveredRef.current = covered;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [covered]);
 
   // Payment state
   const [payState, setPayState] = useState<PayState>("idle");
@@ -426,12 +455,6 @@ function CheckoutModal() {
 
   useEffect(() => () => clearAllTimers(), []);
 
-  useEffect(() => {
-    fetchDeliveryZones()
-      .then(setZones)
-      .catch(() => {});
-  }, []);
-
   function clearAllTimers() {
     const t = timersRef.current;
     if (t.poll) clearTimeout(t.poll);
@@ -458,14 +481,13 @@ function CheckoutModal() {
       toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
       return false;
     }
-    if (fulfillment === "ZONE_DELIVERY") {
-      if (!address.trim() || !city.trim() || !county.trim() || !selectedZone) {
-        toast.error("Select a delivery zone and fill in the address");
-        return false;
-      }
-    } else if (fulfillment === "OWN_COURIER") {
-      if (!city.trim() || !county.trim()) {
-        toast.error("Please fill in the destination town and county");
+    if (fulfillment !== "PICKUP" && !county.trim()) {
+      toast.error("Please select where you'd like your order delivered");
+      return false;
+    }
+    if (fulfillment === "MANUAL_DELIVERY") {
+      if (!city.trim()) {
+        toast.error("Please fill in the destination town");
         return false;
       }
       if (!courierType) {
@@ -526,7 +548,7 @@ function CheckoutModal() {
           etrRequested,
           documentsEmail: etrRequested ? documentsEmail.trim() : undefined,
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
-          ...(fulfillment === "OWN_COURIER" && courierType
+          ...(fulfillment === "MANUAL_DELIVERY" && courierType
             ? {
                 courierType: courierType as CourierType,
                 courierServiceName: courierServiceName.trim() || undefined,
@@ -622,24 +644,21 @@ function CheckoutModal() {
 
   if (items.length === 0 && payState === "idle") return null;
 
-  const shippingFee = fulfillment === "ZONE_DELIVERY" && selectedZone ? selectedZone.feeAmount : 0;
+  // TUMABODA_DELIVERY's real-time quote wiring lands in a later slice — fee stays 0 here until then.
+  const shippingFee = 0;
   const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0) - (appliedRedemption?.discount ?? 0);
   const shippingLabel =
     fulfillment === "PICKUP"
       ? "Pickup at shop"
-      : fulfillment === "OWN_COURIER"
-        ? "Courier — to be confirmed"
-        : selectedZone
-          ? `Delivery — ${selectedZone.zoneName}`
-          : "Delivery";
+      : fulfillment === "TUMABODA_DELIVERY"
+        ? "Courier delivery"
+        : "Courier — to be confirmed";
   const shippingValue =
     fulfillment === "PICKUP"
       ? "Free"
-      : fulfillment === "OWN_COURIER"
-        ? "To be confirmed"
-        : shippingFee === 0
-          ? "Free"
-          : fmt(shippingFee);
+      : fulfillment === "TUMABODA_DELIVERY"
+        ? "Calculated at booking"
+        : "To be confirmed";
 
   const brandStyle = { ["--brand-ring" as string]: BRAND } as React.CSSProperties;
 
@@ -688,10 +707,10 @@ function CheckoutModal() {
             <>
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>
-                <h2 className="font-display text-2xl text-foreground">How would you like to receive your order?</h2>
+                <h2 className="font-display text-2xl text-foreground">Let's get your order to you</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {isAuthenticated ? (
-                    "Choose a fulfillment option, then confirm your details."
+                    "A few details, then tell us where — we'll show you what's available."
                   ) : (
                     <>
                       Checking out as a guest.{" "}
@@ -706,24 +725,6 @@ function CheckoutModal() {
                     </>
                   )}
                 </p>
-              </div>
-
-              {/* Fulfillment selector */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FulfillmentCard
-                  active={fulfillment === "OWN_COURIER"}
-                  onClick={() => setFulfillment("OWN_COURIER")}
-                  icon={<PackageCheck className="h-5 w-5" />}
-                  title="Deliver via courier"
-                  desc="We hand off to your chosen courier. Transport cost confirmed at dispatch."
-                />
-                <FulfillmentCard
-                  active={fulfillment === "PICKUP"}
-                  onClick={() => setFulfillment("PICKUP")}
-                  icon={<Store className="h-5 w-5" />}
-                  title="Pick up at shop"
-                  desc="Collect from our shop. No delivery fee."
-                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -758,6 +759,45 @@ function CheckoutModal() {
                     placeholder="0712 345 678"
                     inputMode="tel"
                   />
+                </div>
+
+                {/* Destination — asked before any fulfillment choice; what's shown below reacts to it */}
+                <div className="sm:col-span-2">
+                  <label className={labelCls}>
+                    Where should we deliver? <span className="text-destructive">*</span>
+                  </label>
+                  <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
+                </div>
+
+                {/* Fulfillment — resolved from the destination, never a named courier brand */}
+                <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
+                  {covered === true ? (
+                    <FulfillmentCard
+                      active={fulfillment === "TUMABODA_DELIVERY"}
+                      onClick={() => setFulfillment("TUMABODA_DELIVERY")}
+                      icon={<Truck className="h-5 w-5" />}
+                      title="Courier delivery"
+                      desc="Fast delivery available in your area — fee calculated at booking."
+                    />
+                  ) : (
+                    <FulfillmentCard
+                      active={fulfillment === "MANUAL_DELIVERY"}
+                      onClick={() => setFulfillment("MANUAL_DELIVERY")}
+                      icon={<PackageCheck className="h-5 w-5" />}
+                      title="Deliver via courier"
+                      desc="We hand off to your chosen courier. Transport cost confirmed at dispatch."
+                    />
+                  )}
+                  <FulfillmentCard
+                    active={fulfillment === "PICKUP"}
+                    onClick={() => setFulfillment("PICKUP")}
+                    icon={<Store className="h-5 w-5" />}
+                    title="Pick up at shop"
+                    desc="Collect from our shop. No delivery fee."
+                  />
+                  {coverageChecking && (
+                    <p className="sm:col-span-2 text-xs text-muted-foreground">Checking delivery options for your area…</p>
+                  )}
                 </div>
 
                 <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
@@ -822,7 +862,7 @@ function CheckoutModal() {
                   )}
                 </div>
 
-                {fulfillment === "OWN_COURIER" && (
+                {fulfillment === "MANUAL_DELIVERY" && (
                   <div className="sm:col-span-2 space-y-4">
                     <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground/90">
                       <p>
@@ -846,7 +886,7 @@ function CheckoutModal() {
                         </span>
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
+                        <div className="sm:col-span-2">
                           <label className={labelCls}>
                             Destination town <span className="text-destructive">*</span>
                           </label>
@@ -857,12 +897,6 @@ function CheckoutModal() {
                             onChange={(e) => setCity(e.target.value)}
                             placeholder="e.g. Nyeri, Meru, Eldoret"
                           />
-                        </div>
-                        <div>
-                          <label className={labelCls}>
-                            County <span className="text-destructive">*</span>
-                          </label>
-                          <CountySelect value={county} onChange={setCounty} required placeholder="Select county…" />
                         </div>
                         <div className="sm:col-span-2">
                           <label className={labelCls}>Nearest courier office to you (optional)</label>
@@ -985,6 +1019,13 @@ function CheckoutModal() {
                         </div>
                       </div>
                     </section>
+                  </div>
+                )}
+
+                {fulfillment === "TUMABODA_DELIVERY" && (
+                  <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
+                    Fast courier delivery is available in your area. The exact fee is calculated once you confirm your
+                    order and shown before payment.
                   </div>
                 )}
 

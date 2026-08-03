@@ -50,7 +50,7 @@ export interface CustomerOrderItem {
 
 export type CheckoutPaymentMethod = "PAYHERO" | "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";
 
-export type FulfillmentType = "ZONE_DELIVERY" | "PICKUP" | "OWN_COURIER";
+export type FulfillmentType = "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY";
 export type CourierType = "MATATU" | "PARCEL_SERVICE" | "BOLT_SEND" | "RIDER" | "OTHER";
 
 export interface CustomerOrder {
@@ -278,7 +278,7 @@ export const orderStore = {
       city: input.customer.city,
       county: input.customer.county,
       paymentMethod: input.paymentMethod,
-      fulfillmentType: input.fulfillmentType ?? "ZONE_DELIVERY",
+      fulfillmentType: input.fulfillmentType ?? "MANUAL_DELIVERY",
       items: input.items.map((it) => ({
         productId: it.productId,
         quantity: it.quantity,

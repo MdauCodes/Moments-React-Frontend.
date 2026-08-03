@@ -478,7 +478,7 @@ async function buildReceiptDoc(order: ReceiptOrder): Promise<{ doc: jsPDF; filen
   if (exemptGross > 0.01) {
     totRow(hasDiscount ? "VAT-exempt items (after discount)" : "VAT-exempt items", fmt(exemptNet));
   }
-  const isCourier = (order.fulfillmentType ?? "") === "OWN_COURIER";
+  const isCourier = (order.fulfillmentType ?? "") === "MANUAL_DELIVERY";
   totRow("Delivery", isCourier ? "To be confirmed" : order.shippingFee === 0 ? "Free" : fmt(order.shippingFee));
   if (hasDiscount) {
     totRow("Total discount applied", `-${fmt(discountTotal)}`, false, DANGER);

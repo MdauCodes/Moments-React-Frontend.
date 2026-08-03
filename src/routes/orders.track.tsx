@@ -364,7 +364,7 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
         </button>
       )}
 
-      {order.fulfillmentType === "OWN_COURIER" && (order.courierServiceName || order.courierType || order.courierStageOrOffice) && (
+      {order.fulfillmentType === "MANUAL_DELIVERY" && (order.courierServiceName || order.courierType || order.courierStageOrOffice) && (
         <div className="mt-4 rounded-xl border border-border bg-background/60 p-3 text-sm">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Courier</p>
           <p>{order.courierServiceName ?? order.courierType}{order.courierStageOrOffice ? ` · ${order.courierStageOrOffice}` : ""}</p>

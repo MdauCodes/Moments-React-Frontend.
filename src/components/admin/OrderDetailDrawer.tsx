@@ -270,7 +270,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
               </Section>
 
               {/* Fulfillment — adapts to type (matches checkout's two-section model) */}
-              {o.fulfillmentType === "OWN_COURIER" ? (
+              {o.fulfillmentType === "MANUAL_DELIVERY" ? (
                 <>
                   <Section title="1. Destination — where the customer collects">
                     <Row label="Town" value={o.city || "—"} />
@@ -345,7 +345,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                 <Row
                   label="Delivery fee"
                   value={
-                    o.fulfillmentType === "OWN_COURIER"
+                    o.fulfillmentType === "MANUAL_DELIVERY"
                       ? "Paid to courier on collection"
                       : o.fulfillmentType === "PICKUP"
                         ? "Free (pickup)"
@@ -400,7 +400,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <Row
                     label="Fulfillment type"
                     value={
-                      o.fulfillmentType === "OWN_COURIER"
+                      o.fulfillmentType === "MANUAL_DELIVERY"
                         ? "Customer's sacco / courier"
                         : o.fulfillmentType === "PICKUP"
                           ? "Pickup at shop"
