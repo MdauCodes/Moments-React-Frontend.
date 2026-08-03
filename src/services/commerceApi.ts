@@ -133,6 +133,12 @@ function normalizeOrder(raw: any): OrderRecord {
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
+    deliveryFeeAmount: raw?.deliveryFeeAmount != null ? num(raw.deliveryFeeAmount) : undefined,
+    deliveryFeeStatus: raw?.deliveryFeeStatus,
+    deliveryFeeMethod: raw?.deliveryFeeMethod,
+    tumabodaStatus: raw?.tumabodaStatus,
+    tumabodaDeliveryNumber: raw?.tumabodaDeliveryNumber,
+    tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
     refundRequestedAt: raw?.refundRequestedAt,
     refundRequestReason: raw?.refundRequestReason,
     refundRequestedBy: raw?.refundRequestedBy,
@@ -301,6 +307,36 @@ export async function markOrderPaymentRefunded(
   const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/mark-payment-refunded`, {
     method: "PATCH",
     body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/delivery-fee/stk-push
+export async function triggerDeliveryFeeStk(
+  id: string,
+  amount: number,
+  phone: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/delivery-fee/stk-push`, {
+    method: "POST",
+    body: JSON.stringify({ amount, phone }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/delivery-fee/record
+export async function recordDeliveryFeePaid(
+  id: string,
+  amount: number,
+  method: "SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD",
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/delivery-fee/record`, {
+    method: "POST",
+    body: JSON.stringify({ amount, method }),
   });
   if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
   const raw = await res.json();

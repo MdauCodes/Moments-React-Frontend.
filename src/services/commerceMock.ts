@@ -76,6 +76,14 @@ export interface OrderRecord {
   /** Sandbox/test-mode system — true only for orders placed by a designated internal test
    *  account. Never real revenue; shown as a "TEST" badge, filterable in the Orders list. */
   isTestOrder?: boolean;
+  /** Manual Delivery fee — agreed by phone after placement, never charged at checkout. */
+  deliveryFeeAmount?: number;
+  deliveryFeeStatus?: "UNPAID" | "PENDING_STK" | "PAID";
+  deliveryFeeMethod?: "SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD";
+  /** TumaBoda-fulfilled delivery visibility. */
+  tumabodaStatus?: string;
+  tumabodaDeliveryNumber?: string;
+  tumabodaCost?: number;
   refundRequestedAt?: string;
   refundRequestReason?: string;
   refundRequestedBy?: string;

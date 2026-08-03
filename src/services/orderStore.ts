@@ -128,6 +128,10 @@ export interface PlaceOrderInput {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  /** TUMABODA_DELIVERY only — real-time quote needs these. Not yet populated by any UI; the
+   *  pin-drop/map component that would collect them is its own design pass, not built yet. */
+  dropoffLat?: number;
+  dropoffLng?: number;
   /** Client-generated UUID — prevents duplicate orders on network retry. */
   idempotencyKey?: string;
   /** Customer's own KRA PIN, printed on the tax invoice for their own remittance records. */
@@ -292,6 +296,8 @@ export const orderStore = {
     if (input.courierType) body.courierType = input.courierType;
     if (input.courierServiceName) body.courierServiceName = input.courierServiceName;
     if (input.courierStageOrOffice) body.courierStageOrOffice = input.courierStageOrOffice;
+    if (input.dropoffLat != null) body.dropoffLat = input.dropoffLat;
+    if (input.dropoffLng != null) body.dropoffLng = input.dropoffLng;
     if (input.customer.postalCode) body.postalCode = input.customer.postalCode;
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;
