@@ -42,18 +42,17 @@ The admin analytics dashboard build-out from earlier this project is done and ha
 
 ## Staging environment (as of 2026-08-03)
 
-The backend now has a real staging environment (see the backend repo's `CLAUDE.md`) so the frontend needs the same split: a place to preview changes against staging data before they reach the live site.
+The backend now has a real staging environment (see the backend repo's `CLAUDE.md`) so the frontend has the same split: a place to preview changes against staging data before they reach the live site.
 
-**Backend base URL is now env-configurable** (`src/config/api.ts`, `VITE_API_BASE_URL`) — previously hardcoded to the production Railway URL, meaning a staging frontend build would silently have called the production backend. Falls back to the production URL when unset, so this was a safe no-op change landed on both `main` and `staging`.
+**Render setup**: two static-site services, each tracking its own branch —
+- `moments-staging` — tracks `staging`, deployed at `https://moments-staging.onrender.com`.
+- The existing production service — tracks `main`, serves `moments-demo.site`.
 
-**Branch plan** (per the client's direction — current live site becomes staging, a separate prod deployment gets created later, only once the client/testers have previewed and approved a build):
-- A `staging` branch already exists (branched from `main`, currently checked out day-to-day).
-- **Not yet done, needs the Render dashboard** (no Render CLI/API access from here):
-  1. Point the *existing* Render service (currently serving `moments-demo.site`, tracking `main`) at the `staging` branch instead — this makes the site the client already previews on into the actual staging environment, with zero URL change for the client.
-  2. Set `VITE_API_BASE_URL=https://moments-backend-staging-staging.up.railway.app` on that service so staging frontend talks to staging backend, not production.
-  3. When a build is ready to actually go live: create a *new* Render service tracking `main`, set its `VITE_API_BASE_URL` to the production backend URL (or leave unset — that's the default), and move the `moments-demo.site` custom domain to it (Render domains are bound to one service at a time). Staging then falls back to Render's auto-generated `*.onrender.com` URL.
+**Backend URL is hardcoded per branch, not env-var-driven** (`src/config/api.ts`, `API_BASE`). We tried a `VITE_API_BASE_URL` Render-env-var approach first and deliberately reverted it — simpler to have each branch just carry its own literal URL than depend on a dashboard env var being set correctly per service. **This one line is intentionally meant to differ between `main` and `staging` forever** — `staging` always has the staging Railway backend URL, `main` always has production's. When merging one branch into the other, always keep the target branch's own URL on this line rather than taking the incoming branch's value — check this line specifically after every merge in either direction, since a normal merge won't flag it as a conflict (both sides touch the same line differently, but git may still auto-resolve depending on merge base — verify manually regardless).
 
-**Workflow once this is set up**: feature branches merge into `staging` → auto-deploys to the staging Render service + talks to the staging backend → client/testers preview live on `moments-demo.site` → only after explicit approval does `staging` merge into `main` → deploys to the (then-existing) production Render service. Mirrors the backend's `staging`→`main` discipline exactly.
+**Workflow**: feature branches merge into `staging` → auto-deploys to `moments-staging.onrender.com`, talking to the staging Railway backend → client/testers preview there → only after explicit approval does `staging` merge into `main` → deploys to the live production service. Mirrors the backend's `staging`→`main` discipline.
+
+**Not yet decided**: whether `moments-demo.site` (the custom domain) stays on the current production-tracking service, or whether that service eventually gets relabeled and a new one created for true production launch — revisit once a build is actually ready to go fully live.
 
 ## Open before Phase 6 (TumaBoda frontend checkout UX)
 
