@@ -222,7 +222,7 @@ function CartPage() {
                 </div>
 
                 <p className="mt-4 text-[11px] text-muted-foreground">
-                  Pay securely with M-Pesa STK push. Card and bank options coming soon.
+                  Pay securely with M-Pesa STK push.
                 </p>
               </div>
             </div>

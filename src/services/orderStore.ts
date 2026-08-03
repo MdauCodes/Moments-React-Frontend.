@@ -48,7 +48,7 @@ export interface CustomerOrderItem {
   isBackorder?: boolean;
 }
 
-export type CheckoutPaymentMethod = "PAYHERO" | "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";
+export type CheckoutPaymentMethod = "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";
 
 export type FulfillmentType = "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY";
 export type CourierType = "MATATU" | "PARCEL_SERVICE" | "BOLT_SEND" | "RIDER" | "OTHER";

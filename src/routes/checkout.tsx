@@ -20,6 +20,7 @@ import { useAuth, authFetch } from "@/contexts/AuthContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
 import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
+import { profileStore } from "@/services/profileStore";
 import { apiUrl } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
@@ -180,7 +181,9 @@ function CheckoutModal() {
   const [documentsEmail, setDocumentsEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
   const [kraPinPrefilled, setKraPinPrefilled] = useState(false);
-  const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
+  // PayHero was cosmetic — an identical Daraja call under a different label — and has been
+  // removed entirely. M-Pesa (Daraja) is the only gateway now.
+  const paymentGateway = "MPESA" as const;
 
   // Promo code
   const [promoCode, setPromoCode] = useState("");
@@ -446,6 +449,25 @@ function CheckoutModal() {
       setEmail(user.email);
     }
   }, [user]);
+
+  // Saved-address reuse — prefill from the account's default address so a returning customer
+  // isn't retyping the same details every order. Only fills blank fields, never overwrites
+  // something the customer already typed. profileStore's CustomerAddress has no county field
+  // today, so county still needs picking manually — a real, known limitation, not an oversight.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    profileStore
+      .get()
+      .then(({ profile }) => {
+        const defaultAddr = profile.addresses.find((a) => a.isDefault) ?? profile.addresses[0];
+        if (!defaultAddr) return;
+        setPhone((prev) => prev || defaultAddr.phone || "");
+        setCity((prev) => prev || defaultAddr.city || "");
+        setAddress((prev) => prev || defaultAddr.line1 || "");
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (items.length === 0 && payState === "idle") {
@@ -1084,39 +1106,6 @@ function CheckoutModal() {
                     <p className="mt-1 text-sm text-muted-foreground">
                       You'll get an M-Pesa prompt on{" "}
                       <span className="font-semibold text-foreground">{normalizePhone(phone)}</span>.
-                    </p>
-                  </div>
-
-                  {/* Payment method selector */}
-                  <div className="rounded-2xl border border-border bg-card p-5">
-                    <h3 className="text-sm font-semibold text-foreground">Payment method</h3>
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {(
-                        [
-                          { id: "MPESA", label: "M-Pesa", hint: "Lipa Na M-Pesa — Safaricom Daraja" },
-                          { id: "PAYHERO", label: "M-Pesa (alternative)", hint: "Same STK push, alternate route" },
-                        ] as const
-                      ).map((opt) => {
-                        const active = paymentGateway === opt.id;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setPaymentGateway(opt.id)}
-                            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left text-sm transition ${
-                              active
-                                ? "border-foreground bg-secondary"
-                                : "border-border bg-background hover:bg-secondary/50"
-                            }`}
-                          >
-                            <span className="font-semibold text-foreground">{opt.label}</span>
-                            <span className="text-xs text-muted-foreground">{opt.hint}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Both options send an M-Pesa STK push to your phone for approval.
                     </p>
                   </div>
 

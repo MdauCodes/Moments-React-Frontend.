@@ -22,7 +22,7 @@ const POLL_INTERVAL_MS = 3000;
 const MAX_ATTEMPTS = 20;
 const COUNTDOWN_SECONDS = 180; // 3 minutes
 
-type UiState = "waiting" | "polling" | "success" | "failed" | "timeout";
+type UiState = "waiting" | "polling" | "success" | "failed" | "timeout" | "cod_pending";
 
 function ProcessingPage() {
   const [_searchParams] = useSearchParams();
@@ -131,7 +131,9 @@ function ProcessingPage() {
     clearCart();
     setReceiptNumber(null);
     setFailReason(null);
-    setUiState("success");
+    // Genuinely pending, not paid — initiating cash-on-delivery only records intent to pay on
+    // arrival; staff still has to confirm payment actually happened before the order is PAID.
+    setUiState("cod_pending");
   }
 
   return (
@@ -198,6 +200,29 @@ function ProcessingPage() {
                 </div>
               )}
             </div>
+            <div className="mt-8">
+              <Link
+                to={ref ? `/orders/track?ref=${ref}` : "/orders/track"}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Track your order
+              </Link>
+            </div>
+          </>
+        )}
+
+        {uiState === "cod_pending" && (
+          <>
+            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-secondary">
+              <Clock className="h-9 w-9 text-foreground/70" />
+            </div>
+            <h1 className="mt-6 font-display text-3xl sm:text-4xl">Order placed — pay on delivery</h1>
+            <p className="mt-3 text-muted-foreground">
+              Your order is confirmed. Pay in cash when it arrives — we'll mark it paid once that's confirmed.
+            </p>
+            <p className="mt-4 text-sm text-foreground/80">
+              Order reference: <span className="font-semibold">{ref}</span>
+            </p>
             <div className="mt-8">
               <Link
                 to={ref ? `/orders/track?ref=${ref}` : "/orders/track"}
