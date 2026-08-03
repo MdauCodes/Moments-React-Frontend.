@@ -1,5 +1,8 @@
 // Central API configuration. All backend calls flow through here.
-export const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+// VITE_API_BASE_URL is set per Render service (staging vs production) — falls back to production so any
+// environment missing the var (e.g. local dev without .env) still points somewhere real.
+export const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "https://moments-packaging-latest-backend-production.up.railway.app";
 
 // Backwards-compatible aliases — existing modules import these.
 export const API_BASE_URL = API_BASE;
