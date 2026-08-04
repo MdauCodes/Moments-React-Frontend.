@@ -21,9 +21,6 @@ import AboutPage from "@/routes/about";
 import ContactPage from "@/routes/contact";
 import CartPage from "@/routes/cart";
 import CheckoutPage from "@/routes/checkout";
-import CheckoutSuccessPage from "@/routes/checkout.success";
-import CheckoutFailedPage from "@/routes/checkout.failed";
-import CheckoutProcessingPage from "@/routes/checkout.processing";
 import CompanyProfilePage from "@/routes/company-profile";
 import SustainabilityPage from "@/routes/sustainability";
 import EnterpriseQuotePage from "@/routes/enterprise-quote";
@@ -144,9 +141,6 @@ export default function App() {
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/cart" element={<CartPage />} />
                     <Route path="/checkout" element={<CheckoutPage />} />
-                    <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
-                    <Route path="/checkout/failed" element={<CheckoutFailedPage />} />
-                    <Route path="/checkout/processing" element={<CheckoutProcessingPage />} />
                     <Route path="/company-profile" element={<CompanyProfilePage />} />
                     <Route path="/sustainability" element={<SustainabilityPage />} />
                     <Route path="/enterprise-quote" element={<EnterpriseQuotePage />} />
