@@ -100,6 +100,8 @@ export interface CustomerOrder {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  tumabodaStatus?: string | null;
+  tumabodaTrackingCode?: string | null;
   /** One-time secret for the Cloudinary tax-invoice upload flow — present only when etrRequested was true. */
   taxInvoiceUploadToken?: string | null;
   etrRequested?: boolean;
@@ -246,6 +248,9 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     currency: "KES",
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),
+    fulfillmentType: raw.fulfillmentType ?? undefined,
+    tumabodaStatus: raw.tumabodaStatus ?? null,
+    tumabodaTrackingCode: raw.tumabodaTrackingCode ?? null,
     trackingEvents: (raw.statusHistory ?? []).map((h: any) => ({
       at: h.changedAt,
       // Backend returns toStatus (not status) — fall back to status for safety

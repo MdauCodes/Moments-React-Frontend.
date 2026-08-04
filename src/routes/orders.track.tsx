@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 
 import { InlineProgress } from "@/components/InlineProgress";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ChevronDown, ChevronUp, FileDown, Search } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -11,6 +11,41 @@ import { downloadReceiptPdf } from "@/lib/pdf";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 const searchSchema = z.object({ ref: z.string().optional() });
+
+// Production host by default — TumaBoda is standing up a sandbox-equivalent of this script
+// tonight (2026-08-04); swap VITE_TUMABODA_EMBED_SCRIPT_URL to that URL once they send it, no
+// code change needed. The widget is a web component, not an iframe: <tumaboda-tracking code="…">.
+const TUMABODA_EMBED_SCRIPT_URL =
+  import.meta.env.VITE_TUMABODA_EMBED_SCRIPT_URL || "https://tumaboda.co.ke/embed/v1.js";
+
+function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode: string; status?: string | null }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (document.querySelector(`script[src="${TUMABODA_EMBED_SCRIPT_URL}"]`)) return;
+    const script = document.createElement("script");
+    script.src = TUMABODA_EMBED_SCRIPT_URL;
+    script.async = true;
+    document.body.appendChild(script);
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.innerHTML = "";
+    const widget = document.createElement("tumaboda-tracking");
+    widget.setAttribute("code", trackingCode);
+    el.appendChild(widget);
+  }, [trackingCode]);
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+      <p className="text-xs uppercase tracking-widest text-muted-foreground">Live delivery tracking</p>
+      {status && <p className="mt-1 text-sm text-foreground">{status.replace(/_/g, " ")}</p>}
+      <div ref={containerRef} className="mt-2" />
+    </div>
+  );
+}
 
 function maskEmail(email: string): string {
   if (!email || !email.includes("@")) return email ?? "";
@@ -369,6 +404,10 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Courier</p>
           <p>{order.courierServiceName ?? order.courierType}{order.courierStageOrOffice ? ` · ${order.courierStageOrOffice}` : ""}</p>
         </div>
+      )}
+
+      {order.fulfillmentType === "TUMABODA_DELIVERY" && order.tumabodaTrackingCode && (
+        <TumaBodaTrackingWidget trackingCode={order.tumabodaTrackingCode} status={order.tumabodaStatus} />
       )}
 
       {order.etrRequested && (
