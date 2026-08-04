@@ -145,6 +145,23 @@ export type AuditLogEntry = {
   createdAt?: string;
 };
 
+export type AppLogEntry = {
+  id: number;
+  level: string;
+  loggerName?: string;
+  threadName?: string;
+  message?: string;
+  stackTrace?: string;
+  createdAt?: string;
+};
+
+export type LogDigestSummary = {
+  errorCount: number;
+  warnCount: number;
+  topErrors: Array<{ message: string; count: number }>;
+  topWarnings: Array<{ message: string; count: number }>;
+};
+
 export type MockModeState = { enabled: boolean; message?: string };
 
 export type UserDto = {
@@ -342,6 +359,14 @@ export const adminResources = {
       adminJson<LeadPreviewDto[]>("/api/v1/admin/dev-tools/lead-digest/run", { method: "POST" }),
     runRisellerSyncNow: () =>
       adminJson<{ message: string }>("/api/v1/admin/dev-tools/riseller-sync/run", { method: "POST" }),
+    previewLogDigest: () =>
+      adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/preview"),
+    sendLogDigestNow: () =>
+      adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/run", { method: "POST" }),
+  },
+  devLogs: {
+    list: async (params: Record<string, string | number | undefined> = {}) =>
+      unwrap(await adminJson<PageResponse<AppLogEntry> | AppLogEntry[]>(`/api/v1/admin/logs${qs(params)}`)),
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),

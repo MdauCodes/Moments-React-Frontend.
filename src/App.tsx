@@ -109,6 +109,7 @@ import AdminFeatureGuidePage from "@/routes/_adminAuth.admin.feature-guide";
 import AdminChangelogPage from "@/routes/_adminAuth.admin.changelog";
 import AdminArchitecturePage from "@/routes/_adminAuth.admin.architecture";
 import AdminDevToolsPage from "@/routes/_adminAuth.admin.dev-tools";
+import AdminDevLogsPage from "@/routes/_adminAuth.admin.dev-logs";
 import AdminPaymentsPage from "@/routes/_adminAuth.admin.payments";
 import AdminProductsIndexPage from "@/routes/_adminAuth.admin.products.index";
 import AdminProductEditPage from "@/routes/_adminAuth.admin.products.$id";
@@ -229,6 +230,7 @@ export default function App() {
                       <Route path="/admin/tax-documents" element={<AdminTaxDocumentsPage />} />
                       <Route path="/admin/document-bundles" element={<AdminDocumentBundlesPage />} />
                       <Route path="/admin/dev-tools" element={<AdminDevToolsPage />} />
+                      <Route path="/admin/dev-logs" element={<AdminDevLogsPage />} />
                       <Route path="/admin/rewards-tiers" element={<AdminRewardsTiersPage />} />
                       <Route path="/admin/referral-tiers" element={<AdminReferralTiersPage />} />
                       <Route path="/admin/rewards-report" element={<AdminRewardsReportPage />} />

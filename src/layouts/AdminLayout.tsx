@@ -33,6 +33,7 @@ import {
   Receipt,
   FileCheck2,
   Wrench,
+  ScrollText,
   Coins,
   ListTree,
   LayoutGrid,
@@ -190,6 +191,7 @@ const navSections: NavSection[] = [
     label: "Developer",
     items: [
       { label: "Developer Tools", to: "/admin/dev-tools", icon: Wrench, superAdminOnly: true },
+      { label: "Dev Logs", to: "/admin/dev-logs", icon: ScrollText, superAdminOnly: true },
     ],
   },
 ];
