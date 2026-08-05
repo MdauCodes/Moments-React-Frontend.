@@ -673,7 +673,7 @@ function CheckoutModal() {
     fulfillment === "PICKUP"
       ? "Pickup at shop"
       : fulfillment === "TUMABODA_DELIVERY"
-        ? "Courier delivery"
+        ? "Fulfilled by TumaBoda"
         : "Courier — to be confirmed";
   const shippingValue =
     fulfillment === "PICKUP"
@@ -791,31 +791,34 @@ function CheckoutModal() {
                   <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
                 </div>
 
-                {/* Fulfillment — resolved from the destination, never a named courier brand */}
+                {/* Fulfillment — resolved from the destination. Covered areas are branded as
+                    TumaBoda per the client's explicit call (overrides the earlier unbranded
+                    design); uncovered areas stay generic since it genuinely isn't TumaBoda there. */}
                 <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
                   {covered === true ? (
                     <FulfillmentCard
                       active={fulfillment === "TUMABODA_DELIVERY"}
                       onClick={() => setFulfillment("TUMABODA_DELIVERY")}
                       icon={<Truck className="h-5 w-5" />}
-                      title="Courier delivery"
-                      desc="Fast delivery available in your area — fee calculated at booking."
+                      title="Fulfilled by TumaBoda"
+                      desc="Tracked delivery straight to your doorstep — fee calculated at booking."
+                      badge="Doorstep"
                     />
                   ) : (
                     <FulfillmentCard
                       active={fulfillment === "MANUAL_DELIVERY"}
                       onClick={() => setFulfillment("MANUAL_DELIVERY")}
                       icon={<PackageCheck className="h-5 w-5" />}
-                      title="Deliver via courier"
-                      desc="We hand off to your chosen courier. Transport cost confirmed at dispatch."
+                      title="Courier Delivery"
+                      desc="We arrange dispatch via courier — transport cost confirmed before dispatch."
                     />
                   )}
                   <FulfillmentCard
                     active={fulfillment === "PICKUP"}
                     onClick={() => setFulfillment("PICKUP")}
                     icon={<Store className="h-5 w-5" />}
-                    title="Pick up at shop"
-                    desc="Collect from our shop. No delivery fee."
+                    title="Pick Up at Shop"
+                    desc="Collect from our shop — no delivery fee."
                   />
                   {coverageChecking && (
                     <p className="sm:col-span-2 text-xs text-muted-foreground">Checking delivery options for your area…</p>
@@ -1414,36 +1417,59 @@ function FulfillmentCard({
   icon,
   title,
   desc,
+  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   title: string;
   desc: string;
+  badge?: string;
 }) {
+  // A div, not a button — the whole-card-is-clickable pattern read as confusing (per the
+  // client's explicit feedback); a dedicated "Select" button at the bottom is the one thing
+  // that actually selects this option.
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`group flex h-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition ${
-        active ? "border-transparent bg-secondary shadow-sm ring-2" : "border-border bg-card hover:border-foreground/30"
+    <div
+      className={`flex h-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition ${
+        active ? "border-transparent bg-secondary shadow-sm ring-2" : "border-border bg-card"
       }`}
       style={active ? ({ ["--tw-ring-color" as string]: BRAND, color: "inherit" } as React.CSSProperties) : undefined}
     >
-      <span
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full"
-        style={{
-          backgroundColor: active ? BRAND : "transparent",
-          color: active ? "#fff" : undefined,
-          border: active ? "none" : "1px solid var(--border)",
-        }}
-      >
-        {icon}
-      </span>
+      <div className="flex w-full items-start justify-between gap-2">
+        <span
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+          style={{
+            backgroundColor: active ? BRAND : "transparent",
+            color: active ? "#fff" : undefined,
+            border: active ? "none" : "1px solid var(--border)",
+          }}
+        >
+          {icon}
+        </span>
+        {badge && (
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
       <span className="font-semibold text-foreground">{title}</span>
       <span className="text-xs text-muted-foreground leading-snug">{desc}</span>
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className={`mt-auto w-full rounded-full px-3 py-2 text-xs font-semibold transition ${
+          active ? "text-white" : "border border-border bg-background text-foreground hover:bg-secondary"
+        }`}
+        style={active ? { backgroundColor: BRAND } : undefined}
+      >
+        {active ? "Selected ✓" : "Select"}
+      </button>
+    </div>
   );
 }
 
