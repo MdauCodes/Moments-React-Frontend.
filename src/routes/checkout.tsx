@@ -21,8 +21,9 @@ import { orderStore, type FulfillmentType, type CourierType } from "@/services/o
 import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
 import { profileStore } from "@/services/profileStore";
-import { apiUrl } from "@/config/api";
+import { apiUrl, apiFetch } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
+import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
@@ -119,7 +120,7 @@ const MAX_POLLS = 20;
 const TIMEOUT_MS = POLL_MS * MAX_POLLS;
 const RESEND_AFTER_MS = 30_000;
 
-type Step = "contact" | "payment";
+type Step = "contact" | "location" | "delivery";
 type PayState = "idle" | "sending" | "waiting" | "success" | "failed" | "timeout";
 
 function fmt(n: number) {
@@ -177,6 +178,20 @@ function CheckoutModal() {
   const [county, setCounty] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
+
+  // Precise pin (optional, on top of the required county select above) — feeds dropoffLat/Lng
+  // for TumaBoda's real-time quote. Deliberately doesn't try to derive `county` from this: Google's
+  // formatted address string doesn't reliably map onto our 47-county list, and a silent mismatch
+  // there would quietly break the coverage check. County stays a separate, manual source of truth
+  // until the finer coverage-check follow-up (tracked separately) replaces it.
+  const [addressText, setAddressText] = useState("");
+  const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
+  const [locatingMe, setLocatingMe] = useState(false);
+
+  // Gates the two sub-views of the merged "delivery" step: fulfillment/courier details form,
+  // then (once confirmed) the order summary + pay button — mirrors the old contact→payment
+  // handoff, just nested one level deeper now that location is its own step in between.
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [etrRequested, setEtrRequested] = useState(false);
   const [documentsEmail, setDocumentsEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
@@ -490,7 +505,7 @@ function CheckoutModal() {
     navigate("/cart");
   }
 
-  function validateContact(): boolean {
+  function validateContactInfo(): boolean {
     if (!name.trim() || !email.trim()) {
       toast.error("Please fill all required fields");
       return false;
@@ -503,8 +518,30 @@ function CheckoutModal() {
       toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
       return false;
     }
-    if (fulfillment !== "PICKUP" && !county.trim()) {
+    return true;
+  }
+
+  function handleContactSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!validateContactInfo()) return;
+    setStep("location");
+  }
+
+  function handleLocationContinue() {
+    if (!county.trim()) {
       toast.error("Please select where you'd like your order delivered");
+      return;
+    }
+    setStep("delivery");
+  }
+
+  function validateDeliveryDetails(): boolean {
+    // TumaBoda needs real coordinates to book a rider — a county alone isn't enough. Without this
+    // gate, an order could be placed and paid as "Fulfilled by TumaBoda" with no way for the
+    // backend to actually create the delivery (createTumaBodaDelivery silently skips when
+    // deliveryLat/Lng are null), leaving a paid order with no rider ever dispatched.
+    if (fulfillment === "TUMABODA_DELIVERY" && !resolvedAddress) {
+      toast.error("Please pin your exact delivery address so we can book your TumaBoda rider");
       return false;
     }
     if (fulfillment === "MANUAL_DELIVERY") {
@@ -530,14 +567,49 @@ function CheckoutModal() {
     return true;
   }
 
-  function handleContactSubmit(e: FormEvent) {
+  function handleDeliveryDetailsSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!validateContact()) return;
+    if (!validateDeliveryDetails()) return;
     if (!consent) {
       toast.error("Please tick the consent box to continue");
       return;
     }
-    setStep("payment");
+    setDetailsConfirmed(true);
+  }
+
+  async function useMyLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("Your browser doesn't support location detection — please search your address instead.");
+      return;
+    }
+    setLocatingMe(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let description = "Current location (approximate)";
+        let placeId: string | null = null;
+        try {
+          const res = await apiFetch(
+            `/api/v1/public/tumaboda/maps/reverse-geocode?lat=${latitude}&lng=${longitude}`,
+          );
+          if (res.ok) {
+            const details = await res.json();
+            if (details?.formattedAddress) description = details.formattedAddress;
+            placeId = details?.placeId ?? null;
+          }
+        } catch {
+          // Reverse-geocode failed — still proceed with the raw coordinates below.
+        }
+        setAddressText(description);
+        setResolvedAddress({ description, placeId, latitude, longitude });
+        setLocatingMe(false);
+      },
+      () => {
+        setLocatingMe(false);
+        toast.error("Couldn't access your location — please search for your address instead, or select your county below.");
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
   }
 
   async function startPayment() {
@@ -570,6 +642,8 @@ function CheckoutModal() {
           etrRequested,
           documentsEmail: etrRequested ? documentsEmail.trim() : undefined,
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
+          dropoffLat: fulfillment !== "PICKUP" ? resolvedAddress?.latitude ?? undefined : undefined,
+          dropoffLng: fulfillment !== "PICKUP" ? resolvedAddress?.longitude ?? undefined : undefined,
           ...(fulfillment === "MANUAL_DELIVERY" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -714,9 +788,16 @@ function CheckoutModal() {
       {/* Step indicator */}
       <div className="border-b border-border bg-card/50">
         <div className="mx-auto flex max-w-2xl items-center justify-center gap-3 px-4 py-3 text-xs sm:text-sm">
-          <StepDot active={step === "contact"} done={step === "payment"} label="1. Contact & delivery" />
-          <span className="h-px w-8 bg-border sm:w-16" />
-          <StepDot active={step === "payment"} done={false} label="2. Payment" />
+          <StepDot active={step === "contact"} done={step !== "contact"} label="1. Contact" />
+          <span className="h-px w-6 bg-border sm:w-16" />
+          <StepDot active={step === "location"} done={step === "delivery"} label="2. Location" />
+          <span className="h-px w-6 bg-border sm:w-16" />
+          <StepDot
+            active={step === "delivery"}
+            done={false}
+            label="3. Delivery & payment"
+            shortLabel="3. Delivery"
+          />
         </div>
       </div>
 
@@ -726,7 +807,6 @@ function CheckoutModal() {
           <RewardDeliveryBanners topOffsetClassName="top-[104px]" />
           <div className={`mb-4 ${REWARD_BANNER_SPACER_CLASS}`} aria-hidden="true" />
           {step === "contact" && (
-            <>
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>
                 <h2 className="font-display text-2xl text-foreground">Let's get your order to you</h2>
@@ -782,15 +862,101 @@ function CheckoutModal() {
                     inputMode="tel"
                   />
                 </div>
+              </div>
 
-                {/* Destination — asked before any fulfillment choice; what's shown below reacts to it */}
-                <div className="sm:col-span-2">
+              <button
+                type="submit"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
+                style={{ backgroundColor: BRAND }}
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          )}
+
+          {step === "location" && (
+            <div className="space-y-5">
+              <button
+                type="button"
+                onClick={() => setStep("contact")}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+
+              <div>
+                <h2 className="font-display text-2xl text-foreground">Where should we deliver?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Tell us your destination — we'll show you what's available there next.
+                </p>
+              </div>
+
+              <div className="grid gap-4">
+                <div>
                   <label className={labelCls}>
-                    Where should we deliver? <span className="text-destructive">*</span>
+                    County <span className="text-destructive">*</span>
                   </label>
                   <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
+                  {coverageChecking && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">Checking delivery options for your area…</p>
+                  )}
                 </div>
 
+                <div>
+                  <label className={labelCls}>Pin your exact address (optional)</label>
+                  <AddressAutocompleteInput
+                    value={addressText}
+                    onChange={setAddressText}
+                    onSelect={setResolvedAddress}
+                    placeholder="Start typing your delivery address…"
+                  />
+                  <button
+                    type="button"
+                    onClick={useMyLocation}
+                    disabled={locatingMe}
+                    className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                    style={{ color: BRAND }}
+                  >
+                    {locatingMe ? "Locating…" : "Use my current location"}
+                  </button>
+                  {resolvedAddress && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">Pinned: {resolvedAddress.description}</p>
+                  )}
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    Helps us get a precise, real-time delivery quote where that's available. If you skip this, your
+                    county alone still works — our team will confirm the rest by phone.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLocationContinue}
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
+                style={{ backgroundColor: BRAND }}
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {step === "delivery" && !detailsConfirmed && payState === "idle" && (
+            <>
+            <form onSubmit={handleDeliveryDetailsSubmit} className="space-y-5">
+              <button
+                type="button"
+                onClick={() => setStep("location")}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+
+              <div>
+                <h2 className="font-display text-2xl text-foreground">How should we get it to you?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Options below are resolved from the destination you picked.</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 {/* Fulfillment — resolved from the destination. Covered areas are branded as
                     TumaBoda per the client's explicit call (overrides the earlier unbranded
                     design); uncovered areas stay generic since it genuinely isn't TumaBoda there. */}
@@ -820,9 +986,6 @@ function CheckoutModal() {
                     title="Pick Up at Shop"
                     desc="Collect from our shop — no delivery fee."
                   />
-                  {coverageChecking && (
-                    <p className="sm:col-span-2 text-xs text-muted-foreground">Checking delivery options for your area…</p>
-                  )}
                 </div>
 
                 <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
@@ -1049,8 +1212,46 @@ function CheckoutModal() {
 
                 {fulfillment === "TUMABODA_DELIVERY" && (
                   <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
-                    Fast courier delivery is available in your area. The exact fee is calculated once you confirm your
-                    order and shown before payment.
+                    <p>
+                      Fast courier delivery is available in your area. The exact fee is calculated once you confirm
+                      your order and shown before payment.
+                    </p>
+                    {resolvedAddress ? (
+                      <p className="mt-2 text-foreground/90">
+                        <span className="font-medium">Pinned:</span> {resolvedAddress.description}{" "}
+                        <button
+                          type="button"
+                          onClick={() => setStep("location")}
+                          className="font-semibold underline underline-offset-2"
+                          style={{ color: BRAND }}
+                        >
+                          Change
+                        </button>
+                      </p>
+                    ) : (
+                      <div className="mt-3">
+                        <p className="mb-2 text-foreground/90">
+                          <span className="font-semibold text-destructive">Required:</span> pin your exact address so
+                          a rider can be sent to collect and deliver your order — a county alone isn't precise enough
+                          for TumaBoda to book a delivery.
+                        </p>
+                        <AddressAutocompleteInput
+                          value={addressText}
+                          onChange={setAddressText}
+                          onSelect={setResolvedAddress}
+                          placeholder="Start typing your delivery address…"
+                        />
+                        <button
+                          type="button"
+                          onClick={useMyLocation}
+                          disabled={locatingMe}
+                          className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                          style={{ color: BRAND }}
+                        >
+                          {locatingMe ? "Locating…" : "Use my current location"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1092,13 +1293,13 @@ function CheckoutModal() {
             </>
           )}
 
-          {step === "payment" && (
+          {step === "delivery" && (detailsConfirmed || payState !== "idle") && (
             <div className="space-y-6">
               {payState === "idle" && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setStep("contact")}
+                    onClick={() => setDetailsConfirmed(false)}
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
                   >
                     <ArrowLeft className="h-4 w-4" /> Edit order details
@@ -1316,7 +1517,7 @@ function CheckoutModal() {
                       type="button"
                       onClick={() => {
                         setPayState("idle");
-                        setStep("contact");
+                        setDetailsConfirmed(false);
                       }}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
@@ -1353,7 +1554,7 @@ function CheckoutModal() {
                       type="button"
                       onClick={() => {
                         setPayState("idle");
-                        setStep("contact");
+                        setDetailsConfirmed(false);
                       }}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
@@ -1376,7 +1577,17 @@ function CheckoutModal() {
   );
 }
 
-function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
+function StepDot({
+  active,
+  done,
+  label,
+  shortLabel,
+}: {
+  active: boolean;
+  done: boolean;
+  label: string;
+  shortLabel?: string;
+}) {
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full px-3 py-1 ${
@@ -1387,7 +1598,16 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
         className={`inline-block h-2 w-2 rounded-full ${active || done ? "" : "bg-border"}`}
         style={active || done ? { backgroundColor: BRAND } : undefined}
       />
-      <span className={`${active ? "font-semibold" : ""}`}>{label}</span>
+      <span className={`whitespace-nowrap ${active ? "font-semibold" : ""}`}>
+        {shortLabel ? (
+          <>
+            <span className="sm:hidden">{shortLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
+      </span>
     </span>
   );
 }
