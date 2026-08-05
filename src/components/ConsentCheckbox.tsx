@@ -44,7 +44,7 @@ export function ConsentCheckbox({
         className={cn("mt-0.5", isLight && "border-primary-foreground/60 data-[state=checked]:bg-primary-foreground data-[state=checked]:text-primary")}
       />
       <span>
-        I accept that Moments Packaging will use my details to {purpose}. We keep your info
+        I accept that Moments Packaging will use your details to {purpose}. We keep your info
         private —{" "}
         <Link
           to="/privacy"
