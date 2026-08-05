@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { listOrders } from "@/services/commerceApi";
 import type { OrderRecord } from "@/services/commerceMock";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
 
 interface AdminOrdersContextValue {
   orders: OrderRecord[];
@@ -29,7 +30,7 @@ interface AdminOrdersContextValue {
 
 const AdminOrdersContext = createContext<AdminOrdersContextValue | undefined>(undefined);
 
-const POLL_INTERVAL_MS = 60_000;
+const POLL_INTERVAL_MS = 20_000;
 const PAGE_SIZE = 100;
 
 export function AdminOrdersProvider({ children }: { children: ReactNode }) {
@@ -68,7 +69,7 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
     return p;
   }, [isAuthenticated]);
 
-  // Initial fetch + polling
+  // Initial fetch
   useEffect(() => {
     if (!isAuthenticated) {
       setOrders([]);
@@ -77,9 +78,13 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
       return;
     }
     void refresh();
-    const t = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
-    return () => window.clearInterval(t);
   }, [isAuthenticated, refresh]);
+
+  // Background polling — pauses entirely while the tab is hidden instead of wastefully
+  // refetching a backgrounded panel every 20s.
+  useVisibilityInterval(() => {
+    if (isAuthenticated) void refresh();
+  }, POLL_INTERVAL_MS);
 
   // Refetch on tab focus
   useEffect(() => {

@@ -31,12 +31,17 @@ type Scope = "ALL" | "MINE" | "UNASSIGNED";
 type DeliveryTab = "ALL" | "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY" | "FAILED_DROPPED";
 
 const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
-  { value: "ALL", label: "All orders" },
+  { value: "ALL", label: "All Successful" },
   { value: "PICKUP", label: "Pickup" },
   { value: "MANUAL_DELIVERY", label: "Manual Delivery" },
-  { value: "TUMABODA_DELIVERY", label: "Partner Delivery" },
+  { value: "TUMABODA_DELIVERY", label: "TumaBoda Delivery" },
   { value: "FAILED_DROPPED", label: "Failed / Dropped" },
 ];
+
+// Every operational tab (everything but Failed/Dropped) only ever shows orders that actually
+// went somewhere — an unpaid/abandoned checkout, a cancellation, or a refund is noise in a
+// working queue, not something staff need to act on there; Failed/Dropped is where those live.
+const NON_SUCCESSFUL_STATUSES = new Set(["PENDING_PAYMENT", "CANCELLED", "REFUNDED"]);
 
 // Age/urgency coloring makes no sense once an order is done — don't show a
 // red "3d ago" badge on something already delivered.
@@ -90,9 +95,8 @@ function AdminOrdersPage() {
         if (o.status !== "PENDING_PAYMENT") return false;
       } else {
         if (deliveryTab !== "ALL" && o.fulfillmentType !== deliveryTab) return false;
-        // Every tab defaults to successful/paid orders only — an incomplete checkout is noise in
-        // an operational queue, not a real order to act on; it has its own tab above.
-        if (status === "ALL" && o.status === "PENDING_PAYMENT") return false;
+        // Every tab defaults to successful orders only — see NON_SUCCESSFUL_STATUSES above.
+        if (status === "ALL" && NON_SUCCESSFUL_STATUSES.has(o.status)) return false;
       }
 
       if (status !== "ALL" && o.status !== status) return false;
