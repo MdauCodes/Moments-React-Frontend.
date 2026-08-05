@@ -98,6 +98,7 @@ import AdminEnquiryDetailPage from "@/routes/_adminAuth.admin.enquiries.$id";
 import AdminInventoryPage from "@/routes/_adminAuth.admin.inventory";
 import AdminOrdersPage from "@/routes/_adminAuth.admin.orders";
 import AdminOrderDetailPage from "@/routes/_adminAuth.admin.orders.$id";
+import AdminTumaBodaSettlementsPage from "@/routes/_adminAuth.admin.tumaboda-settlements";
 import AdminPromoCodesPage from "@/routes/_adminAuth.admin.promo-codes";
 import AdminTaxDocumentsPage from "@/routes/_adminAuth.admin.tax-documents";
 import AdminDocumentBundlesPage from "@/routes/_adminAuth.admin.document-bundles";
@@ -226,6 +227,7 @@ export default function App() {
                       <Route path="/admin/inventory" element={<AdminInventoryPage />} />
                       <Route path="/admin/orders" element={<AdminOrdersPage />} />
                       <Route path="/admin/orders/:id" element={<AdminOrderDetailPage />} />
+                      <Route path="/admin/tumaboda-settlements" element={<AdminTumaBodaSettlementsPage />} />
                       <Route path="/admin/promo-codes" element={<AdminPromoCodesPage />} />
                       <Route path="/admin/tax-documents" element={<AdminTaxDocumentsPage />} />
                       <Route path="/admin/document-bundles" element={<AdminDocumentBundlesPage />} />

@@ -26,6 +26,7 @@ import {
   Briefcase,
   TicketPercent,
   Landmark,
+  HandCoins,
   Gift,
   TrendingUp,
   BookOpen,
@@ -119,6 +120,7 @@ const navSections: NavSection[] = [
     label: "Sales",
     items: [
       { label: "Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
+      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
