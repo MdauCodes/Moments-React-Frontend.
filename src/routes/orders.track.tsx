@@ -170,6 +170,130 @@ function ByReferenceTab({ initialRef, onSwitchToEmail }: { initialRef: string; o
   );
 }
 
+function otpTokenKey(reference: string, email: string) {
+  return `order-otp-token:${reference}:${email.trim().toLowerCase()}`;
+}
+
+/**
+ * Gates the full, verified order view behind an OTP sent to the order's own email — replaces
+ * the old "typing a matching email is proof enough" check (Slice 13). Caches the resulting
+ * accessToken in sessionStorage (tab-scoped, expires server-side after 1h) so re-expanding the
+ * same row, or reopening the page in the same tab, doesn't ask for a fresh code every time.
+ */
+function VerifiedOrderPanel({ reference, email, fallback }: { reference: string; email: string; fallback: CustomerOrder }) {
+  const [stage, setStage] = useState<"checking" | "need-otp" | "sending" | "awaiting-code" | "verifying" | "ready">("checking");
+  const [otp, setOtp] = useState("");
+  const [order, setOrder] = useState<CustomerOrder | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function tryCachedToken() {
+      const cached = sessionStorage.getItem(otpTokenKey(reference, email));
+      if (!cached) {
+        if (!cancelled) setStage("need-otp");
+        return;
+      }
+      const { order: full } = await orderStore.trackByReference(reference, email, cached);
+      if (cancelled) return;
+      if (full?.verified) {
+        setOrder(full);
+        setStage("ready");
+      } else {
+        sessionStorage.removeItem(otpTokenKey(reference, email));
+        setStage("need-otp");
+      }
+    }
+    tryCachedToken();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reference, email]);
+
+  async function sendCode() {
+    setStage("sending");
+    setError(null);
+    try {
+      await orderStore.sendOrderOtp(reference, email);
+      setStage("awaiting-code");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send code");
+      setStage("need-otp");
+    }
+  }
+
+  async function verifyCode(e: FormEvent) {
+    e.preventDefault();
+    if (otp.trim().length !== 6) return;
+    setStage("verifying");
+    setError(null);
+    try {
+      const { accessToken } = await orderStore.verifyOrderOtp(reference, email, otp.trim());
+      sessionStorage.setItem(otpTokenKey(reference, email), accessToken);
+      const { order: full } = await orderStore.trackByReference(reference, email, accessToken);
+      if (full?.verified) {
+        setOrder(full);
+        setStage("ready");
+      } else {
+        setError("Verification succeeded but the order couldn't be loaded — please refresh.");
+        setStage("awaiting-code");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid or expired code");
+      setStage("awaiting-code");
+    }
+  }
+
+  if (stage === "checking") return <InlineProgress size="sm" />;
+
+  if (stage === "ready" && order) return <OrderCard order={order} compact />;
+
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 text-sm">
+      <p className="font-medium text-foreground">Verify it's your order</p>
+      <p className="mt-1 text-muted-foreground">
+        For your privacy, full order details (pricing, address, items) are only shown once we've confirmed you own <strong>{maskEmail(email)}</strong>.
+      </p>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+      {(stage === "need-otp" || stage === "sending") && (
+        <button
+          type="button"
+          onClick={sendCode}
+          disabled={stage === "sending"}
+          className="mt-3 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+        >
+          {stage === "sending" ? <InlineProgress size="sm" /> : null}
+          Send verification code
+        </button>
+      )}
+      {(stage === "awaiting-code" || stage === "verifying") && (
+        <form onSubmit={verifyCode} className="mt-3 flex flex-wrap items-center gap-2">
+          <input
+            className={inputCls}
+            style={{ maxWidth: 140 }}
+            placeholder="6-digit code"
+            inputMode="numeric"
+            maxLength={6}
+            value={otp}
+            onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+          />
+          <button
+            type="submit"
+            disabled={stage === "verifying" || otp.trim().length !== 6}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {stage === "verifying" ? <InlineProgress size="sm" /> : null}
+            Verify
+          </button>
+          <button type="button" onClick={sendCode} className="text-xs text-accent hover:underline">Resend code</button>
+        </form>
+      )}
+      <div className="mt-4 border-t border-border pt-3 opacity-70">
+        <OrderCard order={fallback} compact />
+      </div>
+    </div>
+  );
+}
+
 function ByEmailTab() {
   const [email, setEmail] = useState("");
   const [searchedEmail, setSearchedEmail] = useState("");
@@ -179,11 +303,9 @@ function ByEmailTab() {
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [expanded, setExpanded] = useState<string | null>(null);
-  // The by-email list is a masked summary — expanding a row fetches the full,
-  // email-verified record (items, pricing, delivery address) using the same
-  // email that was searched, which the backend checks against the order's own email.
-  const [details, setDetails] = useState<Record<string, CustomerOrder>>({});
-  const [detailsLoading, setDetailsLoading] = useState<string | null>(null);
+  // The by-email list is a masked summary — expanding a row shows the OTP-gated full detail
+  // (VerifiedOrderPanel below), not an immediate fetch. Full details are only ever unlocked
+  // after the person proves they control the searched email via a one-time code (Slice 13).
 
   async function search(pageNum = 0) {
     if (!email.trim()) return;
@@ -195,7 +317,6 @@ function ByEmailTab() {
       setTotalPages(res.totalPages);
       setPage(res.page);
       setSearchedEmail(email.trim());
-      setDetails({});
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Search failed");
     } finally {
@@ -203,22 +324,8 @@ function ByEmailTab() {
     }
   }
 
-  async function toggleExpand(reference: string) {
-    if (expanded === reference) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded(reference);
-    if (details[reference]) return;
-    setDetailsLoading(reference);
-    try {
-      const { order } = await orderStore.trackByReference(reference, searchedEmail);
-      if (order) setDetails((prev) => ({ ...prev, [reference]: order }));
-    } catch {
-      // Fall back to the summary row already shown — non-fatal.
-    } finally {
-      setDetailsLoading(null);
-    }
+  function toggleExpand(reference: string) {
+    setExpanded(expanded === reference ? null : reference);
   }
 
   return (
@@ -276,11 +383,7 @@ function ByEmailTab() {
 
                 {isOpen && (
                   <div className="border-t border-border p-4">
-                    {detailsLoading === o.reference ? (
-                      <InlineProgress size="sm" />
-                    ) : (
-                      <OrderCard order={details[o.reference] ?? o} compact />
-                    )}
+                    <VerifiedOrderPanel reference={o.reference} email={searchedEmail} fallback={o} />
                   </div>
                 )}
               </div>

@@ -453,33 +453,36 @@ export const orderStore = {
    *              full record (financials, contact name, delivery address) instead of the
    *              redacted status-only view — see OrderTrackingDto.verified.
    */
-  async getStatus(reference: string, email?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    const qs = email?.trim() ? `?email=${encodeURIComponent(email.trim())}` : "";
+  async getStatus(reference: string, email?: string, accessToken?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
+    const params = new URLSearchParams();
+    if (email?.trim()) params.set("email", email.trim());
+    if (accessToken) params.set("accessToken", accessToken);
+    const qs = params.toString() ? `?${params.toString()}` : "";
     const live = await tryLiveJson<Record<string, any>>(`/api/v1/orders/track/${encodeURIComponent(reference)}${qs}`);
     if (live) {
       const order = normalizeTrackingDto(live);
       const all = readAll();
       const idx = all.findIndex((o) => o.reference === order.reference);
       if (idx >= 0) {
-        // Merge into the existing local record instead of overwriting it —
-        // the public tracking endpoint deliberately redacts PII (masked
-        // email, no phone/address/unit price) since anyone with just the
-        // reference can hit it. Blindly replacing a fuller checkout-time
-        // record with the redacted one would destroy data this browser
-        // already has a right to see (its own order).
         const existing = all[idx];
-        all[idx] = {
-          ...existing,
-          status: order.status,
-          paymentStatus: order.paymentStatus,
-          trackingEvents: order.trackingEvents?.length ? order.trackingEvents : existing.trackingEvents,
-          customerEmail: existing.customerEmail || order.customerEmail,
-          customerPhone: existing.customerPhone || order.customerPhone,
-          shippingAddress: existing.shippingAddress || order.shippingAddress,
-          city: existing.city || order.city,
-          items: existing.items?.length ? existing.items : order.items,
-          total: order.total || existing.total,
-        };
+        // A verified fetch (OTP-confirmed, or this browser's own checkout-time record) is a
+        // strict superset of the redacted unverified view — take it wholesale rather than
+        // cherry-picking fields. A narrower merge here previously caused new fields (fulfillmentType,
+        // tumabodaTrackingCode) to silently never propagate into an already-cached record.
+        all[idx] = order.verified
+          ? { ...existing, ...order }
+          : {
+              ...existing,
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              trackingEvents: order.trackingEvents?.length ? order.trackingEvents : existing.trackingEvents,
+              customerEmail: existing.customerEmail || order.customerEmail,
+              customerPhone: existing.customerPhone || order.customerPhone,
+              shippingAddress: existing.shippingAddress || order.shippingAddress,
+              city: existing.city || order.city,
+              items: existing.items?.length ? existing.items : order.items,
+              total: order.total || existing.total,
+            };
       } else {
         all.unshift(order);
       }
@@ -536,8 +539,38 @@ export const orderStore = {
   },
 
   /** Public order tracking by reference (alias for getStatus). */
-  async trackByReference(reference: string, email?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    return this.getStatus(reference, email);
+  async trackByReference(reference: string, email?: string, accessToken?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
+    return this.getStatus(reference, email, accessToken);
+  },
+
+  /** Step 1 of order-email OTP verification — always resolves, even if the email doesn't match. */
+  async sendOrderOtp(reference: string, email: string): Promise<void> {
+    try {
+      await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/send-otp`, {
+        method: "POST",
+        json: { email },
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+  },
+
+  /** Step 2 — throws with the backend's message on an invalid/expired code. */
+  async verifyOrderOtp(reference: string, email: string, otp: string): Promise<{ accessToken: string }> {
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/verify-otp`, {
+        method: "POST",
+        json: { email, otp },
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Invalid or expired code.");
+    }
+    return (await res.json()) as { accessToken: string };
   },
 
   /** Public order lookup by email (paginated, masked results). */
