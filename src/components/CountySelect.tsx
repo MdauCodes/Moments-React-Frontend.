@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { KENYA_COUNTY_NAMES_NAIROBI_FIRST } from "@/data/kenyaCounties";
+import { KENYA_COUNTY_NAMES_NAIROBI_PINNED_AND_ALPHABETICAL } from "@/data/kenyaCounties";
 
 interface CountySelectProps {
   value: string;
@@ -11,7 +11,7 @@ interface CountySelectProps {
   id?: string;
 }
 
-/** Native Kenya county picker (47 counties, Nairobi first). Reliable across all browsers. */
+/** Native Kenya county picker (47 counties, Nairobi pinned at top plus its normal alphabetical slot). Reliable across all browsers. */
 export function CountySelect({
   value,
   onChange,
@@ -20,7 +20,7 @@ export function CountySelect({
   className,
   id,
 }: CountySelectProps) {
-  const counties = useMemo(() => KENYA_COUNTY_NAMES_NAIROBI_FIRST, []);
+  const counties = useMemo(() => KENYA_COUNTY_NAMES_NAIROBI_PINNED_AND_ALPHABETICAL, []);
 
   return (
     <select
@@ -37,8 +37,8 @@ export function CountySelect({
       <option value="" disabled>
         {placeholder}
       </option>
-      {counties.map((c) => (
-        <option key={c} value={c}>
+      {counties.map((c, i) => (
+        <option key={`${c}-${i}`} value={c}>
           {c}
         </option>
       ))}

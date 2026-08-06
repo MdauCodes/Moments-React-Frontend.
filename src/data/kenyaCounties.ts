@@ -72,3 +72,10 @@ export const KENYA_COUNTIES_NAIROBI_FIRST: KenyaCounty[] = [
 // Convenience: just the names in the Nairobi-first order.
 export const KENYA_COUNTY_NAMES_NAIROBI_FIRST: string[] =
   KENYA_COUNTIES_NAIROBI_FIRST.map((c) => c.name);
+
+// Nairobi pinned at top (most common pick) *and* left in its normal alphabetical slot below —
+// picking either one selects the same county, this just saves the common case a scroll.
+export const KENYA_COUNTY_NAMES_NAIROBI_PINNED_AND_ALPHABETICAL: string[] = [
+  "Nairobi",
+  ...KENYA_COUNTIES_SORTED.map((c) => c.name),
+];

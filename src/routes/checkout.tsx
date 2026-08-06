@@ -120,7 +120,7 @@ const MAX_POLLS = 20;
 const TIMEOUT_MS = POLL_MS * MAX_POLLS;
 const RESEND_AFTER_MS = 30_000;
 
-type Step = "contact" | "location" | "delivery";
+type Step = "contact" | "delivery";
 type PayState = "idle" | "sending" | "waiting" | "success" | "failed" | "timeout";
 
 function fmt(n: number) {
@@ -164,8 +164,14 @@ function CheckoutModal() {
       : Math.random().toString(36).slice(2) + Date.now().toString(36),
   );
 
-  // Fulfillment
-  const [fulfillment, setFulfillment] = useState<FulfillmentType>("MANUAL_DELIVERY");
+  // Fulfillment — null until the customer makes the pickup-vs-delivery choice; for "delivery",
+  // it then resolves to TUMABODA_DELIVERY or MANUAL_DELIVERY automatically based on coverage
+  // (see the effect below), or MANUAL_DELIVERY explicitly if they can't find their address.
+  const [fulfillment, setFulfillment] = useState<FulfillmentType | null>(null);
+  // Top-level gate: has the customer chosen "have it delivered" at all yet? Distinct from
+  // `fulfillment` because "delivery chosen, but not yet resolved to Manual vs TumaBoda" is a
+  // real intermediate state (waiting on county + coverage check).
+  const [wantsDelivery, setWantsDelivery] = useState<boolean | null>(null);
   const [courierType, setCourierType] = useState<CourierType | "">("");
   const [courierServiceName, setCourierServiceName] = useState("");
   const [courierStageOrOffice, setCourierStageOrOffice] = useState("");
@@ -179,18 +185,27 @@ function CheckoutModal() {
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
 
-  // Precise pin (optional, on top of the required county select above) — feeds dropoffLat/Lng
-  // for TumaBoda's real-time quote. Deliberately doesn't try to derive `county` from this: Google's
-  // formatted address string doesn't reliably map onto our 47-county list, and a silent mismatch
-  // there would quietly break the coverage check. County stays a separate, manual source of truth
-  // until the finer coverage-check follow-up (tracked separately) replaces it.
+  // Precise pin, required once TumaBoda is the resolved fulfillment — feeds dropoffLat/Lng for
+  // TumaBoda's real-time quote and delivery creation. Deliberately doesn't try to derive `county`
+  // from this: Google's formatted address string doesn't reliably map onto our 47-county list,
+  // and a silent mismatch there would quietly break the coverage check. County stays a separate,
+  // manual source of truth until the finer coverage-check follow-up (tracked separately) replaces it.
   const [addressText, setAddressText] = useState("");
   const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
   const [locatingMe, setLocatingMe] = useState(false);
+  // Raw device fix from "Use my current location", kept separate from resolvedAddress: we search
+  // nearby matches for the customer to confirm/pick (see useMyLocation below) rather than locking
+  // in an approximate GPS reading as the exact delivery point, but still offer it as a fallback
+  // if none of the search results are a better match.
+  const [gpsFallback, setGpsFallback] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
+  // Optional extra detail ("Apartment 4B, next to Shell") appended to the resolved pin's
+  // description when composing what's actually sent to TumaBoda as the delivery location —
+  // see startPayment(). Not used by Manual Delivery, which has its own address field below.
+  const [landmarkDetail, setLandmarkDetail] = useState("");
 
   // Gates the two sub-views of the merged "delivery" step: fulfillment/courier details form,
   // then (once confirmed) the order summary + pay button — mirrors the old contact→payment
-  // handoff, just nested one level deeper now that location is its own step in between.
+  // handoff.
   const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [etrRequested, setEtrRequested] = useState(false);
   const [documentsEmail, setDocumentsEmail] = useState("");
@@ -429,20 +444,19 @@ function CheckoutModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [county]);
 
-  // Coverage resolving to a different answer than what's currently selected shouldn't silently
-  // leave the customer on an option that just disappeared or leave a just-revealed better option
-  // unnoticed — reset back to the safe, always-available Manual Delivery default so they consciously
-  // pick again, rather than defaulting to Manual Delivery every time (Slice 2 keeps this simple).
-  const prevCoveredRef = useRef<boolean | null>(null);
+  // Once "have it delivered" is chosen, resolve fulfillment automatically from the coverage
+  // check: first resolution picks TumaBoda (covered) or Manual (not covered); if the customer
+  // then changes county away from a covered area, correct back to Manual so they're never left
+  // on an option that just disappeared. Doesn't fight a manual override the other way (e.g. the
+  // "can't find your address, switch to Courier" escape hatch below) — that's a deliberate choice,
+  // not a resolution artifact, so it's left alone unless the county itself changes.
   useEffect(() => {
-    if (prevCoveredRef.current !== null && prevCoveredRef.current !== covered) {
-      if (fulfillment === "TUMABODA_DELIVERY" && covered !== true) {
-        setFulfillment("MANUAL_DELIVERY");
-      }
-    }
-    prevCoveredRef.current = covered;
+    if (wantsDelivery !== true) return;
+    if (covered === true && fulfillment === null) setFulfillment("TUMABODA_DELIVERY");
+    else if (covered === false && fulfillment === null) setFulfillment("MANUAL_DELIVERY");
+    else if (covered === false && fulfillment === "TUMABODA_DELIVERY") setFulfillment("MANUAL_DELIVERY");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [covered]);
+  }, [covered, wantsDelivery]);
 
   // Payment state
   const [payState, setPayState] = useState<PayState>("idle");
@@ -524,18 +538,18 @@ function CheckoutModal() {
   function handleContactSubmit(e: FormEvent) {
     e.preventDefault();
     if (!validateContactInfo()) return;
-    setStep("location");
-  }
-
-  function handleLocationContinue() {
-    if (!county.trim()) {
-      toast.error("Please select where you'd like your order delivered");
-      return;
-    }
     setStep("delivery");
   }
 
   function validateDeliveryDetails(): boolean {
+    if (!fulfillment) {
+      toast.error("Please choose pickup or delivery");
+      return false;
+    }
+    if (fulfillment !== "PICKUP" && !county.trim()) {
+      toast.error("Please select where you'd like your order delivered");
+      return false;
+    }
     // TumaBoda needs real coordinates to book a rider — a county alone isn't enough. Without this
     // gate, an order could be placed and paid as "Fulfilled by TumaBoda" with no way for the
     // backend to actually create the delivery (createTumaBodaDelivery silently skips when
@@ -587,7 +601,6 @@ function CheckoutModal() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         let description = "Current location (approximate)";
-        let placeId: string | null = null;
         try {
           const res = await apiFetch(
             `/api/v1/public/tumaboda/maps/reverse-geocode?lat=${latitude}&lng=${longitude}`,
@@ -595,13 +608,16 @@ function CheckoutModal() {
           if (res.ok) {
             const details = await res.json();
             if (details?.formattedAddress) description = details.formattedAddress;
-            placeId = details?.placeId ?? null;
           }
         } catch {
           // Reverse-geocode failed — still proceed with the raw coordinates below.
         }
+        // Don't lock the raw device fix straight in as the delivery point — feed it into the same
+        // search box instead so nearby, better-named matches surface for the customer to pick from.
+        // The raw fix stays available as an explicit fallback (below the input) in case none of the
+        // search results are actually closer/better than the GPS reading itself.
+        setGpsFallback({ description, latitude, longitude });
         setAddressText(description);
-        setResolvedAddress({ description, placeId, latitude, longitude });
         setLocatingMe(false);
       },
       () => {
@@ -613,9 +629,20 @@ function CheckoutModal() {
   }
 
   async function startPayment() {
+    // fulfillment is only null before the customer reaches this point — handleDeliveryDetailsSubmit
+    // already validated it's set before detailsConfirmed (and thus the Pay button) is reachable.
+    if (!fulfillment) return;
     setErrorMsg(null);
     setPayState("sending");
     const phoneNormalized = normalizePhone(phone);
+
+    // TumaBoda gets the resolved pin's real place name plus any landmark detail — using the plain
+    // `address` field here would lose the actual resolved place ("Thika Town, Kiambu") in favor of
+    // just the landmark text, which is what this used to silently do before this composition.
+    const deliveryLocationText =
+      fulfillment === "TUMABODA_DELIVERY"
+        ? [resolvedAddress?.description, landmarkDetail.trim()].filter(Boolean).join(" — ")
+        : address.trim();
 
     try {
       let id = orderId;
@@ -628,7 +655,7 @@ function CheckoutModal() {
             name: name.trim(),
             email: email.trim(),
             phone: phoneNormalized,
-            address: fulfillment === "PICKUP" ? "" : address.trim(),
+            address: fulfillment === "PICKUP" ? "" : deliveryLocationText,
             city: fulfillment === "PICKUP" ? "" : city.trim(),
             county: fulfillment === "PICKUP" ? "" : county.trim(),
             postalCode: postalCode.trim() || undefined,
@@ -790,14 +817,7 @@ function CheckoutModal() {
         <div className="mx-auto flex max-w-2xl items-center justify-center gap-3 px-4 py-3 text-xs sm:text-sm">
           <StepDot active={step === "contact"} done={step !== "contact"} label="1. Contact" />
           <span className="h-px w-6 bg-border sm:w-16" />
-          <StepDot active={step === "location"} done={step === "delivery"} label="2. Location" />
-          <span className="h-px w-6 bg-border sm:w-16" />
-          <StepDot
-            active={step === "delivery"}
-            done={false}
-            label="3. Delivery & payment"
-            shortLabel="3. Delivery"
-          />
+          <StepDot active={step === "delivery"} done={false} label="2. Delivery & payment" />
         </div>
       </div>
 
@@ -874,8 +894,9 @@ function CheckoutModal() {
             </form>
           )}
 
-          {step === "location" && (
-            <div className="space-y-5">
+          {step === "delivery" && !detailsConfirmed && payState === "idle" && (
+            <>
+            <form onSubmit={handleDeliveryDetailsSubmit} className="space-y-5">
               <button
                 type="button"
                 onClick={() => setStep("contact")}
@@ -885,173 +906,160 @@ function CheckoutModal() {
               </button>
 
               <div>
-                <h2 className="font-display text-2xl text-foreground">Where should we deliver?</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Tell us your destination — we'll show you what's available there next.
-                </p>
+                <h2 className="font-display text-2xl text-foreground">How should we get your order to you?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Pick one to see what we need from there.</p>
               </div>
 
-              <div className="grid gap-4">
-                <div>
-                  <label className={labelCls}>
-                    County <span className="text-destructive">*</span>
-                  </label>
-                  <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
-                  {coverageChecking && (
-                    <p className="mt-1.5 text-xs text-muted-foreground">Checking delivery options for your area…</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className={labelCls}>Pin your exact address (optional)</label>
-                  <AddressAutocompleteInput
-                    value={addressText}
-                    onChange={setAddressText}
-                    onSelect={setResolvedAddress}
-                    placeholder="Start typing your delivery address…"
-                  />
-                  <button
-                    type="button"
-                    onClick={useMyLocation}
-                    disabled={locatingMe}
-                    className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
-                    style={{ color: BRAND }}
-                  >
-                    {locatingMe ? "Locating…" : "Use my current location"}
-                  </button>
-                  {resolvedAddress && (
-                    <p className="mt-1.5 text-xs text-muted-foreground">Pinned: {resolvedAddress.description}</p>
-                  )}
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    Helps us get a precise, real-time delivery quote where that's available. If you skip this, your
-                    county alone still works — our team will confirm the rest by phone.
-                  </p>
-                </div>
+              {/* Step 1 of this page: pickup vs. delivery, always asked first — everything else
+                  below reveals progressively based on this and, for delivery, the destination. */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FulfillmentCard
+                  active={fulfillment === "PICKUP"}
+                  onClick={() => {
+                    setWantsDelivery(false);
+                    setFulfillment("PICKUP");
+                  }}
+                  icon={<Store className="h-5 w-5" />}
+                  title="Pick Up at Shop"
+                  desc="Collect from our shop — no delivery fee."
+                />
+                <FulfillmentCard
+                  active={wantsDelivery === true}
+                  onClick={() => {
+                    if (wantsDelivery !== true) {
+                      setWantsDelivery(true);
+                      setFulfillment(null);
+                    }
+                  }}
+                  icon={<Truck className="h-5 w-5" />}
+                  title="Have it Delivered"
+                  desc="Tell us where — we'll show you what's available there."
+                />
               </div>
 
-              <button
-                type="button"
-                onClick={handleLocationContinue}
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
-                style={{ backgroundColor: BRAND }}
-              >
-                Continue <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          )}
+              {wantsDelivery === true && (
+                <div className="space-y-4">
+                  <div>
+                    <label className={labelCls}>
+                      County <span className="text-destructive">*</span>
+                    </label>
+                    <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
+                    {coverageChecking && (
+                      <p className="mt-1.5 text-xs text-muted-foreground">Checking delivery options for your area…</p>
+                    )}
+                  </div>
 
-          {step === "delivery" && !detailsConfirmed && payState === "idle" && (
-            <>
-            <form onSubmit={handleDeliveryDetailsSubmit} className="space-y-5">
-              <button
-                type="button"
-                onClick={() => setStep("location")}
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
-              >
-                <ArrowLeft className="h-4 w-4" /> Back
-              </button>
+                  {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
+                      areas default here; uncovered areas fall to Manual below instead. */}
+                  {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
+                    <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+                      <div className="mb-1 flex items-center gap-2">
+                        <Truck className="h-4 w-4" style={{ color: BRAND }} />
+                        <span className="font-semibold text-foreground">Fulfilled by TumaBoda</span>
+                        <span
+                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                          style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
+                        >
+                          Doorstep
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">
+                        Tracked delivery straight to your doorstep — fee calculated at booking.
+                      </p>
 
-              <div>
-                <h2 className="font-display text-2xl text-foreground">How should we get it to you?</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Options below are resolved from the destination you picked.</p>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                {/* Fulfillment — resolved from the destination. Covered areas are branded as
-                    TumaBoda per the client's explicit call (overrides the earlier unbranded
-                    design); uncovered areas stay generic since it genuinely isn't TumaBoda there. */}
-                <div className="sm:col-span-2 grid gap-3 sm:grid-cols-2">
-                  {covered === true ? (
-                    <FulfillmentCard
-                      active={fulfillment === "TUMABODA_DELIVERY"}
-                      onClick={() => setFulfillment("TUMABODA_DELIVERY")}
-                      icon={<Truck className="h-5 w-5" />}
-                      title="Fulfilled by TumaBoda"
-                      desc="Tracked delivery straight to your doorstep — fee calculated at booking."
-                      badge="Doorstep"
-                    />
-                  ) : (
-                    <FulfillmentCard
-                      active={fulfillment === "MANUAL_DELIVERY"}
-                      onClick={() => setFulfillment("MANUAL_DELIVERY")}
-                      icon={<PackageCheck className="h-5 w-5" />}
-                      title="Courier Delivery"
-                      desc="We arrange dispatch via courier — transport cost confirmed before dispatch."
-                    />
-                  )}
-                  <FulfillmentCard
-                    active={fulfillment === "PICKUP"}
-                    onClick={() => setFulfillment("PICKUP")}
-                    icon={<Store className="h-5 w-5" />}
-                    title="Pick Up at Shop"
-                    desc="Collect from our shop — no delivery fee."
-                  />
-                </div>
-
-                <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
-                  <label className="flex items-start gap-2.5 text-sm text-foreground/90">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
-                      checked={etrRequested}
-                      onChange={(e) => setEtrRequested(e.target.checked)}
-                    />
-                    <span>
-                      <span className="font-medium">Send me my ETR & tax documents</span>
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        You'll automatically receive your ETR (KRA-compliant receipt) along with your tax invoice and
-                        receipt, once you check this and enter a reachable email — we email all three together as
-                        soon as we've uploaded your ETR. The ETR stays available for re-download/resend for 2
-                        months after that.
-                      </span>
-                    </span>
-                  </label>
-                  {etrRequested && (
-                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div>
-                        <label className={labelCls}>Send documents to</label>
-                        <input
-                          type="email"
-                          className={inputCls}
-                          required
-                          value={documentsEmail}
-                          onChange={(e) => setDocumentsEmail(e.target.value)}
-                          placeholder="you@example.com"
-                        />
-                        {isAuthenticated && user?.email && documentsEmail !== user.email && (
+                      {resolvedAddress ? (
+                        <div className="mt-3 space-y-3">
+                          <p className="text-foreground/90">
+                            <span className="font-medium">Pinned:</span> {resolvedAddress.description}{" "}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setResolvedAddress(null);
+                                setAddressText("");
+                                setGpsFallback(null);
+                              }}
+                              className="font-semibold underline underline-offset-2"
+                              style={{ color: BRAND }}
+                            >
+                              Change
+                            </button>
+                          </p>
+                          <div>
+                            <label className={labelCls}>Building / apartment / nearby landmark (optional)</label>
+                            <input
+                              className={inputCls}
+                              value={landmarkDetail}
+                              onChange={(e) => setLandmarkDetail(e.target.value)}
+                              placeholder="e.g. Apartment 4B, next to Shell petrol station"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Helps the rider find you faster once they're in the area.
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-3">
+                          <p className="mb-2 text-foreground/90">
+                            <span className="font-semibold text-destructive">Required:</span> pin your exact address
+                            so a rider can be sent to collect and deliver your order.
+                          </p>
+                          <AddressAutocompleteInput
+                            value={addressText}
+                            onChange={(text) => {
+                              setAddressText(text);
+                              if (gpsFallback && text !== gpsFallback.description) setGpsFallback(null);
+                            }}
+                            onSelect={(addr) => {
+                              setResolvedAddress(addr);
+                              setGpsFallback(null);
+                            }}
+                            placeholder="Start typing your delivery address…"
+                          />
                           <button
                             type="button"
-                            className="mt-1 text-xs font-medium text-accent underline underline-offset-2"
-                            onClick={() => setDocumentsEmail(user.email!)}
+                            onClick={useMyLocation}
+                            disabled={locatingMe}
+                            className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                            style={{ color: BRAND }}
                           >
-                            Use my account email ({user.email})
+                            {locatingMe ? "Locating…" : "Use my current location"}
                           </button>
-                        )}
-                      </div>
-                      <div>
-                        <label className={labelCls}>Your KRA PIN (optional)</label>
-                        <input
-                          className={inputCls}
-                          value={taxInvoiceKraPin}
-                          onChange={(e) => {
-                            setKraPinPrefilled(false);
-                            setTaxInvoiceKraPin(e.target.value.toUpperCase());
-                          }}
-                          placeholder="A123456789Z"
-                          maxLength={11}
-                        />
-                        {kraPinPrefilled && taxInvoiceKraPin && (
-                          <span className="mt-1 block text-xs text-muted-foreground">
-                            Prefilled from your business profile — edit if you'd like to use a different PIN.
-                          </span>
-                        )}
-                      </div>
+                          {gpsFallback && (
+                            <p className="mt-2 text-xs text-muted-foreground">
+                              None of the matches above look right?{" "}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setResolvedAddress({
+                                    description: gpsFallback.description,
+                                    placeId: null,
+                                    latitude: gpsFallback.latitude,
+                                    longitude: gpsFallback.longitude,
+                                  })
+                                }
+                                className="font-semibold underline underline-offset-2"
+                                style={{ color: BRAND }}
+                              >
+                                Use my exact current position instead
+                              </button>
+                            </p>
+                          )}
+                          <div className="mt-3 border-t border-border pt-3">
+                            <button
+                              type="button"
+                              onClick={() => setFulfillment("MANUAL_DELIVERY")}
+                              className="text-xs font-semibold text-foreground underline underline-offset-2"
+                            >
+                              Can't find your address? Switch to Courier delivery instead →
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
 
                 {fulfillment === "MANUAL_DELIVERY" && (
-                  <div className="sm:col-span-2 space-y-4">
+                  <div className="space-y-4">
                     <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground/90">
                       <p>
                         <span className="font-semibold">How delivery works:</span> we hand your parcel to a{" "}
@@ -1209,67 +1217,87 @@ function CheckoutModal() {
                     </section>
                   </div>
                 )}
+                </div>
+              )}
 
-                {fulfillment === "TUMABODA_DELIVERY" && (
-                  <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
-                    <p>
-                      Fast courier delivery is available in your area. The exact fee is calculated once you confirm
-                      your order and shown before payment.
-                    </p>
-                    {resolvedAddress ? (
-                      <p className="mt-2 text-foreground/90">
-                        <span className="font-medium">Pinned:</span> {resolvedAddress.description}{" "}
-                        <button
-                          type="button"
-                          onClick={() => setStep("location")}
-                          className="font-semibold underline underline-offset-2"
-                          style={{ color: BRAND }}
-                        >
-                          Change
-                        </button>
-                      </p>
-                    ) : (
-                      <div className="mt-3">
-                        <p className="mb-2 text-foreground/90">
-                          <span className="font-semibold text-destructive">Required:</span> pin your exact address so
-                          a rider can be sent to collect and deliver your order — a county alone isn't precise enough
-                          for TumaBoda to book a delivery.
-                        </p>
-                        <AddressAutocompleteInput
-                          value={addressText}
-                          onChange={setAddressText}
-                          onSelect={setResolvedAddress}
-                          placeholder="Start typing your delivery address…"
-                        />
-                        <button
-                          type="button"
-                          onClick={useMyLocation}
-                          disabled={locatingMe}
-                          className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
-                          style={{ color: BRAND }}
-                        >
-                          {locatingMe ? "Locating…" : "Use my current location"}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {fulfillment === "PICKUP" && (
-                  <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
-                    No delivery fee — we'll prepare your order and call you when it's ready for pickup at our shop.
-                    <label className="mt-3 flex cursor-not-allowed items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/50 px-3 py-2.5 opacity-60">
-                      <input type="checkbox" disabled className="h-4 w-4 rounded border-border" />
-                      <span className="text-xs">
-                        <span className="font-medium">Pay in cash at pickup</span>
-                        <span className="ml-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                          Coming soon
-                        </span>
+              {fulfillment === "PICKUP" && (
+                <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
+                  No delivery fee — we'll prepare your order and call you when it's ready for pickup at our shop.
+                  <label className="mt-3 flex cursor-not-allowed items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/50 px-3 py-2.5 opacity-60">
+                    <input type="checkbox" disabled className="h-4 w-4 rounded border-border" />
+                    <span className="text-xs">
+                      <span className="font-medium">Pay in cash at pickup</span>
+                      <span className="ml-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                        Coming soon
                       </span>
-                    </label>
-                  </div>
-                )}
-              </div>
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {fulfillment && (
+                <div className="rounded-2xl border border-border bg-secondary/30 p-4">
+                  <label className="flex items-start gap-2.5 text-sm text-foreground/90">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded border-border"
+                      checked={etrRequested}
+                      onChange={(e) => setEtrRequested(e.target.checked)}
+                    />
+                    <span>
+                      <span className="font-medium">Send me my ETR & tax documents</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        You'll automatically receive your ETR (KRA-compliant receipt) along with your tax invoice and
+                        receipt, once you check this and enter a reachable email — we email all three together as
+                        soon as we've uploaded your ETR. The ETR stays available for re-download/resend for 2
+                        months after that.
+                      </span>
+                    </span>
+                  </label>
+                  {etrRequested && (
+                    <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className={labelCls}>Send documents to</label>
+                        <input
+                          type="email"
+                          className={inputCls}
+                          required
+                          value={documentsEmail}
+                          onChange={(e) => setDocumentsEmail(e.target.value)}
+                          placeholder="you@example.com"
+                        />
+                        {isAuthenticated && user?.email && documentsEmail !== user.email && (
+                          <button
+                            type="button"
+                            className="mt-1 text-xs font-medium text-accent underline underline-offset-2"
+                            onClick={() => setDocumentsEmail(user.email!)}
+                          >
+                            Use my account email ({user.email})
+                          </button>
+                        )}
+                      </div>
+                      <div>
+                        <label className={labelCls}>Your KRA PIN (optional)</label>
+                        <input
+                          className={inputCls}
+                          value={taxInvoiceKraPin}
+                          onChange={(e) => {
+                            setKraPinPrefilled(false);
+                            setTaxInvoiceKraPin(e.target.value.toUpperCase());
+                          }}
+                          placeholder="A123456789Z"
+                          maxLength={11}
+                        />
+                        {kraPinPrefilled && taxInvoiceKraPin && (
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            Prefilled from your business profile — edit if you'd like to use a different PIN.
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <ConsentCheckbox
                 checked={consent}
@@ -1682,7 +1710,7 @@ function FulfillmentCard({
         type="button"
         onClick={onClick}
         aria-pressed={active}
-        className={`mt-auto w-full rounded-full px-3 py-2 text-xs font-semibold transition ${
+        className={`mt-auto min-h-[44px] w-auto self-start rounded-full px-5 py-2.5 text-xs font-semibold transition ${
           active ? "text-white" : "border border-border bg-background text-foreground hover:bg-secondary"
         }`}
         style={active ? { backgroundColor: BRAND } : undefined}
