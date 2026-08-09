@@ -44,9 +44,10 @@ function ProfilePage() {
     if (!profile) return;
     setSaving(true);
     try {
-      const { profile: saved, source } = await profileStore.save(profile);
-      setProfile(saved);
-      toast.success(source === "live" ? "Profile saved" : "Saved locally");
+      const { message } = await profileStore.save(profile);
+      toast.success(message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit profile update.");
     } finally {
       setSaving(false);
     }
@@ -56,12 +57,18 @@ function ProfilePage() {
     <SiteLayout>
       <section className="mx-auto max-w-4xl px-5 py-12 lg:px-8 lg:py-16">
         <h1 className="font-display text-3xl sm:text-4xl">Profile</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Update your contact details and saved addresses.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Update your contact details and saved addresses. Contact-detail edits are reviewed by our team before they apply.
+        </p>
 
         <form onSubmit={handleSave} className="mt-10 grid gap-4 rounded-2xl border border-border bg-card p-6 sm:grid-cols-2">
           <Field label="First name" value={profile.firstName} onChange={(v) => setProfile({ ...profile, firstName: v })} />
           <Field label="Last name" value={profile.lastName} onChange={(v) => setProfile({ ...profile, lastName: v })} />
-          <Field label="Email" type="email" value={profile.email} onChange={(v) => setProfile({ ...profile, email: v })} />
+          <div>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
+            <input type="email" value={profile.email} disabled className={`${inputCls} cursor-not-allowed opacity-60`} />
+            <p className="mt-1 text-[11px] text-muted-foreground">Contact us to change your email address.</p>
+          </div>
           <Field label="Phone" value={profile.phone} onChange={(v) => setProfile({ ...profile, phone: v })} placeholder="+254 7…" />
           <div className="sm:col-span-2 flex justify-end">
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">

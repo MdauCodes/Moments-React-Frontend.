@@ -26,6 +26,7 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { profileStore, type CustomerProfile } from "@/services/profileStore";
+import { accountPrivacyStore } from "@/services/accountPrivacyStore";
 import {
   referralStore,
   type ReferralStatus,
@@ -486,9 +487,10 @@ function SettingsTab() {
     if (!profile) return;
     setSaving(true);
     try {
-      const { profile: saved, source } = await profileStore.save(profile);
-      setProfile(saved);
-      toast.success(source === "live" ? "Profile saved" : "Saved locally");
+      const { message } = await profileStore.save(profile);
+      toast.success(message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit profile update.");
     } finally {
       setSaving(false);
     }
@@ -516,12 +518,8 @@ function SettingsTab() {
           </label>
           <label>
             <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</span>
-            <input
-              type="email"
-              className={settingsInputCls}
-              value={profile.email}
-              onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            />
+            <input type="email" className={`${settingsInputCls} cursor-not-allowed opacity-60`} value={profile.email} disabled />
+            <span className="mt-1 block text-[11px] text-muted-foreground">Contact us to change your email address.</span>
           </label>
           <label>
             <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone</span>
@@ -557,7 +555,122 @@ function SettingsTab() {
           Manage saved addresses <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </Section>
+
+      <PrivacyDataSection />
     </div>
+  );
+}
+
+/**
+ * Right of access / portability + right to erasure (ODPC / Data Protection Act, 2019). Both
+ * requests are queued for admin review — see ChangeRequestService/AccountDeletionService on the
+ * backend. Deletion additionally requires an OTP before it's even queued, since it's the one
+ * irreversible-once-approved action here.
+ */
+function PrivacyDataSection() {
+  const [exporting, setExporting] = useState(false);
+  const [deleteStage, setDeleteStage] = useState<"idle" | "otp-sent" | "pending" | "requesting" | "confirming">("idle");
+  const [otp, setOtp] = useState("");
+
+  async function requestExport() {
+    setExporting(true);
+    try {
+      const { message } = await accountPrivacyStore.requestDataExport();
+      toast.success(message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to request data export.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function requestDeletion() {
+    setDeleteStage("requesting");
+    try {
+      const { message } = await accountPrivacyStore.requestDeletion();
+      toast.success(message);
+      setDeleteStage("otp-sent");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to request account deletion.");
+      setDeleteStage("idle");
+    }
+  }
+
+  async function confirmDeletion(e: React.FormEvent) {
+    e.preventDefault();
+    if (otp.trim().length !== 6) return;
+    setDeleteStage("confirming");
+    try {
+      const { message } = await accountPrivacyStore.confirmDeletion(otp.trim());
+      toast.success(message);
+      setDeleteStage("pending");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Invalid or expired code.");
+      setDeleteStage("otp-sent");
+    }
+  }
+
+  return (
+    <Section icon={SettingsIcon} title="Privacy & data">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-sm font-medium text-foreground">Download your data</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Get a copy of everything we hold about you — profile, orders, wishlist, business account and enquiries.
+          </p>
+          <button
+            type="button"
+            onClick={requestExport}
+            disabled={exporting}
+            className="mt-3 inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+          >
+            {exporting && <InlineProgress size="sm" />} Request my data
+          </button>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-destructive">Delete your account</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Permanently deletes your account and personal data after a 14-day grace period, once approved.
+          </p>
+          {deleteStage === "idle" && (
+            <button
+              type="button"
+              onClick={requestDeletion}
+              className="mt-3 inline-flex items-center gap-2 rounded-full border border-destructive/40 px-4 py-2 text-xs font-semibold text-destructive hover:bg-destructive/5"
+            >
+              Request account deletion
+            </button>
+          )}
+          {deleteStage === "requesting" && (
+            <span className="mt-3 inline-flex items-center gap-2 text-xs text-muted-foreground"><InlineProgress size="sm" /> Sending code…</span>
+          )}
+          {(deleteStage === "otp-sent" || deleteStage === "confirming") && (
+            <form onSubmit={confirmDeletion} className="mt-3 flex flex-wrap items-center gap-2">
+              <input
+                className={settingsInputCls}
+                style={{ maxWidth: 130 }}
+                placeholder="6-digit code"
+                inputMode="numeric"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+              />
+              <button
+                type="submit"
+                disabled={deleteStage === "confirming" || otp.trim().length !== 6}
+                className="inline-flex items-center gap-2 rounded-full bg-destructive px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+              >
+                {deleteStage === "confirming" && <InlineProgress size="sm" />} Confirm
+              </button>
+            </form>
+          )}
+          {deleteStage === "pending" && (
+            <p className="mt-3 text-xs text-muted-foreground">Submitted for admin review — you'll get an email once it's approved.</p>
+          )}
+        </div>
+      </div>
+    </Section>
   );
 }
 

@@ -658,9 +658,20 @@ function BusinessAccountForm({
     e.preventDefault();
     setSaving(true);
     try {
-      const saved = initial ? await businessAccountApi.update(form) : await businessAccountApi.create(form);
-      onCreated(saved);
-      toast.success(initial ? "Business account updated" : "Business account created");
+      if (initial) {
+        const result = await businessAccountApi.update(form);
+        if (result.applied) {
+          onCreated(result.account);
+          toast.success("Business account updated");
+        } else {
+          // Queued for admin review — nothing actually changed yet, so don't touch local state.
+          toast.success(result.message);
+        }
+      } else {
+        const created = await businessAccountApi.create(form);
+        onCreated(created);
+        toast.success("Business account created");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {

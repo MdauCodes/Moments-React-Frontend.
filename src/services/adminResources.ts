@@ -100,7 +100,7 @@ export type ChangelogEntryDto = {
 };
 export type ChangelogEntryRequest = { title: string; summary: string; category: ChangelogCategory; author?: string };
 
-export type ChangeRequestType = "PROFILE_UPDATE" | "BUSINESS_ACCOUNT_UPDATE" | "ACCOUNT_DELETION";
+export type ChangeRequestType = "PROFILE_UPDATE" | "BUSINESS_ACCOUNT_UPDATE" | "ACCOUNT_DELETION" | "DATA_EXPORT";
 export type ChangeRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
 export type ChangeRequestDto = {
   id: string;

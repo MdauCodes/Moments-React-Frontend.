@@ -20,12 +20,14 @@ const TYPE_FILTERS: { label: string; value: ChangeRequestType | "" }[] = [
   { label: "Profile update", value: "PROFILE_UPDATE" },
   { label: "Business account update", value: "BUSINESS_ACCOUNT_UPDATE" },
   { label: "Account deletion", value: "ACCOUNT_DELETION" },
+  { label: "Data export", value: "DATA_EXPORT" },
 ];
 
 const TYPE_LABEL: Record<ChangeRequestType, string> = {
   PROFILE_UPDATE: "Profile update",
   BUSINESS_ACCOUNT_UPDATE: "Business account update",
   ACCOUNT_DELETION: "Account deletion",
+  DATA_EXPORT: "Data export",
 };
 
 const STATUS_TONE: Record<ChangeRequestStatus, { bg: string; fg: string }> = {
@@ -238,6 +240,11 @@ function AdminChangeRequestsPage() {
                 <div style={{ fontSize: 13, color: "var(--admin-muted)" }}>
                   No fields to review — approving starts this customer's 14-day deletion grace period.
                   They can still cancel during that window; the account is purged automatically once it lapses.
+                </div>
+              ) : selected.type === "DATA_EXPORT" ? (
+                <div style={{ fontSize: 13, color: "var(--admin-muted)" }}>
+                  No fields to review — approving generates a JSON export of this customer's profile, orders,
+                  wishlist, business account and enquiries, and emails them a download link.
                 </div>
               ) : (
                 <div>

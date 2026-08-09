@@ -53,6 +53,10 @@ export interface BusinessAccount {
   creditReadiness?: CreditReadiness | null;
 }
 
+export type BusinessAccountUpdateResult =
+  | { applied: true; account: BusinessAccount }
+  | { applied: false; message: string };
+
 export interface BusinessAccountInput {
   businessName: string;
   businessType?: BusinessType;
@@ -97,7 +101,14 @@ export const businessAccountApi = {
     return (await res.json()) as BusinessAccount;
   },
 
-  async update(input: BusinessAccountInput): Promise<BusinessAccount> {
+  /**
+   * A genuine customer edit no longer applies directly — it's queued for admin approval (see
+   * ChangeRequestService on the backend) and the API returns just a confirmation message, not
+   * the updated account. The one exception is an admin editing while impersonating a customer's
+   * dashboard, where the write really does happen immediately and a real BusinessAccount comes
+   * back — hence the discriminated result rather than assuming one shape.
+   */
+  async update(input: BusinessAccountInput): Promise<BusinessAccountUpdateResult> {
     const res = await authFetch(apiUrl("/api/v1/business-accounts/me"), {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -107,7 +118,11 @@ export const businessAccountApi = {
       const err = await res.json().catch(() => ({}) as { message?: string });
       throw new Error(err.message ?? `Failed to update business account (${res.status})`);
     }
-    return (await res.json()) as BusinessAccount;
+    const data = await res.json();
+    if (data && typeof data === "object" && "requestId" in data) {
+      return { applied: false, message: (data as { message?: string }).message ?? "Submitted for review" };
+    }
+    return { applied: true, account: data as BusinessAccount };
   },
 
   async myTaxDocuments(): Promise<CustomerTaxDocument[]> {
