@@ -156,8 +156,9 @@ export function getPrivacyPolicyContent() {
               surrounds.
             </li>
             <li>
-              <strong>Cloud hosting and database providers</strong> (Cloudflare for hosting and
-              Supabase for application database and storage) acting on our instructions.
+              <strong>Cloud hosting and database providers</strong> (Railway for our application
+              backend and PostgreSQL database, Render for frontend hosting, and Cloudinary for
+              file and backup storage) acting on our instructions.
             </li>
             <li>
               <strong>WhatsApp / Meta</strong> — when you message us via WhatsApp Business.
