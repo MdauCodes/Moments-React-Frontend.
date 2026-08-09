@@ -100,6 +100,24 @@ export type ChangelogEntryDto = {
 };
 export type ChangelogEntryRequest = { title: string; summary: string; category: ChangelogCategory; author?: string };
 
+export type ChangeRequestType = "PROFILE_UPDATE" | "BUSINESS_ACCOUNT_UPDATE" | "ACCOUNT_DELETION";
+export type ChangeRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+export type ChangeRequestDto = {
+  id: string;
+  type: ChangeRequestType;
+  status: ChangeRequestStatus;
+  requestedById: string;
+  requestedByName: string;
+  requestedByEmail: string;
+  /** JSON string of the proposed fields (PROFILE_UPDATE / BUSINESS_ACCOUNT_UPDATE). Null for ACCOUNT_DELETION. */
+  payload?: string | null;
+  createdAt: string;
+  reviewedById?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  reviewNotes?: string | null;
+};
+
 export type EnquiryPipelineStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL_SENT" | "WON" | "LOST" | "ARCHIVED";
 
 export type EnquiryNote = {
@@ -461,6 +479,20 @@ export const adminResources = {
     create: (body: ChangelogEntryRequest) => adminJson<ChangelogEntryDto>("/api/v1/admin/changelog", { method: "POST", body: JSON.stringify(body) }),
     update: (id: string, body: Partial<ChangelogEntryRequest>) => adminJson<ChangelogEntryDto>(`/api/v1/admin/changelog/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/changelog/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  },
+  changeRequests: {
+    list: async (params: Record<string, string | number | undefined>) =>
+      unwrap(await adminJson<PageResponse<ChangeRequestDto> | ChangeRequestDto[]>(`/api/v1/admin/change-requests${qs(params)}`)),
+    approve: (id: string, reason?: string) =>
+      adminJson<ChangeRequestDto>(`/api/v1/admin/change-requests/${encodeURIComponent(id)}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reason || undefined }),
+      }),
+    reject: (id: string, reason: string) =>
+      adminJson<ChangeRequestDto>(`/api/v1/admin/change-requests/${encodeURIComponent(id)}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
   },
   enquiries: {
     list: async (params: Record<string, string | number | undefined>) => unwrap(await adminJson<PageResponse<EnquiryDto> | EnquiryDto[]>(`/api/v1/admin/enquiries${qs(params)}`)),

@@ -108,6 +108,7 @@ import AdminRewardsReportPage from "@/routes/_adminAuth.admin.rewards-report";
 import AdminRewardsSettingsPage from "@/routes/_adminAuth.admin.rewards-settings";
 import AdminFeatureGuidePage from "@/routes/_adminAuth.admin.feature-guide";
 import AdminChangelogPage from "@/routes/_adminAuth.admin.changelog";
+import AdminChangeRequestsPage from "@/routes/_adminAuth.admin.change-requests";
 import AdminArchitecturePage from "@/routes/_adminAuth.admin.architecture";
 import AdminDevToolsPage from "@/routes/_adminAuth.admin.dev-tools";
 import AdminDevLogsPage from "@/routes/_adminAuth.admin.dev-logs";
@@ -239,6 +240,7 @@ export default function App() {
                       <Route path="/admin/rewards-settings" element={<AdminRewardsSettingsPage />} />
                       <Route path="/admin/feature-guide" element={<AdminFeatureGuidePage />} />
                       <Route path="/admin/changelog" element={<AdminChangelogPage />} />
+                      <Route path="/admin/change-requests" element={<AdminChangeRequestsPage />} />
                       <Route path="/admin/architecture" element={<AdminArchitecturePage />} />
                       <Route path="/admin/payments" element={<AdminPaymentsPage />} />
                       <Route path="/admin/products" element={<AdminProductsIndexPage />} />
