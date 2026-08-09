@@ -5,6 +5,9 @@ export interface AddressSuggestion {
   description: string;
   latitude: number | null;
   longitude: number | null;
+  /** Only ever present for seeded-area fallback suggestions — TumaBoda-live predictions resolve
+   *  county later, via place-details, after the customer picks one. */
+  county: string | null;
 }
 
 export interface PlaceDetails {
@@ -13,6 +16,8 @@ export interface PlaceDetails {
   longitude: number | null;
   formattedAddress: string | null;
   name: string | null;
+  /** Best-effort, backend-inferred (nearest seeded area) when TumaBoda's own response has none. */
+  county: string | null;
 }
 
 export async function fetchAddressSuggestions(input: string): Promise<AddressSuggestion[]> {

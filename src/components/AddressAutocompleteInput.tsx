@@ -11,6 +11,7 @@ export interface ResolvedAddress {
   placeId: string | null;
   latitude: number | null;
   longitude: number | null;
+  county: string | null;
 }
 
 interface AddressAutocompleteInputProps {
@@ -89,6 +90,7 @@ export function AddressAutocompleteInput({
         placeId: suggestion.placeId,
         latitude: suggestion.latitude,
         longitude: suggestion.longitude,
+        county: suggestion.county,
       });
       return;
     }
@@ -101,6 +103,7 @@ export function AddressAutocompleteInput({
       placeId: suggestion.placeId,
       latitude: details?.latitude ?? null,
       longitude: details?.longitude ?? null,
+      county: details?.county ?? null,
     });
   }
 

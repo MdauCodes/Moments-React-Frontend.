@@ -192,6 +192,9 @@ function CheckoutModal() {
   // manual source of truth until the finer coverage-check follow-up (tracked separately) replaces it.
   const [addressText, setAddressText] = useState("");
   const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
+  // "Can't find your address? Pick your county instead" escape hatch — a real flag, not a
+  // sentinel value stuffed into `county`, so it can't collide with a real county string.
+  const [showCountyFallback, setShowCountyFallback] = useState(false);
   const [locatingMe, setLocatingMe] = useState(false);
   // Raw device fix from "Use my current location", kept separate from resolvedAddress: we search
   // nearby matches for the customer to confirm/pick (see useMyLocation below) rather than locking
@@ -939,124 +942,183 @@ function CheckoutModal() {
 
               {wantsDelivery === true && (
                 <div className="space-y-4">
-                  <div>
-                    <label className={labelCls}>
-                      County <span className="text-destructive">*</span>
-                    </label>
-                    <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
-                    {coverageChecking && (
-                      <p className="mt-1.5 text-xs text-muted-foreground">Checking delivery options for your area…</p>
-                    )}
-                  </div>
-
-                  {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
-                      areas default here; uncovered areas fall to Manual below instead. */}
-                  {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
-                    <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
-                      <div className="mb-1 flex items-center gap-2">
-                        <Truck className="h-4 w-4" style={{ color: BRAND }} />
-                        <span className="font-semibold text-foreground">Fulfilled by TumaBoda</span>
-                        <span
-                          className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                          style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
-                        >
-                          Doorstep
-                        </span>
-                      </div>
-                      <p className="text-muted-foreground">
-                        Tracked delivery straight to your doorstep — fee calculated at booking.
+                  {/* Location asked ONCE, first — coverage (TumaBoda vs Courier) resolves FROM
+                      this, instead of a blind county question deciding it beforehand. Current
+                      location is the primary action (fastest path); search is the alternative. */}
+                  {!resolvedAddress && !showCountyFallback && (
+                    <div>
+                      <label className={labelCls}>
+                        Where should we deliver? <span className="text-destructive">*</span>
+                      </label>
+                      <p className="mb-2 mt-1 text-xs text-muted-foreground">
+                        Search your address or use your current location — we'll show you what's available there.
                       </p>
-
-                      {resolvedAddress ? (
-                        <div className="mt-3 space-y-3">
-                          <p className="text-foreground/90">
-                            <span className="font-medium">Pinned:</span> {resolvedAddress.description}{" "}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setResolvedAddress(null);
-                                setAddressText("");
-                                setGpsFallback(null);
-                              }}
-                              className="font-semibold underline underline-offset-2"
-                              style={{ color: BRAND }}
-                            >
-                              Change
-                            </button>
-                          </p>
-                          <div>
-                            <label className={labelCls}>Building / apartment / nearby landmark (optional)</label>
-                            <input
-                              className={inputCls}
-                              value={landmarkDetail}
-                              onChange={(e) => setLandmarkDetail(e.target.value)}
-                              placeholder="e.g. Apartment 4B, next to Shell petrol station"
-                            />
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Helps the rider find you faster once they're in the area.
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-3">
-                          <p className="mb-2 text-foreground/90">
-                            <span className="font-semibold text-destructive">Required:</span> pin your exact address
-                            so a rider can be sent to collect and deliver your order.
-                          </p>
-                          <AddressAutocompleteInput
-                            value={addressText}
-                            onChange={(text) => {
-                              setAddressText(text);
-                              if (gpsFallback && text !== gpsFallback.description) setGpsFallback(null);
-                            }}
-                            onSelect={(addr) => {
-                              setResolvedAddress(addr);
-                              setGpsFallback(null);
-                            }}
-                            placeholder="Start typing your delivery address…"
-                          />
+                      <button
+                        type="button"
+                        onClick={useMyLocation}
+                        disabled={locatingMe}
+                        className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                        style={{ backgroundColor: BRAND }}
+                      >
+                        <Truck className="h-4 w-4" /> {locatingMe ? "Locating…" : "Use my current location"}
+                      </button>
+                      <AddressAutocompleteInput
+                        value={addressText}
+                        onChange={(text) => {
+                          setAddressText(text);
+                          if (gpsFallback && text !== gpsFallback.description) setGpsFallback(null);
+                        }}
+                        onSelect={(addr) => {
+                          setResolvedAddress(addr);
+                          setGpsFallback(null);
+                          if (addr.county) setCounty(addr.county);
+                        }}
+                        placeholder="Start typing your delivery address…"
+                      />
+                      {gpsFallback && (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          None of the matches above look right?{" "}
                           <button
                             type="button"
-                            onClick={useMyLocation}
-                            disabled={locatingMe}
-                            className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                            onClick={() =>
+                              setResolvedAddress({
+                                description: gpsFallback.description,
+                                placeId: null,
+                                latitude: gpsFallback.latitude,
+                                longitude: gpsFallback.longitude,
+                                county: null,
+                              })
+                            }
+                            className="font-semibold underline underline-offset-2"
                             style={{ color: BRAND }}
                           >
-                            {locatingMe ? "Locating…" : "Use my current location"}
+                            Use my exact current position instead
                           </button>
-                          {gpsFallback && (
-                            <p className="mt-2 text-xs text-muted-foreground">
-                              None of the matches above look right?{" "}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setResolvedAddress({
-                                    description: gpsFallback.description,
-                                    placeId: null,
-                                    latitude: gpsFallback.latitude,
-                                    longitude: gpsFallback.longitude,
-                                  })
-                                }
-                                className="font-semibold underline underline-offset-2"
-                                style={{ color: BRAND }}
-                              >
-                                Use my exact current position instead
-                              </button>
-                            </p>
-                          )}
-                          <div className="mt-3 border-t border-border pt-3">
-                            <button
-                              type="button"
-                              onClick={() => setFulfillment("MANUAL_DELIVERY")}
-                              className="text-xs font-semibold text-foreground underline underline-offset-2"
-                            >
-                              Can't find your address? Switch to Courier delivery instead →
-                            </button>
-                          </div>
-                        </div>
+                        </p>
                       )}
+                      <div className="mt-3 border-t border-border pt-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowCountyFallback(true)}
+                          className="text-xs font-semibold text-foreground underline underline-offset-2"
+                        >
+                          Can't find your address? Pick your county instead →
+                        </button>
+                      </div>
                     </div>
                   )}
+
+                  {(resolvedAddress || showCountyFallback) && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivering to</p>
+                          <p className="truncate font-medium text-foreground">
+                            {resolvedAddress?.description ?? county.trim() ?? ""}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResolvedAddress(null);
+                            setAddressText("");
+                            setGpsFallback(null);
+                            setCounty("");
+                            setShowCountyFallback(false);
+                          }}
+                          className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                        >
+                          Change
+                        </button>
+                      </div>
+
+                      {/* County wasn't attached to the resolved address (TumaBoda's live proxy
+                          didn't have a close-enough seeded-area match) or the customer skipped
+                          straight to the county fallback above — confirm it before checking
+                          coverage, rather than guessing. */}
+                      {!county.trim() && (
+                        <div>
+                          <label className={labelCls}>
+                            {resolvedAddress ? "Confirm your county" : "County"} <span className="text-destructive">*</span>
+                          </label>
+                          <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
+                        </div>
+                      )}
+
+                      {coverageChecking && (
+                        <p className="text-xs text-muted-foreground">Checking delivery options for your area…</p>
+                      )}
+
+                      {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
+                          areas default here; uncovered areas fall to Manual below instead. */}
+                      {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
+                        <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
+                          <div className="mb-1 flex items-center gap-2">
+                            <Truck className="h-4 w-4" style={{ color: BRAND }} />
+                            <span className="font-semibold text-foreground">Fulfilled by TumaBoda</span>
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                              style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
+                            >
+                              Doorstep
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground">
+                            Tracked delivery straight to your doorstep — fee calculated at booking.
+                          </p>
+
+                          {resolvedAddress ? (
+                            <div className="mt-3 space-y-3">
+                              <div>
+                                <label className={labelCls}>Building / apartment / nearby landmark (optional)</label>
+                                <input
+                                  className={inputCls}
+                                  value={landmarkDetail}
+                                  onChange={(e) => setLandmarkDetail(e.target.value)}
+                                  placeholder="e.g. Apartment 4B, next to Shell petrol station"
+                                />
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Helps the rider find you faster once they're in the area.
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3">
+                              <p className="mb-2 text-foreground/90">
+                                <span className="font-semibold text-destructive">Required:</span> pin your exact
+                                address so a rider can be sent to collect and deliver your order.
+                              </p>
+                              <AddressAutocompleteInput
+                                value={addressText}
+                                onChange={(text) => {
+                                  setAddressText(text);
+                                  if (gpsFallback && text !== gpsFallback.description) setGpsFallback(null);
+                                }}
+                                onSelect={(addr) => setResolvedAddress(addr)}
+                                placeholder="Start typing your delivery address…"
+                              />
+                              <button
+                                type="button"
+                                onClick={useMyLocation}
+                                disabled={locatingMe}
+                                className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                                style={{ color: BRAND }}
+                              >
+                                {locatingMe ? "Locating…" : "Use my current location"}
+                              </button>
+                              <div className="mt-3 border-t border-border pt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setFulfillment("MANUAL_DELIVERY")}
+                                  className="text-xs font-semibold text-foreground underline underline-offset-2"
+                                >
+                                  Can't find your address? Switch to Courier delivery instead →
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                 {fulfillment === "MANUAL_DELIVERY" && (
                   <div className="space-y-4">
@@ -1217,6 +1279,8 @@ function CheckoutModal() {
                     </section>
                   </div>
                 )}
+                    </div>
+                  )}
                 </div>
               )}
 
