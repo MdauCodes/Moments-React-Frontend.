@@ -561,6 +561,13 @@ function CheckoutModal() {
       toast.error("Please pin your exact delivery address so we can book your TumaBoda rider");
       return false;
     }
+    // A pinned address alone can still leave a rider circling a large compound/apartment block
+    // with no way to actually find the door — required, not optional, for the same reason the
+    // pin itself is required above.
+    if (fulfillment === "TUMABODA_DELIVERY" && !landmarkDetail.trim()) {
+      toast.error("Please add a building/apartment or nearby landmark so the rider can find you");
+      return false;
+    }
     if (fulfillment === "MANUAL_DELIVERY") {
       if (!city.trim()) {
         toast.error("Please fill in the destination town");
@@ -1070,15 +1077,18 @@ function CheckoutModal() {
                           {resolvedAddress ? (
                             <div className="mt-3 space-y-3">
                               <div>
-                                <label className={labelCls}>Building / apartment / nearby landmark (optional)</label>
+                                <label className={labelCls}>
+                                  Building / apartment / nearby landmark <span className="text-destructive">*</span>
+                                </label>
                                 <input
                                   className={inputCls}
+                                  required
                                   value={landmarkDetail}
                                   onChange={(e) => setLandmarkDetail(e.target.value)}
                                   placeholder="e.g. Apartment 4B, next to Shell petrol station"
                                 />
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                  Helps the rider find you faster once they're in the area.
+                                  Required — helps the rider actually find you once they're in the area.
                                 </p>
                               </div>
                             </div>
@@ -1366,7 +1376,7 @@ function CheckoutModal() {
               <ConsentCheckbox
                 checked={consent}
                 onCheckedChange={setConsent}
-                purpose="process and deliver your order"
+                purpose="process and deliver my order"
                 className="mt-2"
               />
 

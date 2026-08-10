@@ -272,7 +272,7 @@ function EnterpriseQuotePage() {
                   <ConsentCheckbox
                     checked={consent}
                     onCheckedChange={setConsent}
-                    purpose="prepare your quote and contact you about it"
+                    purpose="prepare my quote and contact me about it"
                   />
                 </div>
                 <Button

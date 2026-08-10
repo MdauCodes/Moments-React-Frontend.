@@ -240,7 +240,7 @@ export function RegistrationDetailsWizard({
             )}
           </div>
           <HoneypotField value={honeypot} onChange={setHoneypot} />
-          <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage your account" />
+          <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage my account" />
           <TurnstileWidget onToken={setTurnstileToken} />
           <div className="flex gap-2">
             {totalSteps > 1 && (

@@ -332,7 +332,7 @@ function ContactPage() {
                 <ConsentCheckbox
                   checked={consent}
                   onCheckedChange={setConsent}
-                  purpose="contact you about this enquiry"
+                  purpose="contact me about this enquiry"
                 />
               </div>
 
