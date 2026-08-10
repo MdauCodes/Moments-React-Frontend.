@@ -215,7 +215,9 @@ export function AddressAutocompleteInput({
         </ul>
       )}
       {showQuickPicks && !value.trim() && quickPicks.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-2">
+          <p className="mb-1.5 text-xs text-muted-foreground">Or pick a common area:</p>
+          <div className="flex flex-wrap gap-1.5">
           {quickPicks.map((qp) => (
             <button
               key={qp.description}
@@ -226,6 +228,7 @@ export function AddressAutocompleteInput({
               {qp.description.split(",")[0]}
             </button>
           ))}
+          </div>
         </div>
       )}
     </div>
