@@ -50,6 +50,9 @@ export function RegistrationDetailsWizard({
 
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Surfaced back on step 1 (where the email field actually lives) rather than just a toast at
+  // step 3 — a duplicate-email rejection is unactionable from a step with no email input on it.
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
   const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
 
@@ -118,7 +121,16 @@ export function RegistrationDetailsWizard({
       });
       const data = await res.json().catch(() => ({}) as Record<string, unknown>);
       if (!res.ok) {
-        throw new Error((data as { message?: string }).message ?? "Registration failed");
+        const message = (data as { message?: string }).message ?? "Registration failed";
+        if (res.status === 409) {
+          // Duplicate email/phone — jump back to the step that actually has those fields so the
+          // customer can see and fix the problem, instead of stranding the error on step 3.
+          setEmailError(message);
+          setStep(1);
+          toast.error(message);
+          return;
+        }
+        throw new Error(message);
       }
       onSuccess({
         accessToken: (data as { accessToken?: string }).accessToken,
@@ -160,7 +172,14 @@ export function RegistrationDetailsWizard({
           </div>
           <div>
             <label className={labelCls}>Email</label>
-            <input type="email" required className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              type="email"
+              required
+              className={`${inputCls} ${emailError ? "border-destructive focus:ring-destructive/50" : ""}`}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
+            />
+            {emailError && <p className="mt-1 text-xs text-destructive">{emailError}</p>}
           </div>
           <div>
             <label className={labelCls}>Phone</label>

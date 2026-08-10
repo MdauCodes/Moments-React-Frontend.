@@ -9,8 +9,8 @@ import { useRewardDeliveryGap } from "@/hooks/useRewardDeliveryGap";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
 
-const CANDIDATE_POOL_SIZE = 60;
-const STRIP_LENGTH = 8;
+const CANDIDATE_POOL_SIZE = 90;
+const STRIP_LENGTH = 12;
 
 function productPrice(p: Product): number | null {
   if (p.individualSalesEnabled && p.basePrice) return p.basePrice;
@@ -56,7 +56,16 @@ function rankCandidates(pool: Product[], cartProductIds: Set<string>, cartCatego
   return scored.slice(0, STRIP_LENGTH).map((s) => s.product);
 }
 
-export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { cardWidthClassName?: string }) {
+export function QuickAddProductStrip({
+  cardWidthClassName = "w-44 sm:w-56",
+  wrap = false,
+}: {
+  cardWidthClassName?: string;
+  /** Wraps cards into a filling grid instead of a horizontally-scrolling strip — for containers
+   *  wide enough that a fixed-height single row would leave a lot of dead space (e.g. the
+   *  full-bleed checkout placement). Cart/dashboard placements keep the default scroll strip. */
+  wrap?: boolean;
+}) {
   const navigate = useNavigate();
   const { items } = useCart();
   const { kesToNextTier, kesToFreeDelivery } = useRewardDeliveryGap();
@@ -149,9 +158,15 @@ export function QuickAddProductStrip({ cardWidthClassName = "w-44 sm:w-56" }: { 
           .
         </p>
       ) : (
-        <div className="mt-3 flex items-stretch gap-3 overflow-x-auto pb-1">
+        <div
+          className={
+            wrap
+              ? "mt-3 flex flex-wrap items-stretch gap-3"
+              : "mt-3 flex items-stretch gap-3 overflow-x-auto pb-1"
+          }
+        >
           {displayed.map((p) => (
-            <div key={p.id} className={`${cardWidthClassName} shrink-0`}>
+            <div key={p.id} className={`${cardWidthClassName} ${wrap ? "" : "shrink-0"}`}>
               <ProductCard product={p} onConfigure={handleConfigure} />
             </div>
           ))}

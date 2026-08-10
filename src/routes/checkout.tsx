@@ -1053,27 +1053,43 @@ function CheckoutModal() {
                       {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
                           areas default here; uncovered areas fall to Manual below instead. */}
                       {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
-                        <div className="overflow-hidden rounded-2xl border border-border bg-secondary/30 text-sm">
+                        <div className="relative overflow-hidden rounded-2xl border border-border text-sm">
                           {/* Real photo, not a logo/icon — a rider actually delivering reads as trust
-                              far better than a mark, per the client's explicit call. Prominent hero
-                              treatment (not a small avatar) so it's the first thing noticed on this card. */}
+                              far better than a mark, per the client's explicit call. Runs full-bleed
+                              behind the whole card (not just a header strip) so it reads as the card's
+                              background, not a thumbnail — the gradient keeps every line of text and
+                              every field beneath it legible regardless of how tall the card grows. */}
+                          {tumaBodaPartner && (
+                            <img
+                              src={tumaBodaPartner.photo}
+                              alt={`${tumaBodaPartner.name} rider delivering`}
+                              className="absolute inset-0 h-full w-full object-cover object-top"
+                            />
+                          )}
+                          <div
+                            className="absolute inset-0"
+                            style={
+                              tumaBodaPartner
+                                ? {
+                                    backgroundImage:
+                                      "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.12) 14%, transparent 30%, transparent 30%, color-mix(in oklab, var(--background) 70%, transparent) 42%, var(--background) 50%)",
+                                  }
+                                : { backgroundColor: "hsl(var(--secondary) / 0.3)" }
+                            }
+                          />
+                          <div className="relative">
                           {tumaBodaPartner ? (
-                            <div className="relative h-28 w-full sm:h-32">
-                              <img
-                                src={tumaBodaPartner.photo}
-                                alt={`${tumaBodaPartner.name} rider delivering`}
-                                className="h-full w-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                              <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 p-3">
-                                <span className="font-semibold text-white drop-shadow-sm">Fulfilled by TumaBoda</span>
-                                <span
-                                  className="rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                                  style={{ color: BRAND }}
-                                >
-                                  Doorstep
-                                </span>
-                              </div>
+                            // Extra top padding, not just the label's own height, so the photo gets a
+                            // genuinely clear, unobstructed band before the fade starts (per client
+                            // request — "clear at the top... fades as it goes downwards").
+                            <div className="flex items-center gap-2 p-4 pb-28 sm:pb-32">
+                              <span className="font-semibold text-white drop-shadow-sm">Fulfilled by TumaBoda</span>
+                              <span
+                                className="rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                style={{ color: BRAND }}
+                              >
+                                Doorstep
+                              </span>
                             </div>
                           ) : (
                             <div className="flex items-center gap-2 p-4 pb-0">
@@ -1087,7 +1103,7 @@ function CheckoutModal() {
                               </span>
                             </div>
                           )}
-                          <div className="p-4">
+                          <div className="px-4 pb-4">
                           <p className="text-muted-foreground">
                             Tracked delivery straight to your doorstep — fee calculated at booking.
                           </p>
@@ -1163,6 +1179,7 @@ function CheckoutModal() {
                               </div>
                             </div>
                           )}
+                          </div>
                           </div>
                         </div>
                       )}
@@ -1426,8 +1443,11 @@ function CheckoutModal() {
                 Continue to payment <ArrowRight className="h-4 w-4" />
               </button>
             </form>
-            <div className="mt-6">
-              <QuickAddProductStrip cardWidthClassName="w-36 sm:w-44" />
+            {/* Full-bleed breakout — the rest of this step is capped at max-w-2xl for readable line
+                length, but the horizontally-scrolling product strip benefits from the full modal
+                width instead of being squeezed into that same narrow column. */}
+            <div className="mt-6 w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] px-4 sm:px-6">
+              <QuickAddProductStrip cardWidthClassName="w-40 sm:w-56 lg:w-64" wrap />
             </div>
             </>
           )}
@@ -1859,7 +1879,7 @@ function FulfillmentCard({
         onClick={onClick}
         aria-pressed={active}
         className={`mt-auto min-h-[44px] w-auto self-start rounded-full px-5 py-2.5 text-xs font-semibold transition ${
-          active ? "text-white" : "border border-border bg-background text-foreground hover:bg-secondary"
+          active ? "text-white" : "bg-accent text-accent-foreground hover:bg-accent/90"
         }`}
         style={active ? { backgroundColor: BRAND } : undefined}
       >
