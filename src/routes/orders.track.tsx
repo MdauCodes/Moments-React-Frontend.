@@ -9,6 +9,8 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { downloadReceiptPdf } from "@/lib/pdf";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
+import { DeliveryPartnerBadge } from "@/components/DeliveryPartnerBadge";
+import { getDeliveryPartner } from "@/data/deliveryPartners";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -38,10 +40,13 @@ function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode: string
     el.appendChild(widget);
   }, [trackingCode]);
 
+  const tumaBodaPartner = getDeliveryPartner("tumaboda");
+
   return (
     <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
       <p className="text-xs uppercase tracking-widest text-muted-foreground">Live delivery tracking</p>
       {status && <p className="mt-1 text-sm text-foreground">{status.replace(/_/g, " ")}</p>}
+      {tumaBodaPartner && <DeliveryPartnerBadge partner={tumaBodaPartner} className="mt-2" />}
       <div ref={containerRef} className="mt-2" />
     </div>
   );

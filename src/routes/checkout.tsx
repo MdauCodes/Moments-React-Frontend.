@@ -29,6 +29,10 @@ import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { buildReceiptPdfBlob } from "@/lib/pdf";
 import type { CustomerOrder } from "@/services/orderStore";
+import { DeliveryPartnerBadge } from "@/components/DeliveryPartnerBadge";
+import { getDeliveryPartner } from "@/data/deliveryPartners";
+
+const tumaBodaPartner = getDeliveryPartner("tumaboda");
 
 /**
  * Generates the tax invoice PDF client-side (same renderer as the self-serve download on the
@@ -1073,6 +1077,9 @@ function CheckoutModal() {
                           <p className="text-muted-foreground">
                             Tracked delivery straight to your doorstep — fee calculated at booking.
                           </p>
+                          {tumaBodaPartner && (
+                            <DeliveryPartnerBadge partner={tumaBodaPartner} className="mt-3" />
+                          )}
 
                           {resolvedAddress ? (
                             <div className="mt-3 space-y-3">
