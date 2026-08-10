@@ -29,7 +29,6 @@ import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { buildReceiptPdfBlob } from "@/lib/pdf";
 import type { CustomerOrder } from "@/services/orderStore";
-import { DeliveryPartnerBadge } from "@/components/DeliveryPartnerBadge";
 import { getDeliveryPartner } from "@/data/deliveryPartners";
 
 const tumaBodaPartner = getDeliveryPartner("tumaboda");
@@ -200,10 +199,9 @@ function CheckoutModal() {
   // sentinel value stuffed into `county`, so it can't collide with a real county string.
   const [showCountyFallback, setShowCountyFallback] = useState(false);
   const [locatingMe, setLocatingMe] = useState(false);
-  // Raw device fix from "Use my current location", kept separate from resolvedAddress: we search
-  // nearby matches for the customer to confirm/pick (see useMyLocation below) rather than locking
-  // in an approximate GPS reading as the exact delivery point, but still offer it as a fallback
-  // if none of the search results are a better match.
+  // Raw device fix from "Use my current location" — held here for explicit confirmation (GPS can
+  // be wrong: indoors, VPN, stale cache) rather than being silently trusted or silently dropped
+  // into the search box. Cleared once the customer confirms or rejects it.
   const [gpsFallback, setGpsFallback] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
   // Optional extra detail ("Apartment 4B, next to Shell") appended to the resolved pin's
   // description when composing what's actually sent to TumaBoda as the delivery location —
@@ -626,12 +624,10 @@ function CheckoutModal() {
         } catch {
           // Reverse-geocode failed — still proceed with the raw coordinates below.
         }
-        // Don't lock the raw device fix straight in as the delivery point — feed it into the same
-        // search box instead so nearby, better-named matches surface for the customer to pick from.
-        // The raw fix stays available as an explicit fallback (below the input) in case none of the
-        // search results are actually closer/better than the GPS reading itself.
+        // Never lock the raw device fix straight in as the delivery point — GPS can be wrong
+        // (indoors, VPN, stale cache). Surface it for the customer to explicitly confirm or reject
+        // first; only a "yes" commits it as resolvedAddress.
         setGpsFallback({ description, latitude, longitude });
-        setAddressText(description);
         setLocatingMe(false);
       },
       () => {
@@ -973,39 +969,33 @@ function CheckoutModal() {
                       >
                         <Truck className="h-4 w-4" /> {locatingMe ? "Locating…" : "Use my current location"}
                       </button>
-                      <AddressAutocompleteInput
-                        value={addressText}
-                        onChange={(text) => {
-                          setAddressText(text);
-                          if (gpsFallback && text !== gpsFallback.description) setGpsFallback(null);
-                        }}
-                        onSelect={(addr) => {
-                          setResolvedAddress(addr);
-                          setGpsFallback(null);
-                          if (addr.county) setCounty(addr.county);
-                        }}
-                        placeholder="Start typing your delivery address…"
-                      />
-                      {gpsFallback && (
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          None of the matches above look right?{" "}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setResolvedAddress({
-                                description: gpsFallback.description,
-                                placeId: null,
-                                latitude: gpsFallback.latitude,
-                                longitude: gpsFallback.longitude,
-                                county: null,
-                              })
-                            }
-                            className="font-semibold underline underline-offset-2"
-                            style={{ color: BRAND }}
-                          >
-                            Use my exact current position instead
-                          </button>
-                        </p>
+                      {gpsFallback ? (
+                        <GpsConfirmPrompt
+                          description={gpsFallback.description}
+                          onConfirm={() => {
+                            setResolvedAddress({
+                              description: gpsFallback.description,
+                              placeId: null,
+                              latitude: gpsFallback.latitude,
+                              longitude: gpsFallback.longitude,
+                              county: null,
+                            });
+                            setGpsFallback(null);
+                          }}
+                          onReject={() => setGpsFallback(null)}
+                        />
+                      ) : (
+                        <AddressAutocompleteInput
+                          value={addressText}
+                          onChange={setAddressText}
+                          onSelect={(addr) => {
+                            setResolvedAddress(addr);
+                            if (addr.county) setCounty(addr.county);
+                          }}
+                          placeholder="Start typing your delivery address…"
+                          animatedPlaceholder
+                          showQuickPicks
+                        />
                       )}
                       <div className="mt-3 border-t border-border pt-3">
                         <button
@@ -1063,23 +1053,44 @@ function CheckoutModal() {
                       {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
                           areas default here; uncovered areas fall to Manual below instead. */}
                       {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
-                        <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm">
-                          <div className="mb-1 flex items-center gap-2">
-                            <Truck className="h-4 w-4" style={{ color: BRAND }} />
-                            <span className="font-semibold text-foreground">Fulfilled by TumaBoda</span>
-                            <span
-                              className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                              style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
-                            >
-                              Doorstep
-                            </span>
-                          </div>
+                        <div className="overflow-hidden rounded-2xl border border-border bg-secondary/30 text-sm">
+                          {/* Real photo, not a logo/icon — a rider actually delivering reads as trust
+                              far better than a mark, per the client's explicit call. Prominent hero
+                              treatment (not a small avatar) so it's the first thing noticed on this card. */}
+                          {tumaBodaPartner ? (
+                            <div className="relative h-28 w-full sm:h-32">
+                              <img
+                                src={tumaBodaPartner.photo}
+                                alt={`${tumaBodaPartner.name} rider delivering`}
+                                className="h-full w-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                              <div className="absolute inset-x-0 bottom-0 flex items-center gap-2 p-3">
+                                <span className="font-semibold text-white drop-shadow-sm">Fulfilled by TumaBoda</span>
+                                <span
+                                  className="rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                  style={{ color: BRAND }}
+                                >
+                                  Doorstep
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-4 pb-0">
+                              <Truck className="h-4 w-4" style={{ color: BRAND }} />
+                              <span className="font-semibold text-foreground">Fulfilled by TumaBoda</span>
+                              <span
+                                className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
+                              >
+                                Doorstep
+                              </span>
+                            </div>
+                          )}
+                          <div className="p-4">
                           <p className="text-muted-foreground">
                             Tracked delivery straight to your doorstep — fee calculated at booking.
                           </p>
-                          {tumaBodaPartner && (
-                            <DeliveryPartnerBadge partner={tumaBodaPartner} className="mt-3" />
-                          )}
 
                           {resolvedAddress ? (
                             <div className="mt-3 space-y-3">
@@ -1105,24 +1116,42 @@ function CheckoutModal() {
                                 <span className="font-semibold text-destructive">Required:</span> pin your exact
                                 address so a rider can be sent to collect and deliver your order.
                               </p>
-                              <AddressAutocompleteInput
-                                value={addressText}
-                                onChange={(text) => {
-                                  setAddressText(text);
-                                  if (gpsFallback && text !== gpsFallback.description) setGpsFallback(null);
-                                }}
-                                onSelect={(addr) => setResolvedAddress(addr)}
-                                placeholder="Start typing your delivery address…"
-                              />
-                              <button
-                                type="button"
-                                onClick={useMyLocation}
-                                disabled={locatingMe}
-                                className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
-                                style={{ color: BRAND }}
-                              >
-                                {locatingMe ? "Locating…" : "Use my current location"}
-                              </button>
+                              {gpsFallback ? (
+                                <GpsConfirmPrompt
+                                  description={gpsFallback.description}
+                                  onConfirm={() => {
+                                    setResolvedAddress({
+                                      description: gpsFallback.description,
+                                      placeId: null,
+                                      latitude: gpsFallback.latitude,
+                                      longitude: gpsFallback.longitude,
+                                      county: null,
+                                    });
+                                    setGpsFallback(null);
+                                  }}
+                                  onReject={() => setGpsFallback(null)}
+                                />
+                              ) : (
+                                <>
+                                  <AddressAutocompleteInput
+                                    value={addressText}
+                                    onChange={setAddressText}
+                                    onSelect={(addr) => setResolvedAddress(addr)}
+                                    placeholder="Start typing your delivery address…"
+                                    animatedPlaceholder
+                                    showQuickPicks
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={useMyLocation}
+                                    disabled={locatingMe}
+                                    className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                                    style={{ color: BRAND }}
+                                  >
+                                    {locatingMe ? "Locating…" : "Use my current location"}
+                                  </button>
+                                </>
+                              )}
                               <div className="mt-3 border-t border-border pt-3">
                                 <button
                                   type="button"
@@ -1134,6 +1163,7 @@ function CheckoutModal() {
                               </div>
                             </div>
                           )}
+                          </div>
                         </div>
                       )}
 
@@ -1736,6 +1766,43 @@ function CenteredState({ icon, title, subtitle }: { icon: React.ReactNode; title
       {icon}
       <h2 className="mt-5 font-display text-2xl text-foreground">{title}</h2>
       <p className="mt-2 text-sm text-muted-foreground">{subtitle}</p>
+    </div>
+  );
+}
+
+/** GPS can be wrong (indoors, VPN, stale cache) — asks the customer to explicitly confirm the
+ *  reverse-geocoded fix before it's trusted as the delivery point, instead of silently seeding it in. */
+function GpsConfirmPrompt({
+  description,
+  onConfirm,
+  onReject,
+}: {
+  description: string;
+  onConfirm: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/30 p-3 text-sm">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">We think you're near</p>
+      <p className="mt-0.5 font-medium text-foreground">{description}</p>
+      <p className="mt-1 text-xs text-muted-foreground">Is this right?</p>
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="flex-1 rounded-full px-4 py-2 text-xs font-semibold text-white"
+          style={{ backgroundColor: BRAND }}
+        >
+          Yes, deliver here
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          className="flex-1 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:border-foreground/40"
+        >
+          No, let me search
+        </button>
+      </div>
     </div>
   );
 }

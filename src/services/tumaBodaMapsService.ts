@@ -32,6 +32,17 @@ export async function fetchAddressSuggestions(input: string): Promise<AddressSug
   }
 }
 
+export async function fetchCommonAreas(): Promise<AddressSuggestion[]> {
+  try {
+    const res = await apiFetch(`/api/v1/public/tumaboda/maps/common-areas`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
   try {
     const res = await apiFetch(`/api/v1/public/tumaboda/maps/place-details?placeId=${encodeURIComponent(placeId)}`);

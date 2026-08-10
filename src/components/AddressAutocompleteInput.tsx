@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   fetchAddressSuggestions,
+  fetchCommonAreas,
   fetchPlaceDetails,
   type AddressSuggestion,
 } from "@/services/tumaBodaMapsService";
@@ -21,9 +22,67 @@ interface AddressAutocompleteInputProps {
   placeholder?: string;
   className?: string;
   id?: string;
+  /** Cycles the placeholder through example area names (typewriter effect) to nudge the customer
+   *  to type — replaces the static `placeholder` while the field is empty. */
+  animatedPlaceholder?: boolean;
+  /** Shows curated, well-known-area chips below the field so common destinations don't require typing. */
+  showQuickPicks?: boolean;
 }
 
 const DEBOUNCE_MS = 300;
+
+const PLACEHOLDER_EXAMPLES = ["Westlands", "Thika Town", "Kilimani", "Ruiru Town", "Karen"];
+const TYPE_MS = 80;
+const DELETE_MS = 40;
+const HOLD_MS = 1100;
+
+function useTypewriterPlaceholder(enabled: boolean, base: string): string {
+  const [text, setText] = useState(base);
+
+  useEffect(() => {
+    if (!enabled) {
+      setText(base);
+      return;
+    }
+    let wordIndex = 0;
+    let charIndex = 0;
+    let phase: "typing" | "holding" | "deleting" = "typing";
+    let timer: ReturnType<typeof setTimeout>;
+
+    function tick() {
+      const word = PLACEHOLDER_EXAMPLES[wordIndex];
+      if (phase === "typing") {
+        charIndex++;
+        setText(`e.g. ${word.slice(0, charIndex)}`);
+        if (charIndex === word.length) {
+          phase = "holding";
+          timer = setTimeout(tick, HOLD_MS);
+          return;
+        }
+        timer = setTimeout(tick, TYPE_MS);
+        return;
+      }
+      if (phase === "holding") {
+        phase = "deleting";
+        timer = setTimeout(tick, DELETE_MS);
+        return;
+      }
+      // deleting
+      charIndex--;
+      setText(`e.g. ${word.slice(0, charIndex)}`);
+      if (charIndex === 0) {
+        wordIndex = (wordIndex + 1) % PLACEHOLDER_EXAMPLES.length;
+        phase = "typing";
+      }
+      timer = setTimeout(tick, DELETE_MS);
+    }
+
+    timer = setTimeout(tick, TYPE_MS);
+    return () => clearTimeout(timer);
+  }, [enabled, base]);
+
+  return text;
+}
 
 /**
  * Ward/estate-level address input backed by TumaBoda's Google Places proxy
@@ -37,14 +96,23 @@ export function AddressAutocompleteInput({
   placeholder = "Start typing your delivery address…",
   className,
   id,
+  animatedPlaceholder = false,
+  showQuickPicks = false,
 }: AddressAutocompleteInputProps) {
   const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
+  const [quickPicks, setQuickPicks] = useState<AddressSuggestion[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
+  const animatedText = useTypewriterPlaceholder(animatedPlaceholder && !value, placeholder);
+
+  useEffect(() => {
+    if (!showQuickPicks) return;
+    void fetchCommonAreas().then(setQuickPicks);
+  }, [showQuickPicks]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -113,7 +181,7 @@ export function AddressAutocompleteInput({
         id={id}
         type="text"
         value={value}
-        placeholder={placeholder}
+        placeholder={animatedPlaceholder ? animatedText : placeholder}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => suggestions.length > 0 && setOpen(true)}
         className={cn(
@@ -145,6 +213,20 @@ export function AddressAutocompleteInput({
               </li>
             ))}
         </ul>
+      )}
+      {showQuickPicks && !value.trim() && quickPicks.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {quickPicks.map((qp) => (
+            <button
+              key={qp.description}
+              type="button"
+              onClick={() => handlePick(qp)}
+              className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-primary/40 hover:bg-muted"
+            >
+              {qp.description.split(",")[0]}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
