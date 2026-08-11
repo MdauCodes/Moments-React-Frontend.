@@ -12,7 +12,17 @@ import {
   type TumaBodaOrderBreakdown,
   type TumaBodaPayment,
   type TumaBodaReconciliation,
+  type TumaBodaCreditLine,
 } from "@/services/tumaBodaSettlementService";
+
+const REMITTANCE_METHODS = [
+  { value: "", label: "Not specified" },
+  { value: "mpesa", label: "M-Pesa" },
+  { value: "bank_transfer", label: "Bank transfer" },
+  { value: "cheque", label: "Cheque" },
+  { value: "cash", label: "Cash" },
+  { value: "other", label: "Other" },
+];
 
 function AdminTumaBodaSettlementsPage() {
   const allowed = useRequirePermission([PERM.SETTINGS_MANAGE]);
@@ -32,11 +42,18 @@ function AdminTumaBodaSettlementsPage() {
 
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
   const [recordingPayment, setRecordingPayment] = useState(false);
+  const [remittanceBusyId, setRemittanceBusyId] = useState<string | null>(null);
 
   const [theirBalance, setTheirBalance] = useState("");
   const [reconciliationNotes, setReconciliationNotes] = useState("");
   const [recordingReconciliation, setRecordingReconciliation] = useState(false);
+  const [autoSyncing, setAutoSyncing] = useState(false);
+
+  const [liveCreditLine, setLiveCreditLine] = useState<TumaBodaCreditLine | null>(null);
+  const [loadingLiveCreditLine, setLoadingLiveCreditLine] = useState(false);
 
   useEffect(() => { document.title = "TumaBoda Settlements · Moments admin"; }, []);
 
@@ -101,10 +118,17 @@ function AdminTumaBodaSettlementsPage() {
     }
     setRecordingPayment(true);
     try {
-      await tumaBodaSettlementApi.recordPayment({ amount, notes: paymentNotes.trim() || undefined });
+      await tumaBodaSettlementApi.recordPayment({
+        amount,
+        notes: paymentNotes.trim() || undefined,
+        reference: paymentReference.trim() || undefined,
+        method: paymentMethod || undefined,
+      });
       toast.success(`Recorded payment of ${formatKes(amount)}`);
       setPaymentAmount("");
       setPaymentNotes("");
+      setPaymentReference("");
+      setPaymentMethod("");
       await Promise.all([loadBalance(), loadPayments()]);
       setOrders([]);
       if (ordersOpen) void loadOrders();
@@ -112,6 +136,63 @@ function AdminTumaBodaSettlementsPage() {
       reportAdminError(err, "Recording TumaBoda payment");
     } finally {
       setRecordingPayment(false);
+    }
+  };
+
+  const loadLiveCreditLine = async () => {
+    setLoadingLiveCreditLine(true);
+    try {
+      const c = await tumaBodaSettlementApi.getLiveCreditLine();
+      setLiveCreditLine(c);
+    } catch (err) {
+      reportAdminError(err, "Fetching TumaBoda's live credit line");
+    } finally {
+      setLoadingLiveCreditLine(false);
+    }
+  };
+
+  const runAutoReconciliation = async () => {
+    setAutoSyncing(true);
+    try {
+      const r = await tumaBodaSettlementApi.recordAutoReconciliation();
+      if (r.delta != null && Math.abs(r.delta) > 0.01) {
+        toast.warning(`Synced — ${formatKes(Math.abs(r.delta))} disagreement (${r.delta > 0 ? "we show more owed" : "TumaBoda shows more owed"})`);
+      } else {
+        toast.success("Synced — balances agree");
+      }
+      await loadReconciliations();
+    } catch (err) {
+      reportAdminError(err, "Auto-syncing TumaBoda reconciliation");
+    } finally {
+      setAutoSyncing(false);
+    }
+  };
+
+  const updatePayment = (updated: TumaBodaPayment) =>
+    setPayments((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+
+  const declareRemittance = async (paymentId: string) => {
+    setRemittanceBusyId(paymentId);
+    try {
+      const updated = await tumaBodaSettlementApi.declareRemittance(paymentId);
+      updatePayment(updated);
+      toast.success("Declared to TumaBoda — pending their review, nothing repaid yet");
+    } catch (err) {
+      reportAdminError(err, "Declaring TumaBoda remittance");
+    } finally {
+      setRemittanceBusyId(null);
+    }
+  };
+
+  const refreshRemittanceStatus = async (paymentId: string) => {
+    setRemittanceBusyId(paymentId);
+    try {
+      const updated = await tumaBodaSettlementApi.refreshRemittanceStatus(paymentId);
+      updatePayment(updated);
+    } catch (err) {
+      reportAdminError(err, "Refreshing TumaBoda remittance status");
+    } finally {
+      setRemittanceBusyId(null);
     }
   };
 
@@ -160,8 +241,13 @@ function AdminTumaBodaSettlementsPage() {
               <li>The balance below is a running account total, not a per-order checklist.</li>
               <li>Record a payment after you've actually transferred money — full or partial.</li>
               <li>
-                Reconciliation compares our balance to what TumaBoda reports (get that from Levi's team until an
-                automated feed exists) — do this roughly every 7 days to catch drift early.
+                Reconciliation compares our balance to what TumaBoda reports — "Sync from TumaBoda" pulls it
+                straight from their credit-line API. Do this roughly every 7 days to catch drift early.
+              </li>
+              <li>
+                Give a payment an M-Pesa/bank reference to unlock "Declare to TumaBoda" — this registers the
+                repayment on their side for review. Declaring is not paying: their balance only moves once they
+                approve it, so check status with "Refresh status" after a few days.
               </li>
             </ul>
           </div>
@@ -267,8 +353,33 @@ function AdminTumaBodaSettlementsPage() {
                     style={{ width: "100%" }}
                   />
                 </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label className="admin-label">M-Pesa code / bank ref</label>
+                    <input
+                      className="admin-input"
+                      placeholder="Required to declare to TumaBoda"
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div>
+                    <label className="admin-label">Method</label>
+                    <select
+                      className="admin-input"
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                      style={{ width: "100%" }}
+                    >
+                      {REMITTANCE_METHODS.map((m) => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div>
-                  <label className="admin-label">Notes (bank ref, period covered, etc.)</label>
+                  <label className="admin-label">Notes (period covered, etc.)</label>
                   <input
                     className="admin-input"
                     value={paymentNotes}
@@ -287,11 +398,42 @@ function AdminTumaBodaSettlementsPage() {
               ) : payments.length === 0 ? (
                 <div className="admin-empty">No payments recorded yet.</div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {payments.map((p) => (
-                    <div key={p.id} className="admin-card-row" style={{ fontSize: 12 }}>
-                      <span>{formatDateShort(p.paidAt)} — {p.notes || "—"}</span>
-                      <b>{formatKes(p.amount)}</b>
+                    <div key={p.id} className="admin-card-row" style={{ fontSize: 12, flexDirection: "column", alignItems: "stretch", gap: 4 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span>{formatDateShort(p.paidAt)} — {p.notes || p.reference || "—"}</span>
+                        <b>{formatKes(p.amount)}</b>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ color: "var(--admin-muted)" }}>
+                          {p.tumabodaRemittanceStatus
+                            ? `TumaBoda: ${p.tumabodaRemittanceStatus}${p.tumabodaRemittanceRejectionReason ? ` — ${p.tumabodaRemittanceRejectionReason}` : ""}`
+                            : "Not declared to TumaBoda"}
+                        </span>
+                        {p.tumabodaRemittanceId ? (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost"
+                            style={{ fontSize: 11, padding: "2px 8px" }}
+                            disabled={remittanceBusyId === p.id}
+                            onClick={() => void refreshRemittanceStatus(p.id)}
+                          >
+                            {remittanceBusyId === p.id ? "…" : "Refresh status"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="admin-btn admin-btn-ghost"
+                            style={{ fontSize: 11, padding: "2px 8px" }}
+                            disabled={remittanceBusyId === p.id || !p.reference}
+                            title={!p.reference ? "Needs a reference to declare" : undefined}
+                            onClick={() => void declareRemittance(p.id)}
+                          >
+                            {remittanceBusyId === p.id ? "…" : "Declare to TumaBoda"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -301,8 +443,37 @@ function AdminTumaBodaSettlementsPage() {
             <div className="admin-panel" style={{ padding: 16 }}>
               <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>Weekly reconciliation</h3>
               <p style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 0 }}>
-                Get TumaBoda's reported balance from Levi's team, enter it here — do this roughly every 7 days.
+                Pulls TumaBoda's reported balance straight from their credit-line API — do this roughly every 7 days.
+                Manual entry below still works if the API is ever unavailable.
               </p>
+              <button
+                type="button"
+                className="admin-btn"
+                disabled={autoSyncing}
+                onClick={() => void runAutoReconciliation()}
+                style={{ marginBottom: 12 }}
+              >
+                {autoSyncing ? "Syncing…" : "Sync from TumaBoda"}
+              </button>
+
+              <div style={{ marginBottom: 14 }}>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  style={{ fontSize: 12 }}
+                  disabled={loadingLiveCreditLine}
+                  onClick={() => void loadLiveCreditLine()}
+                >
+                  {loadingLiveCreditLine ? "Checking…" : "Check TumaBoda's live credit line"}
+                </button>
+                {liveCreditLine && (
+                  <div style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 6 }}>
+                    Status {liveCreditLine.status ?? "—"} · Outstanding {formatKes(liveCreditLine.outstanding)} ·
+                    {" "}Available {formatKes(liveCreditLine.available)} of {formatKes(liveCreditLine.creditLimit)} limit
+                  </div>
+                )}
+              </div>
+
               <form onSubmit={submitReconciliation} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <label className="admin-label">TumaBoda's reported balance (KES)</label>

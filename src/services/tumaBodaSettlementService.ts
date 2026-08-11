@@ -23,7 +23,22 @@ export interface TumaBodaPayment {
   paidAt: string;
   recordedByName: string | null;
   notes: string | null;
+  reference: string | null;
+  method: string | null;
+  proofUrl: string | null;
+  tumabodaRemittanceId: string | null;
+  tumabodaRemittanceStatus: string | null;
+  tumabodaRemittanceRejectionReason: string | null;
   createdAt: string;
+}
+
+export interface TumaBodaCreditLine {
+  status: string | null;
+  creditLimit: number;
+  outstanding: number;
+  available: number;
+  totalDrawn: number;
+  totalRepaid: number;
 }
 
 export interface TumaBodaReconciliation {
@@ -56,7 +71,14 @@ export const tumaBodaSettlementApi = {
   getPayments: async (page = 0, size = 20): Promise<PageResult<TumaBodaPayment>> =>
     unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/payments?page=${page}&size=${size}`)),
 
-  recordPayment: (body: { amount: number; paidAt?: string; notes?: string }) =>
+  recordPayment: (body: {
+    amount: number;
+    paidAt?: string;
+    notes?: string;
+    reference?: string;
+    method?: string;
+    proofUrl?: string;
+  }) =>
     adminJson<TumaBodaPayment>("/api/v1/admin/tumaboda-settlements/payments", {
       method: "POST",
       body: JSON.stringify(body),
@@ -69,5 +91,23 @@ export const tumaBodaSettlementApi = {
     adminJson<TumaBodaReconciliation>("/api/v1/admin/tumaboda-settlements/reconciliations", {
       method: "POST",
       body: JSON.stringify(body),
+    }),
+
+  recordAutoReconciliation: () =>
+    adminJson<TumaBodaReconciliation>("/api/v1/admin/tumaboda-settlements/reconciliations/auto", {
+      method: "POST",
+    }),
+
+  getLiveCreditLine: () =>
+    adminJson<TumaBodaCreditLine>("/api/v1/admin/tumaboda-settlements/credit-line/live"),
+
+  declareRemittance: (paymentId: string) =>
+    adminJson<TumaBodaPayment>(`/api/v1/admin/tumaboda-settlements/payments/${paymentId}/declare-remittance`, {
+      method: "POST",
+    }),
+
+  refreshRemittanceStatus: (paymentId: string) =>
+    adminJson<TumaBodaPayment>(`/api/v1/admin/tumaboda-settlements/payments/${paymentId}/refresh-remittance-status`, {
+      method: "POST",
     }),
 };
