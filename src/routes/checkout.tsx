@@ -1026,6 +1026,12 @@ function CheckoutModal() {
                             setGpsFallback(null);
                             setCounty("");
                             setShowCountyFallback(false);
+                            // A prior address may have already resolved fulfillment (e.g. to
+                            // MANUAL_DELIVERY for an uncovered area) — without resetting this too,
+                            // the auto-resolve effect below (gated on fulfillment === null) never
+                            // fires again, so a second, covered address silently keeps the first
+                            // address's fulfillment instead of re-resolving to TumaBoda.
+                            setFulfillment(null);
                           }}
                           className="shrink-0 text-xs font-semibold underline underline-offset-2"
                         >
