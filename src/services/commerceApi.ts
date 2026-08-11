@@ -137,6 +137,7 @@ function normalizeOrder(raw: any): OrderRecord {
     deliveryFeeStatus: raw?.deliveryFeeStatus,
     deliveryFeeMethod: raw?.deliveryFeeMethod,
     tumabodaStatus: raw?.tumabodaStatus,
+    tumabodaDeliveryId: raw?.tumabodaDeliveryId,
     tumabodaDeliveryNumber: raw?.tumabodaDeliveryNumber,
     tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
     refundRequestedAt: raw?.refundRequestedAt,
@@ -351,6 +352,21 @@ export async function restoreOrderInventory(
     method: "PATCH",
   });
   if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/retry-tumaboda-delivery
+export async function retryTumaBodaDelivery(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/retry-tumaboda-delivery`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
   const raw = await res.json();
   return { order: normalizeOrder(raw), source: "live" };
 }

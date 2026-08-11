@@ -21,6 +21,7 @@ import {
   resolveOrderRefundRequest,
   markOrderPaymentRefunded,
   restoreOrderInventory,
+  retryTumaBodaDelivery,
 } from "@/services/commerceApi";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -65,6 +66,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
   const [refundActionBusy, setRefundActionBusy] = useState(false);
+  const [tumabodaRetryBusy, setTumabodaRetryBusy] = useState(false);
   const [documentBundle, setDocumentBundle] = useState<DocumentBundleAdminDto | null>(null);
 
   useEffect(() => {
@@ -166,6 +168,23 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
       reportAdminError(err, "Failed to restore inventory");
     } finally {
       setRefundActionBusy(false);
+    }
+  };
+
+  const handleRetryTumaBodaDelivery = async () => {
+    if (!o) return;
+    setTumabodaRetryBusy(true);
+    try {
+      const res = await retryTumaBodaDelivery(o.id);
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("TumaBoda delivery created");
+        onChanged?.();
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to create TumaBoda delivery");
+    } finally {
+      setTumabodaRetryBusy(false);
     }
   };
 
@@ -302,6 +321,36 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <Row label="City" value={o.city || "—"} />
                   <Row label="County" value={o.county || "—"} />
                   {o.postalCode && <Row label="Postal code" value={o.postalCode} />}
+                </Section>
+              )}
+
+              {/* TumaBoda delivery status — only meaningful once payment has succeeded; before
+                  that there's nothing to have created yet. */}
+              {o.fulfillmentType === "TUMABODA_DELIVERY" && o.paymentStatus === "PAID" && (
+                <Section title="TumaBoda delivery">
+                  {o.tumabodaDeliveryId ? (
+                    <>
+                      <Row label="Status" value={(o.tumabodaStatus ?? "—").toString().replace(/_/g, " ")} />
+                      <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
+                      {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-2 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                        Payment succeeded but the TumaBoda delivery was never created — their API call
+                        failed at checkout time (transient error). No tracking exists for this order until
+                        this is retried.
+                      </div>
+                      <button
+                        className="admin-btn admin-btn-ghost"
+                        disabled={tumabodaRetryBusy}
+                        onClick={handleRetryTumaBodaDelivery}
+                      >
+                        {tumabodaRetryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                        Retry TumaBoda delivery
+                      </button>
+                    </>
+                  )}
                 </Section>
               )}
 

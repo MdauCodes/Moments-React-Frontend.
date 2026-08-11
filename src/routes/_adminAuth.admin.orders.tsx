@@ -289,7 +289,24 @@ function AdminOrdersPage() {
                   ) : (
                     pageRows.map((o) => (
                       <tr key={o.id}>
-                        <td><b>{o.reference}</b>{o.isTestOrder && <TestBadge />}</td>
+                        <td>
+                          <b>{o.reference}</b>{o.isTestOrder && <TestBadge />}
+                          {o.fulfillmentType === "TUMABODA_DELIVERY" && o.paymentStatus === "PAID" && !o.tumabodaDeliveryId && (
+                            <span
+                              title="Paid, but the TumaBoda delivery was never created — open the order and retry"
+                              style={{
+                                marginLeft: 6,
+                                fontSize: 10,
+                                padding: "1px 6px",
+                                borderRadius: 999,
+                                background: "var(--admin-clay)",
+                                color: "#fff",
+                              }}
+                            >
+                              No delivery
+                            </span>
+                          )}
+                        </td>
                         <td>
                           <div>{o.customerName}</div>
                           <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{o.city}</div>

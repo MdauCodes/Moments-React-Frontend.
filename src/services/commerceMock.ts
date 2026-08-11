@@ -82,6 +82,9 @@ export interface OrderRecord {
   deliveryFeeMethod?: "SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD";
   /** TumaBoda-fulfilled delivery visibility. */
   tumabodaStatus?: string;
+  /** Null on a paid TUMABODA_DELIVERY order means delivery creation failed at payment time and
+   *  never retried — see AdminOrderController's retry-tumaboda-delivery action. */
+  tumabodaDeliveryId?: string;
   tumabodaDeliveryNumber?: string;
   tumabodaCost?: number;
   refundRequestedAt?: string;
