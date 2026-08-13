@@ -134,6 +134,9 @@ export interface PlaceOrderInput {
    *  pin-drop/map component that would collect them is its own design pass, not built yet. */
   dropoffLat?: number;
   dropoffLng?: number;
+  /** Building/apartment/landmark detail — sent separately from customer.address so it reaches
+   *  TumaBoda as recipient.locationName rather than being merged into recipient.location. */
+  landmarkDetail?: string;
   /** Client-generated UUID — prevents duplicate orders on network retry. */
   idempotencyKey?: string;
   /** Customer's own KRA PIN, printed on the tax invoice for their own remittance records. */
@@ -303,6 +306,7 @@ export const orderStore = {
     if (input.courierStageOrOffice) body.courierStageOrOffice = input.courierStageOrOffice;
     if (input.dropoffLat != null) body.dropoffLat = input.dropoffLat;
     if (input.dropoffLng != null) body.dropoffLng = input.dropoffLng;
+    if (input.landmarkDetail) body.landmarkDetail = input.landmarkDetail;
     if (input.customer.postalCode) body.postalCode = input.customer.postalCode;
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;

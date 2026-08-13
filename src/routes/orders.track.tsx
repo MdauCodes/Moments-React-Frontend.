@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 
 import { InlineProgress } from "@/components/InlineProgress";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ChevronDown, ChevronUp, FileDown, Search } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -14,32 +14,19 @@ import { getDeliveryPartner } from "@/data/deliveryPartners";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
-// Production host by default — TumaBoda is standing up a sandbox-equivalent of this script
-// tonight (2026-08-04); swap VITE_TUMABODA_EMBED_SCRIPT_URL to that URL once they send it, no
-// code change needed. The widget is a web component, not an iframe: <tumaboda-tracking code="…">.
-const TUMABODA_EMBED_SCRIPT_URL =
-  import.meta.env.VITE_TUMABODA_EMBED_SCRIPT_URL || "https://tumaboda.co.ke/embed/v1.js";
+// Rebuilt 2026-08-12 as a plain iframe rather than a script-injected custom element. Levi
+// (TumaBoda) described the integration as "an iframe from our end that gives the same live
+// tracking map the recipient gets on the SMS" (30/07 conversation) — and the SMS itself links to
+// exactly this pattern: https://sandbox.tumaboda.co.ke/track/{code} (see e.g. order
+// ORD-2026-08-0005's "Fuatilia live" SMS). The previous <script>-injected <tumaboda-tracking>
+// web component was never confirmed against real docs and wasn't rendering anything. Swap
+// VITE_TUMABODA_TRACKING_BASE_URL to the production tracking host before go-live.
+const TUMABODA_TRACKING_BASE_URL =
+  import.meta.env.VITE_TUMABODA_TRACKING_BASE_URL || "https://sandbox.tumaboda.co.ke/track";
 
 function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode: string; status?: string | null }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (document.querySelector(`script[src="${TUMABODA_EMBED_SCRIPT_URL}"]`)) return;
-    const script = document.createElement("script");
-    script.src = TUMABODA_EMBED_SCRIPT_URL;
-    script.async = true;
-    document.body.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.innerHTML = "";
-    const widget = document.createElement("tumaboda-tracking");
-    widget.setAttribute("code", trackingCode);
-    el.appendChild(widget);
-  }, [trackingCode]);
-
+  const [iframeFailed, setIframeFailed] = useState(false);
+  const trackingUrl = `${TUMABODA_TRACKING_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(trackingCode)}`;
   const tumaBodaPartner = getDeliveryPartner("tumaboda");
 
   return (
@@ -47,7 +34,25 @@ function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode: string
       <p className="text-xs uppercase tracking-widest text-muted-foreground">Live delivery tracking</p>
       {status && <p className="mt-1 text-sm text-foreground">{status.replace(/_/g, " ")}</p>}
       {tumaBodaPartner && <DeliveryPartnerBadge partner={tumaBodaPartner} className="mt-2" />}
-      <div ref={containerRef} className="mt-2" />
+      {!iframeFailed ? (
+        <iframe
+          src={trackingUrl}
+          title="Live delivery tracking"
+          className="mt-2 w-full rounded-lg border border-border"
+          style={{ height: 360 }}
+          loading="lazy"
+          sandbox="allow-scripts allow-same-origin allow-popups"
+          onError={() => setIframeFailed(true)}
+        />
+      ) : (
+        <p className="mt-2 text-sm text-muted-foreground">
+          Live map couldn't be embedded here —{" "}
+          <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            open tracking in a new tab
+          </a>
+          .
+        </p>
+      )}
     </div>
   );
 }

@@ -19,7 +19,7 @@ function AdminSettingsPage() {
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin]);
   if (!isAdmin) return <AdminLayout title="Settings"><Forbidden resource="settings" /></AdminLayout>;
   const save = async (key: string) => { setSavingKey(key); try { await adminResources.settings.upsert(drafts[key]); toast.success("Setting saved"); await load(); } catch (err) { reportAdminError(err, "Save failed"); } finally { setSavingKey(null); } };
-  return <AdminLayout title="Settings" onReload={load}><div className="admin-page-stack">{isSuperAdmin && <MockModeCard />}<MaintenanceToggleCard /><div className="admin-panel" data-admin-table-scroll><table className="admin-table"><thead><tr><th>Key</th><th>Value</th><th>Description</th><th></th></tr></thead><tbody>{loading ? <tr><td colSpan={4}>Loading settings…</td></tr> : rows.length === 0 ? <tr><td colSpan={4}><div className="admin-empty">No settings found.</div></td></tr> : rows.map((r) => <tr key={r.key}><td><b>{r.key}</b></td><td><input className="admin-input" value={drafts[r.key]?.value ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, value: e.target.value } })} /></td><td><input className="admin-input" value={drafts[r.key]?.description ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, description: e.target.value } })} /></td><td><button className="admin-btn admin-btn-primary" disabled={savingKey === r.key} onClick={() => void save(r.key)}>{savingKey === r.key && <Loader2 size={14} className="animate-spin" />}Save</button></td></tr>)}</tbody></table></div></div></AdminLayout>;
+  return <AdminLayout title="Settings" onReload={load}><div className="admin-page-stack">{isSuperAdmin && <MockModeCard />}{isSuperAdmin && <PodModeCard />}<MaintenanceToggleCard /><div className="admin-panel" data-admin-table-scroll><table className="admin-table"><thead><tr><th>Key</th><th>Value</th><th>Description</th><th></th></tr></thead><tbody>{loading ? <tr><td colSpan={4}>Loading settings…</td></tr> : rows.length === 0 ? <tr><td colSpan={4}><div className="admin-empty">No settings found.</div></td></tr> : rows.map((r) => <tr key={r.key}><td><b>{r.key}</b></td><td><input className="admin-input" value={drafts[r.key]?.value ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, value: e.target.value } })} /></td><td><input className="admin-input" value={drafts[r.key]?.description ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, description: e.target.value } })} /></td><td><button className="admin-btn admin-btn-primary" disabled={savingKey === r.key} onClick={() => void save(r.key)}>{savingKey === r.key && <Loader2 size={14} className="animate-spin" />}Save</button></td></tr>)}</tbody></table></div></div></AdminLayout>;
 }
 
 function MockModeCard() {
@@ -73,6 +73,92 @@ function MockModeCard() {
               {confirm === "on"
                 ? "All data created from now on will be flagged as test data and excluded from analytics. A visible banner will appear across the admin."
                 : "Live mode will be restored. New data will count toward analytics."}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button className="admin-btn admin-btn-ghost" onClick={() => setConfirm(null)} disabled={busy}>Cancel</button>
+              <button className="admin-btn admin-btn-primary" onClick={() => void apply(confirm === "on")} disabled={busy}>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : null} Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const POD_SETTING_KEY = "tumaboda.pod.enabled";
+
+/** Global switch between "Moments charges the delivery fee upfront at checkout" (default) and
+ *  "the customer pays the rider at the door" (Pay-on-Delivery) — every TumaBoda order follows
+ *  whichever mode was active at the moment it was quoted. Modeled directly on MockModeCard:
+ *  same confirm-before-toggle flow, same visual weight, because this is exactly the same class
+ *  of setting — a big binary switch with real financial consequences, not a free-text config
+ *  value that belongs in the generic table below. */
+function PodModeCard() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<null | "on" | "off">(null);
+
+  const load = () => {
+    adminResources.settings
+      .list()
+      .then((rows) => {
+        const row = rows.find((r) => r.key === POD_SETTING_KEY);
+        setEnabled(row?.value === "true");
+      })
+      .catch((err) => reportAdminError(err, "Failed to read Pay-on-Delivery mode"));
+  };
+  useEffect(() => { load(); }, []);
+
+  const apply = async (next: boolean) => {
+    setBusy(true);
+    try {
+      await adminResources.settings.upsert({
+        key: POD_SETTING_KEY,
+        value: String(next),
+        description: "Global TumaBoda payment mode: true = customer pays the rider on delivery (POD), false = delivery fee is charged upfront at checkout.",
+      });
+      setEnabled(next);
+      toast.success(next
+        ? "Pay-on-Delivery ENABLED — customers now pay riders at the door, not at checkout"
+        : "Pay-on-Delivery disabled — delivery fee is charged upfront at checkout again");
+    } catch (err) {
+      reportAdminError(err, "Failed to toggle Pay-on-Delivery mode");
+    } finally { setBusy(false); setConfirm(null); }
+  };
+
+  return (
+    <div className="admin-panel" style={{ padding: 20, marginBottom: 16, border: enabled ? "2px solid #0f766e" : undefined, background: enabled ? "rgba(20,184,166,0.08)" : undefined }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: enabled ? "#0f766e" : undefined }}>
+            TumaBoda Pay-on-Delivery {enabled === null ? "(loading…)" : enabled ? "— ACTIVE" : "— off (upfront)"}
+          </h2>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--admin-muted)" }}>
+            When ON, customers pay TumaBoda riders directly at the door instead of the delivery
+            fee being charged with the rest of their order at checkout. Applies platform-wide,
+            to every new order from the moment it's toggled. SUPER_ADMIN only.
+          </p>
+        </div>
+        <button
+          className="admin-btn admin-btn-primary"
+          disabled={busy || enabled === null}
+          style={{ background: enabled ? "#0f766e" : undefined, minWidth: 180 }}
+          onClick={() => setConfirm(enabled ? "off" : "on")}
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+          {enabled ? "Turn OFF (back to upfront)" : "Turn ON Pay-on-Delivery"}
+        </button>
+      </div>
+      {confirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--admin-bg)", border: "1px solid var(--admin-border)", borderRadius: 12, maxWidth: 420, width: "100%", padding: 24 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Confirm {confirm === "on" ? "ENABLE" : "DISABLE"} Pay-on-Delivery?</h3>
+            <p style={{ fontSize: 13, color: "var(--admin-muted)", marginTop: 8 }}>
+              {confirm === "on"
+                ? "Every new TumaBoda order from now on will have its delivery fee collected by the rider at the door, not charged at checkout."
+                : "Delivery fee will go back to being charged upfront at checkout, added to the M-Pesa total."}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
               <button className="admin-btn admin-btn-ghost" onClick={() => setConfirm(null)} disabled={busy}>Cancel</button>

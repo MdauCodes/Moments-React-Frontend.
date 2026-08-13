@@ -92,6 +92,10 @@ interface NavItem {
   badge?: number;
   /** Item is visible when user has ANY of these permissions. Omit = always visible. */
   requiresAny?: PermissionCode[];
+  /** Renders faded with a tooltip explaining why, instead of the normal hover/active styling —
+   *  for pages that still exist but whose primary action has moved elsewhere (e.g. a partner's
+   *  own portal), without removing staff's ability to open the page for reference. */
+  disabledNote?: string;
   /** Item is only ever visible to the Super Admin staff role, regardless of permissions. */
   superAdminOnly?: boolean;
 }
@@ -121,7 +125,7 @@ const navSections: NavSection[] = [
     label: "Sales",
     items: [
       { label: "Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE], disabledNote: "Settlements are now recorded directly in the TumaBoda Business Portal — this page is reference-only" },
       { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
@@ -410,19 +414,25 @@ function getInitials(name: string): string {
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   const tourKey = item.to.split("/").filter(Boolean).slice(-1)[0] ?? item.to;
+  const faded = Boolean(item.disabledNote);
   return (
     <Link
       to={item.to}
       data-tour={`nav-${tourKey}`}
-      style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}) }}
+      title={item.disabledNote}
+      style={{
+        ...styles.navItem,
+        ...(active ? styles.navItemActive : {}),
+        ...(faded ? { opacity: 0.55 } : {}),
+      }}
       onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!active) {
+        if (!active && !faded) {
           e.currentTarget.style.background = "var(--admin-sidebar-surface)";
           e.currentTarget.style.color = "var(--admin-sidebar-text)";
         }
       }}
       onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!active) {
+        if (!active && !faded) {
           e.currentTarget.style.background = "transparent";
           e.currentTarget.style.color = "var(--admin-sidebar-muted)";
         }

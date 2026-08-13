@@ -208,6 +208,16 @@ function CheckoutModal() {
   // see startPayment(). Not used by Manual Delivery, which has its own address field below.
   const [landmarkDetail, setLandmarkDetail] = useState("");
 
+  // Live delivery-fee preview — debounced call to /api/v1/public/tumaboda/quote whenever the
+  // resolved pin changes (see the effect below). Fails closed: an error here drops TumaBoda
+  // back to Manual Delivery automatically rather than ever proceeding with a guessed fee.
+  const [quotePreview, setQuotePreview] = useState<{
+    mode: "UPFRONT" | "POD";
+    feeKes: number;
+  } | null>(null);
+  const [quoteChecking, setQuoteChecking] = useState(false);
+  const [quoteUnavailable, setQuoteUnavailable] = useState(false);
+
   // Gates the two sub-views of the merged "delivery" step: fulfillment/courier details form,
   // then (once confirmed) the order summary + pay button — mirrors the old contact→payment
   // handoff.
@@ -463,6 +473,63 @@ function CheckoutModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [covered, wantsDelivery]);
 
+  // Live delivery-fee preview — fires whenever the resolved pin changes, so the customer sees
+  // the real fee before committing rather than only finding out at final checkout. Fails
+  // CLOSED on any error: TumaBoda is auto-dropped back to Manual Delivery, never left showing a
+  // guessed or stale fee. contactReady (not raw name/phone) is the dependency — retriggers
+  // exactly when they transition from incomplete to complete, not on every keystroke, but still
+  // guarantees the quote actually fires once all three are ready regardless of fill order (name/
+  // phone resolving after the address pin does, not just before, must not leave this stuck).
+  const contactReady = Boolean(name.trim() && phone.trim());
+  useEffect(() => {
+    if (fulfillment !== "TUMABODA_DELIVERY" || !resolvedAddress || !contactReady) {
+      setQuotePreview(null);
+      setQuoteUnavailable(false);
+      return;
+    }
+    let cancelled = false;
+    setQuoteChecking(true);
+    setQuoteUnavailable(false);
+    const t = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({
+          lat: String(resolvedAddress.latitude),
+          lng: String(resolvedAddress.longitude),
+          subtotal: String(cartTotal),
+          contactName: name.trim(),
+          phone: normalizePhone(phone),
+          location: resolvedAddress.description ?? "",
+          landmarkDetail: landmarkDetail.trim(),
+        });
+        const res = await fetch(apiUrl(`/api/v1/public/tumaboda/quote?${params.toString()}`));
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.available) {
+          setQuotePreview({ mode: data.mode, feeKes: Number(data.customerFacingFeeKes) });
+          setQuoteUnavailable(false);
+        } else {
+          setQuotePreview(null);
+          setQuoteUnavailable(true);
+          setFulfillment("MANUAL_DELIVERY");
+          toast.error(data.message || "TumaBoda delivery isn't available right now — switched to Manual Delivery.");
+        }
+      } catch {
+        if (cancelled) return;
+        setQuotePreview(null);
+        setQuoteUnavailable(true);
+        setFulfillment("MANUAL_DELIVERY");
+        toast.error("TumaBoda delivery isn't available right now — switched to Manual Delivery.");
+      } finally {
+        if (!cancelled) setQuoteChecking(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fulfillment, resolvedAddress, cartTotal, contactReady]);
+
   // Payment state
   const [payState, setPayState] = useState<PayState>("idle");
   const [orderRef, setOrderRef] = useState<string | null>(null);
@@ -570,6 +637,12 @@ function CheckoutModal() {
       toast.error("Please add a building/apartment or nearby landmark so the rider can find you");
       return false;
     }
+    // Fail closed here too, not just in the effect: never let the customer proceed to payment
+    // on a still-loading, failed, or stale-from-a-previous-address quote.
+    if (fulfillment === "TUMABODA_DELIVERY" && (quoteChecking || !quotePreview)) {
+      toast.error("Please wait for the delivery fee to finish calculating.");
+      return false;
+    }
     if (fulfillment === "MANUAL_DELIVERY") {
       if (!city.trim()) {
         toast.error("Please fill in the destination town");
@@ -646,13 +719,11 @@ function CheckoutModal() {
     setPayState("sending");
     const phoneNormalized = normalizePhone(phone);
 
-    // TumaBoda gets the resolved pin's real place name plus any landmark detail — using the plain
-    // `address` field here would lose the actual resolved place ("Thika Town, Kiambu") in favor of
-    // just the landmark text, which is what this used to silently do before this composition.
+    // TumaBoda gets the resolved pin's real place name as its own field — landmarkDetail is sent
+    // separately below (as recipient.locationName server-side) rather than merged into this
+    // string, which used to silently lose TumaBoda's dedicated building/apartment-detail field.
     const deliveryLocationText =
-      fulfillment === "TUMABODA_DELIVERY"
-        ? [resolvedAddress?.description, landmarkDetail.trim()].filter(Boolean).join(" — ")
-        : address.trim();
+      fulfillment === "TUMABODA_DELIVERY" ? resolvedAddress?.description ?? "" : address.trim();
 
     try {
       let id = orderId;
@@ -681,6 +752,7 @@ function CheckoutModal() {
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
           dropoffLat: fulfillment !== "PICKUP" ? resolvedAddress?.latitude ?? undefined : undefined,
           dropoffLng: fulfillment !== "PICKUP" ? resolvedAddress?.longitude ?? undefined : undefined,
+          landmarkDetail: fulfillment === "TUMABODA_DELIVERY" ? landmarkDetail.trim() : undefined,
           ...(fulfillment === "MANUAL_DELIVERY" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -777,8 +849,11 @@ function CheckoutModal() {
 
   if (items.length === 0 && payState === "idle") return null;
 
-  // TUMABODA_DELIVERY's real-time quote wiring lands in a later slice — fee stays 0 here until then.
-  const shippingFee = 0;
+  // UPFRONT TumaBoda: real quote gets added to the charge. POD: rider collects at the door, so
+  // Moments never charges it here — deliberately zero regardless of quotePreview, matching the
+  // backend's own POD-vs-upfront split (CheckoutService.checkout).
+  const shippingFee =
+    fulfillment === "TUMABODA_DELIVERY" && quotePreview?.mode === "UPFRONT" ? quotePreview.feeKes : 0;
   const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0) - (appliedRedemption?.discount ?? 0);
   const shippingLabel =
     fulfillment === "PICKUP"
@@ -790,7 +865,13 @@ function CheckoutModal() {
     fulfillment === "PICKUP"
       ? "Free"
       : fulfillment === "TUMABODA_DELIVERY"
-        ? "Calculated at booking"
+        ? quotePreview
+          ? quotePreview.mode === "POD"
+            ? `${fmt(quotePreview.feeKes)} on delivery`
+            : fmt(quotePreview.feeKes)
+          : quoteChecking
+            ? "Calculating…"
+            : "Pending"
         : "To be confirmed";
 
   const brandStyle = { ["--brand-ring" as string]: BRAND } as React.CSSProperties;
@@ -1111,7 +1192,7 @@ function CheckoutModal() {
                           )}
                           <div className="px-4 pb-4">
                           <p className="text-muted-foreground">
-                            Tracked delivery straight to your doorstep — fee calculated at booking.
+                            Tracked delivery straight to your doorstep — pin your address below for the exact fee.
                           </p>
 
                           {resolvedAddress ? (
@@ -1130,6 +1211,36 @@ function CheckoutModal() {
                                 <p className="mt-1 text-xs text-muted-foreground">
                                   Required — helps the rider actually find you once they're in the area.
                                 </p>
+                              </div>
+
+                              {/* Live delivery-fee preview — see the debounced quote effect above.
+                                  Mode-specific copy directly answers "when am I charged for this". */}
+                              <div className="rounded-xl border border-border bg-background/70 p-3 text-sm">
+                                {quoteChecking ? (
+                                  <p className="flex items-center gap-2 text-muted-foreground">
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculating delivery fee…
+                                  </p>
+                                ) : quotePreview ? (
+                                  quotePreview.mode === "POD" ? (
+                                    <p>
+                                      <span className="font-semibold text-foreground">
+                                        Pay {fmt(quotePreview.feeKes)} to the rider
+                                      </span>{" "}
+                                      when your order arrives — not charged now.
+                                    </p>
+                                  ) : (
+                                    <p>
+                                      <span className="font-semibold text-foreground">
+                                        {fmt(quotePreview.feeKes)} delivery fee
+                                      </span>{" "}
+                                      added to your total, paid now with the rest of your order.
+                                    </p>
+                                  )
+                                ) : quoteUnavailable ? (
+                                  <p className="text-destructive">
+                                    TumaBoda delivery isn't available right now for this address.
+                                  </p>
+                                ) : null}
                               </div>
                             </div>
                           ) : (
