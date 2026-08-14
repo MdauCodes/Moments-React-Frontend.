@@ -43,6 +43,19 @@ export async function fetchCommonAreas(): Promise<AddressSuggestion[]> {
   }
 }
 
+/** Every seeded area, not just the curated quick-pick subset — for the "More options" expand
+ *  panel. Fetched lazily (only when the panel is actually opened), not alongside the quick picks. */
+export async function fetchAllCommonAreas(): Promise<AddressSuggestion[]> {
+  try {
+    const res = await apiFetch(`/api/v1/public/tumaboda/maps/common-areas/all`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function fetchPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
   try {
     const res = await apiFetch(`/api/v1/public/tumaboda/maps/place-details?placeId=${encodeURIComponent(placeId)}`);

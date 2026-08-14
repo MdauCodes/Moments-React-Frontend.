@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   fetchAddressSuggestions,
+  fetchAllCommonAreas,
   fetchCommonAreas,
   fetchPlaceDetails,
   type AddressSuggestion,
@@ -105,6 +106,9 @@ export function AddressAutocompleteInput({
   const [loading, setLoading] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [quickPicks, setQuickPicks] = useState<AddressSuggestion[]>([]);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [allAreas, setAllAreas] = useState<AddressSuggestion[] | null>(null);
+  const [allAreasLoading, setAllAreasLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
@@ -114,6 +118,19 @@ export function AddressAutocompleteInput({
     if (!showQuickPicks) return;
     void fetchCommonAreas().then(setQuickPicks);
   }, [showQuickPicks]);
+
+  // Fetched lazily — only once "More options" is actually opened, not alongside the small
+  // curated quick-pick set every checkout visit needs.
+  function handleToggleMore() {
+    const next = !moreOpen;
+    setMoreOpen(next);
+    if (next && allAreas === null) {
+      setAllAreasLoading(true);
+      void fetchAllCommonAreas()
+        .then(setAllAreas)
+        .finally(() => setAllAreasLoading(false));
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -231,6 +248,47 @@ export function AddressAutocompleteInput({
             </button>
           ))}
           </div>
+          <button
+            type="button"
+            onClick={handleToggleMore}
+            className="mt-2 flex items-center gap-1 text-xs font-medium text-muted-foreground underline underline-offset-2 hover:text-foreground"
+          >
+            More options
+            {moreOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          </button>
+          {moreOpen && (
+            <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-border bg-background/60 p-2">
+              {allAreasLoading ? (
+                <p className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading more areas…
+                </p>
+              ) : (
+                Object.entries(
+                  (allAreas ?? []).reduce<Record<string, AddressSuggestion[]>>((byCounty, a) => {
+                    const county = a.county ?? "Other";
+                    (byCounty[county] ??= []).push(a);
+                    return byCounty;
+                  }, {}),
+                ).map(([county, areas]) => (
+                  <div key={county} className="mb-2 last:mb-0">
+                    <p className="px-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{county}</p>
+                    <div className="flex flex-wrap gap-1.5 px-2 py-1">
+                      {areas.map((a) => (
+                        <button
+                          key={a.description}
+                          type="button"
+                          onClick={() => handlePick(a)}
+                          className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground transition hover:border-primary/40 hover:bg-muted"
+                        >
+                          {a.description.split(",")[0]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
