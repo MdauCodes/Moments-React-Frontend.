@@ -29,6 +29,7 @@ import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
 import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
 import { AssignSelect } from "@/components/admin/AssignSelect";
+import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 
 interface Props {
   orderId: string | null;
@@ -334,6 +335,9 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                       <Row label="Status" value={(o.tumabodaStatus ?? "—").toString().replace(/_/g, " ")} />
                       <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
                       {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
+                      {o.tumabodaTrackingCode && (
+                        <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
+                      )}
                     </>
                   ) : (
                     <>

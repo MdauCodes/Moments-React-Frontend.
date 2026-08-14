@@ -115,6 +115,7 @@ function normalizeOrder(raw: any): OrderRecord {
     updatedAt: raw?.updatedAt ?? raw?.createdAt ?? new Date().toISOString(),
 
     trackingNumber: raw?.trackingNumber,
+    tumabodaTrackingCode: raw?.tumabodaTrackingCode,
     notes: raw?.notes,
     staffNotes: raw?.staffNotes ?? "",
     assignedTo: raw?.assignedTo,
