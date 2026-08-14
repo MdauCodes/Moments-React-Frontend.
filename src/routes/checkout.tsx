@@ -1250,9 +1250,9 @@ function CheckoutModal() {
                                   quotePreview.mode === "POD" ? (
                                     <p>
                                       <span className="font-semibold text-foreground">
-                                        Pay {fmt(quotePreview.feeKes)} to the rider
+                                        Pay {fmt(quotePreview.feeKes)} via M-Pesa
                                       </span>{" "}
-                                      when your order arrives — not charged now.
+                                      when your rider arrives — not charged now.
                                     </p>
                                   ) : (
                                     <p>
