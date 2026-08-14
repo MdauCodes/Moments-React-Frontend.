@@ -482,7 +482,12 @@ function CheckoutModal() {
   // phone resolving after the address pin does, not just before, must not leave this stuck).
   const contactReady = Boolean(name.trim() && phone.trim());
   useEffect(() => {
-    if (fulfillment !== "TUMABODA_DELIVERY" || !resolvedAddress || !contactReady) {
+    // cartTotal drops to 0 the moment a successful order clears the cart (see the payment-success
+    // handler below), while this page is still mounted for its 1.2s redirect delay — without this
+    // guard, that transient zero total re-fires a quote request TumaBoda correctly rejects
+    // (goodsValueKes must be positive), which then flips fulfillment to Manual Delivery and pops
+    // an error toast right after the customer just saw a success state.
+    if (fulfillment !== "TUMABODA_DELIVERY" || !resolvedAddress || !contactReady || cartTotal <= 0) {
       setQuotePreview(null);
       setQuoteUnavailable(false);
       return;
