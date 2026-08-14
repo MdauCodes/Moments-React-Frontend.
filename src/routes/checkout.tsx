@@ -13,6 +13,7 @@ import {
   Store,
   Truck,
   PackageCheck,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
@@ -199,6 +200,7 @@ function CheckoutModal() {
   // sentinel value stuffed into `county`, so it can't collide with a real county string.
   const [showCountyFallback, setShowCountyFallback] = useState(false);
   const [locatingMe, setLocatingMe] = useState(false);
+  const [courierInfoExpanded, setCourierInfoExpanded] = useState(false);
   // Raw device fix from "Use my current location" — held here for explicit confirmation (GPS can
   // be wrong: indoors, VPN, stale cache) rather than being silently trusted or silently dropped
   // into the search box. Cleared once the customer confirms or rejects it.
@@ -1196,9 +1198,26 @@ function CheckoutModal() {
                             </div>
                           )}
                           <div className="px-4 pb-4">
-                          <p className="text-muted-foreground">
-                            Tracked delivery straight to your doorstep — pin your address below for the exact fee.
-                          </p>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-muted-foreground">Tracked delivery to your doorstep.</p>
+                            <button
+                              type="button"
+                              onClick={() => setCourierInfoExpanded((v) => !v)}
+                              className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-foreground underline underline-offset-2"
+                            >
+                              {courierInfoExpanded ? "Less" : "More"}
+                              <ChevronDown
+                                className={`h-3 w-3 transition-transform ${courierInfoExpanded ? "rotate-180" : ""}`}
+                              />
+                            </button>
+                          </div>
+                          {courierInfoExpanded && (
+                            <p className="mt-1 text-muted-foreground">
+                              A TumaBoda rider picks up your order and brings it straight to the address you pin
+                              below. You'll see the exact delivery fee before you pay — pin your address to
+                              calculate it.
+                            </p>
+                          )}
 
                           {resolvedAddress ? (
                             <div className="mt-3 space-y-3">

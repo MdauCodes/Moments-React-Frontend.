@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   fetchAddressSuggestions,
@@ -190,9 +191,10 @@ export function AddressAutocompleteInput({
         )}
         autoComplete="off"
       />
-      {resolving && (
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-          Resolving…
+      {(loading || resolving) && (
+        <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {resolving ? "Resolving…" : "Searching…"}
         </span>
       )}
       {open && (loading || suggestions.length > 0) && (
