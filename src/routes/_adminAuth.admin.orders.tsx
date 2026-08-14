@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   AgeBadge,
+  DeliveryFeeStatusBadge,
+  FulfillmentBadge,
   GatewayChip,
   ORDER_STATUS_OPTIONS,
   OrderStatusBadge,
@@ -265,6 +267,7 @@ function AdminOrdersPage() {
                 <thead>
                   <tr>
                     <th>Reference</th>
+                    <th>Delivery</th>
                     <th>Customer</th>
                     <th>Items</th>
                     <th>Total</th>
@@ -277,9 +280,9 @@ function AdminOrdersPage() {
                 </thead>
                 <tbody>
                   {initialLoading ? (
-                    <tr><td colSpan={canAssign ? 9 : 8}><div className="admin-empty">Loading orders…</div></td></tr>
+                    <tr><td colSpan={canAssign ? 10 : 9}><div className="admin-empty">Loading orders…</div></td></tr>
                   ) : pageRows.length === 0 ? (
-                    <tr><td colSpan={canAssign ? 9 : 8}>
+                    <tr><td colSpan={canAssign ? 10 : 9}>
                       <div className="admin-empty">
                         {isAssignedOnly
                           ? "No orders assigned to you yet. Your supervisor will assign orders when ready."
@@ -291,11 +294,16 @@ function AdminOrdersPage() {
                       <tr key={o.id}>
                         <td>
                           <b>{o.reference}</b>{o.isTestOrder && <TestBadge />}
+                        </td>
+                        <td style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
+                          <FulfillmentBadge fulfillmentType={o.fulfillmentType} />
+                          {o.fulfillmentType === "MANUAL_DELIVERY" && (
+                            <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
+                          )}
                           {o.fulfillmentType === "TUMABODA_DELIVERY" && o.paymentStatus === "PAID" && !o.tumabodaDeliveryId && (
                             <span
                               title="Paid, but the TumaBoda delivery was never created — open the order and retry"
                               style={{
-                                marginLeft: 6,
                                 fontSize: 10,
                                 padding: "1px 6px",
                                 borderRadius: 999,

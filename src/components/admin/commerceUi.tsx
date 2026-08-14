@@ -148,6 +148,70 @@ export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
   );
 }
 
+const FULFILLMENT_TONE: Record<string, { bg: string; fg: string; label: string }> = {
+  PICKUP: { bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", label: "Pickup" },
+  MANUAL_DELIVERY: { bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", label: "Manual" },
+  TUMABODA_DELIVERY: { bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", label: "TumaBoda" },
+};
+
+/** Per-row fulfillment-mode indicator for the Orders table — previously the only fulfillment
+ *  signal in that table was the narrow TumaBoda "No delivery" chip; every other row gave no
+ *  visual hint of Pickup vs Manual vs TumaBoda at a glance. */
+export function FulfillmentBadge({ fulfillmentType }: { fulfillmentType: string | undefined }) {
+  if (!fulfillmentType) return null;
+  const tone = FULFILLMENT_TONE[fulfillmentType] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: fulfillmentType };
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 7px",
+        borderRadius: 6,
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+        background: tone.bg,
+        color: tone.fg,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {tone.label}
+    </span>
+  );
+}
+
+const DELIVERY_FEE_TONE: Record<string, { bg: string; fg: string; label: string }> = {
+  UNPAID: { bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c", label: "Fee unpaid" },
+  PENDING_STK: { bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", label: "Fee: STK sent" },
+  PAID: { bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", label: "Fee paid" },
+};
+
+/** Manual Delivery's fee-collection status — genuinely useful at a glance since, unlike every
+ *  other fulfillment type, this fee isn't known/charged at checkout and needs an admin follow-up
+ *  call to actually collect. Only meaningful for MANUAL_DELIVERY orders. */
+export function DeliveryFeeStatusBadge({ status }: { status: string | null | undefined }) {
+  if (!status) return null;
+  const tone = DELIVERY_FEE_TONE[status];
+  if (!tone) return null;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 7px",
+        borderRadius: 6,
+        fontSize: 10,
+        fontWeight: 600,
+        background: tone.bg,
+        color: tone.fg,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {tone.label}
+    </span>
+  );
+}
+
 export function GatewayChip({ gateway }: { gateway: PaymentGateway }) {
   const label = GATEWAY_LABEL[gateway] ?? gateway;
   return (

@@ -31,7 +31,14 @@ interface AdminOrdersContextValue {
 const AdminOrdersContext = createContext<AdminOrdersContextValue | undefined>(undefined);
 
 const POLL_INTERVAL_MS = 20_000;
-const PAGE_SIZE = 100;
+// Every consumer of this context (Orders page's delivery-mode tabs, dispatch/preparation/payment
+// queues, the dashboard, dev-tools) filters client-side over this one fetched batch — past this
+// many total orders, a filter can silently miss real matches sitting on a page never fetched.
+// Bumped from 100 as an immediate mitigation; the real fix (server-side pagination per view,
+// e.g. the Orders page's fulfillmentType tabs using the backend's already-supported query param
+// instead of an in-memory filter) needs its own pass since this context is shared by 7+ pages —
+// changing its fetch contract isn't safe to do as a drive-by.
+const PAGE_SIZE = 500;
 
 export function AdminOrdersProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAdminAuth();

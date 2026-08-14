@@ -841,6 +841,9 @@ export interface DeliveryPerformance {
   deliveryRatePercent: number;
   avgDeliveryHours: number;
   deliverySampleCount: number;
+  paidRevenue: number;
+  /** null when there were no paid orders of this type in range — not a misleading zero. */
+  avgOrderValue: number | null;
 }
 
 export interface DeliveryAnalytics {
@@ -949,12 +952,21 @@ export interface SuspiciousAccount {
   accountsSharingIp: number;
 }
 
+export interface TumaBodaAttentionOrder {
+  orderId: string;
+  reference: string;
+  /** "NO_DELIVERY_CREATED" or "DELIVERY_FAILED"/"DELIVERY_RETURNED"/"DELIVERY_CANCELLED". */
+  reason: string;
+  createdAt: string;
+}
+
 export interface NeedsAttentionSummary {
   operationalAlerts: Alerts;
   lapsedCustomers: LapsedCustomer[];
   salesDropAlerts: SalesDropAlert[];
   underperformingProducts: UnderperformingProduct[];
   suspiciousAccounts: SuspiciousAccount[];
+  tumaBodaOrdersNeedingAttention: TumaBodaAttentionOrder[];
 }
 
 export async function getNeedsAttention(): Promise<NeedsAttentionSummary> {

@@ -1,6 +1,7 @@
 import { KpiCard } from "@/components/admin/analyticsUi";
 import { RankedBarChart } from "@/components/admin/analyticsCharts";
 import { CATEGORICAL } from "@/lib/analyticsPalette";
+import { formatKes } from "@/components/admin/commerceUi";
 import type { DeliveryAnalytics } from "@/services/commerceApi";
 
 export function fulfillmentLabel(type: string): string {
@@ -32,20 +33,34 @@ export function DeliverySection({ delivery, deliveryLoading }: { delivery: Deliv
                   sub={resolvedCount === 0
                     ? `${d.totalOrders} order(s), none resolved yet (still in transit)`
                     : `${d.deliveredCount} delivered · ${d.cancelledCount} cancelled · ${d.totalOrders} total orders`}
-                  badges={d.deliverySampleCount === 0 ? undefined : [{ label: `avg ${d.avgDeliveryHours}h dispatch→delivery`, tone: "info" }]}
+                  badges={[
+                    ...(d.deliverySampleCount === 0 ? [] : [{ label: `avg ${d.avgDeliveryHours}h dispatch→delivery`, tone: "info" as const }]),
+                    ...(d.avgOrderValue == null ? [] : [{ label: `avg order ${formatKes(d.avgOrderValue)}`, tone: "ok" as const }]),
+                  ]}
                 />
               );
             })}
           </div>
 
-          <div style={{ marginTop: 16 }}>
-            <div className="admin-label" style={{ marginBottom: 8 }}>Orders by fulfillment type (this period)</div>
-            <RankedBarChart
-              data={delivery.byFulfillmentType.map((d) => ({ name: fulfillmentLabel(d.fulfillmentType), total: d.totalOrders }))}
-              dataKey="total"
-              nameKey="name"
-              color={CATEGORICAL[0]}
-            />
+          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+            <div>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Orders by fulfillment type (this period)</div>
+              <RankedBarChart
+                data={delivery.byFulfillmentType.map((d) => ({ name: fulfillmentLabel(d.fulfillmentType), total: d.totalOrders }))}
+                dataKey="total"
+                nameKey="name"
+                color={CATEGORICAL[0]}
+              />
+            </div>
+            <div>
+              <div className="admin-label" style={{ marginBottom: 8 }}>Paid revenue by fulfillment type (this period)</div>
+              <RankedBarChart
+                data={delivery.byFulfillmentType.map((d) => ({ name: fulfillmentLabel(d.fulfillmentType), revenue: Number(d.paidRevenue) }))}
+                dataKey="revenue"
+                nameKey="name"
+                color={CATEGORICAL[1]}
+              />
+            </div>
           </div>
         </>
       )}
@@ -62,10 +77,10 @@ export function deliveryExportPayload(delivery: DeliveryAnalytics | null) {
     tables: [
       {
         title: "Delivery performance by fulfillment type",
-        columns: ["Type", "Total orders", "Delivered", "Cancelled", "Delivery rate %", "Avg hours"],
+        columns: ["Type", "Total orders", "Delivered", "Cancelled", "Delivery rate %", "Avg hours", "Paid revenue", "Avg order value"],
         rows: (delivery?.byFulfillmentType ?? []).map((d) => [
           fulfillmentLabel(d.fulfillmentType), d.totalOrders, d.deliveredCount, d.cancelledCount,
-          d.deliveryRatePercent, d.avgDeliveryHours,
+          d.deliveryRatePercent, d.avgDeliveryHours, d.paidRevenue, d.avgOrderValue ?? "—",
         ]),
       },
     ],

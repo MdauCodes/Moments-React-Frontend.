@@ -7,6 +7,7 @@ import { adminResources, type DocumentBundleAdminDto } from "@/services/adminRes
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  DeliveryFeeStatusBadge,
   OrderStatusBadge,
   PaymentStatusBadge,
   formatKes,
@@ -394,15 +395,32 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                 <Row
                   label="Delivery fee"
                   value={
-                    o.fulfillmentType === "MANUAL_DELIVERY"
-                      ? "Paid to courier on collection"
-                      : o.fulfillmentType === "PICKUP"
-                        ? "Free (pickup)"
-                        : Number(o.shippingFee) === 0
-                          ? "Free"
-                          : formatKes(o.shippingFee)
+                    o.fulfillmentType === "MANUAL_DELIVERY" ? (
+                      <span className="inline-flex items-center gap-2">
+                        {o.deliveryFeeAmount != null ? formatKes(o.deliveryFeeAmount) : "Not yet arranged"}
+                        <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
+                      </span>
+                    ) : o.fulfillmentType === "PICKUP" ? (
+                      "Free (pickup)"
+                    ) : Number(o.shippingFee) === 0 ? (
+                      "Free"
+                    ) : (
+                      formatKes(o.shippingFee)
+                    )
                   }
                 />
+                {o.fulfillmentType === "MANUAL_DELIVERY" && o.deliveryFeeMethod && (
+                  <Row
+                    label="Fee collection method"
+                    value={
+                      o.deliveryFeeMethod === "SELF_PAID"
+                        ? "Customer self-paid"
+                        : o.deliveryFeeMethod === "ADMIN_STK"
+                          ? "Admin-triggered STK"
+                          : "Manually recorded"
+                    }
+                  />
+                )}
                 {Number(o.discount ?? 0) > 0 && <Row label="Discount" value={`− ${formatKes(o.discount)}`} />}
                 {o.promoCode && <Row label="Promo code" value={o.promoCode} />}
                 {Number(o.vatAmount ?? 0) > 0 ? (

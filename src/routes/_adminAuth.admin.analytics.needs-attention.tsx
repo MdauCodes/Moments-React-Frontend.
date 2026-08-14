@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, TrendingDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { AlertTriangle, CheckCircle2, TrendingDown, Truck } from "lucide-react";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { AlertsPanel } from "@/components/admin/AlertsPanel";
@@ -7,11 +8,19 @@ import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { STATUS } from "@/lib/analyticsPalette";
 import { getNeedsAttention, type NeedsAttentionSummary } from "@/services/commerceApi";
 
+const TUMABODA_REASON_LABEL: Record<string, string> = {
+  NO_DELIVERY_CREATED: "Paid, delivery never booked",
+  DELIVERY_FAILED: "TumaBoda reported: failed",
+  DELIVERY_RETURNED: "TumaBoda reported: returned",
+  DELIVERY_CANCELLED: "TumaBoda reported: cancelled",
+};
+
 // Proactive signals an admin would otherwise only notice by chance — combines the existing live
-// AlertsPanel (stale orders, failed payments, stock, refunds) with four new signals computed
+// AlertsPanel (stale orders, failed payments, stock, refunds) with five new signals computed
 // server-side: customers who've gone quiet (2x their own average reorder gap), sales metrics down
-// 20%+ vs. the prior 30 days, dead-stock products, and flagged (never auto-restricted) accounts
-// sharing a registration IP.
+// 20%+ vs. the prior 30 days, dead-stock products, flagged (never auto-restricted) accounts
+// sharing a registration IP, and TumaBoda orders needing a human (never booked, or reported
+// failed/returned/cancelled).
 function AdminAnalyticsNeedsAttentionPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [data, setData] = useState<NeedsAttentionSummary | null>(null);
@@ -33,7 +42,8 @@ function AdminAnalyticsNeedsAttentionPage() {
     && data.lapsedCustomers.length === 0
     && data.salesDropAlerts.length === 0
     && data.underperformingProducts.length === 0
-    && data.suspiciousAccounts.length === 0;
+    && data.suspiciousAccounts.length === 0
+    && data.tumaBodaOrdersNeedingAttention.length === 0;
 
   return (
     <AdminLayout title="Analytics · Needs Attention" onReload={() => setReloadKey((k) => k + 1)}>
@@ -48,7 +58,48 @@ function AdminAnalyticsNeedsAttentionPage() {
         {nothingElseToShow && (
           <div className="admin-panel" style={{ padding: 14, display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: STATUS.good }}>
             <CheckCircle2 size={16} />
-            <span>No lapsed customers, sales drops, dead stock, or flagged accounts right now.</span>
+            <span>No lapsed customers, sales drops, dead stock, flagged accounts, or stuck TumaBoda orders right now.</span>
+          </div>
+        )}
+
+        {!loading && data && data.tumaBodaOrdersNeedingAttention.length > 0 && (
+          <div className="admin-panel" style={{ padding: 14 }}>
+            <div className="admin-label" style={{ marginBottom: 10 }}>
+              TumaBoda orders needing attention ({data.tumaBodaOrdersNeedingAttention.length})
+            </div>
+            <div style={{ fontSize: 11, color: "var(--admin-muted)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+              <Truck size={13} color={STATUS.warning} />
+              Paid orders whose delivery was never booked, or deliveries TumaBoda itself reported as
+              failed/returned/cancelled — previously only discoverable one order at a time.
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Reason</th>
+                    <th>Created</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.tumaBodaOrdersNeedingAttention.map((t) => (
+                    <tr key={t.orderId}>
+                      <td>{t.reference}</td>
+                      <td style={{ color: STATUS.warning, fontWeight: 600 }}>
+                        {TUMABODA_REASON_LABEL[t.reason] ?? t.reason}
+                      </td>
+                      <td>{formatDate(t.createdAt)}</td>
+                      <td>
+                        <Link to={`/admin/orders/${t.orderId}`} className="admin-btn admin-btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>
+                          Open
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
