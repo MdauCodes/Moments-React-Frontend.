@@ -1047,6 +1047,8 @@ function CheckoutModal() {
                       </label>
                       <p className="mb-2 mt-1 text-xs text-muted-foreground">
                         Search your address or use your current location — we'll show you what's available there.
+                        Tip: a single landmark or area name (e.g. "Yaya Center") often finds it faster than a full
+                        address.
                       </p>
                       <button
                         type="button"
