@@ -19,7 +19,7 @@ function AdminSettingsPage() {
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin]);
   if (!isAdmin) return <AdminLayout title="Settings"><Forbidden resource="settings" /></AdminLayout>;
   const save = async (key: string) => { setSavingKey(key); try { await adminResources.settings.upsert(drafts[key]); toast.success("Setting saved"); await load(); } catch (err) { reportAdminError(err, "Save failed"); } finally { setSavingKey(null); } };
-  return <AdminLayout title="Settings" onReload={load}><div className="admin-page-stack">{isSuperAdmin && <MockModeCard />}{isSuperAdmin && <PodModeCard />}<MaintenanceToggleCard /><div className="admin-panel" data-admin-table-scroll><table className="admin-table"><thead><tr><th>Key</th><th>Value</th><th>Description</th><th></th></tr></thead><tbody>{loading ? <tr><td colSpan={4}>Loading settings…</td></tr> : rows.length === 0 ? <tr><td colSpan={4}><div className="admin-empty">No settings found.</div></td></tr> : rows.map((r) => <tr key={r.key}><td><b>{r.key}</b></td><td><input className="admin-input" value={drafts[r.key]?.value ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, value: e.target.value } })} /></td><td><input className="admin-input" value={drafts[r.key]?.description ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, description: e.target.value } })} /></td><td><button className="admin-btn admin-btn-primary" disabled={savingKey === r.key} onClick={() => void save(r.key)}>{savingKey === r.key && <Loader2 size={14} className="animate-spin" />}Save</button></td></tr>)}</tbody></table></div></div></AdminLayout>;
+  return <AdminLayout title="Settings" onReload={load}><div className="admin-page-stack">{isSuperAdmin && <MockModeCard />}{isSuperAdmin && <PodModeCard />}{isSuperAdmin && <VehicleThresholdCard />}<MaintenanceToggleCard /><div className="admin-panel" data-admin-table-scroll><table className="admin-table"><thead><tr><th>Key</th><th>Value</th><th>Description</th><th></th></tr></thead><tbody>{loading ? <tr><td colSpan={4}>Loading settings…</td></tr> : rows.length === 0 ? <tr><td colSpan={4}><div className="admin-empty">No settings found.</div></td></tr> : rows.map((r) => <tr key={r.key}><td><b>{r.key}</b></td><td><input className="admin-input" value={drafts[r.key]?.value ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, value: e.target.value } })} /></td><td><input className="admin-input" value={drafts[r.key]?.description ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, description: e.target.value } })} /></td><td><button className="admin-btn admin-btn-primary" disabled={savingKey === r.key} onClick={() => void save(r.key)}>{savingKey === r.key && <Loader2 size={14} className="animate-spin" />}Save</button></td></tr>)}</tbody></table></div></div></AdminLayout>;
 }
 
 function MockModeCard() {
@@ -163,6 +163,106 @@ function PodModeCard() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
               <button className="admin-btn admin-btn-ghost" onClick={() => setConfirm(null)} disabled={busy}>Cancel</button>
               <button className="admin-btn admin-btn-primary" onClick={() => void apply(confirm === "on")} disabled={busy}>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : null} Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const VAN_THRESHOLD_KEY = "tumaboda.van.threshold.kes";
+const VAN_THRESHOLD_DEFAULT = "20000";
+
+/** Admin-configurable order-value threshold above which TumaBoda is asked for a van instead of
+ *  the default motorcycle rider — every new order picks whichever value is active when it's
+ *  quoted (same "resolved once at checkout, reused at payment time" rule as PodModeCard's
+ *  setting). Number input + save instead of a toggle since this is a numeric threshold, not a
+ *  binary switch, but same visual weight/confirm flow as PodModeCard since it's the same class
+ *  of setting — real financial/dispatch consequences, not a free-text config value. */
+function VehicleThresholdCard() {
+  const [savedValue, setSavedValue] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+
+  const load = () => {
+    adminResources.settings
+      .list()
+      .then((rows) => {
+        const row = rows.find((r) => r.key === VAN_THRESHOLD_KEY);
+        const value = row?.value ?? VAN_THRESHOLD_DEFAULT;
+        setSavedValue(value);
+        setDraft(value);
+      })
+      .catch((err) => reportAdminError(err, "Failed to read vehicleType threshold"));
+  };
+  useEffect(() => { load(); }, []);
+
+  const apply = async () => {
+    setBusy(true);
+    try {
+      await adminResources.settings.upsert({
+        key: VAN_THRESHOLD_KEY,
+        value: draft,
+        description: "Order subtotal (KES) at or above which TumaBoda is asked for a van instead of the default motorcycle rider.",
+      });
+      setSavedValue(draft);
+      toast.success(`Van threshold set to KES ${draft} — orders at or above this now request a van.`);
+    } catch (err) {
+      reportAdminError(err, "Failed to save vehicleType threshold");
+    } finally { setBusy(false); setConfirm(false); }
+  };
+
+  const isValid = draft.trim() !== "" && !Number.isNaN(Number(draft)) && Number(draft) >= 0;
+  const dirty = savedValue !== null && draft !== savedValue;
+
+  return (
+    <div className="admin-panel" style={{ padding: 20, marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
+            TumaBoda vehicle threshold {savedValue === null ? "(loading…)" : `— KES ${savedValue}+`}
+          </h2>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--admin-muted)" }}>
+            Default delivery is by rider (motorcycle). Orders with a subtotal at or above this
+            value request a van instead. Applies from the moment it's saved, to every new order
+            quoted after that. SUPER_ADMIN only.
+          </p>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input
+            type="number"
+            min={0}
+            className="admin-input"
+            style={{ width: 140 }}
+            value={draft}
+            disabled={savedValue === null || busy}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="KES"
+          />
+          <button
+            className="admin-btn admin-btn-primary"
+            disabled={busy || savedValue === null || !isValid || !dirty}
+            onClick={() => setConfirm(true)}
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : null} Save
+          </button>
+        </div>
+      </div>
+      {confirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--admin-bg)", border: "1px solid var(--admin-border)", borderRadius: 12, maxWidth: 420, width: "100%", padding: 24 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Confirm new van threshold?</h3>
+            <p style={{ fontSize: 13, color: "var(--admin-muted)", marginTop: 8 }}>
+              Orders with a subtotal of KES {draft} or more will request a van from TumaBoda
+              instead of the default motorcycle rider, starting immediately.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button className="admin-btn admin-btn-ghost" onClick={() => setConfirm(false)} disabled={busy}>Cancel</button>
+              <button className="admin-btn admin-btn-primary" onClick={() => void apply()} disabled={busy}>
                 {busy ? <Loader2 size={14} className="animate-spin" /> : null} Confirm
               </button>
             </div>
