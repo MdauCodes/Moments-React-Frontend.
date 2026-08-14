@@ -102,6 +102,9 @@ export interface CustomerOrder {
   courierStageOrOffice?: string;
   tumabodaStatus?: string | null;
   tumabodaTrackingCode?: string | null;
+  /** Set once the customer self-confirms receipt via confirmDelivery() below — only present on
+   *  the verified (OTP-unlocked) view, like the rest of the financial/PII fields. */
+  customerConfirmedDeliveredAt?: string | null;
   /** One-time secret for the Cloudinary tax-invoice upload flow — present only when etrRequested was true. */
   taxInvoiceUploadToken?: string | null;
   etrRequested?: boolean;
@@ -254,6 +257,7 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     fulfillmentType: raw.fulfillmentType ?? undefined,
     tumabodaStatus: raw.tumabodaStatus ?? null,
     tumabodaTrackingCode: raw.tumabodaTrackingCode ?? null,
+    customerConfirmedDeliveredAt: raw.customerConfirmedDeliveredAt ?? null,
     trackingEvents: (raw.statusHistory ?? []).map((h: any) => ({
       at: h.changedAt,
       // Backend returns toStatus (not status) — fall back to status for safety
@@ -575,6 +579,26 @@ export const orderStore = {
       throw new Error((err as any).message ?? "Invalid or expired code.");
     }
     return (await res.json()) as { accessToken: string };
+  },
+
+  /** Customer self-confirms receipt of a dispatched order — requires the same email+accessToken
+   *  pair verifyOrderOtp() returned. Response is the refreshed, verified tracking record, same
+   *  shape getStatus() normalizes. */
+  async confirmDelivery(reference: string, email: string, accessToken: string): Promise<CustomerOrder> {
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/confirm-delivery`, {
+        method: "POST",
+        json: { email, accessToken },
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Could not confirm delivery.");
+    }
+    return normalizeTrackingDto(await res.json());
   },
 
   /** Public order lookup by email (paginated, masked results). */

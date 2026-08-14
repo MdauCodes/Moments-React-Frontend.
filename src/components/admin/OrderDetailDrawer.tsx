@@ -355,6 +355,20 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                 </Section>
               )}
 
+              {/* Customer self-confirmation — fulfillment-agnostic, only relevant once dispatched.
+                  Distinct from TumaBoda's own courier-driven status above. */}
+              {(o.status === "DISPATCHED" || o.status === "DELIVERED") && (
+                <Section title="Customer confirmation">
+                  {o.customerConfirmedDeliveredAt ? (
+                    <Row label="Confirmed by customer" value={formatDate(o.customerConfirmedDeliveredAt)} />
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Not yet confirmed by the customer on the track-order page.
+                    </div>
+                  )}
+                </Section>
+              )}
+
               {/* Items */}
               <Section title="Items">
                 <div className="overflow-x-auto">

@@ -87,6 +87,9 @@ export interface OrderRecord {
   tumabodaDeliveryId?: string;
   tumabodaDeliveryNumber?: string;
   tumabodaCost?: number;
+  /** Set when the customer self-confirms receipt on the track-order page — see
+   *  OrderService.confirmDelivery. Distinct from any courier/staff-driven status. */
+  customerConfirmedDeliveredAt?: string;
   refundRequestedAt?: string;
   refundRequestReason?: string;
   refundRequestedBy?: string;

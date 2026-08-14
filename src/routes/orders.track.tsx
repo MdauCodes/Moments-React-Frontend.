@@ -219,6 +219,7 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
   const [otp, setOtp] = useState("");
   const [order, setOrder] = useState<CustomerOrder | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,6 +233,7 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
       if (cancelled) return;
       if (full?.verified) {
         setOrder(full);
+        setAccessToken(cached);
         setStage("ready");
       } else {
         sessionStorage.removeItem(otpTokenKey(reference, email));
@@ -261,11 +263,12 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
     setStage("verifying");
     setError(null);
     try {
-      const { accessToken } = await orderStore.verifyOrderOtp(reference, email, otp.trim());
-      sessionStorage.setItem(otpTokenKey(reference, email), accessToken);
-      const { order: full } = await orderStore.trackByReference(reference, email, accessToken);
+      const { accessToken: token } = await orderStore.verifyOrderOtp(reference, email, otp.trim());
+      sessionStorage.setItem(otpTokenKey(reference, email), token);
+      const { order: full } = await orderStore.trackByReference(reference, email, token);
       if (full?.verified) {
         setOrder(full);
+        setAccessToken(token);
         setStage("ready");
       } else {
         setError("Verification succeeded but the order couldn't be loaded — please refresh.");
@@ -279,7 +282,22 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
 
   if (stage === "checking") return <InlineProgress size="sm" />;
 
-  if (stage === "ready" && order) return <OrderCard order={order} compact />;
+  if (stage === "ready" && order) {
+    return (
+      <>
+        <OrderCard order={order} compact />
+        {accessToken && (
+          <ConfirmDeliverySection
+            reference={reference}
+            email={email}
+            accessToken={accessToken}
+            order={order}
+            onConfirmed={setOrder}
+          />
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-dashed border-border bg-background/60 p-4 text-sm">
@@ -324,6 +342,74 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
       <div className="mt-4 border-t border-border pt-3 opacity-70">
         <OrderCard order={fallback} compact />
       </div>
+    </div>
+  );
+}
+
+// Order.status values that mean "the order has actually left the building" — the only point a
+// customer-confirmation makes sense. Compared as plain strings since the real backend OrderStatus
+// enum (DISPATCHED, etc.) doesn't fully match this frontend's own CustomerOrderStatus union —
+// see Task tracking this pre-existing mismatch; worked around locally here rather than touching
+// that type in this pass.
+const CONFIRMABLE_STATUSES = new Set(["DISPATCHED", "DELIVERED"]);
+
+/**
+ * Self-service "I received my order" confirmation — reuses the email+OTP identity proof this
+ * page already gates full order detail behind (VerifiedOrderPanel), rather than a separate
+ * verification step. Feeds the admin Needs Attention page's "dispatched, unconfirmed" signal.
+ */
+function ConfirmDeliverySection({
+  reference,
+  email,
+  accessToken,
+  order,
+  onConfirmed,
+}: {
+  reference: string;
+  email: string;
+  accessToken: string;
+  order: CustomerOrder;
+  onConfirmed: (order: CustomerOrder) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!CONFIRMABLE_STATUSES.has(order.status as string)) return null;
+  if (order.customerConfirmedDeliveredAt) {
+    return (
+      <div className="mt-3 rounded-xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">
+        You confirmed receiving this order on {new Date(order.customerConfirmedDeliveredAt).toLocaleDateString("en-KE", { dateStyle: "medium" })}.
+      </div>
+    );
+  }
+
+  async function handleConfirm() {
+    setConfirming(true);
+    setError(null);
+    try {
+      const updated = await orderStore.confirmDelivery(reference, email, accessToken);
+      onConfirmed(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not confirm delivery");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
+      <p className="font-medium text-foreground">Received your order?</p>
+      <p className="mt-1 text-muted-foreground">Let us know it arrived — this helps us keep track of every delivery.</p>
+      {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+      <button
+        type="button"
+        onClick={handleConfirm}
+        disabled={confirming}
+        className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+      >
+        {confirming ? <InlineProgress size="sm" /> : null}
+        Confirm I received it
+      </button>
     </div>
   );
 }

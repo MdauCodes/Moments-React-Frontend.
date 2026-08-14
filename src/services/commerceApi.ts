@@ -140,6 +140,7 @@ function normalizeOrder(raw: any): OrderRecord {
     tumabodaDeliveryId: raw?.tumabodaDeliveryId,
     tumabodaDeliveryNumber: raw?.tumabodaDeliveryNumber,
     tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
+    customerConfirmedDeliveredAt: raw?.customerConfirmedDeliveredAt,
     refundRequestedAt: raw?.refundRequestedAt,
     refundRequestReason: raw?.refundRequestReason,
     refundRequestedBy: raw?.refundRequestedBy,
@@ -960,6 +961,13 @@ export interface TumaBodaAttentionOrder {
   createdAt: string;
 }
 
+export interface UnconfirmedDelivery {
+  orderId: string;
+  reference: string;
+  fulfillmentType: string | null;
+  createdAt: string;
+}
+
 export interface NeedsAttentionSummary {
   operationalAlerts: Alerts;
   lapsedCustomers: LapsedCustomer[];
@@ -967,6 +975,7 @@ export interface NeedsAttentionSummary {
   underperformingProducts: UnderperformingProduct[];
   suspiciousAccounts: SuspiciousAccount[];
   tumaBodaOrdersNeedingAttention: TumaBodaAttentionOrder[];
+  unconfirmedDeliveries: UnconfirmedDelivery[];
 }
 
 export async function getNeedsAttention(): Promise<NeedsAttentionSummary> {

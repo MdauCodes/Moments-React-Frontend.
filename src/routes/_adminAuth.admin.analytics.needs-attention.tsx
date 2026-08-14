@@ -7,6 +7,7 @@ import { AlertsPanel } from "@/components/admin/AlertsPanel";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { STATUS } from "@/lib/analyticsPalette";
 import { getNeedsAttention, type NeedsAttentionSummary } from "@/services/commerceApi";
+import { fulfillmentLabel } from "@/components/admin/analyticsPages/DeliverySection";
 
 const TUMABODA_REASON_LABEL: Record<string, string> = {
   NO_DELIVERY_CREATED: "Paid, delivery never booked",
@@ -43,7 +44,8 @@ function AdminAnalyticsNeedsAttentionPage() {
     && data.salesDropAlerts.length === 0
     && data.underperformingProducts.length === 0
     && data.suspiciousAccounts.length === 0
-    && data.tumaBodaOrdersNeedingAttention.length === 0;
+    && data.tumaBodaOrdersNeedingAttention.length === 0
+    && data.unconfirmedDeliveries.length === 0;
 
   return (
     <AdminLayout title="Analytics · Needs Attention" onReload={() => setReloadKey((k) => k + 1)}>
@@ -58,7 +60,7 @@ function AdminAnalyticsNeedsAttentionPage() {
         {nothingElseToShow && (
           <div className="admin-panel" style={{ padding: 14, display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: STATUS.good }}>
             <CheckCircle2 size={16} />
-            <span>No lapsed customers, sales drops, dead stock, flagged accounts, or stuck TumaBoda orders right now.</span>
+            <span>No lapsed customers, sales drops, dead stock, flagged accounts, stuck TumaBoda orders, or unconfirmed deliveries right now.</span>
           </div>
         )}
 
@@ -92,6 +94,45 @@ function AdminAnalyticsNeedsAttentionPage() {
                       <td>{formatDate(t.createdAt)}</td>
                       <td>
                         <Link to={`/admin/orders/${t.orderId}`} className="admin-btn admin-btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>
+                          Open
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && data && data.unconfirmedDeliveries.length > 0 && (
+          <div className="admin-panel" style={{ padding: 14 }}>
+            <div className="admin-label" style={{ marginBottom: 10 }}>
+              Dispatched, unconfirmed by customer ({data.unconfirmedDeliveries.length})
+            </div>
+            <div style={{ fontSize: 11, color: "var(--admin-muted)", marginBottom: 10 }}>
+              Dispatched orders the customer hasn't self-confirmed as received on the track-order
+              page yet. Not necessarily a problem — most customers won't bother confirming — but
+              useful for spot-checking delivery reliability.
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Delivery mode</th>
+                    <th>Created</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.unconfirmedDeliveries.map((d) => (
+                    <tr key={d.orderId}>
+                      <td>{d.reference}</td>
+                      <td>{d.fulfillmentType ? fulfillmentLabel(d.fulfillmentType) : "—"}</td>
+                      <td>{formatDate(d.createdAt)}</td>
+                      <td>
+                        <Link to={`/admin/orders/${d.orderId}`} className="admin-btn admin-btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }}>
                           Open
                         </Link>
                       </td>
