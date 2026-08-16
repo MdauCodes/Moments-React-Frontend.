@@ -7,6 +7,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PrintReceipt } from "@/components/PrintReceipt";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
+import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import { refundStore, refundEligibility, type RefundRequest, type RefundDesiredAction } from "@/services/refundStore";
 import { useCart } from "@/contexts/CartContext";
 
@@ -102,7 +103,8 @@ function OrderDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusTone(order.status)}`}>
-              <StatusIcon className="h-3.5 w-3.5" /> {order.status.replace(/_/g, " ")}
+              <StatusIcon className="h-3.5 w-3.5" />{" "}
+              {resolveStatusDisplay(order.fulfillmentType, order.statusV2)?.label ?? order.status.replace(/_/g, " ")}
             </span>
             <PrintReceipt order={order} />
             {eligibility.eligible && !refund && (

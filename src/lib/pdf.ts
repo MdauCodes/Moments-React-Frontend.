@@ -16,6 +16,7 @@ import { jsPDF } from "jspdf";
 import autoTable, { type RowInput, type UserOptions } from "jspdf-autotable";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import type { AnalyticsExportPayload } from "@/lib/analyticsExport";
+import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 
 // ── Logo — loaded once, converted to a PNG data URL so jsPDF can embed it ──────
 interface LogoData {
@@ -765,6 +766,8 @@ export interface OrdersListRow {
   city?: string | null;
   county?: string | null;
   status: string;
+  statusV2?: string | null;
+  fulfillmentType?: string | null;
   paymentStatus: string;
   total: number;
   createdAt: string;
@@ -816,7 +819,7 @@ export async function downloadOrdersListPdf(
       o.customerName,
       [o.city, o.county].filter(Boolean).join(", ") || "—",
       String(o.items.reduce((s, it) => s + Number(it.qty ?? 0), 0)),
-      o.status.replace(/_/g, " "),
+      resolveStatusDisplay(o.fulfillmentType, o.statusV2)?.label ?? o.status.replace(/_/g, " "),
       o.paymentStatus,
       o.promoCode ?? "—",
       fmt(o.total),
@@ -906,7 +909,7 @@ export async function downloadCustomerStatementPdf(customer: StatementCustomer, 
       fmtDate(o.createdAt),
       [o.city, o.county].filter(Boolean).join(", ") || "—",
       String(o.items.reduce((s, it) => s + Number(it.qty ?? 0), 0)),
-      o.status.replace(/_/g, " "),
+      resolveStatusDisplay(o.fulfillmentType, o.statusV2)?.label ?? o.status.replace(/_/g, " "),
       o.paymentStatus,
       fmt(o.total),
     ]) as RowInput[],

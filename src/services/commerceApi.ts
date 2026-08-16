@@ -87,6 +87,7 @@ function normalizeOrder(raw: any): OrderRecord {
     // Backend field: status (OrderStatus enum) — pass through directly.
     // If the value arrives in an unexpected shape, default to PENDING_PAYMENT.
     status: (raw?.status as OrderStatus) ?? "PENDING_PAYMENT",
+    statusV2: raw?.statusV2 ?? null,
 
     // Backend field: paymentStatus (PaymentStatus enum).
     // Backend values: PENDING | PAID | FAILED | REFUNDED
@@ -141,6 +142,7 @@ function normalizeOrder(raw: any): OrderRecord {
     tumabodaDeliveryId: raw?.tumabodaDeliveryId,
     tumabodaDeliveryNumber: raw?.tumabodaDeliveryNumber,
     tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
+    tumabodaRiderVerifiedAt: raw?.tumabodaRiderVerifiedAt,
     customerConfirmedDeliveredAt: raw?.customerConfirmedDeliveredAt,
     refundRequestedAt: raw?.refundRequestedAt,
     refundRequestReason: raw?.refundRequestReason,
@@ -364,6 +366,24 @@ export async function retryTumaBodaDelivery(
 ): Promise<{ order: OrderRecord | undefined; source: Source }> {
   const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/retry-tumaboda-delivery`, {
     method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/scan-rider — staff scan the rider's QR at pickup
+// (TumaBoda identity verification; see PaymentService.scanRiderForOrder).
+export async function scanRiderForOrder(
+  id: string,
+  scannedCode: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/scan-rider`, {
+    method: "POST",
+    body: JSON.stringify({ scannedCode }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

@@ -13,8 +13,8 @@ import {
   formatKes,
   formatDate,
   ORDER_STATUS_OPTIONS,
-  getNextAction,
 } from "@/components/admin/commerceUi";
+import { getNextActionV2 } from "@/lib/orderStatusV2";
 import {
   getOrder,
   updateOrderStatus,
@@ -270,7 +270,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <div className="text-xs text-muted-foreground">Order reference</div>
                   <div className="font-mono text-base font-semibold">{o.reference}</div>
                 </div>
-                <OrderStatusBadge status={o.status} />
+                <OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} />
                 {o.isTestOrder && (
                   <span className="inline-flex rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-yellow-700">
                     TEST
@@ -510,21 +510,21 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                     {/* Single contextual next-action, same pattern as the
                         payment/preparation/dispatch queues. */}
                     {(() => {
-                      const next = getNextAction(o.status as OrderStatus);
+                      const next = getNextActionV2(o.fulfillmentType, o.statusV2, o.status as OrderStatus);
                       if (!next) return null;
                       return (
                         <button
                           className="admin-btn admin-btn-primary w-full"
                           disabled={updatingStatus || cancelling}
                           onClick={async () => {
-                            setSelectedStatus(next.nextStatus);
+                            setSelectedStatus(next.nextLegacyStatus);
                             setUpdatingStatus(true);
                             try {
-                              const res = await updateOrderStatus(o.id, next.nextStatus, staffNotes || undefined);
+                              const res = await updateOrderStatus(o.id, next.nextLegacyStatus, staffNotes || undefined);
                               if (res.order) {
                                 setOrder(res.order);
                                 setSelectedStatus(res.order.status);
-                                toast.success(`Status updated to ${statusLabel(next.nextStatus)}`);
+                                toast.success(`Status updated to ${statusLabel(next.nextLegacyStatus)}`);
                                 onChanged?.();
                               }
                             } catch (err) {

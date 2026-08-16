@@ -10,6 +10,7 @@ import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { downloadReceiptPdf } from "@/lib/pdf";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
+import { resolveStatusDisplay, isCustomerSelfConfirmMode } from "@/lib/orderStatusV2";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -306,6 +307,9 @@ function ConfirmDeliverySection({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Pickup is staff-marked ("Mark picked up") when the customer physically collects the order —
+  // no customer self-confirm step, since the face-to-face handoff already is the verification.
+  if (!isCustomerSelfConfirmMode(order.fulfillmentType)) return null;
   if (!CONFIRMABLE_STATUSES.has(order.status as string)) return null;
   if (order.customerConfirmedDeliveredAt) {
     return (
@@ -421,7 +425,7 @@ function ByEmailTab() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">
-                      {o.status.replace(/_/g, " ")}
+                      {resolveStatusDisplay(o.fulfillmentType, o.statusV2)?.label ?? o.status.replace(/_/g, " ")}
                     </span>
                     {o.fulfillmentType && (
                       <span className="rounded-full border border-border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
@@ -520,7 +524,7 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold text-foreground">
-              {order.status.replace(/_/g, " ")}
+              {resolveStatusDisplay(order.fulfillmentType, order.statusV2)?.label ?? order.status.replace(/_/g, " ")}
             </span>
             <button
               type="button"

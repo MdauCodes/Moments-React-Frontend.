@@ -65,6 +65,9 @@ export interface CustomerOrder {
   invoiceNumber?: string | null;
   paidAt?: string | null;
   status: CustomerOrderStatus;
+  /** Per-fulfillment-mode status (see src/lib/orderStatusV2.ts) — null for orders not yet
+   *  backfilled; callers fall back to `status`. */
+  statusV2?: string | null;
   paymentStatus: CustomerPaymentStatus;
   paymentMethod: CheckoutPaymentMethod;
   paymentReference?: string;
@@ -223,6 +226,7 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     invoiceNumber: raw.invoiceNumber ?? null,
     paidAt: raw.paidAt ?? null,
     status: raw.status,
+    statusV2: raw.statusV2 ?? null,
     paymentStatus: raw.paymentStatus ?? "PENDING",
     paymentMethod: raw.paymentMethod ?? "MPESA",
     customerName: raw.contactName ?? raw.customerName ?? "",

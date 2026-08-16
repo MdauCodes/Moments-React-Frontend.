@@ -7,6 +7,7 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { dispatchConfirmOrder } from "@/services/commerceApi";
 import type { OrderRecord } from "@/services/commerceMock";
 import { downloadDispatchChecklistPdf } from "@/lib/pdf";
+import { RiderScanPanel } from "@/components/admin/RiderScanPanel";
 
 interface Props {
   order: OrderRecord | null;
@@ -24,8 +25,23 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [riderVerifiedAt, setRiderVerifiedAt] = useState<string | null>(null);
+
+  // A successful scan already advances the order to DISPATCHED on the backend (see
+  // PaymentService.scanRiderForOrder's no-lag fix) — there's no separate "Confirm Dispatch" step
+  // for TumaBoda orders anymore. Refresh the parent's order data so `order.status` (and this
+  // component's isDispatched) picks that up immediately, same as a normal dispatch would.
+  const handleRiderVerified = (verifiedAt: string) => {
+    setRiderVerifiedAt(verifiedAt);
+    if (order) void onDispatched(order.id);
+  };
 
   const orderId = order?.id ?? null;
+  const isTumaBoda = order?.fulfillmentType === "TUMABODA_DELIVERY";
+
+  useEffect(() => {
+    setRiderVerifiedAt(order?.tumabodaRiderVerifiedAt ?? null);
+  }, [orderId, order?.tumabodaRiderVerifiedAt]);
 
   useEffect(() => {
     if (!orderId) {
@@ -49,6 +65,8 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
 
   const allTicked = itemIds.length > 0 && itemIds.every((id) => ticked.has(id));
   const tickedCount = itemIds.filter((id) => ticked.has(id)).length;
+  const riderVerified = !isTumaBoda || !!riderVerifiedAt;
+  const readyToDispatch = allTicked && riderVerified;
 
   const toggle = (id: string) => {
     if (!order) return;
@@ -289,17 +307,40 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
                 </div>
               )}
 
+              {/* Rider verification — TumaBoda orders only */}
+              {isTumaBoda && !isDispatched && (
+                <>
+                  <div style={{ borderTop: "1px solid var(--admin-border)" }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Verify rider</div>
+                    <RiderScanPanel
+                      orderId={order.id}
+                      verifiedAt={riderVerifiedAt}
+                      onVerified={handleRiderVerified}
+                    />
+                    <p style={{ fontSize: 12, color: "var(--admin-muted)", margin: "8px 0 0" }}>
+                      A successful scan dispatches the order automatically — no separate confirm
+                      step needed.
+                    </p>
+                  </div>
+                </>
+              )}
+
               {/* Actions */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <button
-                  className="admin-btn admin-btn-primary"
-                  disabled={isDispatched || !allTicked}
-                  style={{ width: "100%", justifyContent: "center", opacity: isDispatched || !allTicked ? 0.6 : 1 }}
-                  onClick={() => { if (!isDispatched && allTicked) setConfirmOpen(true); }}
-                  title={!isDispatched && !allTicked ? "Tick every item before dispatching" : undefined}
-                >
-                  {isDispatched ? "View Details (Already Dispatched)" : "Dispatch Order"}
-                </button>
+                {/* TumaBoda orders dispatch automatically the moment the rider scan succeeds
+                    (see handleRiderVerified above) — there's nothing left to click here. */}
+                {!isTumaBoda && (
+                  <button
+                    className="admin-btn admin-btn-primary"
+                    disabled={isDispatched || !readyToDispatch}
+                    style={{ width: "100%", justifyContent: "center", opacity: isDispatched || !readyToDispatch ? 0.6 : 1 }}
+                    onClick={() => { if (!isDispatched && readyToDispatch) setConfirmOpen(true); }}
+                    title={!isDispatched && !allTicked ? "Tick every item before dispatching" : undefined}
+                  >
+                    {isDispatched ? "View Details (Already Dispatched)" : "Dispatch Order"}
+                  </button>
+                )}
                 <button
                   type="button"
                   className="admin-btn admin-btn-ghost"
@@ -357,7 +398,9 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
                         fontSize: 13,
                       }}
                     >
-                      <div style={{ fontWeight: 600, marginBottom: 2 }}>✓ All {itemIds.length} items verified</div>
+                      <div style={{ fontWeight: 600, marginBottom: 2 }}>
+                        ✓ All {itemIds.length} items verified{isTumaBoda && " · Rider verified"}
+                      </div>
                       <div style={{ color: "var(--admin-muted)" }}>
                         {order.reference} → {order.customerName}
                         {order.city && `, ${order.city}`}

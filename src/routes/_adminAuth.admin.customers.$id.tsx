@@ -135,7 +135,7 @@ function AdminCustomerDetailPage() {
                         <td><b>{o.reference}</b></td>
                         <td>{o.items.reduce((s, it) => s + it.qty, 0)} units</td>
                         <td><b>{formatKes(o.total)}</b></td>
-                        <td><OrderStatusBadge status={o.status} /></td>
+                        <td><OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} /></td>
                         <td><PaymentStatusBadge status={o.paymentStatus} /></td>
                         <td>{formatDateShort(o.createdAt)}</td>
                         <td><Link to={`/admin/orders/${id}`} className="admin-btn admin-btn-ghost">View</Link></td>

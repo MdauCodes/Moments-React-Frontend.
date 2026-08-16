@@ -38,6 +38,9 @@ export interface OrderRecord {
   id: string;
   reference: string;
   status: OrderStatus;
+  /** Per-fulfillment-mode status (see src/lib/orderStatusV2.ts) — null for orders not yet
+   *  backfilled; callers fall back to `status`. */
+  statusV2?: string | null;
   paymentStatus: PaymentStatus;
   paymentGateway: PaymentGateway;
   customerName: string;
@@ -93,6 +96,9 @@ export interface OrderRecord {
   tumabodaDeliveryId?: string;
   tumabodaDeliveryNumber?: string;
   tumabodaCost?: number;
+  /** Set when staff scan the rider's QR code at pickup (TumaBoda identity verification) — see
+   *  PaymentService.scanRiderForOrder. */
+  tumabodaRiderVerifiedAt?: string;
   /** Set when the customer self-confirms receipt on the track-order page — see
    *  OrderService.confirmDelivery. Distinct from any courier/staff-driven status. */
   customerConfirmedDeliveredAt?: string;

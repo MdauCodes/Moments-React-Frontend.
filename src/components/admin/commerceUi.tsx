@@ -3,6 +3,7 @@
 // Pure presentation — no business logic.
 // ----------------------------------------------------------------------------
 import type { OrderStatus, PaymentStatus, PaymentGateway } from "@/services/commerceMock";
+import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 
 export function formatKes(amount: number | string | null | undefined): string {
   const n = Number(amount ?? 0);
@@ -49,8 +50,20 @@ const GATEWAY_LABEL: Record<PaymentGateway, string> = {
   CASH_ON_DELIVERY: "Cash on delivery",
 };
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
-  const tone = ORDER_TONE[status] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: status };
+export function OrderStatusBadge({
+  status,
+  fulfillmentType,
+  statusV2,
+}: {
+  status: OrderStatus;
+  /** When provided alongside statusV2, shows the mode-specific label/tone (e.g. "Ready for
+   *  pickup" instead of the generic "Ready for dispatch") instead of the legacy badge. Falls
+   *  back to the legacy badge for orders not yet backfilled with a statusV2. */
+  fulfillmentType?: string | null;
+  statusV2?: string | null;
+}) {
+  const resolved = resolveStatusDisplay(fulfillmentType, statusV2);
+  const tone = resolved ?? ORDER_TONE[status] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: status };
   return (
     <span
       style={{

@@ -13,8 +13,8 @@ import {
   PaymentStatusBadge,
   formatDate,
   formatKes,
-  getNextAction,
 } from "@/components/admin/commerceUi";
+import { getNextActionV2 } from "@/lib/orderStatusV2";
 import {
   getOrder,
   updateOrderStatus,
@@ -241,7 +241,7 @@ function AdminOrderDetailPage() {
           <Link to="/admin/orders" className="admin-btn admin-btn-ghost">
             ← All orders
           </Link>
-          <OrderStatusBadge status={order.status} />
+          <OrderStatusBadge status={order.status} fulfillmentType={order.fulfillmentType} statusV2={order.statusV2} />
           <PaymentStatusBadge status={order.paymentStatus} />
           <GatewayChip gateway={order.paymentGateway} />
           <span style={{ color: "var(--admin-muted)", fontSize: 12 }}>Created {formatDate(order.createdAt)}</span>
@@ -492,14 +492,14 @@ function AdminOrderDetailPage() {
                   payment/preparation/dispatch queues — only the one valid
                   next step is shown, not every status always-enabled. */}
               {(() => {
-                const next = getNextAction(order.status);
+                const next = getNextActionV2(order.fulfillmentType, order.statusV2, order.status);
                 if (!next) return null;
                 return (
                   <button
                     className="admin-btn admin-btn-primary"
                     disabled={saving}
                     style={{ marginTop: 8 }}
-                    onClick={() => handleStatusChange(next.nextStatus)}
+                    onClick={() => handleStatusChange(next.nextLegacyStatus)}
                   >
                     {saving && <Loader2 size={14} className="animate-spin inline mr-1" />}
                     {next.label}

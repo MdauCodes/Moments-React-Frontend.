@@ -321,7 +321,7 @@ function AdminOrdersPage() {
                         </td>
                         <td>{o.items.reduce((s, it) => s + Number(it.qty ?? 0), 0)} units · {o.items.length} SKU{o.items.length === 1 ? "" : "s"}</td>
                         <td><b>{formatKes(o.total)}</b></td>
-                        <td><OrderStatusBadge status={o.status} /></td>
+                        <td><OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} /></td>
                         <td style={{ display: "flex", gap: 6, alignItems: "center" }}>
                           <PaymentStatusBadge status={o.paymentStatus} />
                           <GatewayChip gateway={o.paymentGateway} />
@@ -373,7 +373,7 @@ function AdminOrdersPage() {
                     <span style={{ color: "var(--admin-muted)", fontSize: 11 }}>{o.city}</span>
                   </div>
                   <div className="admin-card-row" style={{ flexWrap: "wrap", gap: 6 }}>
-                    <OrderStatusBadge status={o.status} />
+                    <OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} />
                     <PaymentStatusBadge status={o.paymentStatus} />
                     <GatewayChip gateway={o.paymentGateway} />
                   </div>

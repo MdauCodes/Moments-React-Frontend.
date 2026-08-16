@@ -83,7 +83,7 @@ function PreparationQueuePage() {
                       <td>{o.customerName}</td>
                       <td style={{ maxWidth: 340 }}>{o.items.map((i) => i.name).join(", ")}</td>
                       <td>{o.county ?? "—"}</td>
-                      <td><OrderStatusBadge status={o.status} /></td>
+                      <td><OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} /></td>
                       <td>
                         {formatDateShort(o.createdAt)} <AgeBadge since={o.createdAt} />
                       </td>
@@ -121,7 +121,7 @@ function PreparationQueuePage() {
                 <div className="admin-empty"><b>Nothing to pack yet</b><div style={{fontSize:12,marginTop:4,color:"var(--admin-muted)"}}>Orders appear here after the payments team verifies them. You'll see work as soon as it's ready.</div></div>
               ) : rows.map((o) => (
                 <div key={o.id} className="admin-card">
-                  <div className="admin-card-row"><b>{o.reference}</b><OrderStatusBadge status={o.status} /></div>
+                  <div className="admin-card-row"><b>{o.reference}</b><OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} /></div>
                   <div className="admin-card-row"><span>{o.customerName}</span><span style={{ color: "var(--admin-muted)" }}>{o.county ?? "—"}</span></div>
                   <div style={{ fontSize: 12, color: "var(--admin-muted)" }}>{o.items.map((i) => i.name).join(", ")}</div>
                   <div className="admin-card-row" style={{ fontSize: 11, color: "var(--admin-muted)" }}>
