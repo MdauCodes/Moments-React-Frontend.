@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { reportAdminError } from "@/lib/adminErrorToast";
+import { reportAdminError, reportTumaBodaBookingFailure } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   GatewayChip,
@@ -81,7 +81,11 @@ function AdminOrderDetailPage() {
       const res = await updateOrderStatus(order.id, status, staffNotes || undefined);
       if (res.order) {
         setOrder(res.order);
-        toast.success(`Order moved to ${ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}`);
+        if (res.order.tumabodaBookingFailureReason) {
+          reportTumaBodaBookingFailure(res.order.reference, res.order.tumabodaBookingFailureReason);
+        } else {
+          toast.success(`Order moved to ${ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}`);
+        }
       }
     } catch (err) {
       reportAdminError(err, "Failed to update status");

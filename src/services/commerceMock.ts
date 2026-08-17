@@ -99,6 +99,9 @@ export interface OrderRecord {
   /** Set when staff scan the rider's QR code at pickup (TumaBoda identity verification) — see
    *  PaymentService.scanRiderForOrder. */
   tumabodaRiderVerifiedAt?: string;
+  /** Non-null immediately after a TumaBoda booking attempt fails — check this right after a
+   *  "mark ready"/"dispatch confirm" response and surface it as an immediate error. */
+  tumabodaBookingFailureReason?: string | null;
   /** Set when the customer self-confirms receipt on the track-order page — see
    *  OrderService.confirmDelivery. Distinct from any courier/staff-driven status. */
   customerConfirmedDeliveredAt?: string;

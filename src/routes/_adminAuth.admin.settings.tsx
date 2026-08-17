@@ -95,6 +95,12 @@ const POD_SETTING_KEY = "tumaboda.pod.enabled";
  *  same confirm-before-toggle flow, same visual weight, because this is exactly the same class
  *  of setting — a big binary switch with real financial consequences, not a free-text config
  *  value that belongs in the generic table below. */
+/** Paused per a business decision to avoid Pay-on-Delivery risk for now — the control is
+ *  disabled (greyed out, non-interactive) rather than removed, and the underlying
+ *  tumaboda.pod.enabled setting/backend are left completely untouched, so re-enabling later is
+ *  just flipping this flag back. */
+const POD_TOGGLE_DISABLED = true;
+
 function PodModeCard() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
@@ -129,10 +135,19 @@ function PodModeCard() {
   };
 
   return (
-    <div className="admin-panel" style={{ padding: 20, marginBottom: 16, border: enabled ? "2px solid #0f766e" : undefined, background: enabled ? "rgba(20,184,166,0.08)" : undefined }}>
+    <div
+      className="admin-panel"
+      style={{
+        padding: 20,
+        marginBottom: 16,
+        border: enabled && !POD_TOGGLE_DISABLED ? "2px solid #0f766e" : undefined,
+        background: enabled && !POD_TOGGLE_DISABLED ? "rgba(20,184,166,0.08)" : undefined,
+        opacity: POD_TOGGLE_DISABLED ? 0.55 : 1,
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: enabled ? "#0f766e" : undefined }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: enabled && !POD_TOGGLE_DISABLED ? "#0f766e" : undefined }}>
             TumaBoda Pay-on-Delivery {enabled === null ? "(loading…)" : enabled ? "— ACTIVE" : "— off (upfront)"}
           </h2>
           <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--admin-muted)" }}>
@@ -140,18 +155,25 @@ function PodModeCard() {
             fee being charged with the rest of their order at checkout. Applies platform-wide,
             to every new order from the moment it's toggled. SUPER_ADMIN only.
           </p>
+          {POD_TOGGLE_DISABLED && (
+            <p style={{ margin: "6px 0 0", fontSize: 12, fontWeight: 600, color: "#a16207" }}>
+              Paused — the business has put Pay-on-Delivery on hold to avoid the collection risk
+              for now. Current setting is left as-is; this control is disabled, not the feature.
+            </p>
+          )}
         </div>
         <button
           className="admin-btn admin-btn-primary"
-          disabled={busy || enabled === null}
-          style={{ background: enabled ? "#0f766e" : undefined, minWidth: 180 }}
+          disabled={POD_TOGGLE_DISABLED || busy || enabled === null}
+          style={{ background: enabled && !POD_TOGGLE_DISABLED ? "#0f766e" : undefined, minWidth: 180 }}
+          title={POD_TOGGLE_DISABLED ? "Disabled — Pay-on-Delivery is paused per a business decision" : undefined}
           onClick={() => setConfirm(enabled ? "off" : "on")}
         >
           {busy ? <Loader2 size={14} className="animate-spin" /> : null}
           {enabled ? "Turn OFF (back to upfront)" : "Turn ON Pay-on-Delivery"}
         </button>
       </div>
-      {confirm && (
+      {!POD_TOGGLE_DISABLED && confirm && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "var(--admin-bg)", border: "1px solid var(--admin-border)", borderRadius: 12, maxWidth: 420, width: "100%", padding: 24 }}>
             <h3 style={{ margin: 0, fontSize: 16 }}>Confirm {confirm === "on" ? "ENABLE" : "DISABLE"} Pay-on-Delivery?</h3>

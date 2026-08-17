@@ -1,7 +1,7 @@
 
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { reportAdminError } from "@/lib/adminErrorToast";
+import { reportAdminError, reportTumaBodaBookingFailure } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
@@ -38,8 +38,12 @@ function PreparationQueuePage() {
   const advance = async (o: OrderRecord, next: OrderStatus, label: string) => {
     setBusyId(o.id);
     try {
-      await updateOrderStatus(o.id, next);
-      toast.success(`${label}: ${o.reference}`);
+      const res = await updateOrderStatus(o.id, next);
+      if (res.order?.tumabodaBookingFailureReason) {
+        reportTumaBodaBookingFailure(res.order.reference, res.order.tumabodaBookingFailureReason);
+      } else {
+        toast.success(`${label}: ${o.reference}`);
+      }
       await refresh();
     } catch (err) {
       reportAdminError(err, "Update failed");

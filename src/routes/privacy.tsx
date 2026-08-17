@@ -156,6 +156,13 @@ export function getPrivacyPolicyContent() {
               surrounds.
             </li>
             <li>
+              <strong>TumaBoda</strong> — our on-demand courier partner for real-time, tracked
+              deliveries. For orders you choose to have delivered this way, we share your name,
+              phone number, and delivery address with TumaBoda so their assigned rider can find
+              you and contact you during delivery. TumaBoda does not receive your payment details
+              or order contents.
+            </li>
+            <li>
               <strong>Cloud hosting and database providers</strong> (Railway for our application
               backend and PostgreSQL database, Render for frontend hosting, and Cloudinary for
               file and backup storage) acting on our instructions.

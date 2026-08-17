@@ -34,6 +34,17 @@ import { getDeliveryPartner } from "@/data/deliveryPartners";
 
 const tumaBodaPartner = getDeliveryPartner("tumaboda");
 
+/** Business-hours cutoff, hardcoded per the current rule: orders placed past 5pm are prepared
+ *  and dispatched the next morning instead of same-day. Checked against Africa/Nairobi time
+ *  explicitly (not the browser's local time) so this is correct regardless of where the
+ *  customer's device thinks it is. */
+function isAfterBusinessHours(): boolean {
+  const nairobiHour = Number(
+    new Intl.DateTimeFormat("en-KE", { hour: "numeric", hour12: false, timeZone: "Africa/Nairobi" }).format(new Date()),
+  );
+  return nairobiHour >= 17;
+}
+
 /**
  * Generates the tax invoice PDF client-side (same renderer as the self-serve download on the
  * track-orders page) and uploads it straight to Cloudinary while the customer's browser is still
@@ -819,6 +830,13 @@ function CheckoutModal() {
         clearAllTimers();
         setPayState("success");
         clearCart();
+        if (isAfterBusinessHours()) {
+          toast.info("We're closed for the night", {
+            description:
+              "Your order will be prepared first thing tomorrow morning — you'll get an email and SMS the moment it's dispatched.",
+            duration: 15000,
+          });
+        }
         setTimeout(() => {
           navigate(`/order-confirmation?ref=${ref}`);
         }, 1200);
@@ -979,6 +997,16 @@ function CheckoutModal() {
                     placeholder="0712 345 678"
                     inputMode="tel"
                   />
+                  {fulfillment === "TUMABODA_DELIVERY" && (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      This number will be shared with TumaBoda, our delivery partner, so their
+                      rider can contact you during delivery. See our{" "}
+                      <a href="/privacy" target="_blank" rel="noreferrer" className="underline">
+                        Privacy Policy
+                      </a>
+                      .
+                    </p>
+                  )}
                 </div>
               </div>
 

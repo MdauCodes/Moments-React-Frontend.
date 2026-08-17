@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { adminResources, type DocumentBundleAdminDto } from "@/services/adminResources";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Section, Row } from "@/components/admin/AdminSectionUi";
 import {
   DeliveryFeeStatusBadge,
   OrderStatusBadge,
@@ -14,7 +15,9 @@ import {
   formatDate,
   ORDER_STATUS_OPTIONS,
 } from "@/components/admin/commerceUi";
-import { getNextActionV2 } from "@/lib/orderStatusV2";
+import { PickupFulfillmentPanel } from "@/components/admin/PickupFulfillmentPanel";
+import { ManualDeliveryFulfillmentPanel } from "@/components/admin/ManualDeliveryFulfillmentPanel";
+import { TumaBodaFulfillmentPanel, tumaBodaOrderIsReadyOrBeyond } from "@/components/admin/TumaBodaFulfillmentPanel";
 import {
   getOrder,
   updateOrderStatus,
@@ -22,14 +25,12 @@ import {
   resolveOrderRefundRequest,
   markOrderPaymentRefunded,
   restoreOrderInventory,
-  retryTumaBodaDelivery,
 } from "@/services/commerceApi";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
 import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
 import { AssignSelect } from "@/components/admin/AssignSelect";
-import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 
 interface Props {
   orderId: string | null;
@@ -50,7 +51,14 @@ function statusLabel(raw: string | undefined | null): string {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
+/**
+ * Centered modal — replaces the old side-drawer. Manual Delivery and Pickup orders behave like
+ * any other dialog (X / overlay-click / Escape all close it); a TumaBoda order that hasn't been
+ * marked ready yet is deliberately NOT dismissible (no close affordance at all) — staff walk it
+ * through production and booking in one continuous view rather than being able to wander off
+ * and lose track of it mid-preparation. See TumaBodaFulfillmentPanel.tumaBodaOrderIsReadyOrBeyond.
+ */
+export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
@@ -68,7 +76,6 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   const [refundReason, setRefundReason] = useState("");
   const [showRefundInput, setShowRefundInput] = useState(false);
   const [refundActionBusy, setRefundActionBusy] = useState(false);
-  const [tumabodaRetryBusy, setTumabodaRetryBusy] = useState(false);
   const [documentBundle, setDocumentBundle] = useState<DocumentBundleAdminDto | null>(null);
 
   useEffect(() => {
@@ -98,6 +105,14 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   }, [orderId]);
 
   const o = order as (OrderRecord & Record<string, any>) | null;
+
+  const canClose = !o || o.fulfillmentType !== "TUMABODA_DELIVERY" || tumaBodaOrderIsReadyOrBeyond(o);
+
+  function handleOrderUpdated(updated: OrderRecord) {
+    setOrder(updated);
+    setSelectedStatus(updated.status);
+    onChanged?.();
+  }
 
   // Refunds are deliberately NOT one automated action — logging a request just records the
   // complaint. Every consequence is a separate, explicit admin step, never bundled together.
@@ -173,33 +188,14 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
     }
   };
 
-  const handleRetryTumaBodaDelivery = async () => {
-    if (!o) return;
-    setTumabodaRetryBusy(true);
-    try {
-      const res = await retryTumaBodaDelivery(o.id);
-      if (res.order) {
-        setOrder(res.order);
-        toast.success("TumaBoda delivery created");
-        onChanged?.();
-      }
-    } catch (err) {
-      reportAdminError(err, "Failed to create TumaBoda delivery");
-    } finally {
-      setTumabodaRetryBusy(false);
-    }
-  };
-
   const handleStatusUpdate = async () => {
     if (!o || !selectedStatus || selectedStatus === o.status) return;
     setUpdatingStatus(true);
     try {
       const res = await updateOrderStatus(o.id, selectedStatus as OrderStatus, staffNotes || undefined);
       if (res.order) {
-        setOrder(res.order);
-        setSelectedStatus(res.order.status);
+        handleOrderUpdated(res.order);
         toast.success(`Status updated to ${statusLabel(selectedStatus)}`);
-        onChanged?.();
       }
     } catch (err) {
       reportAdminError(err, "Failed to update status");
@@ -233,10 +229,8 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
     try {
       const res = await updateOrderStatus(o.id, "CANCELLED" as OrderStatus, staffNotes || undefined);
       if (res.order) {
-        setOrder(res.order);
-        setSelectedStatus(res.order.status);
+        handleOrderUpdated(res.order);
         toast.success(`Order ${o.reference} cancelled`);
-        onChanged?.();
       }
     } catch (err) {
       reportAdminError(err, "Cancel failed");
@@ -246,13 +240,22 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   };
 
   return (
-    <Sheet
+    <Dialog
       open={!!orderId}
       onOpenChange={(v) => {
-        if (!v) onClose();
+        if (!v && canClose) onClose();
       }}
     >
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
+      <DialogContent
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-0"
+        hideCloseButton={!canClose}
+        onInteractOutside={(e) => {
+          if (!canClose) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (!canClose) e.preventDefault();
+        }}
+      >
         {loading || !o ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-8 w-48" />
@@ -277,10 +280,13 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   </span>
                 )}
               </div>
-              <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100" aria-label="Close">
-                <X size={18} />
-              </button>
             </div>
+
+            {!canClose && (
+              <div className="mx-6 mt-4 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                This order can't be closed until it's marked ready — finish preparing it below.
+              </div>
+            )}
 
             <div className="space-y-6 p-6">
               {/* Customer contact */}
@@ -290,87 +296,13 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                 <Row label="Phone" value={o.customerPhone || "—"} />
               </Section>
 
-              {/* Fulfillment — adapts to type (matches checkout's two-section model) */}
+              {/* Fulfillment — genuinely distinct per mode, not a shared shell with conditionals */}
               {o.fulfillmentType === "MANUAL_DELIVERY" ? (
-                <>
-                  <Section title="1. Destination — where the customer collects">
-                    <Row label="Town" value={o.city || "—"} />
-                    <Row label="County" value={o.county || "—"} />
-                    <Row label="Nearest courier office (customer-side)" value={o.shippingAddress || "—"} />
-                    {o.postalCode && <Row label="Postal code" value={o.postalCode} />}
-                  </Section>
-
-                  <Section title="2. Dispatch — sacco / courier we use">
-                    <Row label="Courier type" value={(o.courierType ?? "—").toString().replace(/_/g, " ")} />
-                    <Row label="Sacco / service name" value={o.courierServiceName || "— (to confirm with customer)"} />
-                    <Row label="Nairobi stage / office" value={o.courierStageOrOffice || "— (to confirm)"} />
-                    <div className="mt-2 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                      Transport cost is paid by the customer directly to the sacco / courier on collection
-                      (or at dispatch, confirmed by phone). Not included in the order total.
-                    </div>
-                  </Section>
-                </>
-              ) : o.fulfillmentType === "PICKUP" ? (
-                <Section title="Fulfillment — pickup at shop">
-                  <Row label="Method" value="Customer pickup at our shop" />
-                  <div className="mt-2 rounded-md border border-dashed bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-                    No delivery address required. Call the customer when the order is ready for pickup.
-                  </div>
-                </Section>
+                <ManualDeliveryFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
+              ) : o.fulfillmentType === "TUMABODA_DELIVERY" ? (
+                <TumaBodaFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
               ) : (
-                <Section title="Delivery address">
-                  <Row label="Street / building" value={o.shippingAddress || "—"} />
-                  <Row label="City" value={o.city || "—"} />
-                  <Row label="County" value={o.county || "—"} />
-                  {o.postalCode && <Row label="Postal code" value={o.postalCode} />}
-                </Section>
-              )}
-
-              {/* TumaBoda delivery status — only meaningful once payment has succeeded; before
-                  that there's nothing to have created yet. */}
-              {o.fulfillmentType === "TUMABODA_DELIVERY" && o.paymentStatus === "PAID" && (
-                <Section title="TumaBoda delivery">
-                  {o.tumabodaDeliveryId ? (
-                    <>
-                      <Row label="Status" value={(o.tumabodaStatus ?? "—").toString().replace(/_/g, " ")} />
-                      <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
-                      {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
-                      {o.tumabodaTrackingCode && (
-                        <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div className="mb-2 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                        Payment succeeded but the TumaBoda delivery was never created — their API call
-                        failed at checkout time (transient error). No tracking exists for this order until
-                        this is retried.
-                      </div>
-                      <button
-                        className="admin-btn admin-btn-ghost"
-                        disabled={tumabodaRetryBusy}
-                        onClick={handleRetryTumaBodaDelivery}
-                      >
-                        {tumabodaRetryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                        Retry TumaBoda delivery
-                      </button>
-                    </>
-                  )}
-                </Section>
-              )}
-
-              {/* Customer self-confirmation — fulfillment-agnostic, only relevant once dispatched.
-                  Distinct from TumaBoda's own courier-driven status above. */}
-              {(o.status === "DISPATCHED" || o.status === "DELIVERED") && (
-                <Section title="Customer confirmation">
-                  {o.customerConfirmedDeliveredAt ? (
-                    <Row label="Confirmed by customer" value={formatDate(o.customerConfirmedDeliveredAt)} />
-                  ) : (
-                    <div className="text-sm text-muted-foreground">
-                      Not yet confirmed by the customer on the track-order page.
-                    </div>
-                  )}
-                </Section>
+                <PickupFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
               )}
 
               {/* Items */}
@@ -427,18 +359,6 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                     )
                   }
                 />
-                {o.fulfillmentType === "MANUAL_DELIVERY" && o.deliveryFeeMethod && (
-                  <Row
-                    label="Fee collection method"
-                    value={
-                      o.deliveryFeeMethod === "SELF_PAID"
-                        ? "Customer self-paid"
-                        : o.deliveryFeeMethod === "ADMIN_STK"
-                          ? "Admin-triggered STK"
-                          : "Manually recorded"
-                    }
-                  />
-                )}
                 {Number(o.discount ?? 0) > 0 && <Row label="Discount" value={`− ${formatKes(o.discount)}`} />}
                 {o.promoCode && <Row label="Promo code" value={o.promoCode} />}
                 {Number(o.vatAmount ?? 0) > 0 ? (
@@ -489,59 +409,21 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                         ? "Customer's sacco / courier"
                         : o.fulfillmentType === "PICKUP"
                           ? "Pickup at shop"
-                          : "Zone delivery"
+                          : "TumaBoda delivery"
                     }
                   />
                 )}
               </Section>
 
-              {/* Update status — manual override, restricted to ORDER_MANAGE_ALL.
-                  Queue-specific advances (Verify Payment, Start Production, Dispatch)
-                  live on their own queue pages for the specialist roles. */}
+              {/* Manual override — an escape hatch for edge cases the per-mode flow above
+                  doesn't cover (correcting a mis-click, jumping straight to a status). The
+                  primary action for whatever stage the order is actually at lives in the
+                  fulfillment panel above, not duplicated here. */}
               {canOverrideStatus && (
-                <Section title="Update order status">
+                <Section title="Manual override">
                   <div className="space-y-3 pt-1">
-                    {o.status === "PENDING_PAYMENT" && (
-                      <p className="text-xs text-muted-foreground">
-                        Waiting for the customer's M-Pesa payment — nothing to do here yet.
-                      </p>
-                    )}
-
-                    {/* Single contextual next-action, same pattern as the
-                        payment/preparation/dispatch queues. */}
-                    {(() => {
-                      const next = getNextActionV2(o.fulfillmentType, o.statusV2, o.status as OrderStatus);
-                      if (!next) return null;
-                      return (
-                        <button
-                          className="admin-btn admin-btn-primary w-full"
-                          disabled={updatingStatus || cancelling}
-                          onClick={async () => {
-                            setSelectedStatus(next.nextLegacyStatus);
-                            setUpdatingStatus(true);
-                            try {
-                              const res = await updateOrderStatus(o.id, next.nextLegacyStatus, staffNotes || undefined);
-                              if (res.order) {
-                                setOrder(res.order);
-                                setSelectedStatus(res.order.status);
-                                toast.success(`Status updated to ${statusLabel(next.nextLegacyStatus)}`);
-                                onChanged?.();
-                              }
-                            } catch (err) {
-                              reportAdminError(err, "Failed to update status");
-                            } finally {
-                              setUpdatingStatus(false);
-                            }
-                          }}
-                        >
-                          {updatingStatus && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                          {next.label}
-                        </button>
-                      );
-                    })()}
-
                     <details>
-                      <summary className="cursor-pointer text-xs text-muted-foreground">Manual override</summary>
+                      <summary className="cursor-pointer text-xs text-muted-foreground">Set status manually</summary>
                       {/* REFUNDED is deliberately excluded — only set through the Refund
                           section below, never as a quick dropdown pick. */}
                       <div className="mt-2 space-y-3">
@@ -720,25 +602,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
-      <div className="rounded-lg border bg-card p-4 space-y-1">{children}</div>
-    </section>
-  );
-}
-
-function Row({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-1.5">
-      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
-      <span className={`text-sm text-right ${bold ? "font-semibold" : ""}`}>{value}</span>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

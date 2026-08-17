@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useState } from "react";
-import { OrderDetailDrawer } from "@/components/admin/OrderDetailDrawer";
+import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
 import { AssignSelect } from "@/components/admin/AssignSelect";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -424,7 +424,7 @@ function AdminOrdersPage() {
           </div>
         </div>
       </HelpAnchor>
-      <OrderDetailDrawer orderId={openId} onClose={() => setOpenId(null)} onChanged={() => void refresh()} />
+      <OrderDetailModal orderId={openId} onClose={() => setOpenId(null)} onChanged={() => void refresh()} />
     </AdminLayout>
   );
 }

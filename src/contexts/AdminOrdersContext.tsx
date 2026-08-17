@@ -57,7 +57,12 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
     const p = (async () => {
       try {
         const res = await listOrders({ size: PAGE_SIZE, page: 0 });
-        setOrders(res.rows);
+        // Oldest first — the order staff should actually work through them in, not newest-first
+        // (which buries the ones that have been waiting longest at the bottom of every queue).
+        const sorted = [...res.rows].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        setOrders(sorted);
         setLastUpdatedAt(Date.now());
         setError(null);
         hasLoadedRef.current = true;
