@@ -143,6 +143,10 @@ export interface PlaceOrderInput {
   /** Building/apartment/landmark detail — sent separately from customer.address so it reaches
    *  TumaBoda as recipient.locationName rather than being merged into recipient.location. */
   landmarkDetail?: string;
+  /** TUMABODA_DELIVERY only — a separate, manually-typed number for TumaBoda's rider-contact
+   *  SMS, distinct from customer.phone (which is the M-Pesa number). Required server-side for
+   *  TumaBoda orders — see CheckoutRequest.tumabodaContactPhone. */
+  tumabodaContactPhone?: string;
   /** Client-generated UUID — prevents duplicate orders on network retry. */
   idempotencyKey?: string;
   /** Customer's own KRA PIN, printed on the tax invoice for their own remittance records. */
@@ -315,6 +319,7 @@ export const orderStore = {
     if (input.dropoffLat != null) body.dropoffLat = input.dropoffLat;
     if (input.dropoffLng != null) body.dropoffLng = input.dropoffLng;
     if (input.landmarkDetail) body.landmarkDetail = input.landmarkDetail;
+    if (input.tumabodaContactPhone) body.tumabodaContactPhone = input.tumabodaContactPhone;
     if (input.customer.postalCode) body.postalCode = input.customer.postalCode;
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;

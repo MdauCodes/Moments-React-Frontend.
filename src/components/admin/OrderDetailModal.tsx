@@ -293,7 +293,10 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
               <Section title="Customer contact">
                 <Row label="Name" value={o.customerName || "—"} />
                 <Row label="Email" value={o.customerEmail || "—"} />
-                <Row label="Phone" value={o.customerPhone || "—"} />
+                <Row label="Phone (M-Pesa)" value={o.customerPhone || "—"} />
+                {o.fulfillmentType === "TUMABODA_DELIVERY" && (
+                  <Row label="Phone given to TumaBoda" value={o.tumabodaContactPhone || "—"} />
+                )}
               </Section>
 
               {/* Fulfillment — genuinely distinct per mode, not a shared shell with conditionals */}

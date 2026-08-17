@@ -195,6 +195,12 @@ function CheckoutModal() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // Separate, manually-typed number specifically for TumaBoda to SMS/call the rider contact —
+  // deliberately never pre-filled from `phone` above. The two can legitimately differ (M-Pesa
+  // line vs. the number someone actually wants a rider calling), and having the customer type
+  // this one themselves, for this stated purpose, is what makes "they consented to sharing this
+  // number with TumaBoda" a real, defensible fact rather than an inferred one.
+  const [tumabodaPhone, setTumabodaPhone] = useState("");
   const [city, setCity] = useState("");
   const [county, setCounty] = useState("");
   const [postalCode, setPostalCode] = useState("");
@@ -489,11 +495,9 @@ function CheckoutModal() {
   // Live delivery-fee preview — fires whenever the resolved pin changes, so the customer sees
   // the real fee before committing rather than only finding out at final checkout. Fails
   // CLOSED on any error: TumaBoda is auto-dropped back to Manual Delivery, never left showing a
-  // guessed or stale fee. contactReady (not raw name/phone) is the dependency — retriggers
-  // exactly when they transition from incomplete to complete, not on every keystroke, but still
-  // guarantees the quote actually fires once all three are ready regardless of fill order (name/
-  // phone resolving after the address pin does, not just before, must not leave this stuck).
-  const contactReady = Boolean(name.trim() && phone.trim());
+  // guessed or stale fee. contactReady is just `name` — the quote request needs no phone number
+  // at all (the M-Pesa phone isn't even collected until the later payment screen).
+  const contactReady = Boolean(name.trim());
   useEffect(() => {
     // cartTotal drops to 0 the moment a successful order clears the cart (see the payment-success
     // handler below), while this page is still mounted for its 1.2s redirect delay — without this
@@ -515,7 +519,6 @@ function CheckoutModal() {
           lng: String(resolvedAddress.longitude),
           subtotal: String(cartTotal),
           contactName: name.trim(),
-          phone: normalizePhone(phone),
           location: resolvedAddress.description ?? "",
           landmarkDetail: landmarkDetail.trim(),
         });
@@ -618,10 +621,6 @@ function CheckoutModal() {
       toast.error("Enter a valid email");
       return false;
     }
-    if (!isValidKenyanPhone(phone)) {
-      toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
-      return false;
-    }
     return true;
   }
 
@@ -679,6 +678,10 @@ function CheckoutModal() {
     }
     if (etrRequested && !/^\S+@\S+\.\S+$/.test(documentsEmail.trim())) {
       toast.error("Enter a valid email to receive your receipt, tax invoice and ETR");
+      return false;
+    }
+    if (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone)) {
+      toast.error("Please enter the phone number TumaBoda's rider should contact for this delivery");
       return false;
     }
     return true;
@@ -771,6 +774,8 @@ function CheckoutModal() {
           dropoffLat: fulfillment !== "PICKUP" ? resolvedAddress?.latitude ?? undefined : undefined,
           dropoffLng: fulfillment !== "PICKUP" ? resolvedAddress?.longitude ?? undefined : undefined,
           landmarkDetail: fulfillment === "TUMABODA_DELIVERY" ? landmarkDetail.trim() : undefined,
+          tumabodaContactPhone:
+            fulfillment === "TUMABODA_DELIVERY" ? normalizePhone(tumabodaPhone) : undefined,
           ...(fulfillment === "MANUAL_DELIVERY" && courierType
             ? {
                 courierType: courierType as CourierType,
@@ -976,7 +981,7 @@ function CheckoutModal() {
                     placeholder="Jane Wanjiru"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className={labelCls}>Email</label>
                   <input
                     type="email"
@@ -987,22 +992,11 @@ function CheckoutModal() {
                     placeholder="you@example.com"
                   />
                 </div>
-                <div>
-                  <label className={labelCls}>Phone (M-Pesa)</label>
-                  <input
-                    className={inputCls}
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="0712 345 678"
-                    inputMode="tel"
-                  />
-                  {/* Not shown here: at this point in the "contact" step, `fulfillment` hasn't
-                      been resolved yet (it's determined by the coverage check on the later
-                      "delivery" step, from the address entered there) — the TumaBoda
-                      phone-sharing disclosure lives next to the final consent checkbox on that
-                      step instead, where fulfillment is actually known by then. */}
-                </div>
+                {/* Phone numbers are collected later, in the delivery step, right next to the
+                    consent checkbox and "Continue to payment" — the M-Pesa number belongs next
+                    to the payment action it's actually for, and (for TumaBoda orders) a second,
+                    separately-typed number is collected there for the delivery contact. See
+                    that step for both fields. */}
               </div>
 
               <button
@@ -1594,15 +1588,26 @@ function CheckoutModal() {
               )}
 
               {fulfillment === "TUMABODA_DELIVERY" && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Your phone number ({phone || "entered on the previous step"}) will be shared
-                  with TumaBoda, our delivery partner, so their rider can contact you during
-                  delivery. See our{" "}
-                  <a href="/privacy" target="_blank" rel="noreferrer" className="underline">
-                    Privacy Policy
-                  </a>
-                  .
-                </p>
+                <div>
+                  <label className={labelCls}>Phone number for delivery contact</label>
+                  <input
+                    className={inputCls}
+                    required
+                    value={tumabodaPhone}
+                    onChange={(e) => setTumabodaPhone(e.target.value)}
+                    placeholder="0712 345 678"
+                    inputMode="tel"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    This number will be given directly to TumaBoda, our delivery partner, so
+                    their rider can contact you about this delivery. It's collected separately
+                    from your M-Pesa number, which you'll enter at payment. See our{" "}
+                    <a href="/privacy" target="_blank" rel="noreferrer" className="underline">
+                      Privacy Policy
+                    </a>
+                    .
+                  </p>
+                </div>
               )}
 
               <ConsentCheckbox
@@ -1614,7 +1619,10 @@ function CheckoutModal() {
 
               <button
                 type="submit"
-                disabled={!consent}
+                disabled={
+                  !consent ||
+                  (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone))
+                }
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: BRAND }}
               >
@@ -1645,9 +1653,20 @@ function CheckoutModal() {
                   <div>
                     <h2 className="font-display text-2xl text-foreground">Review &amp; pay</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      You'll get an M-Pesa prompt on{" "}
-                      <span className="font-semibold text-foreground">{normalizePhone(phone)}</span>.
+                      Enter the number to receive your M-Pesa payment prompt on.
                     </p>
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Phone (M-Pesa)</label>
+                    <input
+                      className={inputCls}
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0712 345 678"
+                      inputMode="tel"
+                    />
                   </div>
 
                   {/* Order summary */}
@@ -1762,8 +1781,15 @@ function CheckoutModal() {
 
                   <button
                     type="button"
-                    onClick={startPayment}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90"
+                    onClick={() => {
+                      if (!isValidKenyanPhone(phone)) {
+                        toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
+                        return;
+                      }
+                      startPayment();
+                    }}
+                    disabled={!isValidKenyanPhone(phone)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
                     style={{ backgroundColor: BRAND }}
                   >
                     <Smartphone className="h-5 w-5" />

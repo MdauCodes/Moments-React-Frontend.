@@ -102,6 +102,9 @@ export interface OrderRecord {
   /** Non-null immediately after a TumaBoda booking attempt fails — check this right after a
    *  "mark ready"/"dispatch confirm" response and surface it as an immediate error. */
   tumabodaBookingFailureReason?: string | null;
+  /** Number the customer manually typed at checkout specifically for TumaBoda to contact them
+   *  on — distinct from the order's main `phone` (M-Pesa number), which may legitimately differ. */
+  tumabodaContactPhone?: string | null;
   /** Set when the customer self-confirms receipt on the track-order page — see
    *  OrderService.confirmDelivery. Distinct from any courier/staff-driven status. */
   customerConfirmedDeliveredAt?: string;

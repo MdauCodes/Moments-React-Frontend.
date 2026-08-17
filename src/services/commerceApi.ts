@@ -144,6 +144,7 @@ function normalizeOrder(raw: any): OrderRecord {
     tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
     tumabodaRiderVerifiedAt: raw?.tumabodaRiderVerifiedAt,
     tumabodaBookingFailureReason: raw?.tumabodaBookingFailureReason ?? null,
+    tumabodaContactPhone: raw?.tumabodaContactPhone ?? null,
     customerConfirmedDeliveredAt: raw?.customerConfirmedDeliveredAt,
     refundRequestedAt: raw?.refundRequestedAt,
     refundRequestReason: raw?.refundRequestReason,
