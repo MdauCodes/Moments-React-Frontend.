@@ -30,20 +30,24 @@ import { Download, FileText } from "lucide-react";
 
 const PAGE_SIZE = 20;
 type Scope = "ALL" | "MINE" | "UNASSIGNED";
-type DeliveryTab = "ALL" | "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY" | "FAILED_DROPPED";
+type DeliveryTab = "ALL" | "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY" | "COMPLETED" | "FAILED_DROPPED";
 
 const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
-  { value: "ALL", label: "All Successful" },
+  { value: "ALL", label: "Active" },
   { value: "PICKUP", label: "Pickup" },
   { value: "MANUAL_DELIVERY", label: "Manual Delivery" },
   { value: "TUMABODA_DELIVERY", label: "TumaBoda Delivery" },
+  { value: "COMPLETED", label: "Completed" },
   { value: "FAILED_DROPPED", label: "Failed / Dropped" },
 ];
 
-// Every operational tab (everything but Failed/Dropped) only ever shows orders that actually
-// went somewhere — an unpaid/abandoned checkout, a cancellation, or a refund is noise in a
-// working queue, not something staff need to act on there; Failed/Dropped is where those live.
+// Every operational tab (everything but Completed/Failed-Dropped) only ever shows orders that
+// are still actual work — an unpaid/abandoned checkout, a cancellation, or a refund is noise in
+// a working queue, not something staff need to act on there (Failed/Dropped is where those
+// live); a DELIVERED order is done and just as much noise once it's no longer actionable
+// (Completed is where those live instead) — see DELIVERY_TABS's "Active" vs "Completed" split.
 const NON_SUCCESSFUL_STATUSES = new Set(["PENDING_PAYMENT", "CANCELLED", "REFUNDED"]);
+const DONE_STATUSES = new Set(["DELIVERED"]);
 
 // Age/urgency coloring makes no sense once an order is done — don't show a
 // red "3d ago" badge on something already delivered.
@@ -90,15 +94,18 @@ function AdminOrdersPage() {
         if (scope === "UNASSIGNED" && o.assignedToId) return false;
       }
 
-      // Delivery-mode tab: FAILED_DROPPED is the complement of the paid-only default below —
-      // it's specifically where a checkout never completed, surfaced separately from the
-      // operational queues rather than left to just look like noise inside them.
+      // Delivery-mode tab: FAILED_DROPPED and COMPLETED are the two complements of the
+      // active-work default below — FAILED_DROPPED is where a checkout never completed,
+      // COMPLETED is where a delivered order goes once there's nothing left to do — both
+      // surfaced separately rather than left to look like noise inside the working queues.
       if (deliveryTab === "FAILED_DROPPED") {
         if (o.status !== "PENDING_PAYMENT") return false;
+      } else if (deliveryTab === "COMPLETED") {
+        if (!DONE_STATUSES.has(o.status)) return false;
       } else {
         if (deliveryTab !== "ALL" && o.fulfillmentType !== deliveryTab) return false;
-        // Every tab defaults to successful orders only — see NON_SUCCESSFUL_STATUSES above.
-        if (status === "ALL" && NON_SUCCESSFUL_STATUSES.has(o.status)) return false;
+        // Every tab defaults to active orders only — see NON_SUCCESSFUL_STATUSES/DONE_STATUSES.
+        if (status === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
       }
 
       if (status !== "ALL" && o.status !== status) return false;
