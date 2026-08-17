@@ -303,12 +303,18 @@ export const orderStore = {
       county: input.customer.county,
       paymentMethod: input.paymentMethod,
       fulfillmentType: input.fulfillmentType ?? "MANUAL_DELIVERY",
+      // unitPrice matters here, not just cosmetically: CheckoutRequest.InlineItem.unitPrice is
+      // what backend pricing actually falls back to whenever the server-side cart for this
+      // session is empty at checkout time (session/cart desync) — without it, that fallback
+      // always prices the order at zero and checkout always fails with "couldn't price your
+      // order correctly", regardless of what's really in the customer's cart.
       items: input.items.map((it) => ({
         productId: it.productId,
         quantity: it.quantity,
         size: it.size,
         material: it.material,
         finish: it.finish,
+        unitPrice: it.unitPrice,
       })),
       shippingFee: input.shippingFee,
     };
