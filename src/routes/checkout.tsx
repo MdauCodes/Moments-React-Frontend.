@@ -997,16 +997,11 @@ function CheckoutModal() {
                     placeholder="0712 345 678"
                     inputMode="tel"
                   />
-                  {fulfillment === "TUMABODA_DELIVERY" && (
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      This number will be shared with TumaBoda, our delivery partner, so their
-                      rider can contact you during delivery. See our{" "}
-                      <a href="/privacy" target="_blank" rel="noreferrer" className="underline">
-                        Privacy Policy
-                      </a>
-                      .
-                    </p>
-                  )}
+                  {/* Not shown here: at this point in the "contact" step, `fulfillment` hasn't
+                      been resolved yet (it's determined by the coverage check on the later
+                      "delivery" step, from the address entered there) — the TumaBoda
+                      phone-sharing disclosure lives next to the final consent checkbox on that
+                      step instead, where fulfillment is actually known by then. */}
                 </div>
               </div>
 
@@ -1596,6 +1591,18 @@ function CheckoutModal() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {fulfillment === "TUMABODA_DELIVERY" && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Your phone number ({phone || "entered on the previous step"}) will be shared
+                  with TumaBoda, our delivery partner, so their rider can contact you during
+                  delivery. See our{" "}
+                  <a href="/privacy" target="_blank" rel="noreferrer" className="underline">
+                    Privacy Policy
+                  </a>
+                  .
+                </p>
               )}
 
               <ConsentCheckbox
