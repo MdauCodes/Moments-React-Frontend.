@@ -352,22 +352,24 @@ function ConfirmDeliverySection({
 }
 
 /**
- * Deliberately neutral summary, not a restatement of the full policy — refunds.tsx already
- * covers who pays return transport (currently: we cover it for confirmed defects) and other
- * specifics, and that page is the source of truth. Duplicating detail here risks the two
- * drifting apart; this just tells the customer where to go and roughly what to expect.
+ * Deliberately light summary, not a restatement of the full policy — refunds.tsx already covers
+ * the specifics (what's eligible, timelines, who pays return transport) and is the source of
+ * truth. Duplicating that detail here risks the two drifting apart; this just tells the
+ * customer where to go and states the one rule worth surfacing up front, so nobody assumes
+ * every return is covered.
  */
 function RefundPolicyNote() {
   return (
     <div className="mt-3 rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
       <p className="font-medium text-foreground">Something wrong with your order?</p>
       <p className="mt-1 text-muted-foreground">
-        Contact us with your order reference and our team will review it — once the goods are
-        verified, an approved refund is processed back to your original payment method. See our{" "}
+        Contact us with your order reference and our team will review it. If it's confirmed to be
+        our mistake (a defect, wrong item, or an order that doesn't match what you received), we
+        cover the return and process your refund back to your original payment method. See our{" "}
         <a href="/refunds" target="_blank" rel="noreferrer" className="underline">
           Refund &amp; Returns Policy
         </a>{" "}
-        for the full process and timelines.
+        for the full eligibility criteria and timelines.
       </p>
     </div>
   );
