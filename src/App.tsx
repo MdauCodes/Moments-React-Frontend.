@@ -119,6 +119,7 @@ import AdminProductNewPage from "@/routes/_adminAuth.admin.products_.new";
 import AdminQueuesDispatchPage from "@/routes/_adminAuth.admin.queues.dispatch";
 import AdminQueuesPaymentPage from "@/routes/_adminAuth.admin.queues.payment";
 import AdminQueuesPreparationPage from "@/routes/_adminAuth.admin.queues.preparation";
+import AdminQueuesRiderVerificationPage from "@/routes/_adminAuth.admin.queues.rider-verification";
 import AdminReviewsPage from "@/routes/_adminAuth.admin.reviews";
 import AdminRolesPage from "@/routes/_adminAuth.admin.roles";
 import AdminSettingsPage from "@/routes/_adminAuth.admin.settings";
@@ -249,6 +250,7 @@ export default function App() {
                       <Route path="/admin/queues/dispatch" element={<AdminQueuesDispatchPage />} />
                       <Route path="/admin/queues/payment" element={<AdminQueuesPaymentPage />} />
                       <Route path="/admin/queues/preparation" element={<AdminQueuesPreparationPage />} />
+                      <Route path="/admin/queues/rider-verification" element={<AdminQueuesRiderVerificationPage />} />
                       <Route path="/admin/reviews" element={<AdminReviewsPage />} />
                       <Route path="/admin/roles" element={<AdminRolesPage />} />
                       <Route path="/admin/settings" element={<AdminSettingsPage />} />
