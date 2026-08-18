@@ -1,10 +1,11 @@
 import { Loader2, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Section, Row } from "@/components/admin/AdminSectionUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
 import { RiderScanPanel } from "@/components/admin/RiderScanPanel";
-import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
+import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
+import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { retryTumaBodaDelivery } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -26,14 +27,56 @@ export function tumaBodaOrderIsReadyOrBeyond(order: OrderRecord): boolean {
 export function TumaBodaFulfillmentPanel({
   order,
   onOrderUpdated,
+  onClose,
 }: {
   order: OrderRecord;
   onOrderUpdated: (order: OrderRecord) => void;
+  /** Modal's own dismiss handler — called automatically once "Mark ready" succeeds and the
+   *  live tracking tab has been opened, so staff land straight on the map instead of having to
+   *  close the modal themselves. */
+  onClose: () => void;
 }) {
   const o = order as OrderRecord & Record<string, any>;
   const [retryBusy, setRetryBusy] = useState(false);
   const readyOrBeyond = tumaBodaOrderIsReadyOrBeyond(order);
   const dispatchedOrLater = order.status === "DISPATCHED" || order.status === "DELIVERED";
+
+  // Holds the blank tab opened synchronously at click time (see openPendingTrackingTab) until
+  // the booking response tells us the real tracking URL to navigate it to. Only ever set for
+  // the specific IN_PRODUCTION -> READY_FOR_DISPATCH transition (see isMarkReadyTransition
+  // below) — every other GenericNextActionButton use in this panel (e.g. "Start production")
+  // passes no onBeforeAdvance at all, so this never gets set for those.
+  const pendingTrackingWindow = useRef<Window | null>(null);
+  // This specific button instance only ever represents ONE transition at a time (whatever
+  // getNextActionV2 currently returns for this order), so checking the order's current status
+  // here tells us exactly which transition the upcoming click will attempt.
+  const isMarkReadyTransition = order.status === "IN_PRODUCTION";
+
+  function openPendingTrackingTab() {
+    // Close any orphaned blank tab from a previous attempt that failed before the window ever
+    // got navigated (see the failure branch in handleTumaBodaReadyUpdate below for the normal
+    // case — this only matters if that cleanup somehow didn't run, e.g. an unmount mid-request).
+    pendingTrackingWindow.current?.close();
+    pendingTrackingWindow.current = window.open("", "_blank", "noopener,noreferrer");
+  }
+
+  function handleTumaBodaReadyUpdate(updated: OrderRecord) {
+    onOrderUpdated(updated);
+    const u = updated as OrderRecord & Record<string, any>;
+    const pending = pendingTrackingWindow.current;
+    if (!pending) return; // not the ready-for-dispatch transition — nothing to do
+    pendingTrackingWindow.current = null;
+    if (u.tumabodaTrackingCode) {
+      pending.location.href = buildTumaBodaTrackingUrl(u.tumabodaTrackingCode);
+      onClose();
+    } else {
+      // Booking failed server-side (tumabodaBookingFailureReason set, already surfaced by
+      // useOrderStatusAction's own toast) — no tracking code to show, so there's nothing useful
+      // to navigate to. Close the blank tab rather than leaving it stranded, and leave the modal
+      // open so staff sees the failure toast in context.
+      pending.close();
+    }
+  }
 
   async function handleRetry() {
     setRetryBusy(true);
@@ -89,7 +132,11 @@ export function TumaBodaFulfillmentPanel({
 
       {!readyOrBeyond ? (
         <div className="mt-1">
-          <GenericNextActionButton order={order} onOrderUpdated={onOrderUpdated} />
+          <GenericNextActionButton
+            order={order}
+            onOrderUpdated={isMarkReadyTransition ? handleTumaBodaReadyUpdate : onOrderUpdated}
+            onBeforeAdvance={isMarkReadyTransition ? openPendingTrackingTab : undefined}
+          />
         </div>
       ) : o.tumabodaDeliveryId && !dispatchedOrLater ? (
         <Section title="Verify rider">
@@ -106,15 +153,7 @@ export function TumaBodaFulfillmentPanel({
       ) : null}
 
       {dispatchedOrLater && (
-        <Section title="Customer confirmation">
-          {o.customerConfirmedDeliveredAt ? (
-            <Row label="Confirmed by customer" value={formatDate(o.customerConfirmedDeliveredAt)} />
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Not yet confirmed by the customer on the track-order page.
-            </div>
-          )}
-        </Section>
+        <DeliveryConfirmationSection order={order} onOrderUpdated={onOrderUpdated} />
       )}
     </>
   );

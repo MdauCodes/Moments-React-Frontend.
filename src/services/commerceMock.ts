@@ -108,6 +108,10 @@ export interface OrderRecord {
   /** Set when the customer self-confirms receipt on the track-order page — see
    *  OrderService.confirmDelivery. Distinct from any courier/staff-driven status. */
   customerConfirmedDeliveredAt?: string;
+  /** Admin-only — never exposed to the customer. Staff can read this back to a customer over the
+   *  phone (having confirmed their identity some other way) if they've lost their receipt, so the
+   *  customer still self-confirms rather than needing a staff override. */
+  deliveryVerificationCode?: string | null;
   refundRequestedAt?: string;
   refundRequestReason?: string;
   refundRequestedBy?: string;

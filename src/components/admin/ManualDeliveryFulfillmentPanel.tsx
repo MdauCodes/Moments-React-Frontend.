@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Section, Row } from "@/components/admin/AdminSectionUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
 import { ItemChecklist } from "@/components/admin/ItemChecklist";
+import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
 import { DeliveryFeeStatusBadge, formatDate } from "@/components/admin/commerceUi";
 import { useOrderStatusAction } from "@/lib/useOrderStatusAction";
 import type { OrderRecord } from "@/services/commerceMock";
@@ -77,15 +78,7 @@ export function ManualDeliveryFulfillmentPanel({
       </Section>
 
       {dispatchedOrLater && (
-        <Section title="Customer confirmation">
-          {o.customerConfirmedDeliveredAt ? (
-            <Row label="Confirmed by customer" value={formatDate(o.customerConfirmedDeliveredAt)} />
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Not yet confirmed by the customer on the track-order page.
-            </div>
-          )}
-        </Section>
+        <DeliveryConfirmationSection order={order} onOrderUpdated={onOrderUpdated} />
       )}
     </>
   );
