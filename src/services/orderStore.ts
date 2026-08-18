@@ -108,6 +108,9 @@ export interface CustomerOrder {
   /** Set once the customer self-confirms receipt via confirmDelivery() below — only present on
    *  the verified (OTP-unlocked) view, like the rest of the financial/PII fields. */
   customerConfirmedDeliveredAt?: string | null;
+  /** Whether confirmDelivery() will demand a scanned/typed receipt code — never the code itself,
+   *  which only ever exists on the physical receipt. */
+  deliveryVerificationRequired?: boolean;
   /** One-time secret for the Cloudinary tax-invoice upload flow — present only when etrRequested was true. */
   taxInvoiceUploadToken?: string | null;
   etrRequested?: boolean;
@@ -266,6 +269,7 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     tumabodaStatus: raw.tumabodaStatus ?? null,
     tumabodaTrackingCode: raw.tumabodaTrackingCode ?? null,
     customerConfirmedDeliveredAt: raw.customerConfirmedDeliveredAt ?? null,
+    deliveryVerificationRequired: raw.deliveryVerificationRequired ?? false,
     trackingEvents: (raw.statusHistory ?? []).map((h: any) => ({
       at: h.changedAt,
       // Backend returns toStatus (not status) — fall back to status for safety
@@ -597,14 +601,15 @@ export const orderStore = {
   },
 
   /** Customer self-confirms receipt of a dispatched order — requires the same email+accessToken
-   *  pair verifyOrderOtp() returned. Response is the refreshed, verified tracking record, same
-   *  shape getStatus() normalizes. */
-  async confirmDelivery(reference: string, email: string, accessToken: string): Promise<CustomerOrder> {
+   *  pair verifyOrderOtp() returned, plus (for orders that have one) the code printed on the
+   *  receipt as proof the parcel is actually in hand, scanned or typed in. Response is the
+   *  refreshed, verified tracking record, same shape getStatus() normalizes. */
+  async confirmDelivery(reference: string, email: string, accessToken: string, scannedCode?: string): Promise<CustomerOrder> {
     let res: Response;
     try {
       res = await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/confirm-delivery`, {
         method: "POST",
-        json: { email, accessToken },
+        json: { email, accessToken, scannedCode },
       });
     } catch {
       throw new Error("Cannot reach the server. Check your connection and try again.");

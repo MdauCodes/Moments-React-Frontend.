@@ -1,8 +1,9 @@
 import { Link, useSearchParams } from "react-router-dom";
 
 import { InlineProgress } from "@/components/InlineProgress";
-import { useEffect, useState, type FormEvent } from "react";
-import { ChevronDown, ChevronUp, FileDown, Search } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Html5Qrcode } from "html5-qrcode";
+import { Camera, ChevronDown, ChevronUp, FileDown, Keyboard, Search, X } from "lucide-react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -13,6 +14,10 @@ import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 import { resolveStatusDisplay, isCustomerSelfConfirmMode } from "@/lib/orderStatusV2";
 
 const searchSchema = z.object({ ref: z.string().optional() });
+
+// Nothing left to change once an order reaches one of these — the verified panel's polling
+// effect stops rather than keep re-fetching forever.
+const TERMINAL_ORDER_STATUSES = new Set(["DELIVERED", "CANCELLED", "REFUNDED"]);
 
 function maskEmail(email: string): string {
   if (!email || !email.includes("@")) return email ?? "";
@@ -25,6 +30,15 @@ function maskEmail(email: string): string {
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+}
+
+// Collapses consecutive same-label entries (e.g. a repeated "READY FOR DISPATCH" from a
+// backend that, on some historical orders, logged a redundant transition) down to one, keeping
+// the first-seen (newest, since the caller passes newest-first) timestamp. Defensive display-
+// layer cleanup — the backend now guards against writing new duplicates, but this also cleans
+// up already-dirty historical orders that fix can't retroactively touch.
+function dedupeConsecutiveEvents<T extends { label: string }>(events: T[]): T[] {
+  return events.filter((e, i) => i === 0 || e.label !== events[i - 1].label);
 }
 
 const inputCls =
@@ -213,6 +227,53 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
     }
   }
 
+  // Keeps the verified view current without a manual reload — a status change made from the
+  // admin side (e.g. "Mark ready", rider scan) previously only showed up here after the
+  // customer refreshed the page themselves. Scoped to just this verified panel, not the
+  // unverified reference-lookup card. Stops polling once the order reaches a terminal state
+  // (nothing left to change) and pauses while the tab is backgrounded (no point spending a
+  // request on a poll nobody's looking at) — resuming with one immediate refetch when it comes
+  // back into view, so a customer who tabs back in isn't staring at stale data for up to 20s.
+  useEffect(() => {
+    if (stage !== "ready" || !order || !accessToken) return;
+    if (TERMINAL_ORDER_STATUSES.has(order.status)) return;
+
+    let cancelled = false;
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    async function refetch() {
+      try {
+        const { order: full } = await orderStore.trackByReference(reference, email, accessToken!);
+        if (!cancelled && full?.verified) setOrder(full);
+      } catch {
+        // A transient poll failure isn't worth surfacing — the next tick (or the customer's own
+        // manual refresh) will just try again.
+      }
+    }
+
+    function handleVisibilityChange() {
+      if (document.hidden) {
+        if (interval) {
+          clearInterval(interval);
+          interval = null;
+        }
+      } else if (!interval) {
+        void refetch();
+        interval = setInterval(refetch, 20_000);
+      }
+    }
+
+    if (!document.hidden) interval = setInterval(refetch, 20_000);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, order?.status, accessToken, reference, email]);
+
   if (stage === "checking") return <InlineProgress size="sm" />;
 
   if (stage === "ready" && order) {
@@ -286,6 +347,7 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
 // see Task tracking this pre-existing mismatch; worked around locally here rather than touching
 // that type in this pass.
 const CONFIRMABLE_STATUSES = new Set(["DISPATCHED", "DELIVERED"]);
+const SCANNER_ELEMENT_ID = "delivery-verification-scanner";
 
 /**
  * Self-service "I received my order" confirmation — reuses the email+OTP identity proof this
@@ -307,6 +369,17 @@ function ConfirmDeliverySection({
 }) {
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"idle" | "scanning" | "manual">("idle");
+  const [manualCode, setManualCode] = useState("");
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const stoppingRef = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      void stopScanner();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pickup is staff-marked ("Mark picked up") when the customer physically collects the order —
   // no customer self-confirm step, since the face-to-face handoff already is the verification.
@@ -320,11 +393,26 @@ function ConfirmDeliverySection({
     );
   }
 
-  async function handleConfirm() {
+  async function stopScanner() {
+    if (scannerRef.current && !stoppingRef.current) {
+      stoppingRef.current = true;
+      try {
+        await scannerRef.current.stop();
+        scannerRef.current.clear();
+      } catch {
+        /* already stopped/torn down — nothing to clean up */
+      } finally {
+        stoppingRef.current = false;
+        scannerRef.current = null;
+      }
+    }
+  }
+
+  async function submitConfirm(code?: string) {
     setConfirming(true);
     setError(null);
     try {
-      const updated = await orderStore.confirmDelivery(reference, email, accessToken);
+      const updated = await orderStore.confirmDelivery(reference, email, accessToken, code);
       onConfirmed(updated);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not confirm delivery");
@@ -333,20 +421,147 @@ function ConfirmDeliverySection({
     }
   }
 
+  function startScanner() {
+    setMode("scanning");
+    setError(null);
+    // The scanner target div only exists once React commits the mode change above — defer
+    // binding to the next tick so Html5Qrcode has an element to attach to.
+    setTimeout(async () => {
+      try {
+        const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID);
+        scannerRef.current = scanner;
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 220, height: 220 } },
+          (decodedText) => {
+            void handleScanned(decodedText);
+          },
+          () => {
+            /* per-frame decode miss while aiming — expected constantly, not an error */
+          },
+        );
+      } catch {
+        setError("Couldn't access the camera — check permissions, or enter the code manually below.");
+        setMode("idle");
+      }
+    }, 0);
+  }
+
+  async function handleScanned(decodedText: string) {
+    if (confirming) return; // ignore repeat frames while a submit is already in flight
+    await stopScanner();
+    setMode("idle");
+    await submitConfirm(decodedText);
+  }
+
+  async function cancelScan() {
+    await stopScanner();
+    setMode("idle");
+  }
+
+  async function handleManualSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!manualCode.trim()) {
+      setError("Enter the code printed on your receipt.");
+      return;
+    }
+    await submitConfirm(manualCode.trim());
+  }
+
+  // Orders that predate the delivery-verification-code field — plain one-tap confirm, same as
+  // before this feature existed. No code to scan for, so nothing to gate on.
+  if (!order.deliveryVerificationRequired) {
+    return (
+      <div className="mt-3 rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
+        <p className="font-medium text-foreground">Received your order?</p>
+        <p className="mt-1 text-muted-foreground">Let us know it arrived — this helps us keep track of every delivery.</p>
+        {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
+        <button
+          type="button"
+          onClick={() => void submitConfirm()}
+          disabled={confirming}
+          className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+        >
+          {confirming ? <InlineProgress size="sm" /> : null}
+          Confirm I received it
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="mt-3 rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
+    <div className="mt-3 w-full rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
       <p className="font-medium text-foreground">Received your order?</p>
-      <p className="mt-1 text-muted-foreground">Let us know it arrived — this helps us keep track of every delivery.</p>
+      <p className="mt-1 text-muted-foreground">
+        Scan the QR code on your receipt (or enter the code printed next to it) to confirm delivery.
+      </p>
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
-      <button
-        type="button"
-        onClick={handleConfirm}
-        disabled={confirming}
-        className="mt-2 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
-      >
-        {confirming ? <InlineProgress size="sm" /> : null}
-        Confirm I received it
-      </button>
+
+      {mode === "scanning" ? (
+        <div className="mt-3">
+          <div
+            id={SCANNER_ELEMENT_ID}
+            className="mx-auto w-full overflow-hidden rounded-lg bg-black"
+            style={{ aspectRatio: "1 / 1", maxWidth: 320 }}
+          />
+          <button
+            type="button"
+            onClick={() => void cancelScan()}
+            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground"
+          >
+            <X className="h-3.5 w-3.5" /> Cancel
+          </button>
+        </div>
+      ) : mode === "manual" ? (
+        <form onSubmit={handleManualSubmit} className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="text"
+            value={manualCode}
+            onChange={(e) => setManualCode(e.target.value.toUpperCase())}
+            placeholder="e.g. 7K9M3PXQ"
+            className="w-full flex-1 min-w-0 rounded-full border border-border bg-background px-4 py-2 text-sm uppercase tracking-widest"
+            disabled={confirming}
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button
+              type="submit"
+              disabled={confirming}
+              className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60 sm:flex-none"
+            >
+              {confirming ? <InlineProgress size="sm" /> : null}
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode("idle"); setError(null); }}
+              disabled={confirming}
+              className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground disabled:opacity-60"
+            >
+              Back
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={startScanner}
+            disabled={confirming}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            <Camera className="h-4 w-4" /> Scan receipt QR
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode("manual"); setError(null); }}
+            disabled={confirming}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-border px-4 py-3 text-xs font-semibold text-foreground disabled:opacity-60"
+          >
+            <Keyboard className="h-4 w-4" /> Enter code manually
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -635,7 +850,7 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
         <div className="mt-6">
           <h3 className="text-sm font-semibold">Activity</h3>
           <ol className="mt-2 space-y-3 border-l border-border pl-4">
-            {order.trackingEvents.slice().reverse().map((e, i) => (
+            {dedupeConsecutiveEvents(order.trackingEvents.slice().reverse()).map((e, i) => (
               <li key={i} className="text-sm">
                 <p className="font-medium text-foreground">{e.label}</p>
                 <p className="text-xs text-muted-foreground">{new Date(e.at).toLocaleString("en-KE")}{e.description ? ` · ${e.description}` : ""}</p>
