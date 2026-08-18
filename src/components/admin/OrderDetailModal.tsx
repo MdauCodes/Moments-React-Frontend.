@@ -303,7 +303,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
               {o.fulfillmentType === "MANUAL_DELIVERY" ? (
                 <ManualDeliveryFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
               ) : o.fulfillmentType === "TUMABODA_DELIVERY" ? (
-                <TumaBodaFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
+                <TumaBodaFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} onClose={onClose} />
               ) : (
                 <PickupFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
               )}
@@ -343,7 +343,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
               </Section>
 
               {/* Financials */}
-              <Section title="Financials">
+              <Section title="Financials" collapsible defaultOpen={false}>
                 <Row label="Subtotal" value={formatKes(o.subtotal)} />
                 <Row
                   label="Delivery fee"
@@ -377,7 +377,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
 
               {/* ETR / documents bundle shortcut — only shown for orders that opted in at checkout */}
               {o.etrRequested && (
-                <Section title="ETR & Tax Documents">
+                <Section title="ETR & Tax Documents" collapsible defaultOpen={false}>
                   <Row label="Documents email" value={o.documentsEmail ?? "—"} />
                   <div className="flex items-center justify-between gap-3 py-1.5">
                     <span className="text-sm text-muted-foreground">Status</span>
@@ -398,7 +398,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
               )}
 
               {/* Payment */}
-              <Section title="Payment">
+              <Section title="Payment" collapsible defaultOpen={false}>
                 <Row label="Method" value={o.paymentMethod ?? o.paymentGateway ?? "—"} />
                 <div className="flex items-center justify-between gap-3 py-1.5">
                   <span className="text-sm text-muted-foreground">Status</span>
@@ -423,7 +423,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
                   primary action for whatever stage the order is actually at lives in the
                   fulfillment panel above, not duplicated here. */}
               {canOverrideStatus && (
-                <Section title="Manual override">
+                <Section title="Manual override" collapsible defaultOpen={false}>
                   <div className="space-y-3 pt-1">
                     <details>
                       <summary className="cursor-pointer text-xs text-muted-foreground">Set status manually</summary>
@@ -472,7 +472,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
               {/* Refund — its own section, separate from status: refunding is a distinct
                   decision from moving an order through fulfilment. Logging a request just
                   records the complaint; nothing else changes until an admin explicitly acts. */}
-              <Section title="Refund">
+              <Section title="Refund" collapsible defaultOpen={false}>
                 {o.refundRequestedAt && !o.refundResolvedAt ? (
                   <div className="rounded-md border border-dashed border-destructive/40 bg-destructive/5 p-3">
                     <div className="text-sm font-semibold">Refund requested — awaiting manual resolution</div>
@@ -549,7 +549,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
 
               {/* Status history */}
               {Array.isArray(o.statusHistory) && o.statusHistory.length > 0 && (
-                <Section title="Status history">
+                <Section title="Status history" collapsible defaultOpen={false}>
                   <ol className="space-y-3">
                     {[...o.statusHistory].reverse().map((h: any, i: number) => (
                       <li key={i} className="border-l-2 border-primary/30 pl-3">
@@ -569,7 +569,7 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
               )}
 
               {/* Staff */}
-              <Section title="Staff">
+              <Section title="Staff" collapsible defaultOpen={false}>
                 {canAssign ? (
                   <AssignSelect
                     orderId={o.id}

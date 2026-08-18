@@ -14,9 +14,15 @@ import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 export function GenericNextActionButton({
   order,
   onOrderUpdated,
+  onBeforeAdvance,
 }: {
   order: OrderRecord;
   onOrderUpdated: (order: OrderRecord) => void;
+  /** Fires synchronously inside the click handler, before the (async) status update starts.
+   *  Exists so a caller can do something that must be a direct, synchronous product of the user
+   *  gesture — e.g. TumaBodaFulfillmentPanel opening a blank tab to navigate later, since
+   *  window.open() calls made after an awaited fetch are frequently popup-blocked. */
+  onBeforeAdvance?: () => void;
 }) {
   const { busy, advance } = useOrderStatusAction(order, onOrderUpdated);
   const next = getNextActionV2(order.fulfillmentType, order.statusV2, order.status as OrderStatus);
@@ -26,10 +32,13 @@ export function GenericNextActionButton({
     <button
       className="admin-btn admin-btn-primary w-full"
       disabled={busy}
-      onClick={() => void advance(next.nextLegacyStatus, `Status updated`)}
+      onClick={() => {
+        onBeforeAdvance?.();
+        void advance(next.nextLegacyStatus, `Status updated`);
+      }}
     >
       {busy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-      {next.label}
+      {busy ? (next.busyLabel ?? "Saving…") : next.label}
     </button>
   );
 }

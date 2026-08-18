@@ -28,9 +28,15 @@ export const TUMABODA_TRACKING_BASE_URL =
 // has an escape hatch regardless of whether our detection actually caught the problem.
 const TUMABODA_TRACKING_LOAD_TIMEOUT_MS = 8000;
 
+/** Single source of truth for the tracking URL — shared with anything that needs to link/open
+ *  it without rendering the full widget (e.g. the admin "Mark ready" auto-open-in-new-tab flow). */
+export function buildTumaBodaTrackingUrl(trackingCode: string): string {
+  return `${TUMABODA_TRACKING_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(trackingCode)}`;
+}
+
 export function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode: string; status?: string | null }) {
   const [iframeFailed, setIframeFailed] = useState(false);
-  const trackingUrl = `${TUMABODA_TRACKING_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(trackingCode)}`;
+  const trackingUrl = buildTumaBodaTrackingUrl(trackingCode);
   const tumaBodaPartner = getDeliveryPartner("tumaboda");
 
   useEffect(() => {

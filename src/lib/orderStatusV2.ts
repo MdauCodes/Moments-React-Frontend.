@@ -129,7 +129,7 @@ export function getNextActionV2(
   fulfillmentType: string | null | undefined,
   statusV2: string | null | undefined,
   legacyStatus: OrderStatus,
-): { nextLegacyStatus: OrderStatus; label: string } | null {
+): { nextLegacyStatus: OrderStatus; label: string; busyLabel?: string } | null {
   const current = statusV2 ?? legacyStatus;
 
   if (fulfillmentType === "TUMABODA_DELIVERY") {
@@ -137,7 +137,14 @@ export function getNextActionV2(
       case "PAID":
         return { nextLegacyStatus: "IN_PRODUCTION", label: "Start production" };
       case "IN_PRODUCTION":
-        return { nextLegacyStatus: "READY_FOR_DISPATCH", label: "Mark ready for rider pickup" };
+        // This click does more than flip a status — it synchronously books the TumaBoda rider
+        // server-side too, which can take several seconds. A generic spinner on unchanged
+        // label text reads as unresponsive; naming what's actually happening doesn't.
+        return {
+          nextLegacyStatus: "READY_FOR_DISPATCH",
+          label: "Mark ready for rider pickup",
+          busyLabel: "Booking rider…",
+        };
       // READY_FOR_RIDER_PICKUP / RIDER_ASSIGNED / RIDER_VERIFIED_IN_TRANSIT /
       // DELIVERED_PENDING_CONFIRMATION: no manual action — the rider scan and the customer's
       // own confirmation drive these, not a staff click.

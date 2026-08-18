@@ -14,6 +14,10 @@ export function useOrderStatusAction(order: OrderRecord, onOrderUpdated: (order:
   const [busy, setBusy] = useState(false);
 
   async function advance(nextStatus: OrderStatus, successLabel: string, staffNotes?: string) {
+    // Belt-and-suspenders: the button's own `disabled={busy}` should already prevent this, but
+    // costs nothing to guard directly against a second invocation landing while the first is
+    // still in flight.
+    if (busy) return;
     setBusy(true);
     try {
       const res = await updateOrderStatus(order.id, nextStatus, staffNotes);
