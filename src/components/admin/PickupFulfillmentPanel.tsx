@@ -17,6 +17,10 @@ export function PickupFulfillmentPanel({
 }: {
   order: OrderRecord;
   onOrderUpdated: (order: OrderRecord) => void;
+  /** Unused here — accepted only so this panel has the same call signature as
+   *  TumaBodaFulfillmentPanel, letting the fulfillment-mode registry (src/lib/fulfillmentModes.tsx)
+   *  render whichever panel is configured without a per-type prop mismatch. */
+  onClose?: () => void;
 }) {
   const { busy, advance } = useOrderStatusAction(order, onOrderUpdated);
   const [allTicked, setAllTicked] = useState(false);

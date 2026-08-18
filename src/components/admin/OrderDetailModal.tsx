@@ -15,9 +15,8 @@ import {
   formatDate,
   ORDER_STATUS_OPTIONS,
 } from "@/components/admin/commerceUi";
-import { PickupFulfillmentPanel } from "@/components/admin/PickupFulfillmentPanel";
-import { ManualDeliveryFulfillmentPanel } from "@/components/admin/ManualDeliveryFulfillmentPanel";
-import { TumaBodaFulfillmentPanel, tumaBodaOrderIsReadyOrBeyond } from "@/components/admin/TumaBodaFulfillmentPanel";
+import { tumaBodaOrderIsReadyOrBeyond } from "@/components/admin/TumaBodaFulfillmentPanel";
+import { FULFILLMENT_MODES, type FulfillmentModeKey } from "@/lib/fulfillmentModes";
 import {
   getOrder,
   updateOrderStatus,
@@ -299,14 +298,16 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
                 )}
               </Section>
 
-              {/* Fulfillment — genuinely distinct per mode, not a shared shell with conditionals */}
-              {o.fulfillmentType === "MANUAL_DELIVERY" ? (
-                <ManualDeliveryFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
-              ) : o.fulfillmentType === "TUMABODA_DELIVERY" ? (
-                <TumaBodaFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} onClose={onClose} />
-              ) : (
-                <PickupFulfillmentPanel order={o} onOrderUpdated={handleOrderUpdated} />
-              )}
+              {/* Fulfillment — genuinely distinct per mode, not a shared shell with conditionals.
+                  Which panel renders comes from the fulfillment-mode registry (src/lib/
+                  fulfillmentModes.ts), not a hardcoded per-type switch — a future provider adds
+                  a registry entry, not a new branch here. */}
+              {(() => {
+                const mode = FULFILLMENT_MODES[o.fulfillmentType as FulfillmentModeKey];
+                if (!mode) return null;
+                const Panel = mode.Panel;
+                return <Panel order={o} onOrderUpdated={handleOrderUpdated} onClose={onClose} />;
+              })()}
 
               {/* Items */}
               <Section title="Items">

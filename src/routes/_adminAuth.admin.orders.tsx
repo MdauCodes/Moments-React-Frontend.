@@ -25,18 +25,20 @@ import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { downloadOrdersListPdf } from "@/lib/pdf";
 import { Download, FileText } from "lucide-react";
+import { FULFILLMENT_MODE_KEYS, FULFILLMENT_MODES, stageSortIndex } from "@/lib/fulfillmentModes";
 
 
 
 const PAGE_SIZE = 20;
 type Scope = "ALL" | "MINE" | "UNASSIGNED";
-type DeliveryTab = "ALL" | "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY" | "COMPLETED" | "FAILED_DROPPED";
+type DeliveryTab = "ALL" | "COMPLETED" | "FAILED_DROPPED" | (typeof FULFILLMENT_MODE_KEYS)[number];
 
+// "ALL"/"COMPLETED"/"FAILED_DROPPED" are cross-mode views, not fulfillment modes themselves, so
+// they stay hardcoded here; every actual mode tab comes from the registry — adding a future
+// provider there adds its tab here automatically, no edit needed in this file.
 const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
   { value: "ALL", label: "Active" },
-  { value: "PICKUP", label: "Pickup" },
-  { value: "MANUAL_DELIVERY", label: "Manual Delivery" },
-  { value: "TUMABODA_DELIVERY", label: "TumaBoda Delivery" },
+  ...FULFILLMENT_MODE_KEYS.map((key) => ({ value: key, label: FULFILLMENT_MODES[key].label })),
   { value: "COMPLETED", label: "Completed" },
   { value: "FAILED_DROPPED", label: "Failed / Dropped" },
 ];
@@ -117,10 +119,22 @@ function AdminOrdersPage() {
     });
   }, [orders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders, deliveryTab]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  // Within a single fulfillment-mode tab, cluster orders by that mode's own journey stage
+  // (see fulfillmentModes.ts's statusOrder) instead of leaving them in date order — the whole
+  // point of a mode-specific tab is seeing where each order actually is, not just when it was
+  // placed. "ALL"/"COMPLETED"/"FAILED_DROPPED" are cross-mode views with no single stage
+  // sequence to sort by, so they keep the default (newest-first) order.
+  const sortedRows = useMemo(() => {
+    if (deliveryTab === "ALL" || deliveryTab === "COMPLETED" || deliveryTab === "FAILED_DROPPED") {
+      return filteredRows;
+    }
+    return [...filteredRows].sort((a, b) => stageSortIndex(a) - stageSortIndex(b));
+  }, [filteredRows, deliveryTab]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
   const pageRows = useMemo(
-    () => filteredRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
-    [filteredRows, page],
+    () => sortedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [sortedRows, page],
   );
 
   useEffect(() => { if (page > 0 && page >= totalPages) setPage(0); }, [page, totalPages]);
