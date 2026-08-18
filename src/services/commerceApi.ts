@@ -426,8 +426,25 @@ export async function scanRiderForOrder(
 }
 
 // ---------- Payments ----------
-// Removed: GET /api/v1/admin/payments does not exist on the backend.
-// Payment info is available on each order via paymentStatus / paymentMethod.
+
+/** A PaymentRecord still stuck in INITIATED/PROCESSING after the automatic STK reconciliation
+ *  sweep (every 10 minutes) has had a chance to resolve it — see PaymentService.listStuckPayments
+ *  and StkReconciliationJob on the backend. */
+export interface StuckPayment {
+  paymentRecordId: string;
+  orderId: string;
+  orderReference: string;
+  contactName: string;
+  phone: string;
+  amount: number;
+  status: string;
+  checkoutRequestId: string | null;
+  createdAt: string;
+}
+
+export async function fetchStuckPayments(): Promise<StuckPayment[]> {
+  return getJson<StuckPayment[]>("/api/v1/admin/orders/stuck-payments");
+}
 
 
 // ---------- Dashboard ----------

@@ -121,6 +121,7 @@ const navSections: NavSection[] = [
     label: "Queues",
     items: [
       { label: "Payment Queue", to: "/admin/queues/payment", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
+      { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
       { label: "Preparation Queue", to: "/admin/queues/preparation", icon: PackageCheck, requiresAny: [PERM.ORDER_PREPARE] },
       { label: "Dispatch Queue", to: "/admin/queues/dispatch", icon: Send, requiresAny: [PERM.ORDER_DISPATCH] },
       { label: "Rider Verification", to: "/admin/queues/rider-verification", icon: ScanLine, requiresAny: [PERM.ORDER_DISPATCH] },
