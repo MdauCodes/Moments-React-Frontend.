@@ -484,11 +484,16 @@ export const orderStore = {
    *              redacted status-only view — see OrderTrackingDto.verified.
    */
   async getStatus(reference: string, email?: string, accessToken?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    const params = new URLSearchParams();
-    if (email?.trim()) params.set("email", email.trim());
-    if (accessToken) params.set("accessToken", accessToken);
-    const qs = params.toString() ? `?${params.toString()}` : "";
-    const live = await tryLiveJson<Record<string, any>>(`/api/v1/orders/track/${encodeURIComponent(reference)}${qs}`);
+    // email/accessToken travel as headers, not query params — accessToken unlocks full order
+    // PII, and a query string would otherwise land in access logs, browser history, and Referer
+    // headers.
+    const headers: Record<string, string> = {};
+    if (email?.trim()) headers["X-Order-Email"] = email.trim();
+    if (accessToken) headers["X-Order-Access-Token"] = accessToken;
+    const live = await tryLiveJson<Record<string, any>>(
+      `/api/v1/orders/track/${encodeURIComponent(reference)}`,
+      Object.keys(headers).length ? { headers } : undefined,
+    );
     if (live) {
       const order = normalizeTrackingDto(live);
       const all = readAll();

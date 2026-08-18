@@ -93,7 +93,8 @@ async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, bu
     });
 
     const sigRes = await fetch(
-      apiUrl(`/api/v1/tax-documents/${encodeURIComponent(order.reference)}/upload-signature?token=${encodeURIComponent(uploadToken)}`),
+      apiUrl(`/api/v1/tax-documents/${encodeURIComponent(order.reference)}/upload-signature`),
+      { headers: { "X-Upload-Token": uploadToken } },
     );
     if (!sigRes.ok) return;
     const sig = await sigRes.json();
@@ -514,15 +515,21 @@ function CheckoutModal() {
     setQuoteUnavailable(false);
     const t = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({
-          lat: String(resolvedAddress.latitude),
-          lng: String(resolvedAddress.longitude),
-          subtotal: String(cartTotal),
-          contactName: name.trim(),
-          location: resolvedAddress.description ?? "",
-          landmarkDetail: landmarkDetail.trim(),
+        // POST body rather than a query string — this carries the customer's name and
+        // location/landmark detail, which shouldn't land in access logs, browser history, or
+        // Referer headers.
+        const res = await fetch(apiUrl(`/api/v1/public/tumaboda/quote`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: resolvedAddress.latitude,
+            lng: resolvedAddress.longitude,
+            subtotal: cartTotal,
+            contactName: name.trim(),
+            location: resolvedAddress.description ?? "",
+            landmarkDetail: landmarkDetail.trim(),
+          }),
         });
-        const res = await fetch(apiUrl(`/api/v1/public/tumaboda/quote?${params.toString()}`));
         if (cancelled) return;
         const data = await res.json();
         if (data.available) {
