@@ -363,6 +363,18 @@ export async function restoreOrderInventory(
   return { order: normalizeOrder(raw), source: "live" };
 }
 
+// GET /api/v1/admin/orders/{id}/delivery-note.pdf — the document carrying the delivery-
+// verification QR/code, for staff to print and physically attach to the parcel. Never emailed,
+// never Cloudinary-hosted — see DeliveryNotePdfService.
+export async function fetchDeliveryNote(id: string): Promise<Blob> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/delivery-note.pdf`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  return res.blob();
+}
+
 // POST /api/v1/admin/orders/{id}/override-delivery-confirmation  (@IsAdmin only)
 export async function overrideDeliveryConfirmation(
   id: string,

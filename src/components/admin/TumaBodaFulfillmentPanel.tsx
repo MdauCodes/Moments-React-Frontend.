@@ -5,6 +5,7 @@ import { Section, Row } from "@/components/admin/AdminSectionUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
 import { RiderScanPanel } from "@/components/admin/RiderScanPanel";
 import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
+import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { retryTumaBodaDelivery } from "@/services/commerceApi";
@@ -96,6 +97,9 @@ export function TumaBodaFulfillmentPanel({
   return (
     <>
       <Section title="TumaBoda delivery">
+        <div className="mb-2">
+          <DeliveryNoteButton orderId={order.id} />
+        </div>
         {!readyOrBeyond && (
           <div className="text-sm text-muted-foreground">
             A rider will be booked automatically once this order is marked ready — nothing to do

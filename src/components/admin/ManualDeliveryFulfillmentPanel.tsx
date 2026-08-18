@@ -4,6 +4,7 @@ import { Section, Row } from "@/components/admin/AdminSectionUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
 import { ItemChecklist } from "@/components/admin/ItemChecklist";
 import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
+import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { DeliveryFeeStatusBadge, formatDate } from "@/components/admin/commerceUi";
 import { useOrderStatusAction } from "@/lib/useOrderStatusAction";
 import type { OrderRecord } from "@/services/commerceMock";
@@ -19,6 +20,8 @@ export function ManualDeliveryFulfillmentPanel({
 }: {
   order: OrderRecord;
   onOrderUpdated: (order: OrderRecord) => void;
+  /** Unused here — see PickupFulfillmentPanel's identical comment. */
+  onClose?: () => void;
 }) {
   const o = order as OrderRecord & Record<string, any>;
   const { busy, advance } = useOrderStatusAction(order, onOrderUpdated);
@@ -29,6 +32,9 @@ export function ManualDeliveryFulfillmentPanel({
   return (
     <>
       <Section title="1. Destination — where the customer collects">
+        <div className="mb-2">
+          <DeliveryNoteButton orderId={order.id} />
+        </div>
         <Row label="Town" value={o.city || "—"} />
         <Row label="County" value={o.county || "—"} />
         <Row label="Nearest courier office (customer-side)" value={o.shippingAddress || "—"} />
