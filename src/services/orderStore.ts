@@ -115,6 +115,14 @@ export interface CustomerOrder {
   taxInvoiceUploadToken?: string | null;
   etrRequested?: boolean;
   documentsEmail?: string;
+  // -- Document availability (verified view only) — the actual PDF bytes are fetched through
+  // downloadTrackDocument() below, never a raw Cloudinary URL; these flags just say what's
+  // available to offer as a download button. --
+  receiptAvailable?: boolean;
+  taxInvoiceRequested?: boolean;
+  taxInvoiceAvailable?: boolean;
+  taxInvoiceAvailableUntil?: string | null;
+  etrAvailable?: boolean;
 }
 
 export interface PlaceOrderInput {
@@ -262,6 +270,13 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     vatAmount: raw.vatAmount ?? undefined,
     documentBundleStatus: raw.documentBundleStatus ?? undefined,
     etrAvailableUntil: raw.etrAvailableUntil ?? undefined,
+    etrRequested: raw.etrRequested ?? undefined,
+    documentsEmail: raw.documentsEmail ?? undefined,
+    receiptAvailable: raw.receiptAvailable ?? false,
+    taxInvoiceRequested: raw.taxInvoiceRequested ?? false,
+    taxInvoiceAvailable: raw.taxInvoiceAvailable ?? false,
+    taxInvoiceAvailableUntil: raw.taxInvoiceAvailableUntil ?? undefined,
+    etrAvailable: raw.etrAvailable ?? false,
     currency: "KES",
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),
@@ -526,6 +541,23 @@ export const orderStore = {
     }
     const found = readAll().find((o) => o.reference === reference) ?? null;
     return { order: found, source: "mock" };
+  },
+
+  /**
+   * Downloads one of an order's documents (receipt / tax-invoice / etr) through the backend's
+   * OTP-re-checked proxy — never a raw Cloudinary URL, so a forwarded/leaked link can't work
+   * forever the way a direct link in an email used to. See CustomerOrder's
+   * receiptAvailable/taxInvoiceAvailable/etrAvailable flags for what to offer.
+   */
+  async downloadTrackDocument(
+    reference: string, email: string, accessToken: string, type: "receipt" | "tax-invoice" | "etr",
+  ): Promise<Blob> {
+    const res = await fetch(
+      apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/documents/${type}`),
+      { headers: { "X-Order-Email": email, "X-Order-Access-Token": accessToken } },
+    );
+    if (!res.ok) throw new Error("That document isn't available right now.");
+    return res.blob();
   },
 
   /**

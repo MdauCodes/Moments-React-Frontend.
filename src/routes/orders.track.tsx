@@ -279,7 +279,7 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
   if (stage === "ready" && order) {
     return (
       <>
-        <OrderCard order={order} compact />
+        <OrderCard order={order} compact email={email} accessToken={accessToken ?? undefined} />
         {accessToken && (
           <ConfirmDeliverySection
             reference={reference}
@@ -709,8 +709,26 @@ function ByEmailTab() {
   );
 }
 
-function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?: boolean }) {
+function OrderCard({
+  order, compact = false, email, accessToken,
+}: { order: CustomerOrder; compact?: boolean; email?: string; accessToken?: string }) {
   const { businessKraPin } = useSiteConfig();
+  const [downloadingType, setDownloadingType] = useState<string | null>(null);
+
+  async function handleDocDownload(type: "tax-invoice" | "etr", label: string) {
+    if (!email || !accessToken) return;
+    setDownloadingType(type);
+    try {
+      const blob = await orderStore.downloadTrackDocument(order.reference, email, accessToken, type);
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank", "noopener");
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : `Failed to download ${label}`);
+    } finally {
+      setDownloadingType(null);
+    }
+  }
 
   async function handleDownload() {
     const { order: full } = await orderStore.getFullOrder(order.reference);
@@ -809,25 +827,69 @@ function OrderCard({ order, compact = false }: { order: CustomerOrder; compact?:
         <TumaBodaTrackingWidget trackingCode={order.tumabodaTrackingCode} status={order.tumabodaStatus} />
       )}
 
-      {order.etrRequested && (
+      {(order.taxInvoiceRequested || order.etrRequested) && (
         <div className="mt-4 rounded-xl border border-border bg-background/60 p-3 text-xs text-muted-foreground">
-          <p className="text-xs uppercase tracking-widest">ETR & tax documents</p>
-          {order.documentBundleStatus === "SENT" && order.etrAvailableUntil ? (
-            <p className="mt-1">
-              Emailed to <span className="font-medium text-foreground">{order.documentsEmail}</span>. ETR
-              available for re-download/resend until{" "}
-              <span className="font-medium text-foreground">
-                {new Date(order.etrAvailableUntil).toLocaleDateString("en-KE")}
-              </span>{" "}
-              — after that, contact us with your order reference.
-            </p>
-          ) : order.documentBundleStatus === "EXPIRED" ? (
-            <p className="mt-1">Download window expired — contact us with your order reference for a fresh copy.</p>
-          ) : (
-            <p className="mt-1">
-              Waiting on our team to upload your ETR — will be emailed to{" "}
-              <span className="font-medium text-foreground">{order.documentsEmail}</span> once ready.
-            </p>
+          <p className="text-xs uppercase tracking-widest">Tax documents</p>
+
+          {order.taxInvoiceRequested && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {order.taxInvoiceAvailable ? (
+                <>
+                  <span>
+                    Tax invoice{order.taxInvoiceAvailableUntil ? (
+                      <> — available until{" "}
+                        <span className="font-medium text-foreground">
+                          {new Date(order.taxInvoiceAvailableUntil).toLocaleDateString("en-KE")}
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!email || !accessToken || downloadingType === "tax-invoice"}
+                    onClick={() => void handleDocDownload("tax-invoice", "tax invoice")}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+                  >
+                    <FileDown className="h-3.5 w-3.5" /> Download
+                  </button>
+                </>
+              ) : (
+                <span>Tax invoice — download window has expired. Contact us with your order reference for a fresh copy.</span>
+              )}
+            </div>
+          )}
+
+          {order.etrRequested && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {order.documentBundleStatus === "SENT" && order.etrAvailable ? (
+                <>
+                  <span>
+                    ETR{order.etrAvailableUntil ? (
+                      <> — available until{" "}
+                        <span className="font-medium text-foreground">
+                          {new Date(order.etrAvailableUntil).toLocaleDateString("en-KE")}
+                        </span>
+                      </>
+                    ) : null}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={!email || !accessToken || downloadingType === "etr"}
+                    onClick={() => void handleDocDownload("etr", "ETR")}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
+                  >
+                    <FileDown className="h-3.5 w-3.5" /> Download
+                  </button>
+                </>
+              ) : order.documentBundleStatus === "EXPIRED" ? (
+                <span>ETR — download window expired. Contact us with your order reference for a fresh copy.</span>
+              ) : (
+                <span>
+                  ETR — waiting on our team to upload it, will be emailed to{" "}
+                  <span className="font-medium text-foreground">{order.documentsEmail}</span> once ready.
+                </span>
+              )}
+            </div>
           )}
         </div>
       )}
