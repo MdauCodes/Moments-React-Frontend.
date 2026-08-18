@@ -49,7 +49,7 @@ export function EmailVerificationCard({
       const res = await passwordStore.verifyEmailOtp(email, otp);
       if (res.ok) {
         toast.success("Email verified");
-        if (res.data?.accessToken) setSession(res.data.accessToken, res.data.refreshToken);
+        if (res.data?.user) setSession(res.data.user);
         onVerified?.();
       } else {
         toast.error(res.message ?? "Invalid or expired code");

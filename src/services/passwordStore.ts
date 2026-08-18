@@ -8,6 +8,7 @@
 //   POST /api/v1/auth/verify-email               { token }
 // ----------------------------------------------------------------------------
 import { apiUrl } from "@/config/api";
+import type { AuthUser } from "@/contexts/AuthContext";
 
 type Result<T = undefined> = { ok: boolean; message?: string; data?: T };
 
@@ -15,6 +16,7 @@ async function post<T = unknown>(path: string, body: unknown): Promise<Result<T>
   try {
     const res = await fetch(apiUrl(path), {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
@@ -62,8 +64,8 @@ export const passwordStore = {
   async sendVerificationOtp(email: string): Promise<Result> {
     return post("/api/v1/auth/resend-otp", { email });
   },
-  async verifyEmailOtp(email: string, otp: string): Promise<Result<{ accessToken: string; refreshToken: string }>> {
+  async verifyEmailOtp(email: string, otp: string): Promise<Result<{ user: AuthUser }>> {
     if (!/^\d{6}$/.test(otp)) return { ok: false, message: "Enter the 6-digit code from your email." };
-    return post<{ accessToken: string; refreshToken: string }>("/api/v1/auth/verify-email", { email, otp });
+    return post<{ user: AuthUser }>("/api/v1/auth/verify-email", { email, otp });
   },
 };

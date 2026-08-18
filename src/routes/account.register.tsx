@@ -5,7 +5,7 @@ import { Gift, Briefcase, Check, ShoppingBag } from "lucide-react";
 
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, type AuthUser } from "@/contexts/AuthContext";
 import { RegistrationDetailsWizard } from "@/components/RegistrationDetailsWizard";
 import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
 
@@ -50,8 +50,8 @@ function RegisterPage() {
     preselect === "business" ? "BUSINESS" : preselect === "merchant" ? "INDIVIDUAL_SHOPPER" : null,
   );
 
-  function handleSuccess(result: { accessToken?: string; refreshToken?: string }) {
-    if (result.accessToken) setSession(result.accessToken, result.refreshToken);
+  function handleSuccess(result: { user: AuthUser | null }) {
+    if (result.user) setSession(result.user);
     if (returnUrl) {
       toast.success("Account created — you're in.");
       navigate(returnUrl);

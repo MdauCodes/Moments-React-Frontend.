@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState, type FormEvent } from "react";
 import { X, Gift, Briefcase, Check, ShoppingBag, PartyPopper, UserRound } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import { useAuth, type AuthUser } from "@/contexts/AuthContext";
 import { useAuthModal, type ModalAccountType } from "@/contexts/AuthModalContext";
 import { PasswordInput } from "@/components/PasswordInput";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
@@ -174,8 +174,8 @@ function RegisterStep() {
   const [accountType, setAccountType] = useState<ModalAccountType | null>(preselectAccountType ?? null);
   const [welcome, setWelcome] = useState<{ firstName: string; accountType: ModalAccountType } | null>(null);
 
-  function handleSuccess(result: { accessToken?: string; refreshToken?: string; firstName: string }) {
-    if (result.accessToken) setSession(result.accessToken, result.refreshToken);
+  function handleSuccess(result: { user: AuthUser | null; firstName: string }) {
+    if (result.user) setSession(result.user);
     setWelcome({ firstName: result.firstName, accountType: accountType as ModalAccountType });
   }
 

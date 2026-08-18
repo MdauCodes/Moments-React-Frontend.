@@ -7,6 +7,7 @@ import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
 import { api } from "@/services/api";
 import { apiUrl, getSessionId } from "@/config/api";
+import type { AuthUser } from "@/contexts/AuthContext";
 
 type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
 type PurchasePurpose = { id: string; label: string };
@@ -30,7 +31,7 @@ export function RegistrationDetailsWizard({
   accountType: AccountType;
   referralCode?: string;
   compact?: boolean;
-  onSuccess: (result: { accessToken?: string; refreshToken?: string; firstName: string }) => void;
+  onSuccess: (result: { user: AuthUser | null; firstName: string }) => void;
 }) {
   const totalSteps = accountType === "BUSINESS" ? 2 : 3;
   const [step, setStep] = useState(1);
@@ -102,6 +103,7 @@ export function RegistrationDetailsWizard({
     try {
       const res = await fetch(apiUrl("/api/v1/auth/register"), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
         body: JSON.stringify({
           email: email.trim(),
@@ -133,8 +135,7 @@ export function RegistrationDetailsWizard({
         throw new Error(message);
       }
       onSuccess({
-        accessToken: (data as { accessToken?: string }).accessToken,
-        refreshToken: (data as { refreshToken?: string }).refreshToken,
+        user: (data as { user?: AuthUser }).user ?? null,
         firstName: firstName.trim() || "there",
       });
     } catch (err) {
