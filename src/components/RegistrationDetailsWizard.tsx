@@ -7,6 +7,7 @@ import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
 import { api } from "@/services/api";
 import { apiUrl, getSessionId } from "@/config/api";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 import type { AuthUser } from "@/contexts/AuthContext";
 
 type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
@@ -118,6 +119,7 @@ export function RegistrationDetailsWizard({
             ? { otherPurchasePurpose: otherPurchasePurpose.trim() }
             : { purchasePurposeId: purposeChoice }),
           ...(referralCode ? { referralCode } : {}),
+          consentPolicyVersion: PRIVACY_POLICY_VERSION,
           ...toPayload(turnstileToken),
         }),
       });

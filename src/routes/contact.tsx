@@ -11,6 +11,7 @@ import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { api } from "@/services/api";
 import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 
 
@@ -85,6 +86,7 @@ function ContactPage() {
       },
       message: detailLines.join("\n"),
       source: isCorp ? "corporate-quote-form" : referralSource || "contact-form",
+      consentPolicyVersion: PRIVACY_POLICY_VERSION,
       ...toPayload(turnstileToken),
     };
 

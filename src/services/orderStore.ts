@@ -166,6 +166,9 @@ export interface PlaceOrderInput {
   etrRequested?: boolean;
   /** Where to email the receipt/tax-invoice/ETR bundle — required server-side when etrRequested is true. */
   documentsEmail?: string;
+  /** The privacy policy's "Last updated" string shown next to the consent checkbox at the
+   *  moment of submission — see ConsentService/ConsentRecord on the backend. */
+  consentPolicyVersion?: string;
 }
 
 // ── Normalised status the UI cares about ─────────────────────────────────────
@@ -340,6 +343,7 @@ export const orderStore = {
       })),
       shippingFee: input.shippingFee,
     };
+    if (input.consentPolicyVersion) body.consentPolicyVersion = input.consentPolicyVersion;
     if (input.idempotencyKey) body.idempotencyKey = input.idempotencyKey;
     if (input.courierType) body.courierType = input.courierType;
     if (input.courierServiceName) body.courierServiceName = input.courierServiceName;

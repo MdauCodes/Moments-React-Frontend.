@@ -26,6 +26,7 @@ import { apiUrl, apiFetch } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
 import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { buildReceiptPdfBlob } from "@/lib/pdf";
@@ -773,6 +774,7 @@ function CheckoutModal() {
           paymentMethod: paymentGateway,
           fulfillmentType: fulfillment,
           idempotencyKey: idempotencyKey.current,
+          consentPolicyVersion: PRIVACY_POLICY_VERSION,
           promoCode: appliedPromo?.code,
           redeemPoints: appliedRedemption?.points,
           etrRequested,

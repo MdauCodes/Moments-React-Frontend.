@@ -21,6 +21,7 @@ import { filterVisibleIndustries, type Industry } from "@/data/products";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { CheckCircle2 } from "lucide-react";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 
 
@@ -101,6 +102,7 @@ function EnterpriseQuotePage() {
           estimatedQuantity: data.estimatedQuantity,
           productInterest: [data.industry, data.productInterest].filter(Boolean).join(" — "),
           message: data.message,
+          consentPolicyVersion: PRIVACY_POLICY_VERSION,
         },
       });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);

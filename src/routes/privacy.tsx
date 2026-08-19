@@ -2,6 +2,7 @@
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 
 
@@ -350,7 +351,7 @@ export function getPrivacyPolicyContent() {
 
   return {
     title: "Privacy Policy",
-    updated: "August 19, 2026",
+    updated: PRIVACY_POLICY_VERSION,
     intro: (
       <>
         How Moments Packaging Kenya collects, uses, shares and protects your personal data when
