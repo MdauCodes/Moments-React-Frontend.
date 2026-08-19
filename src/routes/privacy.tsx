@@ -171,8 +171,9 @@ export function getPrivacyPolicyContent() {
               <strong>WhatsApp / Meta</strong> — when you message us via WhatsApp Business.
             </li>
             <li>
-              <strong>Email providers</strong> we use to send transactional and (where you opted
-              in) marketing email.
+              <strong>Brevo</strong> — our transactional and (where you opted in) marketing email
+              provider, used to send order confirmations, account and delivery notifications, and
+              newsletters.
             </li>
             <li>
               <strong>Regulators, ODPC and law enforcement</strong> where we are legally required
@@ -290,9 +291,10 @@ export function getPrivacyPolicyContent() {
       title: "ODPC registration",
       body: (
         <p>
-          Moments Packaging Kenya Ltd is in the process of registering as a Data Controller with
-          the Office of the Data Protection Commissioner (ODPC) of Kenya. Our registration
-          reference will be published on this page once issued.
+          Moments Packaging Kenya Ltd is registered as a <strong>Data Controller</strong> with the
+          Office of the Data Protection Commissioner (ODPC) of Kenya, under registration number{" "}
+          <strong>134-4514-F461</strong>. The certificate is valid from 19 August 2026 to 19 August
+          2028.
         </p>
       ),
     },
@@ -348,7 +350,7 @@ export function getPrivacyPolicyContent() {
 
   return {
     title: "Privacy Policy",
-    updated: "May 19, 2026",
+    updated: "August 19, 2026",
     intro: (
       <>
         How Moments Packaging Kenya collects, uses, shares and protects your personal data when
