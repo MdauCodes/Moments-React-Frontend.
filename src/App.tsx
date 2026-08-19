@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
 import { SiteConfigProvider } from "@/contexts/SiteConfigContext";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
@@ -128,6 +129,7 @@ import AdminUsersPage from "@/routes/_adminAuth.admin.users";
 
 export default function App() {
   return (
+    <ErrorBoundary>
     <BrowserRouter>
       <ScrollToTop />
       <SiteConfigProvider>
@@ -283,5 +285,6 @@ export default function App() {
         </AccessibilityProvider>
       </SiteConfigProvider>
     </BrowserRouter>
+    </ErrorBoundary>
   );
 }
