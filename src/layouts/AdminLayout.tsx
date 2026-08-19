@@ -19,7 +19,6 @@ import {
   RefreshCw,
   CheckCircle2,
   PackageCheck,
-  Send,
   ScanLine,
   ShieldCheck,
   Boxes,
@@ -118,19 +117,18 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Queues",
+    label: "Orders",
     items: [
-      { label: "Payment Queue", to: "/admin/queues/payment", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
+      { label: "All Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
+      { label: "Pickup", to: "/admin/board/pickup", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+      { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+      { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
-      { label: "Preparation Queue", to: "/admin/queues/preparation", icon: PackageCheck, requiresAny: [PERM.ORDER_PREPARE] },
-      { label: "Dispatch Queue", to: "/admin/queues/dispatch", icon: Send, requiresAny: [PERM.ORDER_DISPATCH] },
-      { label: "Rider Verification", to: "/admin/queues/rider-verification", icon: ScanLine, requiresAny: [PERM.ORDER_DISPATCH] },
     ],
   },
   {
     label: "Sales",
     items: [
-      { label: "Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
       { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE], disabledNote: "Settlements are now recorded directly in the TumaBoda Business Portal — this page is reference-only" },
       { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },

@@ -19,7 +19,7 @@ function AdminSettingsPage() {
   useEffect(() => { if (isAdmin) void load(); }, [isAdmin]);
   if (!isAdmin) return <AdminLayout title="Settings"><Forbidden resource="settings" /></AdminLayout>;
   const save = async (key: string) => { setSavingKey(key); try { await adminResources.settings.upsert(drafts[key]); toast.success("Setting saved"); await load(); } catch (err) { reportAdminError(err, "Save failed"); } finally { setSavingKey(null); } };
-  return <AdminLayout title="Settings" onReload={load}><div className="admin-page-stack">{isSuperAdmin && <MockModeCard />}{isSuperAdmin && <PodModeCard />}{isSuperAdmin && <VehicleThresholdCard />}<MaintenanceToggleCard /><div className="admin-panel" data-admin-table-scroll><table className="admin-table"><thead><tr><th>Key</th><th>Value</th><th>Description</th><th></th></tr></thead><tbody>{loading ? <tr><td colSpan={4}>Loading settings…</td></tr> : rows.length === 0 ? <tr><td colSpan={4}><div className="admin-empty">No settings found.</div></td></tr> : rows.map((r) => <tr key={r.key}><td><b>{r.key}</b></td><td><input className="admin-input" value={drafts[r.key]?.value ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, value: e.target.value } })} /></td><td><input className="admin-input" value={drafts[r.key]?.description ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, description: e.target.value } })} /></td><td><button className="admin-btn admin-btn-primary" disabled={savingKey === r.key} onClick={() => void save(r.key)}>{savingKey === r.key && <Loader2 size={14} className="animate-spin" />}Save</button></td></tr>)}</tbody></table></div></div></AdminLayout>;
+  return <AdminLayout title="Settings" onReload={load}><div className="admin-page-stack">{isSuperAdmin && <MockModeCard />}{isSuperAdmin && <TumaBodaOverrideCard />}{isSuperAdmin && <PodModeCard />}{isSuperAdmin && <VehicleThresholdCard />}<MaintenanceToggleCard /><div className="admin-panel" data-admin-table-scroll><table className="admin-table"><thead><tr><th>Key</th><th>Value</th><th>Description</th><th></th></tr></thead><tbody>{loading ? <tr><td colSpan={4}>Loading settings…</td></tr> : rows.length === 0 ? <tr><td colSpan={4}><div className="admin-empty">No settings found.</div></td></tr> : rows.map((r) => <tr key={r.key}><td><b>{r.key}</b></td><td><input className="admin-input" value={drafts[r.key]?.value ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, value: e.target.value } })} /></td><td><input className="admin-input" value={drafts[r.key]?.description ?? ""} onChange={(e) => setDrafts({ ...drafts, [r.key]: { ...drafts[r.key], key: r.key, description: e.target.value } })} /></td><td><button className="admin-btn admin-btn-primary" disabled={savingKey === r.key} onClick={() => void save(r.key)}>{savingKey === r.key && <Loader2 size={14} className="animate-spin" />}Save</button></td></tr>)}</tbody></table></div></div></AdminLayout>;
 }
 
 function MockModeCard() {
@@ -73,6 +73,77 @@ function MockModeCard() {
               {confirm === "on"
                 ? "All data created from now on will be flagged as test data and excluded from analytics. A visible banner will appear across the admin."
                 : "Live mode will be restored. New data will count toward analytics."}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button className="admin-btn admin-btn-ghost" onClick={() => setConfirm(null)} disabled={busy}>Cancel</button>
+              <button className="admin-btn admin-btn-primary" onClick={() => void apply(confirm === "on")} disabled={busy}>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : null} Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Gates the "Mark Paid" action on the Stuck Payments page for TumaBoda orders specifically —
+ *  see TumaBodaStuckPaymentOverrideService's Javadoc on the backend for why TumaBoda needs this
+ *  and Manual Delivery/Pickup don't: a TumaBoda order has no payment fallback, so an incorrect
+ *  override doesn't just release goods, it accrues a real external debt to TumaBoda on top of
+ *  that. Modeled directly on MockModeCard — same confirm-before-toggle flow. */
+function TumaBodaOverrideCard() {
+  const [enabled, setEnabled] = useState<boolean | null>(null);
+  const [message, setMessage] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<null | "on" | "off">(null);
+  useEffect(() => {
+    adminResources.tumaBodaPaymentOverride.get()
+      .then((s) => { setEnabled(!!s.enabled); setMessage(s.message ?? ""); })
+      .catch((err) => reportAdminError(err, "Failed to read TumaBoda payment override"));
+  }, []);
+  const apply = async (next: boolean) => {
+    setBusy(true);
+    try {
+      const s = await adminResources.tumaBodaPaymentOverride.set(next);
+      setEnabled(!!s.enabled); setMessage(s.message ?? "");
+      toast.success(next ? "TumaBoda payment override ENABLED" : "TumaBoda payment override disabled");
+    } catch (err) {
+      reportAdminError(err, "Failed to toggle TumaBoda payment override");
+    } finally { setBusy(false); setConfirm(null); }
+  };
+  return (
+    <div className="admin-panel" style={{ padding: 20, marginBottom: 16, border: enabled ? "2px solid #b91c1c" : undefined, background: enabled ? "rgba(220,38,38,0.06)" : undefined }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: enabled ? "#b91c1c" : undefined }}>
+            TumaBoda Stuck-Payment Override {enabled === null ? "(loading…)" : enabled ? "— ENABLED" : "— off"}
+          </h2>
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "var(--admin-muted)" }}>
+            Off by default. When off, staff cannot mark a stuck TumaBoda payment as paid from the
+            Stuck Payments page — TumaBoda has no bank/COD fallback, so an incorrect override
+            accrues a real debt to TumaBoda on top of releasing goods. SUPER_ADMIN only.
+          </p>
+          {message && <p style={{ margin: "4px 0 0", fontSize: 12 }}>{message}</p>}
+        </div>
+        <button
+          className="admin-btn admin-btn-primary"
+          disabled={busy || enabled === null}
+          style={{ background: enabled ? "#b91c1c" : undefined, minWidth: 180 }}
+          onClick={() => setConfirm(enabled ? "off" : "on")}
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" /> : null}
+          {enabled ? "Turn OFF" : "Turn ON"}
+        </button>
+      </div>
+      {confirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--admin-bg)", border: "1px solid var(--admin-border)", borderRadius: 12, maxWidth: 420, width: "100%", padding: 24 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Confirm {confirm === "on" ? "ENABLE" : "DISABLE"} TumaBoda payment override?</h3>
+            <p style={{ fontSize: 13, color: "var(--admin-muted)", marginTop: 8 }}>
+              {confirm === "on"
+                ? "Staff will be able to manually mark a stuck TumaBoda payment as paid, with a mandatory M-Pesa reference note and a full audit trail. Only enable for a specific case."
+                : "Staff will no longer be able to mark a stuck TumaBoda payment as paid until this is turned back on."}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
               <button className="admin-btn admin-btn-ghost" onClick={() => setConfirm(null)} disabled={busy}>Cancel</button>

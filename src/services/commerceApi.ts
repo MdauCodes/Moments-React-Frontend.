@@ -440,6 +440,7 @@ export interface StuckPayment {
   status: string;
   checkoutRequestId: string | null;
   createdAt: string;
+  fulfillmentType: string | null;
 }
 
 export async function fetchStuckPayments(): Promise<StuckPayment[]> {

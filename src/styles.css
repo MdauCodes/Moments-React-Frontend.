@@ -712,3 +712,71 @@ html { font-size: calc(16px * var(--a11y-font-scale)); }
 }
 .admin-section-heading .admin-badge { text-transform: none; letter-spacing: 0; }
 
+/* Admin: per-fulfillment-mode kanban board (FulfillmentBoard) */
+.admin-board-columns {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+  align-items: flex-start;
+}
+.admin-board-column {
+  flex: 0 0 224px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+}
+.admin-board-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--admin-border);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+}
+.admin-board-column-body {
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  overflow-y: auto;
+}
+.admin-board-card {
+  background: var(--admin-bg, #fff);
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.admin-board-card:hover { border-color: var(--admin-accent); }
+.admin-board-card-exception { border-color: #dc2626; background: rgba(220, 38, 38, 0.06); }
+.admin-board-card-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+}
+.admin-board-card-action button {
+  padding: 5px 10px !important;
+  font-size: 11.5px !important;
+  min-height: unset !important;
+}
+
+/* Below ~780px, horizontal-scrolling columns become hard to scan on touch — stack them full-width
+ * instead, matching the vertical card-list pattern the rest of the admin panel already uses on
+ * mobile. Each column keeps its own internal scroll only on desktop; stacked, the page itself
+ * scrolls instead. */
+@media (max-width: 780px) {
+  .admin-board-columns { flex-direction: column; overflow-x: visible; }
+  .admin-board-column { flex-basis: auto; width: 100%; max-height: none; }
+  .admin-board-column-body { max-height: 60vh; }
+}
+

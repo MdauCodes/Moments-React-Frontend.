@@ -510,6 +510,14 @@ export const adminResources = {
     set: (enabled: boolean) =>
       adminJson<MockModeState>(`/api/v1/admin/mock-mode?enabled=${enabled ? "true" : "false"}`, { method: "PUT" }),
   },
+  /** SUPER_ADMIN-only gate on manually marking a stuck TumaBoda payment as paid — see
+   *  TumaBodaStuckPaymentOverrideService's Javadoc on the backend for why this is separate from
+   *  the equivalent override on Manual Delivery/Pickup orders. */
+  tumaBodaPaymentOverride: {
+    get: () => adminJson<MockModeState>("/api/v1/admin/tumaboda-payment-override"),
+    set: (enabled: boolean) =>
+      adminJson<MockModeState>(`/api/v1/admin/tumaboda-payment-override?enabled=${enabled ? "true" : "false"}`, { method: "PUT" }),
+  },
   users: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) => {
       const data = await adminJson<PageResponse<UserDto> | UserDto[]>(`/api/v1/admin/users${qs(params)}`);
