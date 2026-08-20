@@ -20,7 +20,10 @@ export function DeliveryNoteButton({ orderId }: { orderId: string }) {
 
   function handleClick() {
     pendingWindow.current?.close();
-    pendingWindow.current = window.open("", "_blank", "noopener");
+    // No "noopener" here — it makes window.open() always return null (per spec), which would
+    // leave this blank tab un-navigable and stuck empty forever. Only our own blob: URL ever
+    // loads in it, so the window.opener access noopener blocks isn't a real risk here.
+    pendingWindow.current = window.open("", "_blank");
     void generateAndShow();
   }
 

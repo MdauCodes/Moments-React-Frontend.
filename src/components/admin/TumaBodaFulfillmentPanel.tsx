@@ -59,7 +59,14 @@ export function TumaBodaFulfillmentPanel({
     // got navigated (see the failure branch in handleTumaBodaReadyUpdate below for the normal
     // case — this only matters if that cleanup somehow didn't run, e.g. an unmount mid-request).
     pendingTrackingWindow.current?.close();
-    pendingTrackingWindow.current = window.open("", "_blank", "noopener,noreferrer");
+    // Deliberately no "noopener"/"noreferrer" — "noopener" makes window.open() always return
+    // null (per spec, since it means the two windows have no relationship at all), which meant
+    // pendingTrackingWindow.current was always null and handleTumaBodaReadyUpdate's `if (!pending)
+    // return;` guard always fired — this auto-open-tracking-tab feature never actually worked
+    // since it shipped. Found while fixing the identical bug in the customer document downloads.
+    // Only ever navigated to our own buildTumaBodaTrackingUrl() below, not attacker-controlled
+    // content, so the window.opener access these flags would have blocked isn't a real risk here.
+    pendingTrackingWindow.current = window.open("", "_blank");
   }
 
   function handleTumaBodaReadyUpdate(updated: OrderRecord) {

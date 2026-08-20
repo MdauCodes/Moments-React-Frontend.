@@ -73,7 +73,10 @@ function AdminTaxDocumentsPage() {
 
   function preview(row: TaxDocumentAdminDto) {
     pendingPreviewWindow.current?.close();
-    pendingPreviewWindow.current = window.open("", "_blank", "noopener");
+    // No "noopener" here — it makes window.open() always return null (per spec), which would
+    // leave this blank tab un-navigable and stuck empty forever. Only our own blob: URL ever
+    // loads in it, so the window.opener access noopener blocks isn't a real risk here.
+    pendingPreviewWindow.current = window.open("", "_blank");
     void fetchAndShowPreview(row);
   }
 

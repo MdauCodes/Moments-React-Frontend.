@@ -54,7 +54,9 @@ function AdminCustomerDetailPage() {
   function previewDashboard() {
     if (!id) return;
     pendingPreviewWindow.current?.close();
-    pendingPreviewWindow.current = window.open("", "_blank", "noopener");
+    // No "noopener" here — it makes window.open() always return null (per spec), which would
+    // leave this blank tab un-navigable and stuck empty forever.
+    pendingPreviewWindow.current = window.open("", "_blank");
     void startPreview(id);
   }
 

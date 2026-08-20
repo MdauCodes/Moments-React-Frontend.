@@ -724,7 +724,13 @@ function OrderCard({
   function handleDocDownload(type: "tax-invoice" | "etr" | "receipt", label: string) {
     if (!email || !accessToken) return;
     pendingDocWindow.current?.close();
-    pendingDocWindow.current = window.open("", "_blank", "noopener");
+    // Deliberately no "noopener" here — that flag makes window.open() always return null (per
+    // spec, since noopener means the two windows have no relationship at all), which would leave
+    // this blank tab un-navigable and stuck empty forever. Confirmed live: the very bug this
+    // whole fix was for, reintroduced by including noopener on the placeholder open. Nothing
+    // attacker-controlled ever loads in this tab (only our own blob: URL below), so the
+    // window.opener access noopener would have blocked isn't a real risk here.
+    pendingDocWindow.current = window.open("", "_blank");
     void fetchAndShowDocument(type, label);
   }
 
