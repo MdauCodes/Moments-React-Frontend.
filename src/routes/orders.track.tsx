@@ -708,24 +708,45 @@ function OrderCard({
   order, compact = false, email, accessToken,
 }: { order: CustomerOrder; compact?: boolean; email?: string; accessToken?: string }) {
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
+  // Opened synchronously in the click handler, before the (async) fetch starts — the same
+  // "blank tab now, navigate it later" pattern TumaBodaFulfillmentPanel already uses. Calling
+  // window.open() AFTER an await (the original bug here) is no longer considered a direct
+  // response to the user's click by most browsers' popup blockers, so it was getting silently
+  // blocked — the fetch itself always succeeded, only the resulting tab never appeared. Real
+  // gap found via live testing on a real click, not caught by testing the fetch alone.
+  const pendingDocWindow = useRef<Window | null>(null);
 
   // "receipt" routes through the same OTP-gated document endpoint as tax-invoice/etr below — it
   // previously built the PDF client-side from getFullOrder(), which silently fell back to the
   // public, redacted tracking lookup (no name/address/phone/financials) for anyone without this
   // browser's own checkout-time cache, instead of actually requiring the OTP proof this whole
   // panel exists to enforce.
-  async function handleDocDownload(type: "tax-invoice" | "etr" | "receipt", label: string) {
+  function handleDocDownload(type: "tax-invoice" | "etr" | "receipt", label: string) {
     if (!email || !accessToken) return;
+    pendingDocWindow.current?.close();
+    pendingDocWindow.current = window.open("", "_blank", "noopener");
+    void fetchAndShowDocument(type, label);
+  }
+
+  async function fetchAndShowDocument(type: "tax-invoice" | "etr" | "receipt", label: string) {
     setDownloadingType(type);
     try {
-      const blob = await orderStore.downloadTrackDocument(order.reference, email, accessToken, type);
+      const blob = await orderStore.downloadTrackDocument(order.reference, email!, accessToken!, type);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener");
+      if (pendingDocWindow.current) {
+        pendingDocWindow.current.location.href = url;
+      } else {
+        // The pre-opened blank tab was itself blocked or closed — fall back to the old call, on
+        // the off chance this browser allows it outside a direct gesture.
+        window.open(url, "_blank", "noopener");
+      }
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
+      pendingDocWindow.current?.close();
       toast.error(err instanceof Error ? err.message : `Failed to download ${label}`);
     } finally {
       setDownloadingType(null);
+      pendingDocWindow.current = null;
     }
   }
 
@@ -744,7 +765,7 @@ function OrderCard({
             <button
               type="button"
               disabled={!email || !accessToken || downloadingType === "receipt"}
-              onClick={() => void handleDocDownload("receipt", "receipt")}
+              onClick={() => handleDocDownload("receipt", "receipt")}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
             >
               <FileDown className="h-3.5 w-3.5" /> Receipt
@@ -755,7 +776,9 @@ function OrderCard({
 
       <dl className="mt-2 grid gap-3 text-sm sm:grid-cols-2">
         <div><dt className="text-muted-foreground">Placed</dt><dd>{new Date(order.createdAt).toLocaleString("en-KE")}</dd></div>
-        <div><dt className="text-muted-foreground">Total</dt><dd className="font-semibold">{fmt(order.total)}</dd></div>
+        {order.verified !== false && (
+          <div><dt className="text-muted-foreground">Total</dt><dd className="font-semibold">{fmt(order.total)}</dd></div>
+        )}
         <div><dt className="text-muted-foreground">Payment</dt><dd>{order.paymentStatus} · {order.paymentMethod}</dd></div>
         <div><dt className="text-muted-foreground">Customer</dt><dd>{maskEmail(order.customerEmail)}</dd></div>
         {order.shippingAddress && (
@@ -768,7 +791,7 @@ function OrderCard({
         <button
           type="button"
           disabled={!email || !accessToken || downloadingType === "receipt"}
-          onClick={() => void handleDocDownload("receipt", "receipt")}
+          onClick={() => handleDocDownload("receipt", "receipt")}
           className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
         >
           <FileDown className="h-3.5 w-3.5" /> Download receipt
@@ -806,7 +829,7 @@ function OrderCard({
                   <button
                     type="button"
                     disabled={!email || !accessToken || downloadingType === "tax-invoice"}
-                    onClick={() => void handleDocDownload("tax-invoice", "tax invoice")}
+                    onClick={() => handleDocDownload("tax-invoice", "tax invoice")}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
                   >
                     <FileDown className="h-3.5 w-3.5" /> Download
@@ -834,7 +857,7 @@ function OrderCard({
                   <button
                     type="button"
                     disabled={!email || !accessToken || downloadingType === "etr"}
-                    onClick={() => void handleDocDownload("etr", "ETR")}
+                    onClick={() => handleDocDownload("etr", "ETR")}
                     className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
                   >
                     <FileDown className="h-3.5 w-3.5" /> Download
