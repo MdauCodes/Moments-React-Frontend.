@@ -58,10 +58,6 @@ export interface OrderRecord {
   currency: "KES";
   createdAt: string;
   updatedAt: string;
-  /** NOTE: normalizeOrder maps this from raw?.trackingNumber, a field the backend OrderDto
-   *  doesn't actually have — always undefined in practice. Left as-is (pre-existing, unrelated
-   *  to this change); use tumabodaTrackingCode below for the real backend field. */
-  trackingNumber?: string;
   /** Real backend field (OrderDto.tumabodaTrackingCode) — the code TumaBoda's tracking iframe
    *  URL is built from. See TumaBodaTrackingWidget. */
   tumabodaTrackingCode?: string;
@@ -75,6 +71,8 @@ export interface OrderRecord {
   taxableAmount?: number;
   vatRate?: number;
   etrRequested?: boolean;
+  /** Only set once etrRequested and an admin has uploaded the ETR at least once — PENDING/SENT/FAILED/EXPIRED. */
+  documentBundleStatus?: string | null;
   documentsEmail?: string;
   courierType?: string;
   courierServiceName?: string;

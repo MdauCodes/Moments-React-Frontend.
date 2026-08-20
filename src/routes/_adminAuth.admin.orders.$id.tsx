@@ -356,12 +356,12 @@ function AdminOrderDetailPage() {
                   <div style={{ marginTop: 4, fontSize: 13, fontFamily: "monospace" }}>{(order as any).promoCode}</div>
                 </>
               )}
-              {order.trackingNumber && (
+              {order.tumabodaTrackingCode && (
                 <>
                   <div style={{ marginTop: 10 }} className="admin-label">
                     Tracking number
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 13, fontFamily: "monospace" }}>{order.trackingNumber}</div>
+                  <div style={{ marginTop: 4, fontSize: 13, fontFamily: "monospace" }}>{order.tumabodaTrackingCode}</div>
                 </>
               )}
               {(order as any).fulfillmentType && (

@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -152,6 +153,7 @@ export function getAccessibilityPolicyContent() {
 }
 
 function AccessibilityPolicyPage() {
+  useEffect(() => { document.title = "Accessibility Policy — Moments Packaging Kenya"; }, []);
   const content = getAccessibilityPolicyContent();
   return (
     <SiteLayout>

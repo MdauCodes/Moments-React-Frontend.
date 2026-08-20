@@ -1,9 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { guestDataApi, type GuestDataSummary } from "@/services/guestDataApi";
-import { X, Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck } from "lucide-react";
 
 type Step = "email" | "otp" | "loaded";
 
@@ -21,6 +21,7 @@ function formatDate(iso: string): string {
  * an account. Same email-OTP proof of ownership as every other guest flow on this site.
  */
 function ManageMyDataPage() {
+  useEffect(() => { document.title = "View or Delete Your Data — Moments Packaging Kenya"; }, []);
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -165,93 +166,90 @@ function ManageMyDataPage() {
           )}
 
           {step === "loaded" && summary && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
-              <div className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-card p-6 shadow-2xl sm:p-8">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-5 w-5 text-primary" />
-                    <h2 className="font-display text-lg font-semibold text-foreground">Your data</h2>
-                  </div>
-                  <button onClick={reset} aria-label="Close" className="rounded-full p-1 text-muted-foreground hover:bg-muted">
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{summary.email}</p>
-
-                {deletionRequested ? (
-                  <div className="mt-6 rounded-lg bg-primary/10 p-4 text-sm text-foreground">
-                    Your deletion request has been submitted. We'll act on it within 30 days as
-                    required by law.
-                  </div>
-                ) : (
-                  <>
-                    <div className="mt-5">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Orders ({summary.orders.length})
-                      </h3>
-                      {summary.orders.length === 0 ? (
-                        <p className="mt-2 text-sm text-muted-foreground">No guest orders on file.</p>
-                      ) : (
-                        <ul className="mt-2 space-y-2">
-                          {summary.orders.map((o) => (
-                            <li key={o.reference} className="rounded-lg border border-border p-3 text-sm">
-                              <div className="flex justify-between font-medium">
-                                <span>{o.reference}</span>
-                                <span>{formatKes(o.totalAmount)}</span>
-                              </div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {formatDate(o.createdAt)} — {o.status?.replace(/_/g, " ")}
-                              </div>
-                              {(o.city || o.county) && (
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                  {[o.deliveryAddress, o.city, o.county].filter(Boolean).join(", ")}
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-
-                    <div className="mt-5">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Enquiries ({summary.enquiries.length})
-                      </h3>
-                      {summary.enquiries.length === 0 ? (
-                        <p className="mt-2 text-sm text-muted-foreground">No enquiries on file.</p>
-                      ) : (
-                        <ul className="mt-2 space-y-2">
-                          {summary.enquiries.map((en, i) => (
-                            <li key={i} className="rounded-lg border border-border p-3 text-sm">
-                              <div className="text-xs text-muted-foreground">{formatDate(en.createdAt)}</div>
-                              {en.message && <p className="mt-1">{en.message}</p>}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-
-                    <div className="mt-5 text-sm">
-                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Newsletter
-                      </h3>
-                      <p className="mt-2 text-muted-foreground">
-                        {summary.newsletterSubscribed ? "Subscribed" : "Not subscribed"}
-                      </p>
-                    </div>
-
-                    {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
-                    <button
-                      onClick={() => void handleRequestDeletion()}
-                      disabled={busy}
-                      className="mt-6 w-full rounded-full border border-destructive px-5 py-3 text-sm font-semibold text-destructive transition hover:bg-destructive/10 disabled:opacity-60"
-                    >
-                      {busy && <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />}
-                      Request deletion of this data
-                    </button>
-                  </>
-                )}
+            <div className="mt-8 rounded-2xl border border-border bg-card p-6 sm:p-8">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-primary" />
+                <h2 className="font-display text-lg font-semibold text-foreground">Your data</h2>
               </div>
+              <p className="mt-1 text-xs text-muted-foreground">{summary.email}</p>
+
+              {deletionRequested ? (
+                <div className="mt-6 rounded-lg bg-primary/10 p-4 text-sm text-foreground">
+                  Your deletion request has been submitted. We'll act on it within 30 days as
+                  required by law.
+                </div>
+              ) : (
+                <>
+                  <div className="mt-5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Orders ({summary.orders.length})
+                    </h3>
+                    {summary.orders.length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No guest orders on file.</p>
+                    ) : (
+                      <ul className="mt-2 space-y-2">
+                        {summary.orders.map((o) => (
+                          <li key={o.reference} className="rounded-lg border border-border p-3 text-sm">
+                            <div className="flex justify-between font-medium">
+                              <span>{o.reference}</span>
+                              <span>{formatKes(o.totalAmount)}</span>
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {formatDate(o.createdAt)} — {o.status?.replace(/_/g, " ")}
+                            </div>
+                            {(o.city || o.county) && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {[o.deliveryAddress, o.city, o.county].filter(Boolean).join(", ")}
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="mt-5">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Enquiries ({summary.enquiries.length})
+                    </h3>
+                    {summary.enquiries.length === 0 ? (
+                      <p className="mt-2 text-sm text-muted-foreground">No enquiries on file.</p>
+                    ) : (
+                      <ul className="mt-2 space-y-2">
+                        {summary.enquiries.map((en, i) => (
+                          <li key={i} className="rounded-lg border border-border p-3 text-sm">
+                            <div className="text-xs text-muted-foreground">{formatDate(en.createdAt)}</div>
+                            {en.message && <p className="mt-1">{en.message}</p>}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="mt-5 text-sm">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Newsletter
+                    </h3>
+                    <p className="mt-2 text-muted-foreground">
+                      {summary.newsletterSubscribed ? "Subscribed" : "Not subscribed"}
+                    </p>
+                  </div>
+
+                  {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
+                  <button
+                    onClick={() => void handleRequestDeletion()}
+                    disabled={busy}
+                    className="mt-6 w-full rounded-full border border-destructive px-5 py-3 text-sm font-semibold text-destructive transition hover:bg-destructive/10 disabled:opacity-60"
+                  >
+                    {busy && <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />}
+                    Request deletion of this data
+                  </button>
+                </>
+              )}
+
+              <button type="button" onClick={reset} className="mt-4 w-full text-center text-xs text-muted-foreground underline">
+                Start over with a different email
+              </button>
             </div>
           )}
         </div>

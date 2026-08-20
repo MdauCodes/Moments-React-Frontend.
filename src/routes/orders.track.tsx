@@ -8,8 +8,6 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
-import { downloadReceiptPdf } from "@/lib/pdf";
-import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 import { resolveStatusDisplay, isCustomerSelfConfirmMode } from "@/lib/orderStatusV2";
 
@@ -342,10 +340,7 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
 }
 
 // Order.status values that mean "the order has actually left the building" — the only point a
-// customer-confirmation makes sense. Compared as plain strings since the real backend OrderStatus
-// enum (DISPATCHED, etc.) doesn't fully match this frontend's own CustomerOrderStatus union —
-// see Task tracking this pre-existing mismatch; worked around locally here rather than touching
-// that type in this pass.
+// customer-confirmation makes sense.
 const CONFIRMABLE_STATUSES = new Set(["DISPATCHED", "DELIVERED"]);
 const SCANNER_ELEMENT_ID = "delivery-verification-scanner";
 
@@ -462,7 +457,7 @@ function ConfirmDeliverySection({
   async function handleManualSubmit(e: FormEvent) {
     e.preventDefault();
     if (!manualCode.trim()) {
-      setError("Enter the code printed on your receipt.");
+      setError("Enter the code printed on your package's label.");
       return;
     }
     await submitConfirm(manualCode.trim());
@@ -493,7 +488,7 @@ function ConfirmDeliverySection({
     <div className="mt-3 w-full rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
       <p className="font-medium text-foreground">Received your order?</p>
       <p className="mt-1 text-muted-foreground">
-        Scan the QR code on your receipt (or enter the code printed next to it) to confirm delivery.
+        Scan the QR code on your package's label (or enter the code printed next to it) to confirm delivery.
       </p>
       {error && <p className="mt-2 text-xs text-destructive">{error}</p>}
 
@@ -550,7 +545,7 @@ function ConfirmDeliverySection({
             disabled={confirming}
             className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-4 py-3 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
           >
-            <Camera className="h-4 w-4" /> Scan receipt QR
+            <Camera className="h-4 w-4" /> Scan package QR
           </button>
           <button
             type="button"
@@ -712,10 +707,14 @@ function ByEmailTab() {
 function OrderCard({
   order, compact = false, email, accessToken,
 }: { order: CustomerOrder; compact?: boolean; email?: string; accessToken?: string }) {
-  const { businessKraPin } = useSiteConfig();
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
 
-  async function handleDocDownload(type: "tax-invoice" | "etr", label: string) {
+  // "receipt" routes through the same OTP-gated document endpoint as tax-invoice/etr below — it
+  // previously built the PDF client-side from getFullOrder(), which silently fell back to the
+  // public, redacted tracking lookup (no name/address/phone/financials) for anyone without this
+  // browser's own checkout-time cache, instead of actually requiring the OTP proof this whole
+  // panel exists to enforce.
+  async function handleDocDownload(type: "tax-invoice" | "etr" | "receipt", label: string) {
     if (!email || !accessToken) return;
     setDownloadingType(type);
     try {
@@ -728,48 +727,6 @@ function OrderCard({
     } finally {
       setDownloadingType(null);
     }
-  }
-
-  async function handleDownload() {
-    const { order: full } = await orderStore.getFullOrder(order.reference);
-    const o = full ?? order;
-    downloadReceiptPdf({
-      reference: o.reference,
-      invoiceNumber: o.invoiceNumber,
-      businessKraPin,
-      createdAt: o.createdAt,
-      paidAt: o.paidAt,
-      customerName: o.customerName,
-      customerEmail: o.customerEmail,
-      customerPhone: o.customerPhone,
-      shippingAddress: o.shippingAddress,
-      city: o.city,
-      county: o.county,
-      currency: o.currency,
-      subtotal: o.subtotal,
-      shippingFee: o.shippingFee,
-      discount: o.discount,
-      taxableAmount: o.taxableAmount,
-      grossTaxableAmount: o.grossTaxableAmount,
-      vatAmount: o.vatAmount,
-      total: o.total,
-      paymentMethod: o.paymentMethod,
-      paymentStatus: o.paymentStatus,
-      paymentReference: o.paymentReference,
-      receiptNumber: o.receiptNumber,
-      fulfillmentType: o.fulfillmentType,
-      courierServiceName: o.courierServiceName,
-      items: o.items.map((it) => ({
-        productName: it.productName,
-        size: it.size,
-        material: it.material,
-        finish: it.finish,
-        sku: it.sku,
-        quantity: it.quantity,
-        unitPrice: it.unitPrice,
-        lineTotal: it.lineTotal,
-      })),
-    });
   }
 
   return (
@@ -786,8 +743,9 @@ function OrderCard({
             </span>
             <button
               type="button"
-              onClick={handleDownload}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+              disabled={!email || !accessToken || downloadingType === "receipt"}
+              onClick={() => void handleDocDownload("receipt", "receipt")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
             >
               <FileDown className="h-3.5 w-3.5" /> Receipt
             </button>
@@ -803,14 +761,15 @@ function OrderCard({
         {order.shippingAddress && (
           <div><dt className="text-muted-foreground">Delivery to</dt><dd>{order.shippingAddress}{order.city ? `, ${order.city}` : ""}</dd></div>
         )}
-        {order.trackingNumber && <div><dt className="text-muted-foreground">Tracking #</dt><dd>{order.trackingNumber}</dd></div>}
+        {order.tumabodaTrackingCode && <div><dt className="text-muted-foreground">Tracking #</dt><dd>{order.tumabodaTrackingCode}</dd></div>}
       </dl>
 
       {compact && (
         <button
           type="button"
-          onClick={handleDownload}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
+          disabled={!email || !accessToken || downloadingType === "receipt"}
+          onClick={() => void handleDocDownload("receipt", "receipt")}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
         >
           <FileDown className="h-3.5 w-3.5" /> Download receipt
         </button>

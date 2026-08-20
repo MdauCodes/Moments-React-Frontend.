@@ -52,6 +52,7 @@ import { resolveStaffRole, STAFF_ROLE_DISPLAY } from "@/lib/roles";
 import { OnboardingTour } from "@/components/admin/OnboardingTour";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
+import { adminResources, type AdminNotificationDto } from "@/services/adminResources";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 function MockModeBanner() {
@@ -480,6 +481,64 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const [reloading, setReloading] = useState(false);
   const staffRole = resolveStaffRole(user);
 
+  // Bell was previously purely decorative — a static dot, no real data behind it at all (no
+  // notification system existed anywhere in the backend before this). Polls the unread count
+  // rather than the full list, so the topbar doesn't pay for a list fetch on every page just to
+  // show a badge.
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifItems, setNotifItems] = useState<AdminNotificationDto[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    function poll() {
+      adminResources.notifications.unreadCount()
+        .then((res) => { if (!cancelled) setUnreadCount(res.count); })
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  async function toggleNotifPanel() {
+    const opening = !notifOpen;
+    setNotifOpen(opening);
+    if (opening) {
+      setNotifLoading(true);
+      try {
+        const res = await adminResources.notifications.list();
+        setNotifItems(res.content);
+      } catch {
+        // Silently leave the panel empty on failure — this is a convenience surface, not
+        // critical-path; a broken fetch here shouldn't produce an error toast on every page.
+      } finally {
+        setNotifLoading(false);
+      }
+    }
+  }
+
+  async function handleMarkRead(id: string) {
+    setNotifItems((items) => items.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await adminResources.notifications.markRead(id);
+    } catch {
+      // Best-effort — the next poll/list fetch will reconcile if this silently failed.
+    }
+  }
+
+  async function handleMarkAllRead() {
+    setNotifItems((items) => items.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    try {
+      await adminResources.notifications.markAllRead();
+    } catch {
+      // Best-effort, same reasoning as handleMarkRead.
+    }
+  }
+
   const handleReload = async () => {
     if (reloading) return;
     setReloading(true);
@@ -653,10 +712,73 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
             >
               <HelpCircle size={15} />
             </button>
-            <button type="button" style={styles.bellBtn} aria-label="Notifications">
-              <Bell size={15} />
-              <span style={styles.bellDot} />
-            </button>
+            <div style={{ position: "relative" }}>
+              <button type="button" style={styles.bellBtn} aria-label="Notifications" onClick={toggleNotifPanel}>
+                <Bell size={15} />
+                {unreadCount > 0 && <span style={styles.bellDot} />}
+              </button>
+              {notifOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 40,
+                    width: 340,
+                    maxHeight: 420,
+                    overflowY: "auto",
+                    background: "var(--admin-surface)",
+                    border: "1px solid var(--admin-border, rgba(0,0,0,0.1))",
+                    borderRadius: 10,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    zIndex: 50,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--admin-border, rgba(0,0,0,0.08))" }}>
+                    <span style={{ fontSize: 13, fontWeight: 650 }}>Notifications</span>
+                    {unreadCount > 0 && (
+                      <button type="button" onClick={handleMarkAllRead} style={{ fontSize: 11, color: "var(--admin-accent)", background: "none", border: "none", cursor: "pointer" }}>
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  {notifLoading ? (
+                    <div style={{ padding: 16, fontSize: 12, color: "var(--admin-muted)" }}>Loading…</div>
+                  ) : notifItems.length === 0 ? (
+                    <div style={{ padding: 16, fontSize: 12, color: "var(--admin-muted)" }}>Nothing yet.</div>
+                  ) : (
+                    notifItems.map((n) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => {
+                          if (!n.read) void handleMarkRead(n.id);
+                          // The orders list has no query-param-driven initial search yet, so this
+                          // can't deep-link straight to the order — the reference is already in
+                          // the notification text above for the admin to search manually.
+                          if (n.orderReference) {
+                            navigate("/admin/orders");
+                            setNotifOpen(false);
+                          }
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 14px",
+                          background: n.read ? "transparent" : "var(--admin-surface-2)",
+                          border: "none",
+                          borderBottom: "1px solid var(--admin-border, rgba(0,0,0,0.06))",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ fontSize: 12.5, fontWeight: n.read ? 500 : 650 }}>{n.title}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--admin-muted)", marginTop: 2 }}>{n.message}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             {actionLabel && (
               <button type="button" style={styles.actionBtn} onClick={onAction}>
                 {actionLabel}

@@ -8,7 +8,7 @@ import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirma
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
-import { retryTumaBodaDelivery } from "@/services/commerceApi";
+import { retryTumaBodaDelivery, rerouteToManualDelivery } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 
@@ -39,6 +39,7 @@ export function TumaBodaFulfillmentPanel({
 }) {
   const o = order as OrderRecord & Record<string, any>;
   const [retryBusy, setRetryBusy] = useState(false);
+  const [rerouteBusy, setRerouteBusy] = useState(false);
   const readyOrBeyond = tumaBodaOrderIsReadyOrBeyond(order);
   const dispatchedOrLater = order.status === "DISPATCHED" || order.status === "DELIVERED";
 
@@ -94,6 +95,25 @@ export function TumaBodaFulfillmentPanel({
     }
   }
 
+  async function handleReroute() {
+    if (!window.confirm(
+      `Switch order ${order.reference} to Manual Delivery? The delivery fee already charged at ` +
+      `checkout will carry over as paid — no new charge — but TumaBoda will no longer be involved.`
+    )) return;
+    setRerouteBusy(true);
+    try {
+      const res = await rerouteToManualDelivery(order.id);
+      if (res.order) {
+        onOrderUpdated(res.order);
+        toast.success("Order switched to Manual Delivery");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to switch order to Manual Delivery");
+    } finally {
+      setRerouteBusy(false);
+    }
+  }
+
   return (
     <>
       <Section title="TumaBoda delivery">
@@ -115,10 +135,21 @@ export function TumaBodaFulfillmentPanel({
                 : "Payment succeeded but the TumaBoda delivery hasn't been created yet."}{" "}
               No rider has been summoned for this order.
             </div>
-            <button className="admin-btn admin-btn-ghost" disabled={retryBusy} onClick={handleRetry}>
-              {retryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-              Retry TumaBoda delivery
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button className="admin-btn admin-btn-ghost" disabled={retryBusy} onClick={handleRetry}>
+                {retryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                Retry TumaBoda delivery
+              </button>
+              {/* Only for a genuine recorded failure, not "hasn't been booked yet" — retrying is
+                  always the first thing to try; this is the escape hatch once retrying is known
+                  not to work (matches OrderService.rerouteToManualDelivery's own requirement). */}
+              {o.tumabodaBookingFailureReason && (
+                <button className="admin-btn admin-btn-ghost" disabled={rerouteBusy} onClick={handleReroute}>
+                  {rerouteBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                  Switch to Manual Delivery
+                </button>
+              )}
+            </div>
           </>
         )}
 

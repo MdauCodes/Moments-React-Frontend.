@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -222,6 +223,7 @@ export function getRefundsContent() {
 }
 
 function RefundsPage() {
+  useEffect(() => { document.title = "Refunds & Returns — Moments Packaging Kenya"; }, []);
   const content = getRefundsContent();
   return (
     <SiteLayout>

@@ -28,17 +28,30 @@ export function GenericNextActionButton({
   const next = getNextActionV2(order.fulfillmentType, order.statusV2, order.status as OrderStatus);
   if (!next) return null;
 
+  // Not a hard block — staff can still mark ready without the ETR, it's just easy to miss since
+  // nothing else on this button surfaces it. documentBundleStatus stays null until an admin
+  // uploads the ETR at least once, so this is exactly "requested but nothing uploaded yet".
+  const etrPending = next.nextLegacyStatus === "READY_FOR_DISPATCH"
+    && order.etrRequested && !order.documentBundleStatus;
+
   return (
-    <button
-      className="admin-btn admin-btn-primary w-full"
-      disabled={busy}
-      onClick={() => {
-        onBeforeAdvance?.();
-        void advance(next.nextLegacyStatus, `Status updated`);
-      }}
-    >
-      {busy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-      {busy ? (next.busyLabel ?? "Saving…") : next.label}
-    </button>
+    <>
+      {etrPending && (
+        <div className="mb-1.5 rounded-md border border-dashed border-amber-400/60 bg-amber-400/10 px-2.5 py-1.5 text-xs text-amber-700">
+          ETR requested but not uploaded yet
+        </div>
+      )}
+      <button
+        className="admin-btn admin-btn-primary w-full"
+        disabled={busy}
+        onClick={() => {
+          onBeforeAdvance?.();
+          void advance(next.nextLegacyStatus, `Status updated`);
+        }}
+      >
+        {busy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+        {busy ? (next.busyLabel ?? "Saving…") : next.label}
+      </button>
+    </>
   );
 }

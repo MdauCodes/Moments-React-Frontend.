@@ -120,7 +120,7 @@ export function DispatchChecklist({ order, onClose, onDispatched }: Props) {
         customerPhone: order.customerPhone ?? undefined,
         city: order.city ?? undefined,
         shippingAddress: order.shippingAddress ?? undefined,
-        trackingNumber: order.trackingNumber ?? undefined,
+        trackingNumber: order.tumabodaTrackingCode ?? undefined,
         items: (order.items ?? []).map((it) => ({
           name: it.name,
           size: it.size ?? undefined,

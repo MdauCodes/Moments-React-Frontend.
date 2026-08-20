@@ -201,6 +201,16 @@ export type UserDto = {
   updatedAt?: string;
 };
 export type SettingDto = { id?: string; key: string; value: string; description?: string };
+export type AdminNotificationDto = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  orderId?: string | null;
+  orderReference?: string | null;
+  read: boolean;
+  createdAt: string;
+};
 export type UploadResponse = { url: string; publicId: string };
 
 export type RoleDto = {
@@ -539,5 +549,11 @@ export const adminResources = {
   settings: {
     list: () => adminJson<SettingDto[]>("/api/v1/admin/settings"),
     upsert: (body: SettingDto) => adminJson<SettingDto>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(body) }),
+  },
+  notifications: {
+    list: () => adminJson<{ content: AdminNotificationDto[] }>("/api/v1/admin/notifications?size=20"),
+    unreadCount: () => adminJson<{ count: number }>("/api/v1/admin/notifications/unread-count"),
+    markRead: (id: string) => adminJson<void>(`/api/v1/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),
+    markAllRead: () => adminJson<void>("/api/v1/admin/notifications/read-all", { method: "PATCH" }),
   },
 };

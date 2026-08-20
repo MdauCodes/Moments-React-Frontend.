@@ -115,7 +115,6 @@ function normalizeOrder(raw: any): OrderRecord {
     createdAt: raw?.createdAt ?? new Date().toISOString(),
     updatedAt: raw?.updatedAt ?? raw?.createdAt ?? new Date().toISOString(),
 
-    trackingNumber: raw?.trackingNumber,
     tumabodaTrackingCode: raw?.tumabodaTrackingCode,
     notes: raw?.notes,
     staffNotes: raw?.staffNotes ?? "",
@@ -127,6 +126,7 @@ function normalizeOrder(raw: any): OrderRecord {
     taxableAmount: num(raw?.taxableAmount),
     vatRate: raw?.vatRate != null ? Number(raw.vatRate) : undefined,
     etrRequested: raw?.etrRequested ?? false,
+    documentBundleStatus: raw?.documentBundleStatus ?? null,
     documentsEmail: raw?.documentsEmail,
     promoCode: raw?.promoCode,
     paymentMethod: raw?.paymentMethod,
@@ -398,6 +398,22 @@ export async function retryTumaBodaDelivery(
 ): Promise<{ order: OrderRecord | undefined; source: Source }> {
   const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/retry-tumaboda-delivery`, {
     method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// A stuck TumaBoda order (booking permanently failed, retrying won't help) — switches
+// fulfillmentType to MANUAL_DELIVERY and carries the already-charged delivery fee over as paid.
+export async function rerouteToManualDelivery(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/reroute-to-manual-delivery`, {
+    method: "PATCH",
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

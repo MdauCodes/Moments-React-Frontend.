@@ -1,5 +1,6 @@
 
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -385,6 +386,7 @@ export function getPrivacyPolicyContent() {
 }
 
 function PrivacyPage() {
+  useEffect(() => { document.title = "Privacy Policy — Moments Packaging Kenya"; }, []);
   const content = getPrivacyPolicyContent();
   return (
     <SiteLayout>

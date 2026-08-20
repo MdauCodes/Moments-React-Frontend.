@@ -10,6 +10,7 @@ import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import { refundStore, refundEligibility, type RefundRequest, type RefundDesiredAction } from "@/services/refundStore";
 import { useCart } from "@/contexts/CartContext";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 
 
@@ -19,14 +20,14 @@ function fmt(n: number) {
 
 function statusIcon(status: string) {
   if (status === "DELIVERED") return CheckCircle2;
-  if (status === "SHIPPED" || status === "PACKED") return Truck;
-  if (status === "PAYMENT_FAILED" || status === "CANCELLED") return AlertCircle;
+  if (status === "DISPATCHED") return Truck;
+  if (status === "CANCELLED" || status === "REFUNDED") return AlertCircle;
   return Clock;
 }
 
 function statusTone(status: string) {
   if (status === "DELIVERED" || status === "PAID") return "bg-accent/15 text-accent";
-  if (status === "PAYMENT_FAILED" || status === "CANCELLED") return "bg-destructive/15 text-destructive";
+  if (status === "CANCELLED" || status === "REFUNDED") return "bg-destructive/15 text-destructive";
   return "bg-secondary text-foreground";
 }
 
@@ -163,8 +164,8 @@ function OrderDetailPage() {
             {order.trackingEvents && order.trackingEvents.length > 0 && (
               <div className="rounded-2xl border border-border bg-card p-6">
                 <h2 className="font-display text-lg">Tracking</h2>
-                {order.trackingNumber && (
-                  <p className="mt-1 text-xs text-muted-foreground">Tracking number: <span className="font-mono">{order.trackingNumber}</span></p>
+                {order.tumabodaTrackingCode && (
+                  <p className="mt-1 text-xs text-muted-foreground">Tracking number: <span className="font-mono">{order.tumabodaTrackingCode}</span></p>
                 )}
                 <ol className="mt-4 space-y-4">
                   {order.trackingEvents.map((ev, i) => (
@@ -280,6 +281,7 @@ function RefundForm({
   const [reason, setReason] = useState("");
   const [desiredAction, setDesiredAction] = useState<RefundDesiredAction>("REFUND");
   const [submitting, setSubmitting] = useState(false);
+  const { companyPhone, whatsappNumber } = useSiteConfig();
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -333,6 +335,12 @@ function RefundForm({
           {submitting ? "Submitting…" : "Submit request"}
         </button>
       </div>
+      <p className="mt-3 text-xs text-muted-foreground">
+        Prefer to talk it through? Call{" "}
+        <a href={`tel:+${whatsappNumber}`} className="underline hover:text-foreground">{companyPhone}</a>
+        {" "}or{" "}
+        <a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer" className="underline hover:text-foreground">WhatsApp us</a>.
+      </p>
     </form>
   );
 }

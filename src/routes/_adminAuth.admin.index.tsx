@@ -34,7 +34,6 @@ export function AdminDashboardPage() {
   const showPaymentBlock = hasPermission(PERM.ORDER_VERIFY_PAYMENT);
   const showPrepBlock = hasPermission(PERM.ORDER_PREPARE);
   const showDispatchBlock = hasPermission(PERM.ORDER_DISPATCH);
-  const showMyAssigned = hasPermission(PERM.ORDER_VIEW) && !hasPermission(PERM.ORDER_MANAGE_ALL);
   const showStaffOverview = hasPermission(PERM.USER_VIEW);
   const showBusinessAccounts = hasPermission(PERM.CUSTOMER_VIEW);
   const showQuickActions =
@@ -126,20 +125,28 @@ export function AdminDashboardPage() {
           )}
 
           {/* Queue-specific blocks */}
-          {(showPaymentBlock || showPrepBlock || showDispatchBlock || showMyAssigned) && (
+          {(showPaymentBlock || showPrepBlock || showDispatchBlock) && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }} data-admin-grid>
+              {/* These three used to link to /admin/queues/{payment,preparation,dispatch}, which no
+                  longer exist since the queue-page -> per-mode-board redesign. Now deep-link to
+                  the Orders page pre-filtered by the matching status (see its ?status= handling)
+                  rather than a bare, unfiltered /admin/orders. "Orders to prepare" covers two
+                  statuses (PAYMENT_VERIFIED, IN_PRODUCTION) but the Orders page's status filter is
+                  single-select — links to IN_PRODUCTION, the one orders actually sit at for a
+                  meaningful stretch (PAYMENT_VERIFIED is a brief manual-check pass-through). */}
               {showPaymentBlock && (
-                <QueueCard icon={CheckCircle2} label="Payments to verify" count={queueCounts.paid} to="/admin/queues/payment" cta="Open Payment Queue" />
+                <QueueCard icon={CheckCircle2} label="Payments to verify" count={queueCounts.paid} to="/admin/orders?status=PAID" cta="View orders" />
               )}
               {showPrepBlock && (
-                <QueueCard icon={PackageCheck} label="Orders to prepare" count={queueCounts.prep} to="/admin/queues/preparation" cta="Open Preparation Queue" />
+                <QueueCard icon={PackageCheck} label="Orders to prepare" count={queueCounts.prep} to="/admin/orders?status=IN_PRODUCTION" cta="View orders" />
               )}
               {showDispatchBlock && (
-                <QueueCard icon={Send} label="Ready to dispatch" count={queueCounts.dispatch} to="/admin/queues/dispatch" cta="Open Dispatch Queue" />
+                <QueueCard icon={Send} label="Ready to dispatch" count={queueCounts.dispatch} to="/admin/orders?status=READY_FOR_DISPATCH" cta="View orders" />
               )}
-              {showMyAssigned && (
-                <QueueCard icon={ShoppingCart} label="Assigned to me" count={queueCounts.mine} to="/admin/orders" cta="View my orders" />
-              )}
+              {/* "Assigned to me" card deliberately removed for now, per explicit request — keep
+                  this dashboard simple until "assigned to me" scoping is actually wanted. The
+                  underlying assignedToId persistence it depended on is already fixed and ready
+                  whenever this comes back. */}
             </div>
           )}
 
@@ -224,7 +231,7 @@ export function AdminDashboardPage() {
           )}
 
           {/* Truly minimal account — nothing matched any permission block */}
-          {!tiles.length && !showPaymentBlock && !showPrepBlock && !showDispatchBlock && !showMyAssigned
+          {!tiles.length && !showPaymentBlock && !showPrepBlock && !showDispatchBlock
             && !showTopProducts && !showStaffOverview && !showQuickActions && !showBusinessAccounts && (
             <div className="admin-panel" style={{ padding: 24, textAlign: "center" }}>
               <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: 20 }}>Welcome</h2>

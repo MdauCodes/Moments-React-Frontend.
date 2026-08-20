@@ -455,16 +455,24 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
                     </details>
 
                     {o.status !== "CANCELLED" && o.status !== "REFUNDED" && (
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost w-full"
-                        style={{ color: "var(--admin-clay, #c0392b)", borderColor: "var(--admin-clay, #c0392b)" }}
-                        disabled={updatingStatus || cancelling}
-                        onClick={handleCancelOrder}
-                      >
-                        {cancelling && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                        Cancel order
-                      </button>
+                      o.tumabodaDeliveryId ? (
+                        <p className="text-xs text-muted-foreground">
+                          This order already has a TumaBoda rider booked, so it can't be cancelled
+                          here — no TumaBoda API exists to cancel an in-flight delivery. Contact
+                          TumaBoda directly, then handle this order manually.
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost w-full"
+                          style={{ color: "var(--admin-clay, #c0392b)", borderColor: "var(--admin-clay, #c0392b)" }}
+                          disabled={updatingStatus || cancelling}
+                          onClick={handleCancelOrder}
+                        >
+                          {cancelling && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                          Cancel order
+                        </button>
+                      )
                     )}
                   </div>
                 </Section>

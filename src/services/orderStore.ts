@@ -19,17 +19,18 @@ import { apiUrl, apiFetch } from "@/config/api";
 import { authFetch, getAccessToken } from "@/contexts/AuthContext";
 import type { CartItem } from "@/contexts/CartContext";
 
+// Mirrors the backend's OrderStatus enum exactly (order/entity/OrderStatus.java) — these are
+// the only values the API ever actually returns for order.status.
 export type CustomerOrderStatus =
-  | "AWAITING_PAYMENT"
   | "PENDING_PAYMENT"
   | "PAID"
-  | "PROCESSING"
-  | "PACKED"
-  | "SHIPPED"
+  | "PAYMENT_VERIFIED"
+  | "IN_PRODUCTION"
+  | "READY_FOR_DISPATCH"
+  | "DISPATCHED"
   | "DELIVERED"
   | "CANCELLED"
-  | "REFUNDED"
-  | "PAYMENT_FAILED";
+  | "REFUNDED";
 
 export type CustomerPaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED";
 
@@ -96,7 +97,6 @@ export interface CustomerOrder {
   currency: "KES";
   createdAt: string;
   updatedAt: string;
-  trackingNumber?: string;
   receiptNumber?: string;
   trackingEvents?: { at: string; label: string; description?: string }[];
   fulfillmentType?: FulfillmentType;

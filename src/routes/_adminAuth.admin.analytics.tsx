@@ -117,7 +117,7 @@ function AdminAnalyticsPage() {
           reference: o?.reference ?? "", status: o?.status ?? "", payment: o?.paymentStatus ?? "", gateway: o?.paymentGateway ?? "",
           customer: o?.customerName ?? "", email: o?.customerEmail ?? "", phone: o?.customerPhone ?? "", city: o?.city ?? "",
           items: o?.items?.length ?? 0, subtotal: o?.subtotal ?? 0, shipping: o?.shippingFee ?? 0, total: o?.total ?? 0,
-          createdAt: o?.createdAt ?? "", tracking: o?.trackingNumber ?? "",
+          createdAt: o?.createdAt ?? "", tracking: o?.tumabodaTrackingCode ?? "",
         }));
         downloadCsv(`orders-${stamp}.csv`, toCsv(flat));
       } else {

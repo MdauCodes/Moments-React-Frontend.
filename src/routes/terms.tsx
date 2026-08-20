@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -355,10 +356,16 @@ export function getRewardsOfferContent() {
       </>
     ),
     sections: full.sections.filter((s) => ids.includes(s.id)),
+    related: [
+      { to: "/", label: "Home" },
+      { to: "/terms", label: "Full Terms of Service" },
+      { to: "/privacy", label: "Privacy Policy" },
+    ],
   };
 }
 
 function TermsPage() {
+  useEffect(() => { document.title = "Terms of Service — Moments Packaging Kenya"; }, []);
   const content = getTermsContent();
   return (
     <SiteLayout>

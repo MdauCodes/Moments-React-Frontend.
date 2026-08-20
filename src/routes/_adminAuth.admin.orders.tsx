@@ -1,5 +1,6 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
 import { AssignSelect } from "@/components/admin/AssignSelect";
 import { toast } from "sonner";
@@ -15,11 +16,14 @@ import {
   formatDateShort,
   formatKes,
 } from "@/components/admin/commerceUi";
+import { listOrders, assignOrder, listAssignableUsers, type AssignableUser } from "@/services/commerceApi";
+import type { OrderRecord } from "@/services/commerceMock";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
-import { resolveStaffRole } from "@/lib/roles";
+import { resolveStaffRole, canAssignTo } from "@/lib/roles";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import { QueueFreshness } from "@/components/admin/QueueFreshness";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
 import { downloadCsv, toCsv } from "@/lib/csv";
@@ -67,14 +71,33 @@ function AdminOrdersPage() {
   const canSeePayment = hasPermission(PERM.PAYMENT_VIEW) || hasPermission(PERM.ORDER_VERIFY_PAYMENT);
   const isAssignedOnly = !canSeeAll; // ORDER_VIEW only
   const currentUserId = user?.id ?? null;
+  const [searchParams] = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("ALL");
+  // Seeded once from ?status= (e.g. a dashboard queue card deep-linking straight to a filtered
+  // view) — deliberately a one-time initial value, not kept in sync with the URL afterward, same
+  // as every other filter on this page.
+  const [status, setStatus] = useState<string>(() => {
+    const fromUrl = searchParams.get("status");
+    return fromUrl && ORDER_STATUS_OPTIONS.some((o) => o.value === fromUrl) ? fromUrl : "ALL";
+  });
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [page, setPage] = useState(0);
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
   const [hideTestOrders, setHideTestOrders] = useState(false);
   const [deliveryTab, setDeliveryTab] = useState<DeliveryTab>("ALL");
+
+  // Bulk assign — the only bulk action for now; reuses the same eligibility rules and endpoint
+  // AssignSelect already applies per-row (must be PAID, not in a terminal status).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [assignees, setAssignees] = useState<AssignableUser[]>([]);
+  const [bulkAssignTo, setBulkAssignTo] = useState("");
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+
+  useEffect(() => {
+    if (!canAssign) return;
+    listAssignableUsers().then(setAssignees).catch(() => {});
+  }, [canAssign]);
 
   useEffect(() => { document.title = "Orders · Moments admin"; }, []);
   useEffect(() => { if (isAssignedOnly) setScope("MINE"); }, [isAssignedOnly]);
@@ -86,9 +109,53 @@ function AdminOrdersPage() {
 
   useEffect(() => { if (error) toast.error(error); }, [error]);
 
+  // The shared order cache (AdminOrdersContext) caps at 500 most-recent orders — fine for
+  // browsing, but a search for an older order silently reports "no results" even though the
+  // order exists. When there's an active search term, fetch matches directly from the backend
+  // (which now supports free-text search) instead of filtering the capped local cache, paging
+  // through every match up to a generous cap so a broad query can't hang the page.
+  const [searchResults, setSearchResults] = useState<OrderRecord[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchGen = useRef(0);
+
+  useEffect(() => {
+    if (!debouncedQ) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    const gen = ++searchGen.current;
+    setSearching(true);
+    const SIZE = 200;
+    const CAP = 2000;
+    (async () => {
+      try {
+        const first = await listOrders({ q: debouncedQ, page: 0, size: SIZE });
+        if (gen !== searchGen.current) return;
+        let all = first.rows;
+        const pagesToFetch = Math.min(first.totalPages, Math.ceil(CAP / SIZE));
+        for (let page = 1; page < pagesToFetch && all.length < CAP; page++) {
+          const res = await listOrders({ q: debouncedQ, page, size: SIZE });
+          if (gen !== searchGen.current) return;
+          all = all.concat(res.rows);
+        }
+        if (gen === searchGen.current) setSearchResults(all);
+      } catch (err) {
+        if (gen === searchGen.current) {
+          toast.error(err instanceof Error ? err.message : "Search failed");
+          setSearchResults([]);
+        }
+      } finally {
+        if (gen === searchGen.current) setSearching(false);
+      }
+    })();
+  }, [debouncedQ]);
+
+  const sourceOrders = useMemo(() => searchResults ?? orders, [searchResults, orders]);
+
   const filteredRows = useMemo(() => {
     const needle = debouncedQ.toLowerCase();
-    return orders.filter((o) => {
+    return sourceOrders.filter((o) => {
       // Permission-only orders: hard-locked to their own assignments.
       if (isAssignedOnly && (!currentUserId || o.assignedToId !== currentUserId)) return false;
       if (!isAssignedOnly) {
@@ -101,7 +168,10 @@ function AdminOrdersPage() {
       // COMPLETED is where a delivered order goes once there's nothing left to do — both
       // surfaced separately rather than left to look like noise inside the working queues.
       if (deliveryTab === "FAILED_DROPPED") {
-        if (o.status !== "PENDING_PAYMENT") return false;
+        // Broadened from PENDING_PAYMENT-only: a cancellation, a refund, and a TumaBoda order
+        // that paid but never got a rider are just as much a "didn't complete" case as an
+        // abandoned checkout — all three used to be invisible in this funnel.
+        if (!(NON_SUCCESSFUL_STATUSES.has(o.status) || !!o.tumabodaBookingFailureReason)) return false;
       } else if (deliveryTab === "COMPLETED") {
         if (!DONE_STATUSES.has(o.status)) return false;
       } else {
@@ -113,11 +183,11 @@ function AdminOrdersPage() {
       if (status !== "ALL" && o.status !== status) return false;
       if (hideTestOrders && o.isTestOrder) return false;
       if (!needle) return true;
-      return [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.city, o.trackingNumber]
+      return [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.city, o.tumabodaTrackingCode]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle));
     });
-  }, [orders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders, deliveryTab]);
+  }, [sourceOrders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders, deliveryTab]);
 
   // Within a single fulfillment-mode tab, cluster orders by that mode's own journey stage
   // (see fulfillmentModes.ts's statusOrder) instead of leaving them in date order — the whole
@@ -147,6 +217,59 @@ function AdminOrdersPage() {
     [filteredRows],
   );
 
+  // Selection is scoped to the current page's rows — clear it whenever the page or any filter
+  // changes underneath it, so a stale selection can never silently apply to a different set of
+  // orders than what's actually on screen.
+  useEffect(() => { setSelectedIds(new Set()); }, [page, deliveryTab, status, debouncedQ, scope, hideTestOrders]);
+
+  const visibleAssignees = useMemo(
+    () => assignees.filter((u) => canAssignTo(staffRole, u.staffRoleName)),
+    [assignees, staffRole],
+  );
+
+  const TERMINAL_ASSIGN_STATUSES = new Set(["DISPATCHED", "DELIVERED", "CANCELLED", "REFUNDED"]);
+  function isAssignEligible(o: OrderRecord & Record<string, any>): boolean {
+    return o.paymentStatus === "PAID" && !TERMINAL_ASSIGN_STATUSES.has(String(o.status).toUpperCase());
+  }
+
+  const selectedRows = useMemo(
+    () => pageRows.filter((o) => selectedIds.has(o.id)) as (OrderRecord & Record<string, any>)[],
+    [pageRows, selectedIds],
+  );
+  const eligibleSelectedRows = useMemo(() => selectedRows.filter(isAssignEligible), [selectedRows]);
+
+  function toggleSelectAllOnPage() {
+    setSelectedIds((prev) => {
+      const eligibleIds = (pageRows as (OrderRecord & Record<string, any>)[]).filter(isAssignEligible).map((o) => o.id);
+      const allSelected = eligibleIds.length > 0 && eligibleIds.every((id) => prev.has(id));
+      return allSelected ? new Set() : new Set(eligibleIds);
+    });
+  }
+
+  async function handleBulkAssign() {
+    const target = visibleAssignees.find((u) => u.id === bulkAssignTo);
+    if (!target || eligibleSelectedRows.length === 0) return;
+    setBulkAssigning(true);
+    let succeeded = 0;
+    for (const o of eligibleSelectedRows) {
+      try {
+        await assignOrder(o.id, target.name, target.id);
+        applyOrderPatch(o.id, { assignedTo: target.name, assignedToId: target.id });
+        succeeded++;
+      } catch (err) {
+        reportAdminError(err, `Failed to assign ${o.reference}`);
+      }
+    }
+    const skipped = selectedRows.length - eligibleSelectedRows.length;
+    if (succeeded > 0) {
+      toast.success(`Assigned ${succeeded} order${succeeded === 1 ? "" : "s"} to ${target.name}`
+        + (skipped > 0 ? ` — ${skipped} skipped (not eligible)` : ""));
+    }
+    setSelectedIds(new Set());
+    setBulkAssignTo("");
+    setBulkAssigning(false);
+  }
+
   if (!allowed) return null;
   void canSeePayment;
 
@@ -161,11 +284,11 @@ function AdminOrdersPage() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }} data-admin-stats>
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">Total orders</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>{initialLoading ? "—" : totals.orders}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>{initialLoading || searching ? "—" : totals.orders}</div>
             </div>
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">Revenue (visible)</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>{initialLoading ? "—" : formatKes(totals.revenue)}</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>{initialLoading || searching ? "—" : formatKes(totals.revenue)}</div>
             </div>
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">Filtered status</div>
@@ -228,9 +351,12 @@ function AdminOrdersPage() {
                 </label>
                 {canAssign && currentUserId && (
                   <div role="tablist" aria-label="Assignment scope" style={{ display: "inline-flex", border: "1px solid var(--admin-border)", borderRadius: 8, overflow: "hidden" }}>
-                    {(["ALL", "MINE", "UNASSIGNED"] as const).map((s) => {
+                    {/* "MINE" deliberately left out for now, per explicit request — keep this
+                        view simple until "assigned to me" is actually wanted, even though the
+                        underlying assignedToId persistence bug behind it is already fixed. */}
+                    {(["ALL", "UNASSIGNED"] as const).map((s) => {
                       const active = scope === s;
-                      const label = s === "ALL" ? "All orders" : s === "MINE" ? "Assigned to me" : "Unassigned";
+                      const label = s === "ALL" ? "All orders" : "Unassigned";
                       return (
                         <button
                           key={s}
@@ -265,7 +391,7 @@ function AdminOrdersPage() {
                         reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
                         customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
                         items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,
-                        createdAt: o.createdAt, tracking: o.trackingNumber ?? "",
+                        createdAt: o.createdAt, tracking: o.tumabodaTrackingCode ?? "",
                       }))));
                       toast.success(`Exported ${filteredRows.length} orders`);
                     }}
@@ -283,10 +409,53 @@ function AdminOrdersPage() {
               )}
             </div>
 
+            {canAssign && selectedIds.size > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--admin-accent-soft, rgba(0,0,0,0.03))", borderBottom: "1px solid var(--admin-border)", flexWrap: "wrap" }} data-admin-bulk-bar>
+                <span style={{ fontSize: 13 }}>
+                  {selectedIds.size} selected{eligibleSelectedRows.length !== selectedIds.size ? ` (${eligibleSelectedRows.length} eligible)` : ""}
+                </span>
+                <select
+                  className="admin-select"
+                  value={bulkAssignTo}
+                  onChange={(e) => setBulkAssignTo(e.target.value)}
+                  style={{ maxWidth: 220 }}
+                  disabled={bulkAssigning}
+                >
+                  <option value="" disabled>Assign selected to…</option>
+                  {visibleAssignees.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+                <button
+                  className="admin-btn admin-btn-primary"
+                  disabled={bulkAssigning || !bulkAssignTo || eligibleSelectedRows.length === 0}
+                  onClick={() => void handleBulkAssign()}
+                >
+                  {bulkAssigning ? "Assigning…" : `Assign ${eligibleSelectedRows.length || ""}`}
+                </button>
+                <button className="admin-btn admin-btn-ghost" disabled={bulkAssigning} onClick={() => setSelectedIds(new Set())}>
+                  Clear
+                </button>
+              </div>
+            )}
+
             <div data-admin-table-scroll className="admin-hide-on-mobile-table">
               <table className="admin-table">
                 <thead>
                   <tr>
+                    {canAssign && (
+                      <th style={{ width: 28 }}>
+                        <input
+                          type="checkbox"
+                          checked={(() => {
+                            const eligibleIds = (pageRows as (OrderRecord & Record<string, any>)[]).filter(isAssignEligible).map((o) => o.id);
+                            return eligibleIds.length > 0 && eligibleIds.every((id) => selectedIds.has(id));
+                          })()}
+                          onChange={toggleSelectAllOnPage}
+                          disabled={pageRows.length === 0}
+                        />
+                      </th>
+                    )}
                     <th>Reference</th>
                     <th>Delivery</th>
                     <th>Customer</th>
@@ -300,10 +469,10 @@ function AdminOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {initialLoading ? (
-                    <tr><td colSpan={canAssign ? 10 : 9}><div className="admin-empty">Loading orders…</div></td></tr>
+                  {initialLoading || searching ? (
+                    <tr><td colSpan={canAssign ? 11 : 9}><div className="admin-empty">{searching ? "Searching…" : "Loading orders…"}</div></td></tr>
                   ) : pageRows.length === 0 ? (
-                    <tr><td colSpan={canAssign ? 10 : 9}>
+                    <tr><td colSpan={canAssign ? 11 : 9}>
                       <div className="admin-empty">
                         {isAssignedOnly
                           ? "No orders assigned to you yet. Your supervisor will assign orders when ready."
@@ -313,6 +482,20 @@ function AdminOrdersPage() {
                   ) : (
                     pageRows.map((o) => (
                       <tr key={o.id}>
+                        {canAssign && (
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(o.id)}
+                              disabled={!isAssignEligible(o as OrderRecord & Record<string, any>)}
+                              onChange={() => setSelectedIds((prev) => {
+                                const next = new Set(prev);
+                                if (next.has(o.id)) next.delete(o.id); else next.add(o.id);
+                                return next;
+                              })}
+                            />
+                          </td>
+                        )}
                         <td>
                           <b>{o.reference}</b>{o.isTestOrder && <TestBadge />}
                         </td>
@@ -377,8 +560,8 @@ function AdminOrdersPage() {
 
             {/* Mobile cards */}
             <div className="admin-show-mobile admin-card-list" style={{ padding: 12 }}>
-              {initialLoading ? (
-                <div className="admin-empty">Loading orders…</div>
+              {initialLoading || searching ? (
+                <div className="admin-empty">{searching ? "Searching…" : "Loading orders…"}</div>
               ) : pageRows.length === 0 ? (
                 <div className="admin-empty">
                   {isAssignedOnly ? "No orders assigned to you yet." : "No orders match your filters."}

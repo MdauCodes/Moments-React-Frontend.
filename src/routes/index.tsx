@@ -26,27 +26,27 @@ import catGiftEventImg from "@/assets/categories/cat-gift-event.jpg";
 import catBeautyPharmaImg from "@/assets/categories/cat-beauty-pharma.jpg";
 // Segment photos — filenames match backend Segment.name exactly (see SEGMENT_IMAGES below).
 import segFoodPackagingImg from "@/assets/categories/food packaging segment photo.jpeg";
-import segDisposableTablewareImg from "@/assets/categories/disposable tablesware.png";
-import segCutleryImg from "@/assets/categories/cutlery.png";
-import segDrinksPackagingImg from "@/assets/categories/drinks packaging.png";
-import segKitchenTableImg from "@/assets/categories/kitchen and table.png";
-import segWoodenAccessoriesImg from "@/assets/categories/wooden accessories.png";
-import segHygieneImg from "@/assets/categories/hygiene.png";
-import segBagsSacksImg from "@/assets/categories/bags and sacks.png";
-import segGeneralSuppliesImg from "@/assets/categories/general supplies.png";
-import segCustomBrandingImg from "@/assets/categories/stickers and labels.png";
-import segCosmeticsImg from "@/assets/categories/cosmetics.png";
-import segAgricultureImg from "@/assets/categories/agriculture.png";
-import segDairyImg from "@/assets/categories/Dairy.png";
-import segPharmacyImg from "@/assets/categories/Pharmacy.png";
+import segDisposableTablewareImg from "@/assets/categories/disposable tablesware.webp";
+import segCutleryImg from "@/assets/categories/cutlery.webp";
+import segDrinksPackagingImg from "@/assets/categories/drinks packaging.webp";
+import segKitchenTableImg from "@/assets/categories/kitchen and table.webp";
+import segWoodenAccessoriesImg from "@/assets/categories/wooden accessories.webp";
+import segHygieneImg from "@/assets/categories/hygiene.webp";
+import segBagsSacksImg from "@/assets/categories/bags and sacks.webp";
+import segGeneralSuppliesImg from "@/assets/categories/general supplies.webp";
+import segCustomBrandingImg from "@/assets/categories/stickers and labels.webp";
+import segCosmeticsImg from "@/assets/categories/cosmetics.webp";
+import segAgricultureImg from "@/assets/categories/agriculture.webp";
+import segDairyImg from "@/assets/categories/Dairy.webp";
+import segPharmacyImg from "@/assets/categories/Pharmacy.webp";
 import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
 import { filterVisibleIndustries } from "@/data/products";
-import cloudV3 from "@/assets/packaging-cloud-hero-v3.png";
-import cloudKraft from "@/assets/packaging-cloud-hero.png";
-import ecoCluster from "@/assets/company-profile/eco-packaging-cluster.png";
+import cloudV3 from "@/assets/packaging-cloud-hero-v3.webp";
+import cloudKraft from "@/assets/packaging-cloud-hero.webp";
+import ecoCluster from "@/assets/company-profile/eco-packaging-cluster.webp";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 
 const SPLASH_KEY = "moments_splash_shown";
@@ -244,6 +244,8 @@ function Hero() {
         <img
           src={cloudKraft}
           alt="A cluster of kraft paper packaging — bags, boxes, cups"
+          loading="lazy"
+          decoding="async"
           className="mpk-hero-img-b absolute pointer-events-none select-none"
           style={{
             zIndex: 1,
@@ -255,6 +257,8 @@ function Hero() {
         <img
           src={ecoCluster}
           alt="Eco-friendly food packaging — kraft bags, containers, cups and bagasse plates"
+          loading="lazy"
+          decoding="async"
           className="mpk-hero-img-c absolute pointer-events-none select-none"
           style={{
             zIndex: 1,
