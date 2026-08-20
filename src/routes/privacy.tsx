@@ -1,4 +1,5 @@
 
+import { Link } from "react-router-dom";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -284,6 +285,19 @@ export function getPrivacyPolicyContent() {
             the email or phone on your account). We will respond within 30 days as required by
             the Act.
           </p>
+          <p>
+            <strong>Self-service, no email needed:</strong> if you have an account, you can view
+            or delete your data from your account settings once logged in. If you ordered as a
+            guest, sent us an enquiry, or joined our newsletter without creating an account, use{" "}
+            <Link to="/manage-my-data">View or delete your data</Link> (also linked in the site
+            footer) — enter your email, confirm a one-time code, and you can see what we hold and
+            request deletion directly, without needing to email us.
+          </p>
+          <p>
+            <strong>If we don&rsquo;t respond in time:</strong> a data deletion request that
+            receives no admin decision within 30 days of submission is automatically granted —
+            we do not rely on inaction to keep data we should have deleted.
+          </p>
         </>
       ),
     },
@@ -365,6 +379,7 @@ export function getPrivacyPolicyContent() {
       { to: "/terms", label: "Terms of Service" },
       { to: "/refunds", label: "Refund & Returns Policy" },
       { to: "/accessibility-policy", label: "Accessibility Policy" },
+      { to: "/manage-my-data", label: "View or Delete Your Data" },
     ],
   };
 }

@@ -89,6 +89,12 @@ export function SiteFooter() {
             <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Contact Us
             </Link>
+            {/* Deliberately quieter than the links above (smaller, muted) — accessible to anyone
+             *  who looks, not a prominent CTA. Guest-only: account holders manage their data from
+             *  their own account settings instead. */}
+            <Link to="/manage-my-data" className="text-xs text-primary-foreground/60 hover:text-accent">
+              View or delete your data
+            </Link>
           </nav>
         </div>
 
