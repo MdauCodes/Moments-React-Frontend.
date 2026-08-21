@@ -137,6 +137,26 @@ async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, bu
  *  payment-related), without requiring an account. */
 const GUEST_CHECKOUT_KEY = "mpk_guest_checkout_details_v1";
 
+/** Everything the guest-checkout localStorage blob can carry — the plain contact/address fields
+ *  passively prefill blank inputs (existing behavior), while `fulfillment`/`resolvedAddress` are
+ *  only ever applied via the explicit "Use my saved details" one-tap shortcut (never silently, so
+ *  a returning guest isn't auto-jumped into a delivery mode without choosing to). `resolvedAddress`
+ *  is omitted for PICKUP orders (nothing to resolve) and for anything saved before this shortcut
+ *  existed — those older blobs still work for the passive prefill, they just won't offer the
+ *  one-tap shortcut until the guest's next checkout after this ships. */
+type SavedGuestCheckoutDetails = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  tumabodaPhone?: string;
+  city?: string;
+  county?: string;
+  address?: string;
+  postalCode?: string;
+  fulfillment?: FulfillmentType;
+  resolvedAddress?: ResolvedAddress | null;
+};
+
 const BRAND = "#1a472a";
 const POLL_MS = 3000;
 const MAX_POLLS = 20;
@@ -221,6 +241,9 @@ function CheckoutModal() {
   const [courierType, setCourierType] = useState<CourierType | "">("");
   const [courierServiceName, setCourierServiceName] = useState("");
   const [courierStageOrOffice, setCourierStageOrOffice] = useState("");
+  // Set once the courier-suggestion autofill below actually fills something in, purely to show
+  // the right copy ("based on past orders" vs. a general starting guess) — null otherwise.
+  const [courierSuggestionSource, setCourierSuggestionSource] = useState<string | null>(null);
 
   // Contact / delivery
   const [name, setName] = useState("");
@@ -427,6 +450,11 @@ function CheckoutModal() {
   // "Delivering to — Change" button can safely clear a still-unedited guess without ever
   // touching a value the customer typed or edited themselves.
   const lastCityGuessRef = useRef<string>("");
+  // Same idea for the courier-suggestion autofill — lets a "Change" that picks a new address/town
+  // clear a still-unedited suggestion (so the new town gets its own fresh lookup instead of being
+  // silently blocked by leftover values from the previous one) without ever touching a courier
+  // field the customer actually typed themselves.
+  const lastCourierSuggestionRef = useRef<{ type: CourierType | ""; service: string; stage: string } | null>(null);
 
   // Scroll targets for the delivery step's accordion stages — see useScrollIntoViewOnComplete.
   const pickupSectionRef = useRef<HTMLDivElement>(null);
@@ -436,6 +464,10 @@ function CheckoutModal() {
   // Lets "Edit" on the collapsed Manual Delivery Section 1 summary reopen the full field set
   // without clearing the destination town that's already there.
   const [manualSection1ForceOpen, setManualSection1ForceOpen] = useState(false);
+  // A returning guest's last checkout, full enough to offer the one-tap "Use my saved details"
+  // shortcut — set on mount below, cleared once the shortcut is used or the guest starts
+  // choosing manually so the banner doesn't linger after it's no longer relevant.
+  const [savedGuestShortcut, setSavedGuestShortcut] = useState<SavedGuestCheckoutDetails | null>(null);
   useEffect(() => {
     const currentCode = appliedPromo?.code ?? null;
     if (prevPromoCodeRef.current !== currentCode && appliedRedemption) {
@@ -546,6 +578,42 @@ function CheckoutModal() {
       lastCityGuessRef.current = guess;
     }
   }, [fulfillment, resolvedAddress, city]);
+
+  // Courier-autofill "learning system" — once a destination town is known, ask the backend what
+  // courier real past orders to that town actually used (falls back to a general seeded route
+  // guess if no history exists yet). Only fills fields still blank, same rule as every other
+  // autofill here; a value the customer already picked/typed is never touched, and this never
+  // re-fires just because those fields later get filled (they're deliberately left out of the
+  // dependency array below — only `city`/`fulfillment` changing should trigger a fresh lookup).
+  useEffect(() => {
+    if (fulfillment !== "MANUAL_DELIVERY" || !city.trim()) return;
+    if (courierType || courierServiceName.trim() || courierStageOrOffice.trim()) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/v1/public/courier-suggestion?town=${encodeURIComponent(city.trim())}`);
+        if (cancelled || res.status === 204 || !res.ok) return;
+        const suggestion = await res.json();
+        if (cancelled) return;
+        setCourierType((prev) => prev || suggestion.courierType || "");
+        setCourierServiceName((prev) => prev || suggestion.courierServiceName || "");
+        setCourierStageOrOffice((prev) => prev || suggestion.courierStageOrOffice || "");
+        setCourierSuggestionSource(suggestion.source ?? null);
+        lastCourierSuggestionRef.current = {
+          type: suggestion.courierType ?? "",
+          service: suggestion.courierServiceName ?? "",
+          stage: suggestion.courierStageOrOffice ?? "",
+        };
+      } catch {
+        // Best-effort suggestion — silent failure, customer just fills Section 2 in themselves.
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fulfillment, city]);
 
   // Accordion-style auto-scroll for the delivery step — see useScrollIntoViewOnComplete's own
   // Javadoc-style comment above. One call per stage; each only fires once per completion.
@@ -680,16 +748,20 @@ function CheckoutModal() {
     try {
       const raw = localStorage.getItem(GUEST_CHECKOUT_KEY);
       if (!raw) return;
-      const saved = JSON.parse(raw) as Partial<{
-        name: string; email: string; phone: string; city: string; county: string; address: string;
-      }>;
+      const saved = JSON.parse(raw) as SavedGuestCheckoutDetails;
       setName((prev) => prev || saved.name || "");
       setEmail((prev) => prev || saved.email || "");
       setPhone((prev) => prev || saved.phone || "");
-      setTumabodaPhone((prev) => prev || saved.phone || "");
+      setTumabodaPhone((prev) => prev || saved.phone || saved.tumabodaPhone || "");
       setCity((prev) => prev || saved.city || "");
       setCounty((prev) => prev || saved.county || "");
       setAddress((prev) => prev || saved.address || "");
+      // Only offer the one-tap shortcut when there's actually a full delivery mode to restore —
+      // PICKUP needs nothing further, a delivery mode needs its resolved address too (see the
+      // type's own comment on why this can be absent for older saved blobs).
+      if (saved.fulfillment === "PICKUP" || (saved.fulfillment && saved.resolvedAddress)) {
+        setSavedGuestShortcut(saved);
+      }
     } catch {
       // Corrupt/blocked storage — just skip prefill, nothing to recover.
     }
@@ -793,6 +865,49 @@ function CheckoutModal() {
       return;
     }
     setDetailsConfirmed(true);
+  }
+
+  // Clears an untouched courier suggestion so a new address/town gets its own fresh lookup
+  // instead of being silently blocked by leftover values from the previous one — same reasoning
+  // as the city-guess clearing already done on these same "Change" buttons.
+  function clearUntouchedCourierSuggestion() {
+    const s = lastCourierSuggestionRef.current;
+    if (!s) return;
+    if (courierType === s.type && courierServiceName.trim() === s.service && courierStageOrOffice.trim() === s.stage) {
+      setCourierType("");
+      setCourierServiceName("");
+      setCourierStageOrOffice("");
+      setCourierSuggestionSource(null);
+      lastCourierSuggestionRef.current = null;
+    }
+  }
+
+  // One-tap "Use my saved details" — restores a returning guest's last checkout in a single
+  // action instead of them re-picking Pickup/Delivery and re-searching an address they've already
+  // given us before. Deliberately does NOT force the old fulfillment mode back for a delivery
+  // order: only the resolved address/county are restored, and the existing coverage-check +
+  // auto-resolve effects pick TumaBoda vs Manual fresh from that — coverage can genuinely change
+  // between visits, so re-deciding it is more correct than trusting a stale prior choice.
+  function applySavedGuestDetails() {
+    const saved = savedGuestShortcut;
+    if (!saved) return;
+    setName((prev) => prev || saved.name || "");
+    setEmail((prev) => prev || saved.email || "");
+    setPhone((prev) => prev || saved.phone || "");
+    setTumabodaPhone((prev) => prev || saved.tumabodaPhone || saved.phone || "");
+    if (saved.postalCode) setPostalCode((prev) => prev || saved.postalCode || "");
+    if (saved.fulfillment === "PICKUP") {
+      setWantsDelivery(false);
+      setFulfillment("PICKUP");
+    } else if (saved.resolvedAddress) {
+      setWantsDelivery(true);
+      setResolvedAddress(saved.resolvedAddress);
+      setAddressText(saved.resolvedAddress.description);
+      if (saved.county) setCounty(saved.county);
+      if (saved.city) setCity((prev) => prev || saved.city || "");
+      if (saved.address) setAddress((prev) => prev || saved.address || "");
+    }
+    setSavedGuestShortcut(null);
   }
 
   async function useMyLocation() {
@@ -937,7 +1052,16 @@ function CheckoutModal() {
         clearCart();
         if (!isAuthenticated) {
           try {
-            localStorage.setItem(GUEST_CHECKOUT_KEY, JSON.stringify({ name, email, phone, city, county, address }));
+            const toSave: SavedGuestCheckoutDetails = {
+              name, email, phone, tumabodaPhone, city, county, address, postalCode, fulfillment: fulfillment ?? undefined,
+            };
+            // Only worth restoring for a delivery mode if there's a real resolved address to go
+            // with it — without one (e.g. the "pick your county instead" escape hatch), the
+            // one-tap shortcut would have nothing to actually skip past.
+            if (fulfillment && fulfillment !== "PICKUP" && resolvedAddress) {
+              toSave.resolvedAddress = resolvedAddress;
+            }
+            localStorage.setItem(GUEST_CHECKOUT_KEY, JSON.stringify(toSave));
           } catch {
             // Storage full/blocked — losing this prefill-for-next-time is harmless, order already succeeded.
           }
@@ -1133,6 +1257,30 @@ function CheckoutModal() {
                 <p className="mt-1 text-sm text-muted-foreground">Pick one to see what we need from there.</p>
               </div>
 
+              {/* One-tap shortcut for a returning guest — see applySavedGuestDetails. Only shown
+                  before anything's been chosen yet, so it can't linger after it's no longer
+                  relevant. */}
+              {savedGuestShortcut && !deliveryChoiceMade && !resolvedAddress && !showCountyFallback && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm" style={{ borderColor: BRAND, backgroundColor: `${BRAND}0d` }}>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">Use your details from last time?</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {savedGuestShortcut.fulfillment === "PICKUP"
+                        ? "Pick up at our shop"
+                        : savedGuestShortcut.resolvedAddress?.description}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applySavedGuestDetails}
+                    className="shrink-0 rounded-full px-4 py-2 text-xs font-semibold text-white"
+                    style={{ backgroundColor: BRAND }}
+                  >
+                    Use these
+                  </button>
+                </div>
+              )}
+
               {/* Step 1 of this page: pickup vs. delivery, always asked first — everything else
                   below reveals progressively based on this and, for delivery, the destination.
                   Collapses to a one-line summary once chosen, same accordion pattern as the
@@ -1159,6 +1307,7 @@ function CheckoutModal() {
                       setCounty("");
                       setShowCountyFallback(false);
                       if (city.trim() && city.trim() === lastCityGuessRef.current) setCity("");
+                      clearUntouchedCourierSuggestion();
                     }}
                     className="shrink-0 text-xs font-semibold underline underline-offset-2"
                   >
@@ -1494,6 +1643,7 @@ function CheckoutModal() {
                             if (city.trim() && city.trim() === lastCityGuessRef.current) {
                               setCity("");
                             }
+                            clearUntouchedCourierSuggestion();
                           }}
                           className="shrink-0 text-xs font-semibold underline underline-offset-2"
                         >
@@ -1608,7 +1758,14 @@ function CheckoutModal() {
                               <button
                                 key={c.v}
                                 type="button"
-                                onClick={() => setCourierType(c.v)}
+                                onClick={() => {
+                                  setCourierType(c.v);
+                                  // An explicit pick means whatever was suggested no longer
+                                  // reflects the customer's own choice — drop the "suggested"
+                                  // hint so it doesn't misdescribe a manually-made pick.
+                                  setCourierSuggestionSource(null);
+                                  lastCourierSuggestionRef.current = null;
+                                }}
                                 className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
                                   courierType === c.v
                                     ? "border-transparent text-white"
@@ -1620,6 +1777,14 @@ function CheckoutModal() {
                               </button>
                             ))}
                           </div>
+                          {courierSuggestionSource && (
+                            <p className="mt-1.5 text-xs text-muted-foreground">
+                              {courierSuggestionSource === "HISTORY"
+                                ? "Suggested from other customers' past orders to this town"
+                                : "Suggested based on commonly known routes to this town"}{" "}
+                              — feel free to change it.
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -1630,7 +1795,11 @@ function CheckoutModal() {
                             className={inputCls}
                             required
                             value={courierServiceName}
-                            onChange={(e) => setCourierServiceName(e.target.value)}
+                            onChange={(e) => {
+                              setCourierServiceName(e.target.value);
+                              setCourierSuggestionSource(null);
+                              lastCourierSuggestionRef.current = null;
+                            }}
                             placeholder="e.g. 2NK, 4NTE, Kukena, Easy Coach, Tahmeed, G4S, Pickup Mtaani"
                             list="courier-suggestions"
                           />
