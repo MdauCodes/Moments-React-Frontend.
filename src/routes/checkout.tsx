@@ -230,11 +230,6 @@ function CheckoutModal() {
   // be wrong: indoors, VPN, stale cache) rather than being silently trusted or silently dropped
   // into the search box. Cleared once the customer confirms or rejects it.
   const [gpsFallback, setGpsFallback] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
-  // Optional extra detail ("Apartment 4B, next to Shell") appended to the resolved pin's
-  // description when composing what's actually sent to TumaBoda as the delivery location —
-  // see startPayment(). Not used by Manual Delivery, which has its own address field below.
-  const [landmarkDetail, setLandmarkDetail] = useState("");
-
   // Live delivery-fee preview — debounced call to /api/v1/public/tumaboda/quote whenever the
   // resolved pin changes (see the effect below). Fails closed: an error here drops TumaBoda
   // back to Manual Delivery automatically rather than ever proceeding with a guessed fee.
@@ -523,9 +518,8 @@ function CheckoutModal() {
     setQuoteUnavailable(false);
     const t = setTimeout(async () => {
       try {
-        // POST body rather than a query string — this carries the customer's name and
-        // location/landmark detail, which shouldn't land in access logs, browser history, or
-        // Referer headers.
+        // POST body rather than a query string — this carries the customer's name and location,
+        // which shouldn't land in access logs, browser history, or Referer headers.
         const res = await fetch(apiUrl(`/api/v1/public/tumaboda/quote`), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -535,7 +529,6 @@ function CheckoutModal() {
             subtotal: cartTotal,
             contactName: name.trim(),
             location: resolvedAddress.description ?? "",
-            landmarkDetail: landmarkDetail.trim(),
           }),
         });
         if (cancelled) return;
@@ -696,13 +689,6 @@ function CheckoutModal() {
       toast.error("Please pin your exact delivery address so we can book your TumaBoda rider");
       return false;
     }
-    // A pinned address alone can still leave a rider circling a large compound/apartment block
-    // with no way to actually find the door — required, not optional, for the same reason the
-    // pin itself is required above.
-    if (fulfillment === "TUMABODA_DELIVERY" && !landmarkDetail.trim()) {
-      toast.error("Please add a building/apartment or nearby landmark so the rider can find you");
-      return false;
-    }
     // Fail closed here too, not just in the effect: never let the customer proceed to payment
     // on a still-loading, failed, or stale-from-a-previous-address quote.
     if (fulfillment === "TUMABODA_DELIVERY" && (quoteChecking || !quotePreview)) {
@@ -789,9 +775,6 @@ function CheckoutModal() {
     setPayState("sending");
     const phoneNormalized = normalizePhone(phone);
 
-    // TumaBoda gets the resolved pin's real place name as its own field — landmarkDetail is sent
-    // separately below (as recipient.locationName server-side) rather than merged into this
-    // string, which used to silently lose TumaBoda's dedicated building/apartment-detail field.
     const deliveryLocationText =
       fulfillment === "TUMABODA_DELIVERY" ? resolvedAddress?.description ?? "" : address.trim();
 
@@ -823,7 +806,6 @@ function CheckoutModal() {
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
           dropoffLat: fulfillment !== "PICKUP" ? resolvedAddress?.latitude ?? undefined : undefined,
           dropoffLng: fulfillment !== "PICKUP" ? resolvedAddress?.longitude ?? undefined : undefined,
-          landmarkDetail: fulfillment === "TUMABODA_DELIVERY" ? landmarkDetail.trim() : undefined,
           tumabodaContactPhone:
             fulfillment === "TUMABODA_DELIVERY" ? normalizePhone(tumabodaPhone) : undefined,
           ...(fulfillment === "MANUAL_DELIVERY" && courierType
@@ -1296,22 +1278,6 @@ function CheckoutModal() {
 
                           {resolvedAddress ? (
                             <div className="mt-3 space-y-3">
-                              <div>
-                                <label className={labelCls}>
-                                  Building / apartment / nearby landmark <span className="text-destructive">*</span>
-                                </label>
-                                <input
-                                  className={inputCls}
-                                  required
-                                  value={landmarkDetail}
-                                  onChange={(e) => setLandmarkDetail(e.target.value)}
-                                  placeholder="e.g. Apartment 4B, next to Shell petrol station"
-                                />
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Required — helps the rider actually find you once they're in the area.
-                                </p>
-                              </div>
-
                               {/* Live delivery-fee preview — see the debounced quote effect above.
                                   Mode-specific copy directly answers "when am I charged for this". */}
                               <div className="rounded-xl border border-border bg-background/70 p-3 text-sm">
