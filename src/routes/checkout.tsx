@@ -272,6 +272,7 @@ function CheckoutModal() {
   const [showCountyFallback, setShowCountyFallback] = useState(false);
   const [locatingMe, setLocatingMe] = useState(false);
   const [courierInfoExpanded, setCourierInfoExpanded] = useState(false);
+  const [manualDeliveryInfoExpanded, setManualDeliveryInfoExpanded] = useState(false);
   // Raw device fix from "Use my current location" — held here for explicit confirmation (GPS can
   // be wrong: indoors, VPN, stale cache) rather than being silently trusted or silently dropped
   // into the search box. Cleared once the customer confirms or rejects it.
@@ -1292,9 +1293,7 @@ function CheckoutModal() {
               {deliveryChoiceMade ? (
                 <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
                   <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                      How should we get your order to you?
-                    </p>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivery method</p>
                     <p className="truncate font-medium text-foreground">
                       {fulfillment === "PICKUP" ? "Pick up at our shop" : "Have it delivered"}
                     </p>
@@ -1483,7 +1482,7 @@ function CheckoutModal() {
                           <div className="px-4 pb-4">
                           <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
                             <div className="min-w-0">
-                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivering to</p>
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Your delivery address</p>
                               <p className="truncate font-medium text-foreground">
                                 {resolvedAddress?.description ?? county.trim() ?? ""}
                               </p>
@@ -1656,15 +1655,28 @@ function CheckoutModal() {
                     )}
                     <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground/90">
                       <p>
-                        <span className="font-semibold">How delivery works:</span> we hand your parcel to a{" "}
-                        <span className="font-semibold">sacco or parcel service</span> (e.g. 2NK, 4NTE, Kukena, Easy
-                        Coach, Tahmeed, G4S, Pickup Mtaani). They handle the transport to your town, and you collect it
-                        from their office there.
+                        <span className="font-semibold">How it works:</span> we hand your parcel to a{" "}
+                        <span className="font-semibold">delivery partner</span> — a bus company, sacco, or parcel
+                        courier — who carries it to your town. You then collect it from their office there.
                       </p>
-                      <p className="mt-2 text-muted-foreground">
-                        The two short sections below help us get your parcel to the right place quickly. If you're
-                        unsure about anything, just leave it blank — our team will call you to confirm before dispatch.
-                      </p>
+                      {manualDeliveryInfoExpanded && (
+                        <p className="mt-2 text-muted-foreground">
+                          Common delivery partners include 2NK, 4NTE, Kukena, Easy Coach, Tahmeed, G4S, and Pickup
+                          Mtaani. The two short sections below help us get your parcel to the right place quickly —
+                          if you're not sure about something, just leave it blank and our team will call to confirm
+                          before we dispatch your order.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setManualDeliveryInfoExpanded((v) => !v)}
+                        className="mt-2 flex items-center gap-0.5 text-xs font-semibold underline underline-offset-2"
+                      >
+                        {manualDeliveryInfoExpanded ? "Show less" : "Read more"}
+                        <ChevronDown
+                          className={`h-3 w-3 transition-transform ${manualDeliveryInfoExpanded ? "rotate-180" : ""}`}
+                        />
+                      </button>
                     </div>
 
                     {/* SECTION 1 — DESTINATION. Collapses to a one-line summary once the required
@@ -1706,7 +1718,7 @@ function CheckoutModal() {
                             />
                           </div>
                           <div className="sm:col-span-2">
-                            <label className={labelCls}>Nearest courier office to you (optional)</label>
+                            <label className={labelCls}>Where you'll collect your parcel (optional)</label>
                             <input
                               className={inputCls}
                               value={address}
@@ -1714,8 +1726,8 @@ function CheckoutModal() {
                               placeholder="e.g. 2NK Nyeri town office, Easy Coach Eldoret stage"
                             />
                             <p className="mt-1 text-xs text-muted-foreground">
-                              The sacco / parcel office on <em>your</em> side where you'll pick up the parcel. Not
-                              sure which one? Leave blank — we'll call to confirm with you.
+                              The office nearest you where you'll pick up your parcel once it arrives. Not sure
+                              which one? Leave blank — we'll call to confirm with you.
                             </p>
                           </div>
                           <div className="sm:col-span-2">
@@ -1735,8 +1747,7 @@ function CheckoutModal() {
                     <section ref={manualSection2Ref} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                       <div className="mb-3 flex items-baseline justify-between gap-2">
                         <h3 className="font-display text-lg text-foreground">
-                          2. Do you have an idea of which sacco / courier office in Nairobi we should use? (this is
-                          helpful to us)
+                          2. Which delivery partner should send it from Nairobi?
                         </h3>
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                           Our side
@@ -1746,7 +1757,7 @@ function CheckoutModal() {
                       <div className="space-y-4">
                         <div>
                           <div className={labelCls}>
-                            Courier type <span className="text-destructive">*</span>
+                            How should it be sent? <span className="text-destructive">*</span>
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {(
@@ -1792,7 +1803,7 @@ function CheckoutModal() {
 
                         <div>
                           <label className={labelCls}>
-                            Sacco / courier service name <span className="text-destructive">*</span>
+                            Which company? <span className="text-destructive">*</span>
                           </label>
                           <input
                             className={inputCls}
@@ -1822,13 +1833,14 @@ function CheckoutModal() {
                             <option value="Not sure — please call me" />
                           </datalist>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Type any sacco or courier name. If you're not yet sure, type <em>"Not sure — call me"</em>{" "}
-                            and our staff will help.
+                            The bus company, sacco, or courier that will carry your parcel — e.g. a sacco, bus
+                            service, or parcel courier. Not sure yet? Type <em>"Not sure — call me"</em> and our
+                            staff will help.
                           </p>
                         </div>
 
                         <div>
-                          <label className={labelCls}>Dispatch stage / office in Nairobi (optional)</label>
+                          <label className={labelCls}>Where should we drop it off in Nairobi? (optional)</label>
                           <input
                             className={inputCls}
                             value={courierStageOrOffice}
@@ -1836,7 +1848,7 @@ function CheckoutModal() {
                             placeholder="e.g. 2NK Accra Road, Machakos Country Bus stage, Easy Coach River Road"
                           />
                           <p className="mt-1 text-xs text-muted-foreground">
-                            The stage / booking office on <em>our</em> side. Leave blank if unsure.
+                            Extra detail for our team, if you happen to know it — just leave this blank if you don't.
                           </p>
                         </div>
 
