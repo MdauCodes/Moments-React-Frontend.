@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   fetchAddressSuggestions,
@@ -112,6 +113,10 @@ export function AddressAutocompleteInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
+  // Last search value that already got a "no matches" toast — so re-rendering with the same
+  // empty result (e.g. re-focusing the field) doesn't repeat it, but typing further and still
+  // coming up empty gets its own fresh nudge.
+  const lastEmptyToastValue = useRef<string | null>(null);
   const animatedText = useTypewriterPlaceholder(animatedPlaceholder && !value, placeholder);
 
   useEffect(() => {
@@ -157,6 +162,15 @@ export function AddressAutocompleteInput({
         setSuggestions(results);
         setLoading(false);
         setOpen(true);
+        // A genuinely completed search (customer stopped typing for DEBOUNCE_MS) that came back
+        // empty — surface it explicitly rather than just a silently-closed dropdown, so the
+        // customer knows to try a different term instead of assuming the field is broken.
+        if (results.length === 0 && value.trim().length >= 3 && lastEmptyToastValue.current !== value.trim()) {
+          lastEmptyToastValue.current = value.trim();
+          toast.error("No matches for that search", {
+            description: "Try a nearby landmark or a different name for the same area.",
+          });
+        }
       }
     }, DEBOUNCE_MS);
     return () => {
