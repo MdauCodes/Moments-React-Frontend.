@@ -19,7 +19,7 @@ const STACK: Section = {
   items: [
     { name: "Backend", description: "Spring Boot 3, Java 21. Layered as entity → repository → service → controller, one top-level package per domain (see \"Module map\" below)." },
     { name: "Frontend", description: "React 19 + TypeScript, built with Vite, routed with react-router-dom. Admin pages fetch via a shared adminResources/commerceApi client, not a single global data layer — most admin pages manage their own loading state directly." },
-    { name: "Database", description: "PostgreSQL, hosted on Railway. Schema evolves via Hibernate's ddl-auto: update — there is no migration tool (no Flyway/Liquibase). Adding a column means adding the field to the entity and redeploying; there's no migration history to read as documentation." },
+    { name: "Database", description: "PostgreSQL, hosted on Railway. Schema changes go through versioned Flyway migrations (db/migration/Vn__*.sql) — ddl-auto is validate, not update, so an entity change with no matching migration fails to start rather than silently altering the schema. V1__baseline is a pg_dump snapshot from when Flyway was introduced (adopted via baseline-on-migrate, not replayed), so it plus every migration after it is the real schema history." },
     { name: "Hosting", description: "Backend on Railway (moments-packaging-latest-backend-production.up.railway.app). Frontend on Render, served at momentspackaging.com / moments-demo.site." },
     { name: "Scheduled jobs", description: "Spring @Scheduled, guarded by ShedLock (JDBC-backed) so a job can't double-run if the app is ever scaled to multiple instances." },
     { name: "Rate limiting", description: "Bucket4j, in-memory. Known gap: buckets are per-instance, not shared — if the backend ever runs multiple replicas, a client's rate limit resets per replica it happens to hit. Documented as future work, not yet built (would need a Redis-backed shared bucket store)." },
@@ -87,7 +87,6 @@ const KNOWN_LIMITATIONS: Section = {
   items: [
     { name: "Rate-limit buckets are per-instance", description: "Bucket4j's in-memory buckets don't share state across replicas. Fine at current single-instance scale; would need a Redis-backed store before scaling the backend horizontally." },
     { name: "Turnstile is scaffolded but inert until configured", description: "Both the widget and backend verification exist, but do nothing without real Cloudflare site/secret keys set in the environment." },
-    { name: "ddl-auto: update has no rollback story", description: "Schema changes are one-directional. There's no migration history — the ER diagram (see Documentation) and the entity source are the schema's real documentation." },
     { name: "ProductIndustryPatchSeeder / ProductIndustryCleanupSeeder", description: "A pair of startup seeders observed failing silently on every boot in a past deploy log. Not yet investigated — flagged here rather than left as a silent surprise for whoever finds it next." },
   ],
 };
