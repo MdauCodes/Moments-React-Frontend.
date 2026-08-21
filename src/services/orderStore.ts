@@ -18,6 +18,7 @@
 import { apiUrl, apiFetch } from "@/config/api";
 import { authFetch, getAccessToken } from "@/contexts/AuthContext";
 import type { CartItem } from "@/contexts/CartContext";
+import type { RefundRequest, RefundDesiredAction } from "@/services/refundStore";
 
 // Mirrors the backend's OrderStatus enum exactly (order/entity/OrderStatus.java) — these are
 // the only values the API ever actually returns for order.status.
@@ -562,6 +563,44 @@ export const orderStore = {
     );
     if (!res.ok) throw new Error("That document isn't available right now.");
     return res.blob();
+  },
+
+  /**
+   * Guest counterpart to refundStore.submit/getForOrder — for a checkout with no account, proven
+   * via the same OTP email+accessToken pair as document downloads above rather than a login
+   * session. See PublicOrderController's /track/{reference}/refund-request endpoints.
+   */
+  async submitTrackRefundRequest(
+    reference: string, email: string, accessToken: string,
+    input: { reason: string; desiredAction: RefundDesiredAction },
+  ): Promise<RefundRequest> {
+    const res = await fetch(
+      apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/refund-request`),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Order-Email": email,
+          "X-Order-Access-Token": accessToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Couldn't submit your request right now.");
+    }
+    return (await res.json()) as RefundRequest;
+  },
+
+  async getTrackRefundRequest(reference: string, email: string, accessToken: string): Promise<RefundRequest | null> {
+    const res = await fetch(
+      apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/refund-request`),
+      { headers: { "X-Order-Email": email, "X-Order-Access-Token": accessToken } },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    return (await res.json()) as RefundRequest;
   },
 
   /**

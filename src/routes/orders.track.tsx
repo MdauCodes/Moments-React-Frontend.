@@ -10,6 +10,8 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 import { resolveStatusDisplay, isCustomerSelfConfirmMode } from "@/lib/orderStatusV2";
+import { RefundForm } from "@/components/RefundForm";
+import { refundEligibility, type RefundRequest } from "@/services/refundStore";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -287,6 +289,9 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
             onConfirmed={setOrder}
           />
         )}
+        {accessToken && (
+          <RefundSection reference={reference} email={email} accessToken={accessToken} order={order} />
+        )}
         <RefundPolicyNote />
       </>
     );
@@ -558,6 +563,63 @@ function ConfirmDeliverySection({
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Guest counterpart to account.orders.$reference.tsx's refund UI — same eligibility rule, same
+ * RefundForm, same admin-review pipeline, just proven via the OTP email+accessToken pair instead
+ * of a login session, since a guest checkout has no account for that page to require.
+ */
+function RefundSection({
+  reference, email, accessToken, order,
+}: { reference: string; email: string; accessToken: string; order: CustomerOrder }) {
+  const [refund, setRefund] = useState<RefundRequest | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const eligibility = refundEligibility(order);
+
+  useEffect(() => {
+    let cancelled = false;
+    orderStore.getTrackRefundRequest(reference, email, accessToken).then((r) => {
+      if (!cancelled) { setRefund(r); setLoading(false); }
+    });
+    return () => { cancelled = true; };
+  }, [reference, email, accessToken]);
+
+  if (loading) return null;
+
+  return (
+    <>
+      {refund && (
+        <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
+          <p className="font-semibold">Refund request: {refund.status}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Reason: {refund.reason}</p>
+          <p className="text-xs text-muted-foreground">Action: {refund.desiredAction.replace(/_/g, " ")}</p>
+          {refund.adminNote && <p className="mt-2 text-xs">Admin note: {refund.adminNote}</p>}
+        </div>
+      )}
+      {eligibility.eligible && !refund && !showForm && (
+        <button
+          onClick={() => setShowForm(true)}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+        >
+          Request a refund or replacement
+        </button>
+      )}
+      {showForm && (
+        <RefundForm
+          onCancel={() => setShowForm(false)}
+          onSubmit={async (reason, desiredAction) => {
+            const request = await orderStore.submitTrackRefundRequest(reference, email, accessToken, { reason, desiredAction });
+            setRefund(request);
+            setShowForm(false);
+            toast.success("Refund request submitted — we'll respond within 2 business days.");
+          }}
+          daysRemaining={eligibility.daysRemaining ?? 14}
+        />
+      )}
+    </>
   );
 }
 
