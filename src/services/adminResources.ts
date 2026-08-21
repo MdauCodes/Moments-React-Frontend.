@@ -5,6 +5,21 @@ export type BackendRole = "ROLE_ADMIN" | "ROLE_STAFF";
 export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
+export type RefundRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "RESOLVED";
+export type RefundDesiredAction = "REFUND" | "REPLACE" | "STORE_CREDIT";
+export type RefundRequestAdminDto = {
+  id: string;
+  orderReference: string;
+  customerEmail: string;
+  customerName: string;
+  reason: string;
+  desiredAction: RefundDesiredAction;
+  status: RefundRequestStatus;
+  adminNote?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
 export type BusinessType = "SOLE_PROPRIETOR" | "SME" | "LIMITED_COMPANY" | "PARTNERSHIP" | "OTHER";
 export type CreditReadinessDto = {
@@ -555,5 +570,13 @@ export const adminResources = {
     unreadCount: () => adminJson<{ count: number }>("/api/v1/admin/notifications/unread-count"),
     markRead: (id: string) => adminJson<void>(`/api/v1/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),
     markAllRead: () => adminJson<void>("/api/v1/admin/notifications/read-all", { method: "PATCH" }),
+  },
+  refundRequests: {
+    list: () => adminJson<RefundRequestAdminDto[]>("/api/v1/admin/refund-requests"),
+    updateStatus: (id: string, body: { status: RefundRequestStatus; adminNote?: string }) =>
+      adminJson<RefundRequestAdminDto>(`/api/v1/admin/refund-requests/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
   },
 };

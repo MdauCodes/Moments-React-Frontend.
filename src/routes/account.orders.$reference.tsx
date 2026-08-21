@@ -107,11 +107,6 @@ function OrderDetailPage() {
               {resolveStatusDisplay(order.fulfillmentType, order.statusV2)?.label ?? order.status.replace(/_/g, " ")}
             </span>
             <PrintReceipt order={order} />
-            {eligibility.eligible && !refund && (
-              <button onClick={() => setShowRefundForm(true)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary">
-                <Undo2 className="h-3.5 w-3.5" /> Request refund
-              </button>
-            )}
             <button onClick={handleReorder} disabled={reordering} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
               <RotateCcw className="h-3.5 w-3.5" /> {reordering ? "Adding…" : "Re-order"}
             </button>
@@ -125,6 +120,17 @@ function OrderDetailPage() {
             <p className="text-xs text-muted-foreground">Action: {refund.desiredAction.replace(/_/g, " ")}</p>
             {refund.adminNote && <p className="mt-2 text-xs">Admin note: {refund.adminNote}</p>}
           </div>
+        )}
+
+        {/* Deliberately understated — findable, not a bold header action. Most orders never need
+            this, and the ones that do are already looking for it (via the status/tracking above). */}
+        {eligibility.eligible && !refund && !showRefundForm && (
+          <button
+            onClick={() => setShowRefundForm(true)}
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            <Undo2 className="h-3 w-3" /> Something wrong with this order? Request a refund or replacement
+          </button>
         )}
 
         {showRefundForm && (

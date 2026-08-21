@@ -43,6 +43,7 @@ import {
   UserPlus,
   AlertTriangle,
   Layers,
+  Undo2,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -125,6 +126,7 @@ const navSections: NavSection[] = [
       { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
+      { label: "Refund Requests", to: "/admin/refund-requests", icon: Undo2, requiresAny: [PERM.PAYMENT_REFUND] },
     ],
   },
   {
@@ -752,10 +754,14 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
                         type="button"
                         onClick={() => {
                           if (!n.read) void handleMarkRead(n.id);
-                          // The orders list has no query-param-driven initial search yet, so this
-                          // can't deep-link straight to the order — the reference is already in
-                          // the notification text above for the admin to search manually.
-                          if (n.orderReference) {
+                          if (n.type === "REFUND_REQUESTED") {
+                            navigate("/admin/refund-requests");
+                            setNotifOpen(false);
+                          } else if (n.orderReference) {
+                            // The orders list has no query-param-driven initial search yet, so
+                            // this can't deep-link straight to the order — the reference is
+                            // already in the notification text above for the admin to search
+                            // manually.
                             navigate("/admin/orders");
                             setNotifOpen(false);
                           }

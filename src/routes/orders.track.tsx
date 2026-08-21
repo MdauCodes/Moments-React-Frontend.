@@ -599,12 +599,14 @@ function RefundSection({
           {refund.adminNote && <p className="mt-2 text-xs">Admin note: {refund.adminNote}</p>}
         </div>
       )}
+      {/* Deliberately understated — findable, not a bold call-to-action. Most orders never need
+          this, and the ones that do are already looking for it (via the policy note below). */}
       {eligibility.eligible && !refund && !showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary"
+          className="mt-3 text-xs text-muted-foreground underline hover:text-foreground"
         >
-          Request a refund or replacement
+          Something wrong with this order? Request a refund or replacement
         </button>
       )}
       {showForm && (

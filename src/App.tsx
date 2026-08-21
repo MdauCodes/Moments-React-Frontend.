@@ -125,6 +125,7 @@ const AdminArchitecturePage = lazy(() => import("@/routes/_adminAuth.admin.archi
 const AdminDevToolsPage = lazy(() => import("@/routes/_adminAuth.admin.dev-tools"));
 const AdminDevLogsPage = lazy(() => import("@/routes/_adminAuth.admin.dev-logs"));
 const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"));
+const AdminRefundRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.refund-requests"));
 const AdminProductsIndexPage = lazy(() => import("@/routes/_adminAuth.admin.products.index"));
 const AdminProductEditPage = lazy(() => import("@/routes/_adminAuth.admin.products.$id"));
 const AdminProductNewPage = lazy(() => import("@/routes/_adminAuth.admin.products_.new"));
@@ -272,6 +273,7 @@ export default function App() {
                       <Route path="/admin/change-requests" element={<Suspense fallback={<AdminRouteFallback />}><AdminChangeRequestsPage /></Suspense>} />
                       <Route path="/admin/architecture" element={<Suspense fallback={<AdminRouteFallback />}><AdminArchitecturePage /></Suspense>} />
                       <Route path="/admin/payments" element={<Suspense fallback={<AdminRouteFallback />}><AdminPaymentsPage /></Suspense>} />
+                      <Route path="/admin/refund-requests" element={<Suspense fallback={<AdminRouteFallback />}><AdminRefundRequestsPage /></Suspense>} />
                       <Route path="/admin/products" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductsIndexPage /></Suspense>} />
                       <Route path="/admin/products/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductNewPage /></Suspense>} />
                       <Route path="/admin/products/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductEditPage /></Suspense>} />
