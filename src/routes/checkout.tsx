@@ -131,6 +131,12 @@ async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, bu
 
 
 
+/** Only for guests — a logged-in account already gets real prefill from its saved profile
+ *  (see the profileStore effect below). A guest who checked out before had nothing remembered
+ *  at all; this closes that gap the same low-stakes way (name/email/phone/address only, nothing
+ *  payment-related), without requiring an account. */
+const GUEST_CHECKOUT_KEY = "mpk_guest_checkout_details_v1";
+
 const BRAND = "#1a472a";
 const POLL_MS = 3000;
 const MAX_POLLS = 20;
@@ -239,10 +245,6 @@ function CheckoutModal() {
   const [quoteChecking, setQuoteChecking] = useState(false);
   const [quoteUnavailable, setQuoteUnavailable] = useState(false);
 
-  // Gates the two sub-views of the merged "delivery" step: fulfillment/courier details form,
-  // then (once confirmed) the order summary + pay button — mirrors the old contact→payment
-  // handoff.
-  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [etrRequested, setEtrRequested] = useState(false);
   const [documentsEmail, setDocumentsEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
@@ -277,15 +279,16 @@ function CheckoutModal() {
       .catch(() => {});
   }, [isAuthenticated]);
 
-  // Default the documents-delivery email to the logged-in account's email the moment the
-  // customer ticks the ETR box — still fully editable, and does nothing for guests (who must
-  // type one in themselves).
+  // Default the documents-delivery email to whatever the customer already typed in the contact
+  // step the moment they tick the ETR box — still fully editable. Works for guests too: `email`
+  // is collected in step 1 regardless of auth status, so there's no reason to make a guest
+  // retype the same address a second time here.
   useEffect(() => {
-    if (etrRequested && !documentsEmail && isAuthenticated && user?.email) {
-      setDocumentsEmail(user.email);
+    if (etrRequested && !documentsEmail && email.trim()) {
+      setDocumentsEmail(email.trim());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [etrRequested, isAuthenticated]);
+  }, [etrRequested]);
 
   // Silently (no toast/error) try the welcome code as soon as it qualifies —
   // the backend's own min-order-amount check is the source of truth for
@@ -580,6 +583,17 @@ function CheckoutModal() {
     }
   }, [user]);
 
+  // Most customers want TumaBoda's rider calling the same number they're paying with — once
+  // they've typed it once (for TumaBoda), don't make them retype it again for M-Pesa. Only fills
+  // an still-blank phone field, so a customer who wants a different M-Pesa number is never
+  // overwritten after typing one.
+  useEffect(() => {
+    if (fulfillment === "TUMABODA_DELIVERY" && tumabodaPhone.trim() && !phone.trim()) {
+      setPhone(tumabodaPhone);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tumabodaPhone, fulfillment]);
+
   // Saved-address reuse — prefill from the account's default address so a returning customer
   // isn't retyping the same details every order. Only fills blank fields, never overwrites
   // something the customer already typed. profileStore's CustomerAddress has no county field
@@ -596,6 +610,29 @@ function CheckoutModal() {
         setAddress((prev) => prev || defaultAddr.line1 || "");
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  // Guest counterpart to the profileStore prefill above — same "only fill blank fields" rule,
+  // just sourced from this browser's own last checkout instead of an account. See
+  // GUEST_CHECKOUT_KEY and the save-on-success effect near payment completion below.
+  useEffect(() => {
+    if (isAuthenticated) return;
+    try {
+      const raw = localStorage.getItem(GUEST_CHECKOUT_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as Partial<{
+        name: string; email: string; phone: string; city: string; county: string; address: string;
+      }>;
+      setName((prev) => prev || saved.name || "");
+      setEmail((prev) => prev || saved.email || "");
+      setPhone((prev) => prev || saved.phone || "");
+      setCity((prev) => prev || saved.city || "");
+      setCounty((prev) => prev || saved.county || "");
+      setAddress((prev) => prev || saved.address || "");
+    } catch {
+      // Corrupt/blocked storage — just skip prefill, nothing to recover.
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
@@ -702,7 +739,15 @@ function CheckoutModal() {
       toast.error("Please tick the consent box to continue");
       return;
     }
-    setDetailsConfirmed(true);
+    // Delivery details and payment used to be two separate screens with their own confirm click
+    // in between — merged into one continuous form (found live: an avoidable extra click for the
+    // vast majority of customers who don't need to change anything once they've reached here).
+    // This submit is now the actual "place order and pay" action.
+    if (!isValidKenyanPhone(phone)) {
+      toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
+      return;
+    }
+    startPayment();
   }
 
   async function useMyLocation() {
@@ -742,7 +787,8 @@ function CheckoutModal() {
 
   async function startPayment() {
     // fulfillment is only null before the customer reaches this point — handleDeliveryDetailsSubmit
-    // already validated it's set before detailsConfirmed (and thus the Pay button) is reachable.
+    // (the form's onSubmit, and thus this function's only caller besides the retry buttons)
+    // already validated it's set.
     if (!fulfillment) return;
     setErrorMsg(null);
     setPayState("sending");
@@ -844,6 +890,13 @@ function CheckoutModal() {
         clearAllTimers();
         setPayState("success");
         clearCart();
+        if (!isAuthenticated) {
+          try {
+            localStorage.setItem(GUEST_CHECKOUT_KEY, JSON.stringify({ name, email, phone, city, county, address }));
+          } catch {
+            // Storage full/blocked — losing this prefill-for-next-time is harmless, order already succeeded.
+          }
+        }
         if (isAfterBusinessHours()) {
           toast.info("We're closed for the night", {
             description:
@@ -1002,10 +1055,10 @@ function CheckoutModal() {
                   />
                 </div>
                 {/* Phone numbers are collected later, in the delivery step, right next to the
-                    consent checkbox and "Continue to payment" — the M-Pesa number belongs next
-                    to the payment action it's actually for, and (for TumaBoda orders) a second,
-                    separately-typed number is collected there for the delivery contact. See
-                    that step for both fields. */}
+                    M-Pesa Pay button they're actually for — and (for TumaBoda orders) a second,
+                    separately-typed number is collected there first for the delivery contact,
+                    which then pre-fills the M-Pesa field below it since most customers use the
+                    same number for both. See that step for both fields. */}
               </div>
 
               <button
@@ -1018,7 +1071,7 @@ function CheckoutModal() {
             </form>
           )}
 
-          {step === "delivery" && !detailsConfirmed && payState === "idle" && (
+          {step === "delivery" && payState === "idle" && (
             <>
             <form onSubmit={handleDeliveryDetailsSubmit} className="space-y-5">
               <button
@@ -1563,13 +1616,13 @@ function CheckoutModal() {
                           onChange={(e) => setDocumentsEmail(e.target.value)}
                           placeholder="you@example.com"
                         />
-                        {isAuthenticated && user?.email && documentsEmail !== user.email && (
+                        {email.trim() && documentsEmail !== email.trim() && (
                           <button
                             type="button"
                             className="mt-1 text-xs font-medium text-accent underline underline-offset-2"
-                            onClick={() => setDocumentsEmail(user.email!)}
+                            onClick={() => setDocumentsEmail(email.trim())}
                           >
-                            Use my account email ({user.email})
+                            Use my email ({email.trim()})
                           </button>
                         )}
                       </div>
@@ -1626,17 +1679,146 @@ function CheckoutModal() {
                 className="mt-2"
               />
 
+              <div>
+                <label className={labelCls}>Phone (M-Pesa)</label>
+                <input
+                  className={inputCls}
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="0712 345 678"
+                  inputMode="tel"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">The number to receive your M-Pesa payment prompt on.</p>
+              </div>
+
+              {/* Order summary */}
+              <div className="overflow-hidden rounded-2xl border border-forest/15 bg-card">
+                <div className="bg-forest px-5 py-3">
+                  <h3 className="text-sm font-semibold text-cream">Order summary</h3>
+                </div>
+                <div className="p-5">
+                <ul className="space-y-2 text-sm">
+                  {items.map((it) => (
+                    <li key={it.id} className="flex justify-between gap-3">
+                      <span className="text-foreground/90">
+                        {it.productName} <span className="text-muted-foreground">× {it.quantity}</span>
+                      </span>
+                      <span className="tabular-nums">{fmt(it.lineTotal)}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-4 border-t border-border pt-3">
+                  {appliedPromo ? (
+                    <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
+                      <span className="font-medium text-accent">
+                        {appliedPromo.code} applied{autoApplied ? " automatically" : ""}
+                      </span>
+                      <button type="button" onClick={removePromoCode} className="text-muted-foreground hover:text-foreground">
+                        Use a different code
+                      </button>
+                    </div>
+                  ) : appliedRedemption ? (
+                    <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+                      A promo code can't be combined with Reward Coupons — remove your redeemed coupons above to use one instead.
+                    </p>
+                  ) : (
+                    <div className="flex gap-2">
+                      <input
+                        value={promoCode}
+                        onChange={(e) => setPromoCode(e.target.value)}
+                        placeholder="Promo code"
+                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
+                      />
+                      <button
+                        type="button"
+                        onClick={applyPromoCode}
+                        disabled={promoChecking || !promoCode.trim()}
+                        className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+                      >
+                        {promoChecking ? "…" : "Apply"}
+                      </button>
+                    </div>
+                  )}
+                  {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
+                </div>
+
+                {pointsBalance !== null && pointsBalance > 0 && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    {appliedRedemption ? (
+                      <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
+                        <span className="font-medium text-accent">
+                          {appliedRedemption.points} Reward Coupons redeemed
+                        </span>
+                        <button type="button" onClick={removePointsRedemption} className="text-muted-foreground hover:text-foreground">
+                          Remove
+                        </button>
+                      </div>
+                    ) : appliedPromo ? (
+                      <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+                        Reward Coupons can't be combined with a promo code — remove {appliedPromo.code} above to redeem coupons instead.
+                      </p>
+                    ) : (
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={pointsBalance}
+                          value={redeemInput}
+                          onChange={(e) => setRedeemInput(e.target.value)}
+                          placeholder={`Redeem Reward Coupons (balance: ${pointsBalance})`}
+                          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
+                        />
+                        <button
+                          type="button"
+                          onClick={applyPointsRedemption}
+                          disabled={redeemChecking || !redeemInput.trim()}
+                          className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+                        >
+                          {redeemChecking ? "…" : "Apply"}
+                        </button>
+                      </div>
+                    )}
+                    {!appliedRedemption && previewDiscount !== null && (
+                      <p className="mt-1.5 text-[11px] font-medium text-accent">
+                        ≈ {fmt(previewDiscount)} off{previewCapped ? " (capped at the maximum for this order)" : ""}
+                      </p>
+                    )}
+                    {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
+                  </div>
+                )}
+
+                <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
+                  <Row label="Subtotal" value={fmt(cartTotal)} />
+                  <Row label={shippingLabel} value={shippingValue} />
+                  {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
+                  {appliedRedemption && <Row label="Reward Coupons redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
+                  <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
+                    <dt>Total</dt>
+                    <dd className="tabular-nums">{fmt(total)}</dd>
+                  </div>
+                </dl>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 disabled={
                   !consent ||
-                  (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone))
+                  (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone)) ||
+                  !isValidKenyanPhone(phone)
                 }
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: BRAND }}
               >
-                Continue to payment <ArrowRight className="h-4 w-4" />
+                <Smartphone className="h-5 w-5" />
+                Pay {fmt(total)} with M-Pesa
               </button>
+
+              <p className="text-center text-[11px] text-muted-foreground">
+                By paying, you agree to our terms. Payment is secured by Safaricom M-Pesa.
+              </p>
             </form>
             {/* Full-bleed breakout — the rest of this step is capped at max-w-2xl for readable line
                 length, but the horizontally-scrolling product strip benefits from the full modal
@@ -1647,170 +1829,8 @@ function CheckoutModal() {
             </>
           )}
 
-          {step === "delivery" && (detailsConfirmed || payState !== "idle") && (
+          {step === "delivery" && payState !== "idle" && (
             <div className="space-y-6">
-              {payState === "idle" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setDetailsConfirmed(false)}
-                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
-                  >
-                    <ArrowLeft className="h-4 w-4" /> Edit order details
-                  </button>
-
-                  <div>
-                    <h2 className="font-display text-2xl text-foreground">Review &amp; pay</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Enter the number to receive your M-Pesa payment prompt on.
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className={labelCls}>Phone (M-Pesa)</label>
-                    <input
-                      className={inputCls}
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0712 345 678"
-                      inputMode="tel"
-                    />
-                  </div>
-
-                  {/* Order summary */}
-                  <div className="overflow-hidden rounded-2xl border border-forest/15 bg-card">
-                    <div className="bg-forest px-5 py-3">
-                      <h3 className="text-sm font-semibold text-cream">Order summary</h3>
-                    </div>
-                    <div className="p-5">
-                    <ul className="space-y-2 text-sm">
-                      {items.map((it) => (
-                        <li key={it.id} className="flex justify-between gap-3">
-                          <span className="text-foreground/90">
-                            {it.productName} <span className="text-muted-foreground">× {it.quantity}</span>
-                          </span>
-                          <span className="tabular-nums">{fmt(it.lineTotal)}</span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <div className="mt-4 border-t border-border pt-3">
-                      {appliedPromo ? (
-                        <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
-                          <span className="font-medium text-accent">
-                            {appliedPromo.code} applied{autoApplied ? " automatically" : ""}
-                          </span>
-                          <button type="button" onClick={removePromoCode} className="text-muted-foreground hover:text-foreground">
-                            Use a different code
-                          </button>
-                        </div>
-                      ) : appliedRedemption ? (
-                        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
-                          A promo code can't be combined with Reward Coupons — remove your redeemed coupons above to use one instead.
-                        </p>
-                      ) : (
-                        <div className="flex gap-2">
-                          <input
-                            value={promoCode}
-                            onChange={(e) => setPromoCode(e.target.value)}
-                            placeholder="Promo code"
-                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
-                          />
-                          <button
-                            type="button"
-                            onClick={applyPromoCode}
-                            disabled={promoChecking || !promoCode.trim()}
-                            className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
-                          >
-                            {promoChecking ? "…" : "Apply"}
-                          </button>
-                        </div>
-                      )}
-                      {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
-                    </div>
-
-                    {pointsBalance !== null && pointsBalance > 0 && (
-                      <div className="mt-3 border-t border-border pt-3">
-                        {appliedRedemption ? (
-                          <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
-                            <span className="font-medium text-accent">
-                              {appliedRedemption.points} Reward Coupons redeemed
-                            </span>
-                            <button type="button" onClick={removePointsRedemption} className="text-muted-foreground hover:text-foreground">
-                              Remove
-                            </button>
-                          </div>
-                        ) : appliedPromo ? (
-                          <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
-                            Reward Coupons can't be combined with a promo code — remove {appliedPromo.code} above to redeem coupons instead.
-                          </p>
-                        ) : (
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              min={1}
-                              max={pointsBalance}
-                              value={redeemInput}
-                              onChange={(e) => setRedeemInput(e.target.value)}
-                              placeholder={`Redeem Reward Coupons (balance: ${pointsBalance})`}
-                              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
-                            />
-                            <button
-                              type="button"
-                              onClick={applyPointsRedemption}
-                              disabled={redeemChecking || !redeemInput.trim()}
-                              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
-                            >
-                              {redeemChecking ? "…" : "Apply"}
-                            </button>
-                          </div>
-                        )}
-                        {!appliedRedemption && previewDiscount !== null && (
-                          <p className="mt-1.5 text-[11px] font-medium text-accent">
-                            ≈ {fmt(previewDiscount)} off{previewCapped ? " (capped at the maximum for this order)" : ""}
-                          </p>
-                        )}
-                        {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
-                      </div>
-                    )}
-
-                    <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
-                      <Row label="Subtotal" value={fmt(cartTotal)} />
-                      <Row label={shippingLabel} value={shippingValue} />
-                      {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
-                      {appliedRedemption && <Row label="Reward Coupons redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
-                      <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
-                        <dt>Total</dt>
-                        <dd className="tabular-nums">{fmt(total)}</dd>
-                      </div>
-                    </dl>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!isValidKenyanPhone(phone)) {
-                        toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
-                        return;
-                      }
-                      startPayment();
-                    }}
-                    disabled={!isValidKenyanPhone(phone)}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
-                    style={{ backgroundColor: BRAND }}
-                  >
-                    <Smartphone className="h-5 w-5" />
-                    Pay {fmt(total)} with M-Pesa
-                  </button>
-
-                  <p className="text-center text-[11px] text-muted-foreground">
-                    By paying, you agree to our terms. Payment is secured by Safaricom M-Pesa.
-                  </p>
-                </>
-              )}
-
               {payState === "sending" && (
                 <CenteredState
                   icon={<Loader2 className="h-9 w-9 animate-spin" style={{ color: BRAND }} />}
@@ -1887,10 +1907,7 @@ function CheckoutModal() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setPayState("idle");
-                        setDetailsConfirmed(false);
-                      }}
+                      onClick={() => setPayState("idle")}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
                       <ArrowLeft className="h-4 w-4" /> Edit order details
@@ -1924,10 +1941,7 @@ function CheckoutModal() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setPayState("idle");
-                        setDetailsConfirmed(false);
-                      }}
+                      onClick={() => setPayState("idle")}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
                       <ArrowLeft className="h-4 w-4" /> Edit order details
