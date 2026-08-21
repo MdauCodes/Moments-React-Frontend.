@@ -568,16 +568,19 @@ function CheckoutModal() {
   // customer had already searched and picked a real address up above (just one that wasn't
   // TumaBoda-covered) — forcing them to type the same town a second time. Only fills a still-
   // blank field, same "never overwrite what's typed" rule as every other auto-fill in this file.
-  // Nothing to derive this from when they used the "pick your county instead" escape hatch
-  // (no resolvedAddress in that path) — city stays genuinely blank there, as before.
+  // Also covers the "pick your county instead" escape hatch: a customer who lands there is
+  // typically genuinely upcountry (their real town didn't resolve via the Nairobi-biased address
+  // search at all), so without this they'd pick e.g. "Nyeri" from the county dropdown and then
+  // have to type "Nyeri" again right below as the destination town — the same real duplicate-entry
+  // problem this effect already exists to prevent for the resolved-address path.
   useEffect(() => {
-    if (fulfillment !== "MANUAL_DELIVERY" || !resolvedAddress || city.trim()) return;
-    const guess = resolvedAddress.description.split(",")[0]?.trim();
+    if (fulfillment !== "MANUAL_DELIVERY" || city.trim()) return;
+    const guess = resolvedAddress ? resolvedAddress.description.split(",")[0]?.trim() : county.trim();
     if (guess) {
       setCity(guess);
       lastCityGuessRef.current = guess;
     }
-  }, [fulfillment, resolvedAddress, city]);
+  }, [fulfillment, resolvedAddress, county, city]);
 
   // Courier-autofill "learning system" — once a destination town is known, ask the backend what
   // courier real past orders to that town actually used (falls back to a general seeded route
