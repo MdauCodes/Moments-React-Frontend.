@@ -245,6 +245,10 @@ function CheckoutModal() {
   const [quoteChecking, setQuoteChecking] = useState(false);
   const [quoteUnavailable, setQuoteUnavailable] = useState(false);
 
+  // Gates the two sub-views of the "delivery" step: fulfillment/courier details form, then (once
+  // confirmed) the payment screen — kept as its own separate step for clarity (found live:
+  // merging it into one long scrolling page read as more cluttered, not more compact).
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [etrRequested, setEtrRequested] = useState(false);
   const [documentsEmail, setDocumentsEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
@@ -739,15 +743,7 @@ function CheckoutModal() {
       toast.error("Please tick the consent box to continue");
       return;
     }
-    // Delivery details and payment used to be two separate screens with their own confirm click
-    // in between — merged into one continuous form (found live: an avoidable extra click for the
-    // vast majority of customers who don't need to change anything once they've reached here).
-    // This submit is now the actual "place order and pay" action.
-    if (!isValidKenyanPhone(phone)) {
-      toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
-      return;
-    }
-    startPayment();
+    setDetailsConfirmed(true);
   }
 
   async function useMyLocation() {
@@ -787,8 +783,7 @@ function CheckoutModal() {
 
   async function startPayment() {
     // fulfillment is only null before the customer reaches this point — handleDeliveryDetailsSubmit
-    // (the form's onSubmit, and thus this function's only caller besides the retry buttons)
-    // already validated it's set.
+    // already validated it's set before detailsConfirmed (and thus the Pay button) is reachable.
     if (!fulfillment) return;
     setErrorMsg(null);
     setPayState("sending");
@@ -1054,11 +1049,11 @@ function CheckoutModal() {
                     placeholder="you@example.com"
                   />
                 </div>
-                {/* Phone numbers are collected later, in the delivery step, right next to the
-                    M-Pesa Pay button they're actually for — and (for TumaBoda orders) a second,
-                    separately-typed number is collected there first for the delivery contact,
-                    which then pre-fills the M-Pesa field below it since most customers use the
-                    same number for both. See that step for both fields. */}
+                {/* Phone numbers are collected later — the TumaBoda delivery-contact number (for
+                    orders that need one) on the delivery-details step, and the M-Pesa number on
+                    its own payment step right after, pre-filled from whichever TumaBoda number
+                    was already typed since most customers use the same line for both. See those
+                    two steps for both fields. */}
               </div>
 
               <button
@@ -1071,7 +1066,7 @@ function CheckoutModal() {
             </form>
           )}
 
-          {step === "delivery" && payState === "idle" && (
+          {step === "delivery" && !detailsConfirmed && payState === "idle" && (
             <>
             <form onSubmit={handleDeliveryDetailsSubmit} className="space-y-5">
               <button
@@ -1163,7 +1158,6 @@ function CheckoutModal() {
                           }}
                           placeholder="Start typing your delivery address…"
                           animatedPlaceholder
-                          showQuickPicks
                         />
                       )}
                       <div className="mt-3 border-t border-border pt-3">
@@ -1377,7 +1371,6 @@ function CheckoutModal() {
                                     onSelect={(addr) => setResolvedAddress(addr)}
                                     placeholder="Start typing your delivery address…"
                                     animatedPlaceholder
-                                    showQuickPicks
                                   />
                                   <button
                                     type="button"
@@ -1616,7 +1609,9 @@ function CheckoutModal() {
                           onChange={(e) => setDocumentsEmail(e.target.value)}
                           placeholder="you@example.com"
                         />
-                        {email.trim() && documentsEmail !== email.trim() && (
+                        {email.trim() && documentsEmail === email.trim() ? (
+                          <p className="mt-1 text-xs text-muted-foreground">Same as your contact email — edit if you'd like documents sent elsewhere.</p>
+                        ) : email.trim() && documentsEmail !== email.trim() ? (
                           <button
                             type="button"
                             className="mt-1 text-xs font-medium text-accent underline underline-offset-2"
@@ -1624,7 +1619,7 @@ function CheckoutModal() {
                           >
                             Use my email ({email.trim()})
                           </button>
-                        )}
+                        ) : null}
                       </div>
                       <div>
                         <label className={labelCls}>Your KRA PIN (optional)</label>
@@ -1679,146 +1674,17 @@ function CheckoutModal() {
                 className="mt-2"
               />
 
-              <div>
-                <label className={labelCls}>Phone (M-Pesa)</label>
-                <input
-                  className={inputCls}
-                  required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="0712 345 678"
-                  inputMode="tel"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">The number to receive your M-Pesa payment prompt on.</p>
-              </div>
-
-              {/* Order summary */}
-              <div className="overflow-hidden rounded-2xl border border-forest/15 bg-card">
-                <div className="bg-forest px-5 py-3">
-                  <h3 className="text-sm font-semibold text-cream">Order summary</h3>
-                </div>
-                <div className="p-5">
-                <ul className="space-y-2 text-sm">
-                  {items.map((it) => (
-                    <li key={it.id} className="flex justify-between gap-3">
-                      <span className="text-foreground/90">
-                        {it.productName} <span className="text-muted-foreground">× {it.quantity}</span>
-                      </span>
-                      <span className="tabular-nums">{fmt(it.lineTotal)}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-4 border-t border-border pt-3">
-                  {appliedPromo ? (
-                    <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
-                      <span className="font-medium text-accent">
-                        {appliedPromo.code} applied{autoApplied ? " automatically" : ""}
-                      </span>
-                      <button type="button" onClick={removePromoCode} className="text-muted-foreground hover:text-foreground">
-                        Use a different code
-                      </button>
-                    </div>
-                  ) : appliedRedemption ? (
-                    <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
-                      A promo code can't be combined with Reward Coupons — remove your redeemed coupons above to use one instead.
-                    </p>
-                  ) : (
-                    <div className="flex gap-2">
-                      <input
-                        value={promoCode}
-                        onChange={(e) => setPromoCode(e.target.value)}
-                        placeholder="Promo code"
-                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
-                      />
-                      <button
-                        type="button"
-                        onClick={applyPromoCode}
-                        disabled={promoChecking || !promoCode.trim()}
-                        className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
-                      >
-                        {promoChecking ? "…" : "Apply"}
-                      </button>
-                    </div>
-                  )}
-                  {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
-                </div>
-
-                {pointsBalance !== null && pointsBalance > 0 && (
-                  <div className="mt-3 border-t border-border pt-3">
-                    {appliedRedemption ? (
-                      <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
-                        <span className="font-medium text-accent">
-                          {appliedRedemption.points} Reward Coupons redeemed
-                        </span>
-                        <button type="button" onClick={removePointsRedemption} className="text-muted-foreground hover:text-foreground">
-                          Remove
-                        </button>
-                      </div>
-                    ) : appliedPromo ? (
-                      <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
-                        Reward Coupons can't be combined with a promo code — remove {appliedPromo.code} above to redeem coupons instead.
-                      </p>
-                    ) : (
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          min={1}
-                          max={pointsBalance}
-                          value={redeemInput}
-                          onChange={(e) => setRedeemInput(e.target.value)}
-                          placeholder={`Redeem Reward Coupons (balance: ${pointsBalance})`}
-                          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
-                        />
-                        <button
-                          type="button"
-                          onClick={applyPointsRedemption}
-                          disabled={redeemChecking || !redeemInput.trim()}
-                          className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
-                        >
-                          {redeemChecking ? "…" : "Apply"}
-                        </button>
-                      </div>
-                    )}
-                    {!appliedRedemption && previewDiscount !== null && (
-                      <p className="mt-1.5 text-[11px] font-medium text-accent">
-                        ≈ {fmt(previewDiscount)} off{previewCapped ? " (capped at the maximum for this order)" : ""}
-                      </p>
-                    )}
-                    {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
-                  </div>
-                )}
-
-                <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
-                  <Row label="Subtotal" value={fmt(cartTotal)} />
-                  <Row label={shippingLabel} value={shippingValue} />
-                  {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
-                  {appliedRedemption && <Row label="Reward Coupons redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
-                  <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
-                    <dt>Total</dt>
-                    <dd className="tabular-nums">{fmt(total)}</dd>
-                  </div>
-                </dl>
-                </div>
-              </div>
-
               <button
                 type="submit"
                 disabled={
                   !consent ||
-                  (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone)) ||
-                  !isValidKenyanPhone(phone)
+                  (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone))
                 }
-                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: BRAND }}
               >
-                <Smartphone className="h-5 w-5" />
-                Pay {fmt(total)} with M-Pesa
+                Continue to payment <ArrowRight className="h-4 w-4" />
               </button>
-
-              <p className="text-center text-[11px] text-muted-foreground">
-                By paying, you agree to our terms. Payment is secured by Safaricom M-Pesa.
-              </p>
             </form>
             {/* Full-bleed breakout — the rest of this step is capped at max-w-2xl for readable line
                 length, but the horizontally-scrolling product strip benefits from the full modal
@@ -1829,8 +1695,173 @@ function CheckoutModal() {
             </>
           )}
 
-          {step === "delivery" && payState !== "idle" && (
+          {step === "delivery" && (detailsConfirmed || payState !== "idle") && (
             <div className="space-y-6">
+              {payState === "idle" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDetailsConfirmed(false)}
+                    className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
+                  >
+                    <ArrowLeft className="h-4 w-4" /> Edit order details
+                  </button>
+
+                  <div>
+                    <h2 className="font-display text-2xl text-foreground">Review &amp; pay</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Enter the number to receive your M-Pesa payment prompt on.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className={labelCls}>Phone (M-Pesa)</label>
+                    <input
+                      className={inputCls}
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0712 345 678"
+                      inputMode="tel"
+                    />
+                    {tumabodaPhone.trim() && phone.trim() === tumabodaPhone.trim() && (
+                      <p className="mt-1 text-xs text-muted-foreground">Same as your delivery contact number — edit if you'd like to pay from a different line.</p>
+                    )}
+                  </div>
+
+                  {/* Order summary */}
+                  <div className="overflow-hidden rounded-2xl border border-forest/15 bg-card">
+                    <div className="bg-forest px-5 py-3">
+                      <h3 className="text-sm font-semibold text-cream">Order summary</h3>
+                    </div>
+                    <div className="p-5">
+                    <ul className="space-y-2 text-sm">
+                      {items.map((it) => (
+                        <li key={it.id} className="flex justify-between gap-3">
+                          <span className="text-foreground/90">
+                            {it.productName} <span className="text-muted-foreground">× {it.quantity}</span>
+                          </span>
+                          <span className="tabular-nums">{fmt(it.lineTotal)}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-4 border-t border-border pt-3">
+                      {appliedPromo ? (
+                        <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
+                          <span className="font-medium text-accent">
+                            {appliedPromo.code} applied{autoApplied ? " automatically" : ""}
+                          </span>
+                          <button type="button" onClick={removePromoCode} className="text-muted-foreground hover:text-foreground">
+                            Use a different code
+                          </button>
+                        </div>
+                      ) : appliedRedemption ? (
+                        <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+                          A promo code can't be combined with Reward Coupons — remove your redeemed coupons above to use one instead.
+                        </p>
+                      ) : (
+                        <div className="flex gap-2">
+                          <input
+                            value={promoCode}
+                            onChange={(e) => setPromoCode(e.target.value)}
+                            placeholder="Promo code"
+                            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs uppercase focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
+                          />
+                          <button
+                            type="button"
+                            onClick={applyPromoCode}
+                            disabled={promoChecking || !promoCode.trim()}
+                            className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+                          >
+                            {promoChecking ? "…" : "Apply"}
+                          </button>
+                        </div>
+                      )}
+                      {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
+                    </div>
+
+                    {pointsBalance !== null && pointsBalance > 0 && (
+                      <div className="mt-3 border-t border-border pt-3">
+                        {appliedRedemption ? (
+                          <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
+                            <span className="font-medium text-accent">
+                              {appliedRedemption.points} Reward Coupons redeemed
+                            </span>
+                            <button type="button" onClick={removePointsRedemption} className="text-muted-foreground hover:text-foreground">
+                              Remove
+                            </button>
+                          </div>
+                        ) : appliedPromo ? (
+                          <p className="rounded-lg bg-secondary/60 px-3 py-2 text-[11px] text-muted-foreground">
+                            Reward Coupons can't be combined with a promo code — remove {appliedPromo.code} above to redeem coupons instead.
+                          </p>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={pointsBalance}
+                              value={redeemInput}
+                              onChange={(e) => setRedeemInput(e.target.value)}
+                              placeholder={`Redeem Reward Coupons (balance: ${pointsBalance})`}
+                              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)]"
+                            />
+                            <button
+                              type="button"
+                              onClick={applyPointsRedemption}
+                              disabled={redeemChecking || !redeemInput.trim()}
+                              className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
+                            >
+                              {redeemChecking ? "…" : "Apply"}
+                            </button>
+                          </div>
+                        )}
+                        {!appliedRedemption && previewDiscount !== null && (
+                          <p className="mt-1.5 text-[11px] font-medium text-accent">
+                            ≈ {fmt(previewDiscount)} off{previewCapped ? " (capped at the maximum for this order)" : ""}
+                          </p>
+                        )}
+                        {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
+                      </div>
+                    )}
+
+                    <dl className="mt-4 space-y-1.5 border-t border-border pt-3 text-sm">
+                      <Row label="Subtotal" value={fmt(cartTotal)} />
+                      <Row label={shippingLabel} value={shippingValue} />
+                      {appliedPromo && <Row label="Discount" value={`-${fmt(appliedPromo.discount)}`} />}
+                      {appliedRedemption && <Row label="Reward Coupons redeemed" value={`-${fmt(appliedRedemption.discount)}`} />}
+                      <div className="flex justify-between border-t border-border pt-2.5 font-display text-base">
+                        <dt>Total</dt>
+                        <dd className="tabular-nums">{fmt(total)}</dd>
+                      </div>
+                    </dl>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isValidKenyanPhone(phone)) {
+                        toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
+                        return;
+                      }
+                      startPayment();
+                    }}
+                    disabled={!isValidKenyanPhone(phone)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
+                    style={{ backgroundColor: BRAND }}
+                  >
+                    <Smartphone className="h-5 w-5" />
+                    Pay {fmt(total)} with M-Pesa
+                  </button>
+
+                  <p className="text-center text-[11px] text-muted-foreground">
+                    By paying, you agree to our terms. Payment is secured by Safaricom M-Pesa.
+                  </p>
+                </>
+              )}
+
               {payState === "sending" && (
                 <CenteredState
                   icon={<Loader2 className="h-9 w-9 animate-spin" style={{ color: BRAND }} />}
@@ -1907,7 +1938,10 @@ function CheckoutModal() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPayState("idle")}
+                      onClick={() => {
+                        setPayState("idle");
+                        setDetailsConfirmed(false);
+                      }}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
                       <ArrowLeft className="h-4 w-4" /> Edit order details
@@ -1941,7 +1975,10 @@ function CheckoutModal() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setPayState("idle")}
+                      onClick={() => {
+                        setPayState("idle");
+                        setDetailsConfirmed(false);
+                      }}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
                       <ArrowLeft className="h-4 w-4" /> Edit order details
