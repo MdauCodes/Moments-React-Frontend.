@@ -400,6 +400,10 @@ function CheckoutModal() {
   // discount is stale (computed off a total that no longer applies). Clear it and make
   // the customer re-apply, rather than silently showing a wrong number on screen.
   const prevPromoCodeRef = useRef<string | null>(null);
+  // Tracks the last value the city auto-fill effect itself wrote, so the Manual Delivery
+  // "Delivering to — Change" button can safely clear a still-unedited guess without ever
+  // touching a value the customer typed or edited themselves.
+  const lastCityGuessRef = useRef<string>("");
   useEffect(() => {
     const currentCode = appliedPromo?.code ?? null;
     if (prevPromoCodeRef.current !== currentCode && appliedRedemption) {
@@ -495,6 +499,21 @@ function CheckoutModal() {
     else if (covered === false && fulfillment === "TUMABODA_DELIVERY") setFulfillment("MANUAL_DELIVERY");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [covered, wantsDelivery]);
+
+  // Manual Delivery's own "Destination town" field used to always start blank, even when the
+  // customer had already searched and picked a real address up above (just one that wasn't
+  // TumaBoda-covered) — forcing them to type the same town a second time. Only fills a still-
+  // blank field, same "never overwrite what's typed" rule as every other auto-fill in this file.
+  // Nothing to derive this from when they used the "pick your county instead" escape hatch
+  // (no resolvedAddress in that path) — city stays genuinely blank there, as before.
+  useEffect(() => {
+    if (fulfillment !== "MANUAL_DELIVERY" || !resolvedAddress || city.trim()) return;
+    const guess = resolvedAddress.description.split(",")[0]?.trim();
+    if (guess) {
+      setCity(guess);
+      lastCityGuessRef.current = guess;
+    }
+  }, [fulfillment, resolvedAddress, city]);
 
   // Live delivery-fee preview — fires whenever the resolved pin changes, so the customer sees
   // the real fee before committing rather than only finding out at final checkout. Fails
@@ -1368,6 +1387,39 @@ function CheckoutModal() {
 
                 {fulfillment === "MANUAL_DELIVERY" && (
                   <div className="space-y-4">
+                    {(resolvedAddress || county.trim()) && (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivering to</p>
+                          <p className="truncate font-medium text-foreground">
+                            {resolvedAddress?.description ?? county.trim()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Same reset as the TumaBoda card's own "Change" button — clearing
+                            // fulfillment too is what lets the auto-resolve effect above pick a
+                            // fresh mode for whatever address/county comes next.
+                            setResolvedAddress(null);
+                            setAddressText("");
+                            setGpsFallback(null);
+                            setCounty("");
+                            setShowCountyFallback(false);
+                            setFulfillment(null);
+                            // Only clear an untouched auto-fill guess — a city the customer typed
+                            // or edited themselves is left alone even if it happens to still be
+                            // the same text.
+                            if (city.trim() && city.trim() === lastCityGuessRef.current) {
+                              setCity("");
+                            }
+                          }}
+                          className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
                     <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground/90">
                       <p>
                         <span className="font-semibold">How delivery works:</span> we hand your parcel to a{" "}
