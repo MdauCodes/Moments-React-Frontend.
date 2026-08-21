@@ -173,6 +173,29 @@ const inputCls =
   "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)] focus:border-transparent transition";
 const labelCls = "block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5";
 
+/**
+ * Scrolls a just-revealed section into view the moment its stage becomes "complete" — used across
+ * the delivery step's accordion-style stages (fulfillment choice, address resolution, Manual
+ * Delivery's two sections) so the customer lands on what's next instead of having to scroll
+ * themselves. Edge-triggered off a ref, not the `complete` boolean directly, so it fires exactly
+ * once per completion (not on every re-render while already complete) — and resets when a stage
+ * is reopened via its own "Change"/"Edit" control, so completing it again re-scrolls too.
+ */
+function useScrollIntoViewOnComplete<T extends HTMLElement>(complete: boolean, ref: React.RefObject<T | null>) {
+  const wasComplete = useRef(false);
+  useEffect(() => {
+    if (complete && !wasComplete.current) {
+      wasComplete.current = true;
+      const timer = setTimeout(() => {
+        ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+    if (!complete) wasComplete.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complete]);
+}
+
 function CheckoutModal() {
   const { items, cartTotal, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
@@ -229,7 +252,7 @@ function CheckoutModal() {
   // Raw device fix from "Use my current location" — held here for explicit confirmation (GPS can
   // be wrong: indoors, VPN, stale cache) rather than being silently trusted or silently dropped
   // into the search box. Cleared once the customer confirms or rejects it.
-  const [gpsFallback, setGpsFallback] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
+  const [gpsFallback, setGpsFallback] = useState<{ description: string; latitude: number; longitude: number; county: string | null } | null>(null);
   // Live delivery-fee preview — debounced call to /api/v1/public/tumaboda/quote whenever the
   // resolved pin changes (see the effect below). Fails closed: an error here drops TumaBoda
   // back to Manual Delivery automatically rather than ever proceeding with a guessed fee.
@@ -404,6 +427,15 @@ function CheckoutModal() {
   // "Delivering to — Change" button can safely clear a still-unedited guess without ever
   // touching a value the customer typed or edited themselves.
   const lastCityGuessRef = useRef<string>("");
+
+  // Scroll targets for the delivery step's accordion stages — see useScrollIntoViewOnComplete.
+  const pickupSectionRef = useRef<HTMLDivElement>(null);
+  const deliverySearchSectionRef = useRef<HTMLDivElement>(null);
+  const coverageResultSectionRef = useRef<HTMLDivElement>(null);
+  const manualSection2Ref = useRef<HTMLElement>(null);
+  // Lets "Edit" on the collapsed Manual Delivery Section 1 summary reopen the full field set
+  // without clearing the destination town that's already there.
+  const [manualSection1ForceOpen, setManualSection1ForceOpen] = useState(false);
   useEffect(() => {
     const currentCode = appliedPromo?.code ?? null;
     if (prevPromoCodeRef.current !== currentCode && appliedRedemption) {
@@ -514,6 +546,16 @@ function CheckoutModal() {
       lastCityGuessRef.current = guess;
     }
   }, [fulfillment, resolvedAddress, city]);
+
+  // Accordion-style auto-scroll for the delivery step — see useScrollIntoViewOnComplete's own
+  // Javadoc-style comment above. One call per stage; each only fires once per completion.
+  useScrollIntoViewOnComplete(fulfillment === "PICKUP", pickupSectionRef);
+  useScrollIntoViewOnComplete(wantsDelivery === true, deliverySearchSectionRef);
+  useScrollIntoViewOnComplete(Boolean(resolvedAddress) || showCountyFallback, coverageResultSectionRef);
+  useScrollIntoViewOnComplete(
+    fulfillment === "MANUAL_DELIVERY" && city.trim().length > 0,
+    manualSection2Ref,
+  );
 
   // Live delivery-fee preview — fires whenever the resolved pin changes, so the customer sees
   // the real fee before committing rather than only finding out at final checkout. Fails
@@ -763,6 +805,7 @@ function CheckoutModal() {
       async (pos) => {
         const { latitude, longitude } = pos.coords;
         let description = "Current location (approximate)";
+        let county: string | null = null;
         try {
           const res = await apiFetch(
             `/api/v1/public/tumaboda/maps/reverse-geocode?lat=${latitude}&lng=${longitude}`,
@@ -770,6 +813,10 @@ function CheckoutModal() {
           if (res.ok) {
             const details = await res.json();
             if (details?.formattedAddress) description = details.formattedAddress;
+            // The backend already best-effort-matches a county for this pin (nearest seeded
+            // area) — carry it through so a GPS-resolved address doesn't need it re-asked,
+            // same as a searched address already does via fetchPlaceDetails.
+            if (details?.county) county = details.county;
           }
         } catch {
           // Reverse-geocode failed — still proceed with the raw coordinates below.
@@ -777,7 +824,7 @@ function CheckoutModal() {
         // Never lock the raw device fix straight in as the delivery point — GPS can be wrong
         // (indoors, VPN, stale cache). Surface it for the customer to explicitly confirm or reject
         // first; only a "yes" commits it as resolvedAddress.
-        setGpsFallback({ description, latitude, longitude });
+        setGpsFallback({ description, latitude, longitude, county });
         setLocatingMe(false);
       },
       () => {
@@ -965,6 +1012,7 @@ function CheckoutModal() {
         : "To be confirmed";
 
   const brandStyle = { ["--brand-ring" as string]: BRAND } as React.CSSProperties;
+  const deliveryChoiceMade = fulfillment === "PICKUP" || wantsDelivery === true;
 
   return (
     <div
@@ -1086,34 +1134,67 @@ function CheckoutModal() {
               </div>
 
               {/* Step 1 of this page: pickup vs. delivery, always asked first — everything else
-                  below reveals progressively based on this and, for delivery, the destination. */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FulfillmentCard
-                  active={fulfillment === "PICKUP"}
-                  onClick={() => {
-                    setWantsDelivery(false);
-                    setFulfillment("PICKUP");
-                  }}
-                  icon={<Store className="h-5 w-5" />}
-                  title="Pick Up at Shop"
-                  desc="Collect from our shop — no delivery fee."
-                />
-                <FulfillmentCard
-                  active={wantsDelivery === true}
-                  onClick={() => {
-                    if (wantsDelivery !== true) {
+                  below reveals progressively based on this and, for delivery, the destination.
+                  Collapses to a one-line summary once chosen, same accordion pattern as the
+                  address/Manual-Delivery stages below, so the page doesn't keep showing a
+                  decision that's already made. */}
+              {deliveryChoiceMade ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      How should we get your order to you?
+                    </p>
+                    <p className="truncate font-medium text-foreground">
+                      {fulfillment === "PICKUP" ? "Pick up at our shop" : "Have it delivered"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWantsDelivery(null);
+                      setFulfillment(null);
+                      setResolvedAddress(null);
+                      setAddressText("");
+                      setGpsFallback(null);
+                      setCounty("");
+                      setShowCountyFallback(false);
+                      if (city.trim() && city.trim() === lastCityGuessRef.current) setCity("");
+                    }}
+                    className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                // Reaching this branch already means neither choice is made yet (that's what
+                // !deliveryChoiceMade means), so neither card can legitimately be "active" here —
+                // the collapsed summary above takes over as soon as one is.
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FulfillmentCard
+                    active={false}
+                    onClick={() => {
+                      setWantsDelivery(false);
+                      setFulfillment("PICKUP");
+                    }}
+                    icon={<Store className="h-5 w-5" />}
+                    title="Pick Up at Shop"
+                    desc="Collect from our shop — no delivery fee."
+                  />
+                  <FulfillmentCard
+                    active={false}
+                    onClick={() => {
                       setWantsDelivery(true);
                       setFulfillment(null);
-                    }
-                  }}
-                  icon={<Truck className="h-5 w-5" />}
-                  title="Have it Delivered"
-                  desc="Tell us where — we'll show you what's available there."
-                />
-              </div>
+                    }}
+                    icon={<Truck className="h-5 w-5" />}
+                    title="Have it Delivered"
+                    desc="Tell us where — we'll show you what's available there."
+                  />
+                </div>
+              )}
 
               {wantsDelivery === true && (
-                <div className="space-y-4">
+                <div ref={deliverySearchSectionRef} className="space-y-4">
                   {/* Location asked ONCE, first — coverage (TumaBoda vs Courier) resolves FROM
                       this, instead of a blind county question deciding it beforehand. Current
                       location is the primary action (fastest path); search is the alternative. */}
@@ -1145,7 +1226,7 @@ function CheckoutModal() {
                               placeId: null,
                               latitude: gpsFallback.latitude,
                               longitude: gpsFallback.longitude,
-                              county: null,
+                              county: gpsFallback.county,
                             });
                             setGpsFallback(null);
                           }}
@@ -1176,7 +1257,7 @@ function CheckoutModal() {
                   )}
 
                   {(resolvedAddress || showCountyFallback) && (
-                    <div className="space-y-4">
+                    <div ref={coverageResultSectionRef} className="space-y-4">
                       {/* County wasn't attached to the resolved address (TumaBoda's live proxy
                           didn't have a close-enough seeded-area match) or the customer skipped
                           straight to the county fallback above — confirm it before checking
@@ -1343,7 +1424,7 @@ function CheckoutModal() {
                                       placeId: null,
                                       latitude: gpsFallback.latitude,
                                       longitude: gpsFallback.longitude,
-                                      county: null,
+                                      county: gpsFallback.county,
                                     });
                                     setGpsFallback(null);
                                   }}
@@ -1433,54 +1514,72 @@ function CheckoutModal() {
                       </p>
                     </div>
 
-                    {/* SECTION 1 — DESTINATION */}
-                    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-                      <div className="mb-3 flex items-baseline justify-between gap-2">
-                        <h3 className="font-display text-lg text-foreground">1. Where do you need it delivered?</h3>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Your side
-                        </span>
+                    {/* SECTION 1 — DESTINATION. Collapses to a one-line summary once the required
+                        field is filled (often already auto-filled from the address searched
+                        above) — "Edit" reopens the full field set without clearing anything. */}
+                    {city.trim() && !manualSection1ForceOpen ? (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Destination town</p>
+                          <p className="truncate font-medium text-foreground">{city.trim()}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setManualSection1ForceOpen(true)}
+                          className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                        >
+                          Edit
+                        </button>
                       </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                          <label className={labelCls}>
-                            Destination town <span className="text-destructive">*</span>
-                          </label>
-                          <input
-                            className={inputCls}
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="e.g. Nyeri, Meru, Eldoret"
-                          />
+                    ) : (
+                      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                        <div className="mb-3 flex items-baseline justify-between gap-2">
+                          <h3 className="font-display text-lg text-foreground">1. Where do you need it delivered?</h3>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Your side
+                          </span>
                         </div>
-                        <div className="sm:col-span-2">
-                          <label className={labelCls}>Nearest courier office to you (optional)</label>
-                          <input
-                            className={inputCls}
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            placeholder="e.g. 2NK Nyeri town office, Easy Coach Eldoret stage"
-                          />
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            The sacco / parcel office on <em>your</em> side where you'll pick up the parcel. Not sure
-                            which one? Leave blank — we'll call to confirm with you.
-                          </p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>
+                              Destination town <span className="text-destructive">*</span>
+                            </label>
+                            <input
+                              className={inputCls}
+                              required
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              placeholder="e.g. Nyeri, Meru, Eldoret"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>Nearest courier office to you (optional)</label>
+                            <input
+                              className={inputCls}
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              placeholder="e.g. 2NK Nyeri town office, Easy Coach Eldoret stage"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              The sacco / parcel office on <em>your</em> side where you'll pick up the parcel. Not
+                              sure which one? Leave blank — we'll call to confirm with you.
+                            </p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>Postal code (optional)</label>
+                            <input
+                              className={inputCls}
+                              value={postalCode}
+                              onChange={(e) => setPostalCode(e.target.value)}
+                              placeholder="00100"
+                            />
+                          </div>
                         </div>
-                        <div className="sm:col-span-2">
-                          <label className={labelCls}>Postal code (optional)</label>
-                          <input
-                            className={inputCls}
-                            value={postalCode}
-                            onChange={(e) => setPostalCode(e.target.value)}
-                            placeholder="00100"
-                          />
-                        </div>
-                      </div>
-                    </section>
+                      </section>
+                    )}
 
                     {/* SECTION 2 — DISPATCH */}
-                    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                    <section ref={manualSection2Ref} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                       <div className="mb-3 flex items-baseline justify-between gap-2">
                         <h3 className="font-display text-lg text-foreground">
                           2. Do you have an idea of which sacco / courier office in Nairobi we should use? (this is
@@ -1583,7 +1682,7 @@ function CheckoutModal() {
               )}
 
               {fulfillment === "PICKUP" && (
-                <div className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
+                <div ref={pickupSectionRef} className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
                   No delivery fee — we'll prepare your order and call you when it's ready for pickup at our shop.
                   <label className="mt-3 flex cursor-not-allowed items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/50 px-3 py-2.5 opacity-60">
                     <input type="checkbox" disabled className="h-4 w-4 rounded border-border" />
