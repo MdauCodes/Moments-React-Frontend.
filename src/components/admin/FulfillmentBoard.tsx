@@ -48,7 +48,7 @@ function OrderCard({
       </div>
       <div className="admin-card-row" style={{ fontSize: 11.5, color: "var(--admin-muted)" }}>
         <span className="admin-board-card-truncate">{order.customerName}</span>
-        <span style={{ fontWeight: 600, color: "var(--admin-text)" }}>{formatKes(order.totalAmount)}</span>
+        <span style={{ fontWeight: 600, color: "var(--admin-text)" }}>{formatKes(order.total)}</span>
       </div>
       {subLabel && (
         <div style={{ fontSize: 11, color: exception ? "#b91c1c" : "var(--admin-accent)", fontWeight: 600 }}>
