@@ -603,6 +603,7 @@ function CheckoutModal() {
         const defaultAddr = profile.addresses.find((a) => a.isDefault) ?? profile.addresses[0];
         if (!defaultAddr) return;
         setPhone((prev) => prev || defaultAddr.phone || "");
+        setTumabodaPhone((prev) => prev || defaultAddr.phone || "");
         setCity((prev) => prev || defaultAddr.city || "");
         setAddress((prev) => prev || defaultAddr.line1 || "");
       })
@@ -624,6 +625,7 @@ function CheckoutModal() {
       setName((prev) => prev || saved.name || "");
       setEmail((prev) => prev || saved.email || "");
       setPhone((prev) => prev || saved.phone || "");
+      setTumabodaPhone((prev) => prev || saved.phone || "");
       setCity((prev) => prev || saved.city || "");
       setCounty((prev) => prev || saved.county || "");
       setAddress((prev) => prev || saved.address || "");
@@ -1156,34 +1158,6 @@ function CheckoutModal() {
 
                   {(resolvedAddress || showCountyFallback) && (
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
-                        <div className="min-w-0">
-                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivering to</p>
-                          <p className="truncate font-medium text-foreground">
-                            {resolvedAddress?.description ?? county.trim() ?? ""}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setResolvedAddress(null);
-                            setAddressText("");
-                            setGpsFallback(null);
-                            setCounty("");
-                            setShowCountyFallback(false);
-                            // A prior address may have already resolved fulfillment (e.g. to
-                            // MANUAL_DELIVERY for an uncovered area) — without resetting this too,
-                            // the auto-resolve effect below (gated on fulfillment === null) never
-                            // fires again, so a second, covered address silently keeps the first
-                            // address's fulfillment instead of re-resolving to TumaBoda.
-                            setFulfillment(null);
-                          }}
-                          className="shrink-0 text-xs font-semibold underline underline-offset-2"
-                        >
-                          Change
-                        </button>
-                      </div>
-
                       {/* County wasn't attached to the resolved address (TumaBoda's live proxy
                           didn't have a close-enough seeded-area match) or the customer skipped
                           straight to the county fallback above — confirm it before checking
@@ -1255,6 +1229,33 @@ function CheckoutModal() {
                             </div>
                           )}
                           <div className="px-4 pb-4">
+                          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivering to</p>
+                              <p className="truncate font-medium text-foreground">
+                                {resolvedAddress?.description ?? county.trim() ?? ""}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setResolvedAddress(null);
+                                setAddressText("");
+                                setGpsFallback(null);
+                                setCounty("");
+                                setShowCountyFallback(false);
+                                // A prior address may have already resolved fulfillment (e.g. to
+                                // MANUAL_DELIVERY for an uncovered area) — without resetting this too,
+                                // the auto-resolve effect below (gated on fulfillment === null) never
+                                // fires again, so a second, covered address silently keeps the first
+                                // address's fulfillment instead of re-resolving to TumaBoda.
+                                setFulfillment(null);
+                              }}
+                              className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                            >
+                              Change
+                            </button>
+                          </div>
                           <div className="flex items-start justify-between gap-2">
                             <p className="text-muted-foreground">Tracked delivery to your doorstep.</p>
                             <button
@@ -1621,7 +1622,7 @@ function CheckoutModal() {
                     placeholder="0712 345 678"
                     inputMode="tel"
                   />
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs font-medium text-foreground/90">
                     This number will be given directly to TumaBoda, our delivery partner, so
                     their rider can contact you about this delivery. It's collected separately
                     from your M-Pesa number, which you'll enter at payment. See our{" "}
