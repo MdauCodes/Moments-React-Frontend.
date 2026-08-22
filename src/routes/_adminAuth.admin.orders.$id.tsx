@@ -381,6 +381,23 @@ function AdminOrderDetailPage() {
               <div className="admin-panel" style={{ padding: 16 }}>
                 <div className="admin-label">Courier details</div>
                 <div style={{ marginTop: 8, fontSize: 13 }}>
+                  {/* Highlighted above the rest — this is what the destination office actually
+                      checks against ID before handing the parcel over, so it's what staff need to
+                      relay to the courier, not just background detail. */}
+                  <div
+                    style={{
+                      padding: "8px 10px",
+                      marginBottom: 10,
+                      borderRadius: 6,
+                      background: "rgba(34, 139, 34, 0.08)",
+                      border: "1px solid rgba(34, 139, 34, 0.3)",
+                    }}
+                  >
+                    <div className="admin-label" style={{ fontSize: 11 }}>Collector's name (checked at pickup)</div>
+                    <div style={{ marginTop: 2, fontWeight: 600 }}>
+                      {(order as any).collectorName || "— not provided —"}
+                    </div>
+                  </div>
                   <div>
                     <b>Type:</b>{" "}
                     {String((order as any).courierType ?? "—").replace(/_/g, " ")}

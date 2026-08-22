@@ -77,6 +77,7 @@ export interface OrderRecord {
   courierType?: string;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  collectorName?: string;
   promoCode?: string;
   paymentMethod?: string;
   fulfillmentType?: string;

@@ -104,6 +104,7 @@ export interface CustomerOrder {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  collectorName?: string;
   tumabodaStatus?: string | null;
   tumabodaTrackingCode?: string | null;
   /** Set once the customer self-confirms receipt via confirmDelivery() below — only present on
@@ -148,6 +149,9 @@ export interface PlaceOrderInput {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  /** Full name of whoever will collect the parcel, checked at the destination office —
+   *  MANUAL_DELIVERY only, needs at least two words (enforced both here and server-side). */
+  collectorName?: string;
   /** TUMABODA_DELIVERY only — real-time quote needs these. Not yet populated by any UI; the
    *  pin-drop/map component that would collect them is its own design pass, not built yet. */
   dropoffLat?: number;
@@ -349,6 +353,7 @@ export const orderStore = {
     if (input.courierType) body.courierType = input.courierType;
     if (input.courierServiceName) body.courierServiceName = input.courierServiceName;
     if (input.courierStageOrOffice) body.courierStageOrOffice = input.courierStageOrOffice;
+    if (input.collectorName) body.collectorName = input.collectorName;
     if (input.dropoffLat != null) body.dropoffLat = input.dropoffLat;
     if (input.dropoffLng != null) body.dropoffLng = input.dropoffLng;
     if (input.landmarkDetail) body.landmarkDetail = input.landmarkDetail;

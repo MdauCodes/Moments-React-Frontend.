@@ -135,6 +135,7 @@ function normalizeOrder(raw: any): OrderRecord {
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
+    collectorName: raw?.collectorName,
     deliveryFeeAmount: raw?.deliveryFeeAmount != null ? num(raw.deliveryFeeAmount) : undefined,
     deliveryFeeStatus: raw?.deliveryFeeStatus,
     deliveryFeeMethod: raw?.deliveryFeeMethod,

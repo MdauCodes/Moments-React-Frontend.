@@ -153,6 +153,7 @@ type SavedGuestCheckoutDetails = {
   county?: string;
   address?: string;
   postalCode?: string;
+  collectorName?: string;
   fulfillment?: FulfillmentType;
   resolvedAddress?: ResolvedAddress | null;
 };
@@ -187,6 +188,12 @@ function isValidKenyanPhone(p: string) {
   if (/^07\d{8}$/.test(trimmed)) return true;
   const n = normalizePhone(trimmed);
   return /^\+2547\d{8}$/.test(n);
+}
+
+/** At least a first and last name — the collector's name is checked against ID at the
+ *  destination office, so a single word isn't enough to be useful for that. */
+function hasFullName(n: string) {
+  return n.trim().split(/\s+/).filter(Boolean).length >= 2;
 }
 
 const inputCls =
@@ -241,6 +248,10 @@ function CheckoutModal() {
   const [courierType, setCourierType] = useState<CourierType | "">("");
   const [courierServiceName, setCourierServiceName] = useState("");
   const [courierStageOrOffice, setCourierStageOrOffice] = useState("");
+  // Full name of whoever will actually collect the parcel — checked against ID at the
+  // destination office, per the client's explicit decision. Deliberately separate from the
+  // orderer's own `name`, since they're often not the same person.
+  const [collectorName, setCollectorName] = useState("");
   // Set once the courier-suggestion autofill below actually fills something in, purely to show
   // the right copy ("based on past orders" vs. a general starting guess) — null otherwise.
   const [courierSuggestionSource, setCourierSuggestionSource] = useState<string | null>(null);
@@ -583,6 +594,16 @@ function CheckoutModal() {
     }
   }, [fulfillment, resolvedAddress, county, city]);
 
+  // Most Manual Delivery orders are collected by the person who placed them — prefill the
+  // collector's name from the contact name already given, but only when it's already a full
+  // name (first + last); a single-word contact name isn't enough to satisfy the collector-name
+  // requirement anyway, so leaving it blank there prompts the customer to actually type the full
+  // name needed for verification rather than silently carrying over something incomplete.
+  useEffect(() => {
+    if (fulfillment !== "MANUAL_DELIVERY" || collectorName.trim()) return;
+    if (hasFullName(name)) setCollectorName(name.trim());
+  }, [fulfillment, name, collectorName]);
+
   // Courier-autofill "learning system" — once a destination town is known, ask the backend what
   // courier real past orders to that town actually used (falls back to a general seeded route
   // guess if no history exists yet). Only fills fields still blank, same rule as every other
@@ -625,7 +646,7 @@ function CheckoutModal() {
   useScrollIntoViewOnComplete(wantsDelivery === true, deliverySearchSectionRef);
   useScrollIntoViewOnComplete(Boolean(resolvedAddress) || showCountyFallback, coverageResultSectionRef);
   useScrollIntoViewOnComplete(
-    fulfillment === "MANUAL_DELIVERY" && city.trim().length > 0,
+    fulfillment === "MANUAL_DELIVERY" && city.trim().length > 0 && hasFullName(collectorName),
     manualSection2Ref,
   );
 
@@ -760,6 +781,7 @@ function CheckoutModal() {
       setCity((prev) => prev || saved.city || "");
       setCounty((prev) => prev || saved.county || "");
       setAddress((prev) => prev || saved.address || "");
+      setCollectorName((prev) => prev || saved.collectorName || "");
       // Only offer the one-tap shortcut when there's actually a full delivery mode to restore —
       // PICKUP needs nothing further, a delivery mode needs its resolved address too (see the
       // type's own comment on why this can be absent for older saved blobs).
@@ -839,6 +861,10 @@ function CheckoutModal() {
         toast.error("Please fill in the destination town");
         return false;
       }
+      if (!hasFullName(collectorName)) {
+        toast.error("Please enter the full name (first and last) of whoever will collect the parcel");
+        return false;
+      }
       if (!courierType) {
         toast.error("Please select a courier type (sacco, parcel service, rider, etc.)");
         return false;
@@ -910,6 +936,7 @@ function CheckoutModal() {
       if (saved.county) setCounty(saved.county);
       if (saved.city) setCity((prev) => prev || saved.city || "");
       if (saved.address) setAddress((prev) => prev || saved.address || "");
+      if (saved.collectorName) setCollectorName((prev) => prev || saved.collectorName || "");
     }
     setSavedGuestShortcut(null);
   }
@@ -1000,6 +1027,7 @@ function CheckoutModal() {
                 courierType: courierType as CourierType,
                 courierServiceName: courierServiceName.trim() || undefined,
                 courierStageOrOffice: courierStageOrOffice.trim() || undefined,
+                collectorName: collectorName.trim() || undefined,
               }
             : {}),
         });
@@ -1057,7 +1085,8 @@ function CheckoutModal() {
         if (!isAuthenticated) {
           try {
             const toSave: SavedGuestCheckoutDetails = {
-              name, email, phone, tumabodaPhone, city, county, address, postalCode, fulfillment: fulfillment ?? undefined,
+              name, email, phone, tumabodaPhone, city, county, address, postalCode, collectorName,
+              fulfillment: fulfillment ?? undefined,
             };
             // Only worth restoring for a delivery mode if there's a real resolved address to go
             // with it — without one (e.g. the "pick your county instead" escape hatch), the
@@ -1679,14 +1708,18 @@ function CheckoutModal() {
                       </button>
                     </div>
 
-                    {/* SECTION 1 — DESTINATION. Collapses to a one-line summary once the required
-                        field is filled (often already auto-filled from the address searched
-                        above) — "Edit" reopens the full field set without clearing anything. */}
-                    {city.trim() && !manualSection1ForceOpen ? (
+                    {/* SECTION 1 — DESTINATION. Collapses to a one-line summary once its required
+                        fields are filled (destination town is often already auto-filled from the
+                        address searched above) — "Edit" reopens the full field set without
+                        clearing anything. */}
+                    {city.trim() && hasFullName(collectorName) && !manualSection1ForceOpen ? (
                       <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
                         <div className="min-w-0">
                           <p className="text-xs uppercase tracking-wide text-muted-foreground">Destination town</p>
                           <p className="truncate font-medium text-foreground">{city.trim()}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            Collected by <span className="font-medium text-foreground">{collectorName.trim()}</span>
+                          </p>
                         </div>
                         <button
                           type="button"
@@ -1716,6 +1749,23 @@ function CheckoutModal() {
                               onChange={(e) => setCity(e.target.value)}
                               placeholder="e.g. Nyeri, Meru, Eldoret"
                             />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>
+                              Who will collect it? (full name) <span className="text-destructive">*</span>
+                            </label>
+                            <input
+                              className={inputCls}
+                              required
+                              value={collectorName}
+                              onChange={(e) => setCollectorName(e.target.value)}
+                              placeholder="e.g. Jane Wanjiru"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              This name is checked at the destination office before your parcel is handed over —
+                              enter the full name (first and last) of whoever will actually pick it up, even if
+                              that's someone other than you.
+                            </p>
                           </div>
                           <div className="sm:col-span-2">
                             <label className={labelCls}>Where you'll collect your parcel (optional)</label>

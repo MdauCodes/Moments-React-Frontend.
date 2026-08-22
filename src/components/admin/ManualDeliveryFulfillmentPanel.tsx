@@ -39,6 +39,10 @@ export function ManualDeliveryFulfillmentPanel({
         <Row label="County" value={o.county || "—"} />
         <Row label="Nearest courier office (customer-side)" value={o.shippingAddress || "—"} />
         {o.postalCode && <Row label="Postal code" value={o.postalCode} />}
+        <Row
+          label="Collector's name (checked at pickup)"
+          value={o.collectorName || "— not provided —"}
+        />
       </Section>
 
       <Section title="2. Dispatch — sacco / courier we use">
