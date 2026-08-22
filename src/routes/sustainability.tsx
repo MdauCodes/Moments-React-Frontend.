@@ -19,7 +19,7 @@ function SustainabilityPage() {
             <p className="text-[12px] font-semibold uppercase tracking-[0.32em]" style={{ color: GOLD }}>
               ESG &amp; Sustainability Policy
             </p>
-            <h1 className="mt-3 font-display text-3xl font-medium text-white sm:text-4xl lg:text-5xl">
+            <h1 className="mt-3 font-display text-4xl font-medium text-white sm:text-5xl lg:text-6xl">
               Packaging with Purpose.
             </h1>
             <p className="mx-auto mt-2 max-w-2xl text-base italic text-white/88">Growing with Responsibility.</p>

@@ -391,7 +391,7 @@ function StaffDashboard({ refresh }: { refresh: () => Promise<string | null> }) 
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1400px]">
         <header className="mb-6">
-          <h1 className="font-serif text-2xl text-foreground sm:text-3xl">Staff orders</h1>
+          <h1 className="font-display text-2xl text-foreground sm:text-3xl">Staff orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage live orders, payments and dispatch.
           </p>
@@ -494,7 +494,7 @@ function StatCard({
         {loading ? (
           <Skeleton className="h-8 w-24" />
         ) : (
-          <div className={`font-serif text-2xl sm:text-3xl ${color}`}>{value ?? "—"}</div>
+          <div className={`font-display text-2xl sm:text-3xl ${color}`}>{value ?? "—"}</div>
         )}
       </div>
     </div>
