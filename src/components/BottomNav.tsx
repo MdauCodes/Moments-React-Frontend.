@@ -1,7 +1,22 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { useState } from "react";
-import { Heart, Home, LayoutGrid, MessageCircle, MoreHorizontal, ShoppingBag, Truck, User } from "lucide-react";
+import {
+  Heart,
+  Home,
+  LayoutGrid,
+  MessageCircle,
+  MoreHorizontal,
+  ShoppingBag,
+  Truck,
+  User,
+  Building2,
+  ShieldCheck,
+  Leaf,
+  Percent,
+  HelpCircle,
+  Phone,
+} from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
@@ -148,6 +163,59 @@ export function BottomNav() {
                 Live chat
               </a>
             )}
+          </div>
+          {/* Same company/legal links the desktop header shows inline — mobile only ever had
+              account/wishlist/chat here, so About Us, Privacy Policy, etc. were unreachable
+              from the mobile nav at all. */}
+          <div className="flex flex-col divide-y divide-border border-t border-border">
+            <Link
+              to="/company-profile"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
+            >
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+              About Us
+            </Link>
+            <Link
+              to="/privacy"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
+            >
+              <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+              Privacy Policy
+            </Link>
+            <Link
+              to="/sustainability"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
+            >
+              <Leaf className="h-5 w-5 text-muted-foreground" />
+              Our Sustainability Pledge
+            </Link>
+            <Link
+              to="/products?deals=true"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
+            >
+              <Percent className="h-5 w-5 text-muted-foreground" />
+              Deals
+            </Link>
+            <Link
+              to="/faq"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
+            >
+              <HelpCircle className="h-5 w-5 text-muted-foreground" />
+              FAQ
+            </Link>
+            <Link
+              to="/contact"
+              onClick={() => setMoreOpen(false)}
+              className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
+            >
+              <Phone className="h-5 w-5 text-muted-foreground" />
+              Contact Us
+            </Link>
           </div>
         </SheetContent>
       </Sheet>
