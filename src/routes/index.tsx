@@ -323,7 +323,7 @@ function Hero() {
                 <span key={`${item}-${idx}`} className="flex items-center" style={{ gap: "22px" }}>
                   <span
                     style={{
-                      fontSize: "11px",
+                      fontSize: "calc(11px * var(--a11y-font-scale))",
                       letterSpacing: "0.04em",
                       color: "rgba(255,255,255,0.94)",
                       fontWeight: 500,
@@ -357,7 +357,7 @@ function Hero() {
             <p
               className="uppercase font-medium"
               style={{
-                fontSize: "10px",
+                fontSize: "calc(10px * var(--a11y-font-scale))",
                 letterSpacing: "0.18em",
                 color: "rgba(255,255,255,0.8)",
                 marginBottom: "18px",
@@ -368,7 +368,7 @@ function Hero() {
             <h1
               className="font-display"
               style={{
-                fontSize: "clamp(28px, 3.8vw, 42px)",
+                fontSize: "calc(clamp(28px, 3.8vw, 42px) * var(--a11y-font-scale))",
                 lineHeight: 1.1,
                 letterSpacing: "-0.03em",
                 color: "white",
@@ -384,7 +384,7 @@ function Hero() {
             </h1>
             <p
               style={{
-                fontSize: "14px",
+                fontSize: "calc(14px * var(--a11y-font-scale))",
                 lineHeight: 1.7,
                 color: "rgba(255,255,255,0.88)",
                 maxWidth: "400px",
@@ -403,7 +403,7 @@ function Hero() {
                   color: "#0d3320",
                   borderRadius: "10px",
                   padding: "15px 30px",
-                  fontSize: "15px",
+                  fontSize: "calc(15px * var(--a11y-font-scale))",
                 }}
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
@@ -475,7 +475,7 @@ function Hero() {
                   className="inline-block rounded-full"
                   style={{ width: "6px", height: "6px", background: "#00A651" }}
                 />
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
+                <span style={{ fontSize: "calc(11px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
               </div>
             </div>
           </div>
@@ -510,10 +510,10 @@ function TrustBar() {
             className="text-center flex-1"
             style={{ borderRight: i < TRUST_STATS.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}
           >
-            <div className="font-display" style={{ fontSize: "27px", color: "var(--accent)" }}>
+            <div className="font-display" style={{ fontSize: "calc(27px * var(--a11y-font-scale))", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "calc(13px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -528,10 +528,10 @@ function TrustBar() {
               borderBottom: i < arr.length - 2 ? "1px solid rgba(255,255,255,0.06)" : "none",
             }}
           >
-            <div className="font-display" style={{ fontSize: "20px", color: "var(--accent)" }}>
+            <div className="font-display" style={{ fontSize: "calc(20px * var(--a11y-font-scale))", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "calc(12px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -581,12 +581,12 @@ function CategoryRow() {
                 <ind.icon style={{ color: "var(--accent)" }} strokeWidth={1.7} className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate" style={{ fontSize: "13px", fontWeight: 500, color: "var(--ink)" }}>
+                <span className="block truncate" style={{ fontSize: "calc(13px * var(--a11y-font-scale))", fontWeight: 500, color: "var(--ink)" }}>
                   {ind.name}
                 </span>
                 <span
                   className="block truncate"
-                  style={{ fontSize: "10.5px", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
+                  style={{ fontSize: "calc(10.5px * var(--a11y-font-scale))", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
                 >
                   {ind.description}
                 </span>
