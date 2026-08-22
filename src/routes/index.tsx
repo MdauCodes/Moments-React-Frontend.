@@ -123,6 +123,9 @@ function HomeNav() {
           <Link to="/company-profile" className="hover:opacity-80">
             About Us
           </Link>
+          <Link to="/privacy" className="hover:opacity-80">
+            Privacy Policy
+          </Link>
           <Link to="/sustainability" className="hover:opacity-80">
             Our Sustainability Pledge
           </Link>

@@ -34,6 +34,18 @@ export function getPrivacyPolicyContent() {
       ),
     },
     {
+      id: "odpc",
+      title: "ODPC registration",
+      body: (
+        <p>
+          Moments Packaging Kenya Ltd is registered as a <strong>Data Controller</strong> with the
+          Office of the Data Protection Commissioner (ODPC) of Kenya, under registration number{" "}
+          <strong>134-4514-F461</strong>. The certificate is valid from 19 August 2026 to 19 August
+          2028.
+        </p>
+      ),
+    },
+    {
       id: "what-we-collect",
       title: "What personal data we collect",
       body: (
@@ -300,18 +312,6 @@ export function getPrivacyPolicyContent() {
             we do not rely on inaction to keep data we should have deleted.
           </p>
         </>
-      ),
-    },
-    {
-      id: "odpc",
-      title: "ODPC registration",
-      body: (
-        <p>
-          Moments Packaging Kenya Ltd is registered as a <strong>Data Controller</strong> with the
-          Office of the Data Protection Commissioner (ODPC) of Kenya, under registration number{" "}
-          <strong>134-4514-F461</strong>. The certificate is valid from 19 August 2026 to 19 August
-          2028.
-        </p>
       ),
     },
     {
