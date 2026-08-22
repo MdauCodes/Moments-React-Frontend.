@@ -181,9 +181,16 @@ function ManageMyDataPage() {
               ) : (
                 <>
                   <div className="mt-5">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Orders ({summary.orders.length})
-                    </h3>
+                    <div className="flex items-baseline justify-between">
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Orders ({summary.orders.length})
+                      </h3>
+                      {summary.orders.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          Total across these orders: {formatKes(summary.orders.reduce((sum, o) => sum + (o.totalAmount ?? 0), 0))}
+                        </span>
+                      )}
+                    </div>
                     {summary.orders.length === 0 ? (
                       <p className="mt-2 text-sm text-muted-foreground">No guest orders on file.</p>
                     ) : (
@@ -197,6 +204,11 @@ function ManageMyDataPage() {
                             <div className="mt-1 text-xs text-muted-foreground">
                               {formatDate(o.createdAt)} — {o.status?.replace(/_/g, " ")}
                             </div>
+                            {(o.contactName || o.phone) && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {[o.contactName, o.phone].filter(Boolean).join(" · ")}
+                              </div>
+                            )}
                             {(o.city || o.county) && (
                               <div className="mt-1 text-xs text-muted-foreground">
                                 {[o.deliveryAddress, o.city, o.county].filter(Boolean).join(", ")}
@@ -218,8 +230,19 @@ function ManageMyDataPage() {
                       <ul className="mt-2 space-y-2">
                         {summary.enquiries.map((en, i) => (
                           <li key={i} className="rounded-lg border border-border p-3 text-sm">
-                            <div className="text-xs text-muted-foreground">{formatDate(en.createdAt)}</div>
+                            <div className="flex justify-between font-medium">
+                              <span>{en.contactName || "—"}</span>
+                              <span className="text-xs text-muted-foreground">{formatDate(en.createdAt)}</span>
+                            </div>
+                            {(en.phone || en.company) && (
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {[en.phone, en.company].filter(Boolean).join(" · ")}
+                              </div>
+                            )}
                             {en.message && <p className="mt-1">{en.message}</p>}
+                            {en.source && (
+                              <div className="mt-1 text-xs text-muted-foreground">Source: {en.source}</div>
+                            )}
                           </li>
                         ))}
                       </ul>
