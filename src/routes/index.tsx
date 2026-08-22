@@ -6,6 +6,7 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
 import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
 import { WelcomeStarterModal } from "@/components/WelcomeStarterModal";
+import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
@@ -964,6 +965,7 @@ function HomePage() {
     <>
       <FirstVisitSplash />
       <WelcomeStarterModal />
+      <CookieConsent />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
         <AddToHomeScreenPrompt />
