@@ -175,22 +175,22 @@ export function WelcomeStarterModal() {
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
                   <p className="mt-1.5 text-[13px] leading-snug sm:mt-2 sm:text-sm sm:leading-normal" style={{ color: `${FOREST_DEEP}bf` }}>
-                    Every account gets 1,000 Coupon Points (worth KES 100) free when you join. Earn more with every
-                    order through discounts, referral rewards, and VIP perks. Open a Business Account to unlock a
-                    one-time 5% promo code after your trade profile is approved.
+                    Every account comes with 1,000 free Coupon Points (worth KES 100) when you join. Earn even more
+                    with every order through exclusive discounts, referral rewards, and VIP perks. Open a Business
+                    Account to unlock a one-time 5% promo code once your trade profile has been approved.
                   </p>
                   <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}b3` }}>
-                    Full details in the{" "}
+                    See our{" "}
                     <RewardsTermsLink className="underline underline-offset-2 font-semibold text-[#57534e]">
-                      offer terms
-                    </RewardsTermsLink>
-                    .
+                      Offer Terms
+                    </RewardsTermsLink>{" "}
+                    for full details.
                   </p>
                 </div>
               </div>
 
               <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-wider sm:mt-6 sm:text-left" style={{ color: FOREST }}>
-                Choose how you'd like to shop with us
+                Choose how you'd like to shop with us.
               </p>
 
               <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">

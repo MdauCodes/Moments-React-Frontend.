@@ -375,11 +375,11 @@ function Hero() {
                 fontWeight: 500,
               }}
             >
-              Packaging for
+              Packaging Solutions for
               <br />
-              Kenyan brands —<br />
+              Kenyan Businesses —<br />
               <em className="italic" style={{ color: "#e8c878" }}>
-                unforgettable. Utafurahia
+                Quality You'll Love. Utafurahia
               </em>
             </h1>
             <p
@@ -391,8 +391,8 @@ function Hero() {
                 margin: "22px 0 30px",
               }}
             >
-              Bags, boxes, cups and more — order online, pay with M-Pesa. Delivered same day within Nairobi, up to 3
-              days countrywide.
+              Cups, containers, bags, and more — order online and pay via M-Pesa. Enjoy same-day delivery within
+              Nairobi and delivery within 3 days countrywide.
             </p>
             <div className="flex flex-col md:flex-row gap-3 max-w-sm md:max-w-none">
               <Link
@@ -604,6 +604,7 @@ function CategoryRow() {
 type ProductRowProps = {
   eyebrow: string;
   title: string;
+  desc?: string;
   seeAllHref?: string;
   fetcher: () => Promise<Product[]>;
   bg?: "background" | "cream";
@@ -611,7 +612,7 @@ type ProductRowProps = {
 
 /** A horizontally-scannable row of products — the homepage can stack several of these,
  * matching the multi-row catalogue feel of Kilimall/Jumia-style marketplaces. */
-function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "background" }: ProductRowProps) {
+function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, bg = "background" }: ProductRowProps) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [configuring, setConfiguring] = useState<Product | null>(null);
   const [preTier, setPreTier] = useState<string | null>(null);
@@ -644,6 +645,7 @@ function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "b
           <div>
             <p className="text-[11px] uppercase tracking-[0.25em] text-accent">{eyebrow}</p>
             <h2 className="mt-2 font-display text-2xl font-medium text-foreground sm:text-3xl">{title}</h2>
+            {desc && <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">{desc}</p>}
           </div>
           <Link
             to={seeAllHref}
@@ -766,7 +768,7 @@ function CategoryGrid() {
 const CAROUSEL_TABS = [
   { key: "deals", eyebrow: "Save today", title: "Deals", cta: "Shop the deal", seeAllHref: "/products?deals=true", bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)", fetcher: () => api.getProducts({ isDiscount: true, size: 8 }) },
   { key: "new", eyebrow: "Just landed", title: "New arrivals", cta: "Shop new arrivals", seeAllHref: "/products?newArrivals=true", bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)", fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }) },
-  { key: "best", eyebrow: "Customer favourites", title: "Best sellers", cta: "Shop best sellers", seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
+  { key: "best", eyebrow: "Customer Favourites", title: "Best Sellers", cta: "Shop Best Sellers", seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
 ];
 
 function PromoCarousel() {
@@ -986,8 +988,9 @@ function HomePage() {
             bg="cream"
           />
           <ProductRow
-            eyebrow="Customer favourites"
-            title="Best sellers"
+            eyebrow="Customer Favourites"
+            title="Best Sellers"
+            desc="Discover some of our most popular packaging products, carefully selected and refreshed regularly to bring you the products customers love most."
             seeAllHref="/products?fastMoving=true"
             fetcher={() => api.getProducts({ isFastMoving: true, size: 8 })}
             bg="background"

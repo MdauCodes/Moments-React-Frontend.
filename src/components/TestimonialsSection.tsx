@@ -11,16 +11,16 @@ import { Star } from "lucide-react";
  */
 const PLACEHOLDER_TESTIMONIALS = [
   {
-    quote: "We order cups and boxes most weeks now — same-day delivery in Nairobi means we're never caught out before a busy weekend.",
-    role: "Café owner, Nairobi",
+    quote: "We order cups and deli boxes most weeks now. Same-day delivery in Nairobi means we're never caught out before a busy weekend.",
+    role: "Café Owner, Nairobi",
   },
   {
-    quote: "Being able to order small batches instead of committing to a huge print run made it easy to try Moments out before going all in.",
-    role: "Retail shop owner, Nairobi",
+    quote: "Being able to order small batches instead of committing to a huge quantity made it easy to try Moments Packaging before going all in.",
+    role: "Retail Shop Owner, Nairobi",
   },
   {
-    quote: "Paying by M-Pesa at checkout and tracking the order after made the whole process a lot less stressful than I expected.",
-    role: "Restaurant owner, Nairobi",
+    quote: "Paying by M-Pesa at checkout and being able to track my order afterwards made the whole process much less stressful than I expected.",
+    role: "Restaurant Owner, Nairobi",
   },
 ];
 

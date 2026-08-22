@@ -10,22 +10,22 @@ const GUARANTEES = [
   {
     Icon: ShieldCheck,
     title: "Quality guarantee",
-    desc: "Defective or mis-printed order? We reprint it free — see our refund policy.",
+    desc: "Receive a defective or incorrect order? We'll work with you to resolve the issue, in line with our refund and replacement policy.",
   },
   {
     Icon: Truck,
     title: "Fast delivery",
-    desc: "Same-day within Nairobi, up to 3 days countrywide.",
+    desc: "Get your packaging same day within Nairobi and within 3 days countrywide.",
   },
   {
     Icon: RotateCcw,
     title: "No minimum order stress",
-    desc: "Order as few as 100 units — no large-batch commitment required.",
+    desc: "Order from as low as 1 unit — no need to commit to large quantities.",
   },
   {
     Icon: Wallet,
     title: "Secure M-Pesa checkout",
-    desc: "Pay directly through Safaricom — we never see or store your PIN.",
+    desc: "Pay securely via M-Pesa. Your M-Pesa PIN is never shared with or stored by Moments Packaging.",
   },
 ];
 

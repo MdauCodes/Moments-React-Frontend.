@@ -638,10 +638,11 @@ function ProductsPage() {
         <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8 lg:py-16">
           <p className="text-[11px] uppercase tracking-[0.25em] text-primary">Catalogue</p>
           <h1 className="mt-3 font-display text-4xl font-medium text-foreground sm:text-5xl">
-            Find packaging for your business
+            Find Packaging for Your Business
           </h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground sm:text-base">
-            Filter by your business type, or search for what you need. Minimum 100 units, delivered in Nairobi.
+            Browse packaging solutions by business type, or simply search for what you need. Order from as little as
+            1 unit and enjoy convenient delivery across Nairobi.
           </p>
         </div>
       </section>

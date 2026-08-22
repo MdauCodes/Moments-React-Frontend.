@@ -1215,13 +1215,13 @@ function CheckoutModal() {
           {step === "contact" && (
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>
-                <h2 className="font-display text-2xl text-foreground">Let's get your order to you</h2>
+                <h2 className="font-display text-2xl text-foreground">Almost There — Let's Get Your Order Ready</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {isAuthenticated ? (
                     "A few details, then tell us where — we'll show you what's available."
                   ) : (
                     <>
-                      Checking out as a guest.{" "}
+                      You're checking out as a guest.{" "}
                       <Link
                         to="/account/login?redirect=/checkout"
                         className="font-semibold underline"
@@ -1229,7 +1229,7 @@ function CheckoutModal() {
                       >
                         Sign in
                       </Link>{" "}
-                      for faster checkout next time.
+                      for a faster checkout and a smoother shopping experience next time.
                     </>
                   )}
                 </p>
@@ -1286,8 +1286,8 @@ function CheckoutModal() {
               </button>
 
               <div>
-                <h2 className="font-display text-2xl text-foreground">How should we get your order to you?</h2>
-                <p className="mt-1 text-sm text-muted-foreground">Pick one to see what we need from there.</p>
+                <h2 className="font-display text-2xl text-foreground">How Would You Like to Receive Your Order?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Choose your preferred option to see the details we need.</p>
               </div>
 
               {/* One-tap shortcut for a returning guest — see applySavedGuestDetails. Only shown
@@ -1357,8 +1357,8 @@ function CheckoutModal() {
                       setFulfillment("PICKUP");
                     }}
                     icon={<Store className="h-5 w-5" />}
-                    title="Pick Up at Shop"
-                    desc="Collect from our shop — no delivery fee."
+                    title="Pick Up at Our Shop"
+                    desc="Collect your order directly from our shop — no delivery fee."
                   />
                   <FulfillmentCard
                     active={false}
@@ -1367,8 +1367,8 @@ function CheckoutModal() {
                       setFulfillment(null);
                     }}
                     icon={<Truck className="h-5 w-5" />}
-                    title="Have it Delivered"
-                    desc="Tell us where — we'll show you what's available there."
+                    title="Have It Delivered"
+                    desc="Tell us where you'd like your order delivered, and we'll show you the available delivery options."
                   />
                 </div>
               )}
@@ -1955,12 +1955,12 @@ function CheckoutModal() {
                       onChange={(e) => setEtrRequested(e.target.checked)}
                     />
                     <span>
-                      <span className="font-medium">Send me my ETR & tax documents</span>
+                      <span className="font-medium">Send Me My ETR & Tax Documents</span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
-                        You'll automatically receive your ETR (KRA-compliant receipt) along with your tax invoice and
-                        receipt, once you check this and enter a reachable email — we email all three together as
-                        soon as we've uploaded your ETR. The ETR stays available for re-download/resend for 2
-                        months after that.
+                        Check this option and provide a valid, reachable email address to receive your ETR
+                        (KRA-compliant receipt), tax invoice, and receipt by email. We'll send all three documents
+                        together as soon as your ETR is uploaded. Your ETR will remain available for re-download or
+                        resend for 2 months.
                       </span>
                     </span>
                   </label>

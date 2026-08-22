@@ -54,9 +54,10 @@ function TrackPage() {
   return (
     <SiteLayout>
       <section className="mx-auto max-w-3xl px-5 py-12 lg:px-8 lg:py-16">
-        <h1 className="font-display text-3xl sm:text-4xl">Track your order</h1>
+        <h1 className="font-display text-3xl sm:text-4xl">Track Your Order</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Look up your order by reference number or by the email used at checkout.
+          Check the status of your order anytime using your order reference number or the email address used at
+          checkout.
         </p>
 
         <div className="mt-6 inline-flex rounded-full border border-border bg-card p-1 text-sm">
