@@ -17,18 +17,30 @@ import avatarShrug from "@/assets/avatars/avatar_3.png";
 // No X button and no backdrop-click dismiss, deliberately — either one let a visitor "soft
 // close" the modal without deciding anything, which just re-armed it to pop back up a short
 // while later and read as nagging. Every path out now requires an explicit choice: pick an
-// account type, sign in, or hit "Continue without an account" on the decline screen (which sets
-// the permanent per-session decline flag). If the visitor never engages at all and just keeps
-// browsing/navigating, it can still show again on a later page load, capped at
-// MAX_SHOWS_PER_SESSION — that part is unchanged and isn't the disruptive behavior this fixes.
-const SHOW_DELAY_MS = 1800;
+// account type, sign in, or hit "Continue without an account" on the decline screen.
+//
+// Two independent throttles, on purpose:
+// - Per-SESSION soft cap (sessionStorage, MAX_SHOWS_PER_SESSION): if a visitor never decides
+//   either way and just keeps browsing/navigating within one browser session, they can still see
+//   it again on a later page load in that same session, capped at 3 — gives an undecided visitor
+//   a few chances without nagging every single page.
+// - Cross-session decline cooldown (localStorage, DECLINE_COOLDOWN_MS): once someone explicitly
+//   clicks "Continue without an account," don't show it again — even in a brand new browser
+//   session/tab — until the cooldown elapses. Before this, the decline flag lived in
+//   sessionStorage too, so it silently reset on every new tab/session and the modal kept nagging
+//   already-decided guests as if they'd never answered.
+const SHOW_DELAY_MS = 2500;
 const MAX_SHOWS_PER_SESSION = 3;
-const DECLINED_KEY = "moments_welcome_declined";
+const DECLINE_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+const DECLINED_AT_KEY = "moments_welcome_declined_at";
 const SHOWN_COUNT_KEY = "moments_welcome_shown_count";
 
-function hasDeclined(): boolean {
+function isDeclineCoolingDown(): boolean {
   try {
-    return sessionStorage.getItem(DECLINED_KEY) === "true";
+    const raw = localStorage.getItem(DECLINED_AT_KEY);
+    if (!raw) return false;
+    const declinedAt = Number(raw);
+    return Number.isFinite(declinedAt) && Date.now() - declinedAt < DECLINE_COOLDOWN_MS;
   } catch {
     return false;
   }
@@ -52,7 +64,7 @@ function recordShown(): void {
 
 function recordDeclined(): void {
   try {
-    sessionStorage.setItem(DECLINED_KEY, "true");
+    localStorage.setItem(DECLINED_AT_KEY, String(Date.now()));
   } catch {
     // ignore
   }
@@ -70,7 +82,7 @@ const GRAY_INK = "#57534e";
 type View = "main" | "decline";
 
 function shouldShow(): boolean {
-  return !hasDeclined() && getShownCount() < MAX_SHOWS_PER_SESSION;
+  return !isDeclineCoolingDown() && getShownCount() < MAX_SHOWS_PER_SESSION;
 }
 
 // Small CTA pill shown inside each option card so it's unmistakably a
