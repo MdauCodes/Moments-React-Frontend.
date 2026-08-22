@@ -1759,37 +1759,52 @@ function CheckoutModal() {
                           <div className={labelCls}>
                             How should it be sent? <span className="text-destructive">*</span>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            {(
-                              [
-                                { v: "MATATU", label: "Sacco / Matatu / SGR" },
-                                { v: "PARCEL_SERVICE", label: "Parcel Service" },
-                                { v: "BOLT_SEND", label: "Bolt / Uber" },
-                                { v: "RIDER", label: "Boda / Rider" },
-                                { v: "OTHER", label: "Other" },
-                              ] as { v: CourierType; label: string }[]
-                            ).map((c) => (
-                              <button
-                                key={c.v}
-                                type="button"
-                                onClick={() => {
-                                  setCourierType(c.v);
-                                  // An explicit pick means whatever was suggested no longer
-                                  // reflects the customer's own choice — drop the "suggested"
-                                  // hint so it doesn't misdescribe a manually-made pick.
-                                  setCourierSuggestionSource(null);
-                                  lastCourierSuggestionRef.current = null;
-                                }}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                  courierType === c.v
-                                    ? "border-transparent text-white"
-                                    : "border-border bg-background text-foreground hover:bg-secondary"
-                                }`}
-                                style={courierType === c.v ? { backgroundColor: BRAND } : undefined}
-                              >
-                                {c.label}
-                              </button>
-                            ))}
+                          {/* Boxed like a real required field (same weight as the text inputs
+                              around it), not a loose row of filter-style tags that reads as
+                              optional — an amber outline nudges toward picking one until they do,
+                              without looking like a hard validation error before they've tried. */}
+                          <div
+                            className={`rounded-lg border p-3 transition ${
+                              courierType ? "border-border" : "border-amber-400/70 bg-amber-50/60 dark:bg-amber-950/10"
+                            }`}
+                          >
+                            <div className="flex flex-wrap gap-2">
+                              {(
+                                [
+                                  { v: "MATATU", label: "Sacco / Matatu / SGR" },
+                                  { v: "PARCEL_SERVICE", label: "Parcel Service" },
+                                  { v: "BOLT_SEND", label: "Bolt / Uber" },
+                                  { v: "RIDER", label: "Boda / Rider" },
+                                  { v: "OTHER", label: "Other" },
+                                ] as { v: CourierType; label: string }[]
+                              ).map((c) => (
+                                <button
+                                  key={c.v}
+                                  type="button"
+                                  onClick={() => {
+                                    setCourierType(c.v);
+                                    // An explicit pick means whatever was suggested no longer
+                                    // reflects the customer's own choice — drop the "suggested"
+                                    // hint so it doesn't misdescribe a manually-made pick.
+                                    setCourierSuggestionSource(null);
+                                    lastCourierSuggestionRef.current = null;
+                                  }}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                    courierType === c.v
+                                      ? "border-transparent text-white"
+                                      : "border-border bg-background text-foreground hover:bg-secondary"
+                                  }`}
+                                  style={courierType === c.v ? { backgroundColor: BRAND } : undefined}
+                                >
+                                  {c.label}
+                                </button>
+                              ))}
+                            </div>
+                            {!courierType && (
+                              <p className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+                                Pick one — we need this to arrange your delivery.
+                              </p>
+                            )}
                           </div>
                           {courierSuggestionSource && (
                             <p className="mt-1.5 text-xs text-muted-foreground">
