@@ -230,14 +230,6 @@ function AdminTumaBodaSettlementsPage() {
 
   return (
     <AdminLayout title="TumaBoda Settlements" onReload={() => { void loadBalance(); void loadPayments(); void loadReconciliations(); }}>
-      <div
-        className="admin-panel"
-        style={{ padding: 14, marginBottom: 14, background: "var(--admin-clay-soft, #fdf1e7)", borderColor: "var(--admin-clay, #c2703d)" }}
-      >
-        <strong>Settlements now happen in the TumaBoda Business Portal.</strong> Record and approve
-        payments there directly — this page is kept for viewing the balance and history you already
-        have, but the "Record a payment" form below is disabled to avoid two sources of truth.
-      </div>
       <HelpAnchor>
         <HelpPanel title="TumaBoda settlement ledger">
           <div>
@@ -344,12 +336,13 @@ function AdminTumaBodaSettlementsPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14 }}>
             <div className="admin-panel" style={{ padding: 16 }}>
-              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>Record a payment (disabled)</h3>
+              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>Record a payment</h3>
               <p style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 0 }}>
-                Use the TumaBoda Business Portal to record and declare payments instead — see the notice above.
+                Record it here after transferring funds, then use "Declare to TumaBoda" below to notify them for
+                review — this is the same flow their credit-line API is built for, so our ledger and theirs stay in
+                sync without entering it twice.
               </p>
-              <form onSubmit={submitPayment} style={{ display: "flex", flexDirection: "column", gap: 10, opacity: 0.5 }}>
-                <fieldset disabled style={{ display: "contents", border: "none", padding: 0, margin: 0 }}>
+              <form onSubmit={submitPayment} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
                   <label className="admin-label">Amount paid (KES)</label>
                   <input
@@ -399,7 +392,6 @@ function AdminTumaBodaSettlementsPage() {
                 <button type="submit" className="admin-btn" disabled={recordingPayment}>
                   {recordingPayment ? "Recording…" : "Record payment"}
                 </button>
-                </fieldset>
               </form>
 
               <h4 style={{ marginTop: 20, fontSize: 13, color: "var(--admin-muted)" }}>Recent payments</h4>

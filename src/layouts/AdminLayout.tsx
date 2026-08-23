@@ -153,7 +153,7 @@ const navSections: NavSection[] = [
   {
     label: "Sales",
     items: [
-      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE], disabledNote: "Settlements are now recorded directly in the TumaBoda Business Portal — this page is reference-only" },
+      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
