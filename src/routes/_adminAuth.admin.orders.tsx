@@ -56,6 +56,63 @@ const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
 const NON_SUCCESSFUL_STATUSES = new Set(["PENDING_PAYMENT", "CANCELLED", "REFUNDED"]);
 const DONE_STATUSES = new Set(["DELIVERED"]);
 
+interface ClientFilterParams {
+  isAssignedOnly: boolean;
+  currentUserId: string | null;
+  scope: Scope;
+  deliveryTab: DeliveryTab;
+  status: string;
+  paymentStatus: string;
+  hideTestOrders: boolean;
+  needle: string;
+}
+
+// Every filter dimension this page applies beyond what the backend's list endpoint can express
+// server-side (paymentStatus, hideTestOrders, assignment scope, and the delivery-tab's
+// multi-status "active"/"completed"/"failed-dropped" buckets). Pulled out as a pure function so
+// export can run the exact same logic over a larger backend-fetched set instead of just the
+// shared 500-row cache, without duplicating the rules.
+function applyClientFilters(list: OrderRecord[], p: ClientFilterParams): OrderRecord[] {
+  return list.filter((o) => {
+    // Permission-only orders: hard-locked to their own assignments.
+    if (p.isAssignedOnly && (!p.currentUserId || o.assignedToId !== p.currentUserId)) return false;
+    if (!p.isAssignedOnly) {
+      if (p.scope === "MINE" && (!p.currentUserId || o.assignedToId !== p.currentUserId)) return false;
+      if (p.scope === "UNASSIGNED" && o.assignedToId) return false;
+    }
+
+    // Delivery-mode tab: FAILED_DROPPED and COMPLETED are the two complements of the
+    // active-work default below — FAILED_DROPPED is where a checkout never completed,
+    // COMPLETED is where a delivered order goes once there's nothing left to do — both
+    // surfaced separately rather than left to look like noise inside the working queues.
+    if (p.deliveryTab === "FAILED_DROPPED") {
+      // Broadened from PENDING_PAYMENT-only: a cancellation, a refund, and a TumaBoda order
+      // that paid but never got a rider are just as much a "didn't complete" case as an
+      // abandoned checkout — all three used to be invisible in this funnel.
+      if (!(NON_SUCCESSFUL_STATUSES.has(o.status) || !!o.tumabodaBookingFailureReason)) return false;
+    } else if (p.deliveryTab === "COMPLETED") {
+      if (!DONE_STATUSES.has(o.status)) return false;
+    } else {
+      if (p.deliveryTab !== "ALL" && o.fulfillmentType !== p.deliveryTab) return false;
+      // Every tab defaults to active orders only — see NON_SUCCESSFUL_STATUSES/DONE_STATUSES.
+      // Skipped once either status filter is explicit: a failed-payment order sits at
+      // status PENDING_PAYMENT (a payment failure never advances the order's own status), so
+      // without this, filtering by paymentStatus=FAILED with status left on "ALL" would hit
+      // this default and silently show zero rows — exactly the case the "Failed payments"
+      // dashboard alert deep-links into.
+      if (p.status === "ALL" && p.paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
+    }
+
+    if (p.status !== "ALL" && o.status !== p.status) return false;
+    if (p.paymentStatus !== "ALL" && o.paymentStatus !== p.paymentStatus) return false;
+    if (p.hideTestOrders && o.isTestOrder) return false;
+    if (!p.needle) return true;
+    return [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.city, o.tumabodaTrackingCode]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(p.needle));
+  });
+}
+
 // Age/urgency coloring makes no sense once an order is done — don't show a
 // red "3d ago" badge on something already delivered.
 const TERMINAL_STATUSES = new Set(["DELIVERED", "CANCELLED", "REFUNDED"]);
@@ -161,47 +218,42 @@ function AdminOrdersPage() {
 
   const sourceOrders = useMemo(() => searchResults ?? orders, [searchResults, orders]);
 
-  const filteredRows = useMemo(() => {
-    const needle = debouncedQ.toLowerCase();
-    return sourceOrders.filter((o) => {
-      // Permission-only orders: hard-locked to their own assignments.
-      if (isAssignedOnly && (!currentUserId || o.assignedToId !== currentUserId)) return false;
-      if (!isAssignedOnly) {
-        if (scope === "MINE" && (!currentUserId || o.assignedToId !== currentUserId)) return false;
-        if (scope === "UNASSIGNED" && o.assignedToId) return false;
-      }
+  const filteredRows = useMemo(
+    () => applyClientFilters(sourceOrders, {
+      isAssignedOnly, currentUserId, scope, deliveryTab, status, paymentStatus, hideTestOrders,
+      needle: debouncedQ.toLowerCase(),
+    }),
+    [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab],
+  );
 
-      // Delivery-mode tab: FAILED_DROPPED and COMPLETED are the two complements of the
-      // active-work default below — FAILED_DROPPED is where a checkout never completed,
-      // COMPLETED is where a delivered order goes once there's nothing left to do — both
-      // surfaced separately rather than left to look like noise inside the working queues.
-      if (deliveryTab === "FAILED_DROPPED") {
-        // Broadened from PENDING_PAYMENT-only: a cancellation, a refund, and a TumaBoda order
-        // that paid but never got a rider are just as much a "didn't complete" case as an
-        // abandoned checkout — all three used to be invisible in this funnel.
-        if (!(NON_SUCCESSFUL_STATUSES.has(o.status) || !!o.tumabodaBookingFailureReason)) return false;
-      } else if (deliveryTab === "COMPLETED") {
-        if (!DONE_STATUSES.has(o.status)) return false;
-      } else {
-        if (deliveryTab !== "ALL" && o.fulfillmentType !== deliveryTab) return false;
-        // Every tab defaults to active orders only — see NON_SUCCESSFUL_STATUSES/DONE_STATUSES.
-        // Skipped once either status filter is explicit: a failed-payment order sits at
-        // status PENDING_PAYMENT (a payment failure never advances the order's own status), so
-        // without this, filtering by paymentStatus=FAILED with status left on "ALL" would hit
-        // this default and silently show zero rows — exactly the case the "Failed payments"
-        // dashboard alert deep-links into.
-        if (status === "ALL" && paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
-      }
-
-      if (status !== "ALL" && o.status !== status) return false;
-      if (paymentStatus !== "ALL" && o.paymentStatus !== paymentStatus) return false;
-      if (hideTestOrders && o.isTestOrder) return false;
-      if (!needle) return true;
-      return [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.city, o.tumabodaTrackingCode]
-        .filter(Boolean)
-        .some((v) => String(v).toLowerCase().includes(needle));
+  // Export needs every matching order, not just what's in the shared 500-row cache. The search
+  // box already solves this for itself (searchResults is a full backend-fetched match set) — this
+  // reuses that same bypass for the export buttons specifically, for the common case where an
+  // admin filtered by status/tab/payment-status without ever typing a search term. Narrows the
+  // backend fetch by whichever single-value filters it can actually express (status,
+  // fulfillmentType) and applies the rest (paymentStatus, hideTestOrders, scope, the delivery-tab
+  // buckets) client-side afterward via the same applyClientFilters used for on-screen display.
+  const [exporting, setExporting] = useState(false);
+  async function fetchExportRows(): Promise<OrderRecord[]> {
+    if (debouncedQ) return filteredRows; // already a complete backend-fetched match set
+    const isRealMode = (FULFILLMENT_MODE_KEYS as readonly string[]).includes(deliveryTab);
+    const backendParams = {
+      status: status !== "ALL" ? status : undefined,
+      fulfillmentType: isRealMode ? deliveryTab : undefined,
+    };
+    const SIZE = 200;
+    const CAP = 5000;
+    const first = await listOrders({ ...backendParams, page: 0, size: SIZE });
+    let all = first.rows;
+    const pagesToFetch = Math.min(first.totalPages, Math.ceil(CAP / SIZE));
+    for (let page = 1; page < pagesToFetch && all.length < CAP; page++) {
+      const res = await listOrders({ ...backendParams, page, size: SIZE });
+      all = all.concat(res.rows);
+    }
+    return applyClientFilters(all, {
+      isAssignedOnly, currentUserId, scope, deliveryTab, status, paymentStatus, hideTestOrders, needle: "",
     });
-  }, [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab]);
+  }
 
   // Within a single fulfillment-mode tab, cluster orders by that mode's own journey stage
   // (see fulfillmentModes.ts's statusOrder) instead of leaving them in date order — the whole
@@ -409,25 +461,43 @@ function AdminOrdersPage() {
                 <>
                   <button
                     className="admin-btn admin-btn-ghost"
-                    onClick={() => {
-                      downloadCsv(`orders-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(filteredRows.map((o) => ({
-                        reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
-                        customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
-                        items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,
-                        createdAt: o.createdAt, tracking: o.tumabodaTrackingCode ?? "",
-                      }))));
-                      toast.success(`Exported ${filteredRows.length} orders`);
+                    disabled={exporting}
+                    onClick={async () => {
+                      setExporting(true);
+                      try {
+                        const rows = await fetchExportRows();
+                        downloadCsv(`orders-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((o) => ({
+                          reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
+                          customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
+                          items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,
+                          createdAt: o.createdAt, tracking: o.tumabodaTrackingCode ?? "",
+                        }))));
+                        toast.success(`Exported ${rows.length} orders`);
+                      } catch (err) {
+                        reportAdminError(err, "Export failed");
+                      } finally {
+                        setExporting(false);
+                      }
                     }}
-                  ><Download size={14} style={{ marginRight: 6 }} />Export CSV</button>
+                  ><Download size={14} style={{ marginRight: 6 }} />{exporting ? "Preparing…" : "Export CSV"}</button>
                   <button
                     className="admin-btn admin-btn-ghost"
-                    onClick={() => {
-                      downloadOrdersListPdf(filteredRows, {
-                        filterLabel: ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label,
-                      });
-                      toast.success(`PDF report for ${filteredRows.length} orders`);
+                    disabled={exporting}
+                    onClick={async () => {
+                      setExporting(true);
+                      try {
+                        const rows = await fetchExportRows();
+                        downloadOrdersListPdf(rows, {
+                          filterLabel: ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label,
+                        });
+                        toast.success(`PDF report for ${rows.length} orders`);
+                      } catch (err) {
+                        reportAdminError(err, "Export failed");
+                      } finally {
+                        setExporting(false);
+                      }
                     }}
-                  ><FileText size={14} style={{ marginRight: 6 }} />Export PDF</button>
+                  ><FileText size={14} style={{ marginRight: 6 }} />{exporting ? "Preparing…" : "Export PDF"}</button>
                 </>
               )}
             </div>

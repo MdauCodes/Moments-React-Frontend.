@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
 import { FulfillmentBoard } from "@/components/admin/FulfillmentBoard";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
+import { listOrders } from "@/services/commerceApi";
+import type { OrderRecord } from "@/services/commerceMock";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
@@ -37,9 +40,47 @@ function FulfillmentBoardPage() {
   const { orders, initialLoading, refresh, applyOrderPatch } = useAdminOrders();
   const [openId, setOpenId] = useState<string | null>(null);
 
+  // The board otherwise only ever shows what's in the shared 500-most-recent cache, with no way
+  // to reach an older order in this mode — mirrors the Orders page's own search-bypass pattern:
+  // a typed query fetches directly from the backend (filtered to this mode) instead of filtering
+  // the capped cache.
+  const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [searchResults, setSearchResults] = useState<OrderRecord[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchGen = useRef(0);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  useEffect(() => {
+    if (!mode || !debouncedQ) {
+      setSearchResults(null);
+      setSearching(false);
+      return;
+    }
+    const gen = ++searchGen.current;
+    setSearching(true);
+    (async () => {
+      try {
+        const res = await listOrders({ fulfillmentType: mode, q: debouncedQ, page: 0, size: 200 });
+        if (gen === searchGen.current) setSearchResults(res.rows);
+      } catch (err) {
+        if (gen === searchGen.current) {
+          toast.error(err instanceof Error ? err.message : "Search failed");
+          setSearchResults([]);
+        }
+      } finally {
+        if (gen === searchGen.current) setSearching(false);
+      }
+    })();
+  }, [debouncedQ, mode]);
+
   const modeOrders = useMemo(
-    () => (mode ? orders.filter((o) => o.fulfillmentType === mode) : []),
-    [orders, mode],
+    () => (mode ? (searchResults ?? orders.filter((o) => o.fulfillmentType === mode)) : []),
+    [orders, mode, searchResults],
   );
 
   if (!allowed) return null;
@@ -65,8 +106,19 @@ function FulfillmentBoardPage() {
               <span>{config.label}</span>
               <QueueFreshness />
             </div>
+            <div style={{ padding: "0 10px 10px" }}>
+              <input
+                className="admin-input"
+                placeholder="Search by reference, customer, phone… (searches every order in this mode, not just what's shown)"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                style={{ maxWidth: 420, width: "100%" }}
+              />
+            </div>
             {initialLoading ? (
               <div className="admin-empty">Loading…</div>
+            ) : searching ? (
+              <div className="admin-empty">Searching…</div>
             ) : (
               <div style={{ padding: "0 10px 10px" }}>
                 <FulfillmentBoard

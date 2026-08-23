@@ -167,6 +167,7 @@ function normalizeOrder(raw: any): OrderRecord {
 
 export interface ListOrdersParams {
   status?: string;
+  fulfillmentType?: string;
   q?: string;
   page?: number;
   size?: number;
