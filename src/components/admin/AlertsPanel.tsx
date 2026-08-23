@@ -17,7 +17,7 @@ interface AlertItem {
 export function AlertsPanel({ alerts }: { alerts: Alerts }) {
   const allItems: AlertItem[] = [
     { label: "Orders pending payment over 24h", count: alerts.stalePendingOrders, tone: "warning", href: "/admin/orders" },
-    { label: "Failed payments (last 7 days)", count: alerts.failedPaymentsRecent, tone: "critical", href: "/admin/queues/payment" },
+    { label: "Failed payments (last 7 days)", count: alerts.failedPaymentsRecent, tone: "critical", href: "/admin/orders?paymentStatus=FAILED" },
     { label: "Out of stock products", count: alerts.outOfStockCount, tone: "critical", href: "/admin/inventory" },
     { label: "Low stock products", count: alerts.lowStockCount, tone: "warning", href: "/admin/inventory" },
     { label: "Unresolved refund requests", count: alerts.unresolvedRefunds, tone: "critical", href: "/admin/orders" },

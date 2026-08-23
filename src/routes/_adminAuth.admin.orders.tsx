@@ -12,6 +12,7 @@ import {
   GatewayChip,
   ORDER_STATUS_OPTIONS,
   OrderStatusBadge,
+  PAYMENT_STATUS_OPTIONS,
   PaymentStatusBadge,
   formatDateShort,
   formatKes,
@@ -79,6 +80,13 @@ function AdminOrdersPage() {
   const [status, setStatus] = useState<string>(() => {
     const fromUrl = searchParams.get("status");
     return fromUrl && ORDER_STATUS_OPTIONS.some((o) => o.value === fromUrl) ? fromUrl : "ALL";
+  });
+  // Same deep-link pattern as ?status= above — lets the "Failed payments" dashboard alert (which
+  // counts PaymentRecord failures, not an Order.status value) land on a real filtered view
+  // instead of the generic order-status list.
+  const [paymentStatus, setPaymentStatus] = useState<string>(() => {
+    const fromUrl = searchParams.get("paymentStatus");
+    return fromUrl && PAYMENT_STATUS_OPTIONS.some((o) => o.value === fromUrl) ? fromUrl : "ALL";
   });
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -177,17 +185,23 @@ function AdminOrdersPage() {
       } else {
         if (deliveryTab !== "ALL" && o.fulfillmentType !== deliveryTab) return false;
         // Every tab defaults to active orders only — see NON_SUCCESSFUL_STATUSES/DONE_STATUSES.
-        if (status === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
+        // Skipped once either status filter is explicit: a failed-payment order sits at
+        // status PENDING_PAYMENT (a payment failure never advances the order's own status), so
+        // without this, filtering by paymentStatus=FAILED with status left on "ALL" would hit
+        // this default and silently show zero rows — exactly the case the "Failed payments"
+        // dashboard alert deep-links into.
+        if (status === "ALL" && paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
       }
 
       if (status !== "ALL" && o.status !== status) return false;
+      if (paymentStatus !== "ALL" && o.paymentStatus !== paymentStatus) return false;
       if (hideTestOrders && o.isTestOrder) return false;
       if (!needle) return true;
       return [o.reference, o.customerName, o.customerEmail, o.customerPhone, o.city, o.tumabodaTrackingCode]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle));
     });
-  }, [sourceOrders, isAssignedOnly, scope, currentUserId, status, debouncedQ, hideTestOrders, deliveryTab]);
+  }, [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab]);
 
   // Within a single fulfillment-mode tab, cluster orders by that mode's own journey stage
   // (see fulfillmentModes.ts's statusOrder) instead of leaving them in date order — the whole
@@ -220,7 +234,7 @@ function AdminOrdersPage() {
   // Selection is scoped to the current page's rows — clear it whenever the page or any filter
   // changes underneath it, so a stale selection can never silently apply to a different set of
   // orders than what's actually on screen.
-  useEffect(() => { setSelectedIds(new Set()); }, [page, deliveryTab, status, debouncedQ, scope, hideTestOrders]);
+  useEffect(() => { setSelectedIds(new Set()); }, [page, deliveryTab, status, paymentStatus, debouncedQ, scope, hideTestOrders]);
 
   const visibleAssignees = useMemo(
     () => assignees.filter((u) => canAssignTo(staffRole, u.staffRoleName)),
@@ -340,6 +354,15 @@ function AdminOrdersPage() {
                   style={{ maxWidth: 200 }}
                 >
                   {ORDER_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <select
+                  className="admin-select"
+                  value={paymentStatus}
+                  onChange={(e) => { setPage(0); setPaymentStatus(e.target.value); }}
+                  style={{ maxWidth: 200 }}
+                  aria-label="Filter by payment status"
+                >
+                  {PAYMENT_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
                 <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--admin-muted)", whiteSpace: "nowrap" }}>
                   <input

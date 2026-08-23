@@ -73,7 +73,7 @@ const ADMIN_OPS: GuideGroup = {
   title: "Admin & Operations",
   entries: [
     { name: "Dashboard & Analytics", description: "Live operational snapshot — revenue, order counts by status, top products, customer/enquiry/lead totals.", route: "/admin/analytics" },
-    { name: "Payment / Preparation / Dispatch queues", description: "Three sequential work queues staff move an order through: verify M-Pesa payment, prepare the order, then dispatch it.", route: "/admin/queues/payment" },
+    { name: "Fulfillment Boards", description: "Per-delivery-mode boards (Pickup, Manual Delivery, TumaBoda) staff use to move an order from payment through to dispatch, plus a separate Stuck Payments view for STK pushes that never got a final result.", route: "/admin/board/pickup" },
     { name: "Orders", description: "Full order list and detail view — items, payment status, delivery info, status history.", route: "/admin/orders" },
     { name: "Promo Codes (admin)", description: "Create and manage discount codes (percent or fixed amount), including the auto-issued one-time welcome code every new Business Account receives. Independent of the points/rewards system.", route: "/admin/promo-codes" },
     { name: "Rewards Tiers (admin)", description: "Define the VIP status ladder (e.g. Silver/Gold/Platinum) — a minimum lifetime-points threshold, discount percentage and perk description per tier. Unlocks a status, doesn't award points itself.", route: "/admin/rewards-tiers" },
