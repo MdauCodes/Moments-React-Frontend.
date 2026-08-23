@@ -6,9 +6,11 @@ import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { PrintReceipt } from "@/components/PrintReceipt";
 import { RefundForm } from "@/components/RefundForm";
+import { OrderReviewForm } from "@/components/OrderReviewForm";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import { refundStore, refundEligibility, type RefundRequest } from "@/services/refundStore";
+import { orderReviewStore, type OrderReview } from "@/services/orderReviewStore";
 import { useCart } from "@/contexts/CartContext";
 
 
@@ -38,10 +40,13 @@ function OrderDetailPage() {
   const [refund, setRefund] = useState<RefundRequest | null>(null);
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [orderReview, setOrderReview] = useState<OrderReview | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
     orderStore.getMine(reference ?? "").then((res) => setOrder(res.order));
     refundStore.getForOrder(reference ?? "").then(setRefund);
+    orderReviewStore.getForOrder(reference ?? "").then(setOrderReview);
   }, [reference]);
 
   const StatusIcon = useMemo(() => statusIcon(order?.status ?? ""), [order?.status]);
@@ -144,6 +149,40 @@ function OrderDetailPage() {
               toast.success("Refund request submitted — we'll respond within 2 business days.");
             }}
             daysRemaining={eligibility.daysRemaining ?? 14}
+          />
+        )}
+
+        {order.status === "DELIVERED" && orderReview && (
+          <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
+            <p className="font-semibold">Thanks for your feedback on this order</p>
+            <div className="mt-1 flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span key={n} className={n <= orderReview.rating ? "text-accent" : "text-foreground/20"}>★</span>
+              ))}
+            </div>
+            {orderReview.comment && <p className="mt-1 text-xs text-muted-foreground">{orderReview.comment}</p>}
+          </div>
+        )}
+
+        {order.status === "DELIVERED" && !orderReview && !showReviewForm && (
+          <button
+            onClick={() => setShowReviewForm(true)}
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Rate your order & delivery experience
+          </button>
+        )}
+
+        {showReviewForm && (
+          <OrderReviewForm
+            onCancel={() => setShowReviewForm(false)}
+            onSubmit={async (rating, comment) => {
+              if (!order) return;
+              const review = await orderReviewStore.submit(order.reference, { rating, comment: comment || undefined });
+              setOrderReview(review);
+              setShowReviewForm(false);
+              toast.success("Thanks for your feedback!");
+            }}
           />
         )}
 
