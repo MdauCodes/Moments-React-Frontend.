@@ -185,6 +185,10 @@ export type AppLogEntry = {
   threadName?: string;
   message?: string;
   stackTrace?: string;
+  task?: string;
+  actor?: string;
+  responseCode?: string;
+  success?: boolean;
   createdAt?: string;
 };
 
@@ -408,7 +412,7 @@ export const adminResources = {
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/run", { method: "POST" }),
   },
   devLogs: {
-    list: async (params: Record<string, string | number | undefined> = {}) =>
+    list: async (params: Record<string, string | number | boolean | undefined> = {}) =>
       unwrap(await adminJson<PageResponse<AppLogEntry> | AppLogEntry[]>(`/api/v1/admin/logs${qs(params)}`)),
   },
   promoCodes: {

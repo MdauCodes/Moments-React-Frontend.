@@ -18,6 +18,12 @@ function levelBadgeClass(level?: string) {
   return "admin-badge admin-badge-muted";
 }
 
+function successBadgeClass(success?: boolean) {
+  if (success === true) return "admin-badge admin-badge-success";
+  if (success === false) return "admin-badge admin-badge-danger";
+  return "admin-badge admin-badge-muted";
+}
+
 function DigestPreviewPanel() {
   const [summary, setSummary] = useState<LogDigestSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,6 +86,10 @@ function AdminDevLogsPage() {
   const [level, setLevel] = useState("");
   const [loggerName, setLoggerName] = useState("");
   const [q, setQ] = useState("");
+  const [task, setTask] = useState("");
+  const [actor, setActor] = useState("");
+  const [responseCode, setResponseCode] = useState("");
+  const [success, setSuccess] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -94,6 +104,10 @@ function AdminDevLogsPage() {
         level: level || undefined,
         loggerName: loggerName || undefined,
         q: q || undefined,
+        task: task || undefined,
+        actor: actor || undefined,
+        responseCode: responseCode || undefined,
+        success: success ? success === "true" : undefined,
         from: from ? new Date(from).toISOString() : undefined,
         to: to ? new Date(to).toISOString() : undefined,
         page,
@@ -103,7 +117,7 @@ function AdminDevLogsPage() {
       .catch((err) => reportAdminError(err, "Failed to load logs"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [allowed, level, loggerName, q, from, to, page, reloadKey]);
+  }, [allowed, level, loggerName, q, task, actor, responseCode, success, from, to, page, reloadKey]);
 
   if (!allowed) return <AdminLayout title="Dev logs"><Forbidden resource="developer logs" /></AdminLayout>;
 
@@ -122,15 +136,23 @@ function AdminDevLogsPage() {
           </select>
           <input className="admin-input" placeholder="Logger contains…" value={loggerName} onChange={(e) => { setLoggerName(e.target.value); setPage(0); }} style={{ maxWidth: 220 }} />
           <input className="admin-input" placeholder="Message contains…" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} style={{ maxWidth: 240 }} />
+          <input className="admin-input" placeholder="Task (e.g. TUMABODA_CREATE_DELIVERY)…" value={task} onChange={(e) => { setTask(e.target.value); setPage(0); }} style={{ maxWidth: 220 }} />
+          <input className="admin-input" placeholder="Actor contains…" value={actor} onChange={(e) => { setActor(e.target.value); setPage(0); }} style={{ maxWidth: 180 }} />
+          <input className="admin-input" placeholder="Response code…" value={responseCode} onChange={(e) => { setResponseCode(e.target.value); setPage(0); }} style={{ maxWidth: 150 }} />
+          <select className="admin-input" value={success} onChange={(e) => { setSuccess(e.target.value); setPage(0); }} style={{ maxWidth: 140 }}>
+            <option value="">Any outcome</option>
+            <option value="true">Succeeded</option>
+            <option value="false">Failed</option>
+          </select>
           <label className="admin-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
             From <input className="admin-input" type="date" value={from} onChange={(e) => { setFrom(e.target.value); setPage(0); }} />
           </label>
           <label className="admin-label" style={{ display: "flex", alignItems: "center", gap: 6 }}>
             To <input className="admin-input" type="date" value={to} onChange={(e) => { setTo(e.target.value); setPage(0); }} />
           </label>
-          {(level || loggerName || q || from || to) && (
+          {(level || loggerName || q || task || actor || responseCode || success || from || to) && (
             <button className="admin-btn admin-btn-ghost" onClick={() => {
-              setLevel(""); setLoggerName(""); setQ(""); setFrom(""); setTo(""); setPage(0);
+              setLevel(""); setLoggerName(""); setQ(""); setTask(""); setActor(""); setResponseCode(""); setSuccess(""); setFrom(""); setTo(""); setPage(0);
             }}>Clear</button>
           )}
         </div>
@@ -139,18 +161,22 @@ function AdminDevLogsPage() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>When</th><th>Level</th><th>Logger</th><th>Message</th><th></th>
+                <th>When</th><th>Level</th><th>Logger</th><th>Task</th><th>Actor</th><th>Response</th><th>Outcome</th><th>Message</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={5}>Loading…</td></tr>
-                : rows.length === 0 ? <tr><td colSpan={5}><div className="admin-empty">No logs match.</div></td></tr>
+              {loading ? <tr><td colSpan={9}>Loading…</td></tr>
+                : rows.length === 0 ? <tr><td colSpan={9}><div className="admin-empty">No logs match.</div></td></tr>
                 : rows.map((r) => (
                   <Fragment key={r.id}>
                     <tr>
                       <td style={{ whiteSpace: "nowrap", fontSize: 11 }}>{fmtDate(r.createdAt)}</td>
                       <td><span className={levelBadgeClass(r.level)}>{r.level}</span></td>
                       <td style={{ fontSize: 11, maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.loggerName}>{r.loggerName ?? "—"}</td>
+                      <td style={{ fontSize: 11, whiteSpace: "nowrap" }} title={r.task}>{r.task ?? "—"}</td>
+                      <td style={{ fontSize: 11, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.actor}>{r.actor ?? "—"}</td>
+                      <td style={{ fontSize: 11, whiteSpace: "nowrap" }}>{r.responseCode ?? "—"}</td>
+                      <td>{r.success === undefined || r.success === null ? "—" : <span className={successBadgeClass(r.success)}>{r.success ? "OK" : "Failed"}</span>}</td>
                       <td style={{ fontSize: 12, maxWidth: 420, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.message}>{r.message ?? "—"}</td>
                       <td>
                         {r.stackTrace && (
@@ -162,7 +188,7 @@ function AdminDevLogsPage() {
                     </tr>
                     {expanded === r.id && r.stackTrace && (
                       <tr>
-                        <td colSpan={5} style={{ background: "var(--admin-bg)" }}>
+                        <td colSpan={9} style={{ background: "var(--admin-bg)" }}>
                           <pre style={{ margin: 0, fontSize: 11, whiteSpace: "pre-wrap", maxHeight: 320, overflowY: "auto" }}>{r.stackTrace}</pre>
                         </td>
                       </tr>
