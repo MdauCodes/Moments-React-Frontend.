@@ -1864,6 +1864,13 @@ function CheckoutModal() {
                               — feel free to change it.
                             </p>
                           )}
+                          {city.trim().toLowerCase().includes("nairobi") && (
+                            <p className="mt-1.5 text-xs text-muted-foreground">
+                              Delivery via matatu to Nairobi-area addresses is typically around
+                              KES 200 — the exact courier and fee will be confirmed with you by
+                              phone before dispatch.
+                            </p>
+                          )}
                         </div>
 
                         <div>
@@ -2057,7 +2064,7 @@ function CheckoutModal() {
                 length, but the horizontally-scrolling product strip benefits from the full modal
                 width instead of being squeezed into that same narrow column. */}
             <div className="mt-6 w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] px-4 sm:px-6">
-              <QuickAddProductStrip cardWidthClassName="w-40 sm:w-56 lg:w-64" wrap />
+              <QuickAddProductStrip wrap />
             </div>
             </>
           )}
