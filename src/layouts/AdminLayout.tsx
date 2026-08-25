@@ -126,6 +126,7 @@ const navSections: NavSection[] = [
       { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
+      { label: "Delivery Settings", to: "/admin/delivery-settings", icon: MapPin, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Refund Requests", to: "/admin/refund-requests", icon: Undo2, requiresAny: [PERM.PAYMENT_REFUND] },
     ],
   },

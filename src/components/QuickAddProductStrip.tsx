@@ -161,12 +161,16 @@ export function QuickAddProductStrip({
         <div
           className={
             wrap
-              ? "mt-3 flex flex-wrap items-stretch gap-3"
+              // A real grid, not a wrapped flex row: every card gets an equal-width column and
+              // every row stretches to its tallest card, so "Add to cart" buttons land at the
+              // same height across a row regardless of how many lines a product name wraps to —
+              // flex-wrap can't guarantee that, only grid can.
+              ? "mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
               : "mt-3 flex items-stretch gap-3 overflow-x-auto pb-1"
           }
         >
           {displayed.map((p) => (
-            <div key={p.id} className={`${cardWidthClassName} ${wrap ? "" : "shrink-0"}`}>
+            <div key={p.id} className={wrap ? undefined : `${cardWidthClassName} shrink-0`}>
               <ProductCard product={p} onConfigure={handleConfigure} />
             </div>
           ))}
