@@ -1,5 +1,5 @@
 import { RefreshCw } from "lucide-react";
-import { useAdminOrders, useLastUpdatedLabel } from "@/contexts/AdminOrdersContext";
+import { useAdminOrders, useLastUpdatedLabel, useNextPollLabel } from "@/contexts/AdminOrdersContext";
 
 interface Props {
   onRefresh?: () => void;
@@ -8,6 +8,7 @@ interface Props {
 export function QueueFreshness({ onRefresh }: Props) {
   const { lastUpdatedAt, refreshing, refresh } = useAdminOrders();
   const label = useLastUpdatedLabel(lastUpdatedAt);
+  const nextPollLabel = useNextPollLabel(lastUpdatedAt);
 
   return (
     <div
@@ -21,6 +22,11 @@ export function QueueFreshness({ onRefresh }: Props) {
       }}
     >
       <span>{label}</span>
+      {nextPollLabel && !refreshing && (
+        <span style={{ color: "color-mix(in oklab, var(--admin-muted) 70%, transparent)" }}>
+          · {nextPollLabel}
+        </span>
+      )}
       <button
         type="button"
         className="admin-btn admin-btn-ghost"
