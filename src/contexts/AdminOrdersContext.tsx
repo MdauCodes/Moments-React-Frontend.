@@ -30,7 +30,7 @@ interface AdminOrdersContextValue {
 
 const AdminOrdersContext = createContext<AdminOrdersContextValue | undefined>(undefined);
 
-const POLL_INTERVAL_MS = 240_000;
+const POLL_INTERVAL_MS = 120_000;
 // Every consumer of this context (Orders page's delivery-mode tabs, dispatch/preparation/payment
 // queues, the dashboard, dev-tools) filters client-side over this one fetched batch — past this
 // many total orders, a filter can silently miss real matches sitting on a page never fetched.
@@ -141,4 +141,20 @@ export function useLastUpdatedLabel(lastUpdatedAt: number | null): string {
   if (m < 60) return `Updated ${m}m ago`;
   const h = Math.floor(m / 60);
   return `Updated ${h}h ago`;
+}
+
+/** "Next update in 1:47" — counts down to the next background poll, ticking every second.
+ *  Purely a countdown display; doesn't drive the actual poll (useVisibilityInterval does). */
+export function useNextPollLabel(lastUpdatedAt: number | null): string {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = window.setInterval(() => tick((n) => n + 1), 1_000);
+    return () => window.clearInterval(t);
+  }, []);
+  if (!lastUpdatedAt) return "";
+  const remainingMs = lastUpdatedAt + POLL_INTERVAL_MS - Date.now();
+  const remainingSec = Math.max(0, Math.ceil(remainingMs / 1000));
+  const m = Math.floor(remainingSec / 60);
+  const s = remainingSec % 60;
+  return `Next update in ${m}:${String(s).padStart(2, "0")}`;
 }
