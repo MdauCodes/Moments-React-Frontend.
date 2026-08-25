@@ -113,9 +113,9 @@ export function defaultLandingFor(
   if (hasPerm(perms, PERM.USER_MANAGE_ROLES)) return "/admin/dashboard";
   if (hasPerm(perms, PERM.ANALYTICS_VIEW) && hasPerm(perms, PERM.ORDER_MANAGE_ALL)) return "/admin/dashboard";
   if (hasPerm(perms, PERM.ORDER_ASSIGN)) return "/admin/orders";
-  if (hasPerm(perms, PERM.ORDER_VERIFY_PAYMENT)) return "/admin/queues/payment";
-  if (hasPerm(perms, PERM.ORDER_PREPARE)) return "/admin/queues/preparation";
-  if (hasPerm(perms, PERM.ORDER_DISPATCH)) return "/admin/queues/dispatch";
+  if (hasPerm(perms, PERM.ORDER_VERIFY_PAYMENT)) return "/admin/orders";
+  if (hasPerm(perms, PERM.ORDER_PREPARE)) return "/admin/orders";
+  if (hasPerm(perms, PERM.ORDER_DISPATCH)) return "/admin/orders";
   if (hasPerm(perms, PERM.PRODUCT_MANAGE)) return "/admin/products";
   if (hasPerm(perms, PERM.ORDER_VIEW)) return "/admin/orders";
   return "/admin/dashboard";

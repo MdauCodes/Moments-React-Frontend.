@@ -1,8 +1,16 @@
+import { useLocation } from "react-router-dom";
+
 /**
  * Full-site lock overlay — blurs and blocks all interactions across the app.
- * Used while the site is being prepared for launch.
+ * Used while the site is being prepared for launch. Exempts /admin/* routes so
+ * staff can keep working (product/catalog edits, etc.) while customers are locked out.
  */
 export function SiteLockOverlay() {
+  const location = useLocation();
+  if (location.pathname.startsWith("/admin")) {
+    return null;
+  }
+
   return (
     <div
       aria-hidden="false"

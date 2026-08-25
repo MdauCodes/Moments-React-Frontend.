@@ -5,6 +5,21 @@ export type BackendRole = "ROLE_ADMIN" | "ROLE_STAFF";
 export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
+export type RefundRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "RESOLVED";
+export type RefundDesiredAction = "REFUND" | "REPLACE" | "STORE_CREDIT";
+export type RefundRequestAdminDto = {
+  id: string;
+  orderReference: string;
+  customerEmail: string;
+  customerName: string;
+  reason: string;
+  desiredAction: RefundDesiredAction;
+  status: RefundRequestStatus;
+  adminNote?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type IndustryDto = { id: string; name: string; slug?: string; description?: string; iconUrl?: string };
 export type BusinessType = "SOLE_PROPRIETOR" | "SME" | "LIMITED_COMPANY" | "PARTNERSHIP" | "OTHER";
 export type CreditReadinessDto = {
@@ -100,6 +115,24 @@ export type ChangelogEntryDto = {
 };
 export type ChangelogEntryRequest = { title: string; summary: string; category: ChangelogCategory; author?: string };
 
+export type ChangeRequestType = "PROFILE_UPDATE" | "BUSINESS_ACCOUNT_UPDATE" | "ACCOUNT_DELETION" | "DATA_EXPORT";
+export type ChangeRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "WITHDRAWN";
+export type ChangeRequestDto = {
+  id: string;
+  type: ChangeRequestType;
+  status: ChangeRequestStatus;
+  requestedById: string;
+  requestedByName: string;
+  requestedByEmail: string;
+  /** JSON string of the proposed fields (PROFILE_UPDATE / BUSINESS_ACCOUNT_UPDATE). Null for ACCOUNT_DELETION. */
+  payload?: string | null;
+  createdAt: string;
+  reviewedById?: string | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  reviewNotes?: string | null;
+};
+
 export type EnquiryPipelineStatus = "NEW" | "CONTACTED" | "QUALIFIED" | "PROPOSAL_SENT" | "WON" | "LOST" | "ARCHIVED";
 
 export type EnquiryNote = {
@@ -145,6 +178,27 @@ export type AuditLogEntry = {
   createdAt?: string;
 };
 
+export type AppLogEntry = {
+  id: number;
+  level: string;
+  loggerName?: string;
+  threadName?: string;
+  message?: string;
+  stackTrace?: string;
+  task?: string;
+  actor?: string;
+  responseCode?: string;
+  success?: boolean;
+  createdAt?: string;
+};
+
+export type LogDigestSummary = {
+  errorCount: number;
+  warnCount: number;
+  topErrors: Array<{ message: string; count: number }>;
+  topWarnings: Array<{ message: string; count: number }>;
+};
+
 export type MockModeState = { enabled: boolean; message?: string };
 
 export type UserDto = {
@@ -166,6 +220,16 @@ export type UserDto = {
   updatedAt?: string;
 };
 export type SettingDto = { id?: string; key: string; value: string; description?: string };
+export type AdminNotificationDto = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  orderId?: string | null;
+  orderReference?: string | null;
+  read: boolean;
+  createdAt: string;
+};
 export type UploadResponse = { url: string; publicId: string };
 
 export type RoleDto = {
@@ -342,6 +406,14 @@ export const adminResources = {
       adminJson<LeadPreviewDto[]>("/api/v1/admin/dev-tools/lead-digest/run", { method: "POST" }),
     runRisellerSyncNow: () =>
       adminJson<{ message: string }>("/api/v1/admin/dev-tools/riseller-sync/run", { method: "POST" }),
+    previewLogDigest: () =>
+      adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/preview"),
+    sendLogDigestNow: () =>
+      adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/run", { method: "POST" }),
+  },
+  devLogs: {
+    list: async (params: Record<string, string | number | boolean | undefined> = {}) =>
+      unwrap(await adminJson<PageResponse<AppLogEntry> | AppLogEntry[]>(`/api/v1/admin/logs${qs(params)}`)),
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),
@@ -437,6 +509,20 @@ export const adminResources = {
     update: (id: string, body: Partial<ChangelogEntryRequest>) => adminJson<ChangelogEntryDto>(`/api/v1/admin/changelog/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/changelog/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
+  changeRequests: {
+    list: async (params: Record<string, string | number | undefined>) =>
+      unwrap(await adminJson<PageResponse<ChangeRequestDto> | ChangeRequestDto[]>(`/api/v1/admin/change-requests${qs(params)}`)),
+    approve: (id: string, reason?: string) =>
+      adminJson<ChangeRequestDto>(`/api/v1/admin/change-requests/${encodeURIComponent(id)}/approve`, {
+        method: "POST",
+        body: JSON.stringify({ reason: reason || undefined }),
+      }),
+    reject: (id: string, reason: string) =>
+      adminJson<ChangeRequestDto>(`/api/v1/admin/change-requests/${encodeURIComponent(id)}/reject`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      }),
+  },
   enquiries: {
     list: async (params: Record<string, string | number | undefined>) => unwrap(await adminJson<PageResponse<EnquiryDto> | EnquiryDto[]>(`/api/v1/admin/enquiries${qs(params)}`)),
     update: (id: string, body: Partial<EnquiryDto> & { note?: string; addNote?: string }) =>
@@ -452,6 +538,14 @@ export const adminResources = {
     get: () => adminJson<MockModeState>("/api/v1/admin/mock-mode"),
     set: (enabled: boolean) =>
       adminJson<MockModeState>(`/api/v1/admin/mock-mode?enabled=${enabled ? "true" : "false"}`, { method: "PUT" }),
+  },
+  /** SUPER_ADMIN-only gate on manually marking a stuck TumaBoda payment as paid — see
+   *  TumaBodaStuckPaymentOverrideService's Javadoc on the backend for why this is separate from
+   *  the equivalent override on Manual Delivery/Pickup orders. */
+  tumaBodaPaymentOverride: {
+    get: () => adminJson<MockModeState>("/api/v1/admin/tumaboda-payment-override"),
+    set: (enabled: boolean) =>
+      adminJson<MockModeState>(`/api/v1/admin/tumaboda-payment-override?enabled=${enabled ? "true" : "false"}`, { method: "PUT" }),
   },
   users: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) => {
@@ -474,5 +568,19 @@ export const adminResources = {
   settings: {
     list: () => adminJson<SettingDto[]>("/api/v1/admin/settings"),
     upsert: (body: SettingDto) => adminJson<SettingDto>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(body) }),
+  },
+  notifications: {
+    list: () => adminJson<{ content: AdminNotificationDto[] }>("/api/v1/admin/notifications?size=20"),
+    unreadCount: () => adminJson<{ count: number }>("/api/v1/admin/notifications/unread-count"),
+    markRead: (id: string) => adminJson<void>(`/api/v1/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),
+    markAllRead: () => adminJson<void>("/api/v1/admin/notifications/read-all", { method: "PATCH" }),
+  },
+  refundRequests: {
+    list: () => adminJson<RefundRequestAdminDto[]>("/api/v1/admin/refund-requests"),
+    updateStatus: (id: string, body: { status: RefundRequestStatus; adminNote?: string }) =>
+      adminJson<RefundRequestAdminDto>(`/api/v1/admin/refund-requests/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      }),
   },
 };

@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 
-import { useState } from "react";
 import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook } from "lucide-react";
 import {
   COMPANY_EMAIL,
@@ -15,25 +14,8 @@ import {
 } from "@/data/products";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import logoUrl from "@/assets/moments_logo_without_background.png";
-import { getPrivacyPolicyContent } from "@/routes/privacy";
-import { getTermsContent, getRewardsOfferContent } from "@/routes/terms";
-import { getRefundsContent } from "@/routes/refunds";
-import { getAccessibilityPolicyContent } from "@/routes/accessibility-policy";
-import { PolicyContentModal, type PolicyContent } from "@/components/PolicyContentModal";
-
-type PolicyKey = "privacy" | "terms" | "rewards" | "refunds" | "accessibility";
-
-const POLICY_CONTENT: Record<PolicyKey, () => PolicyContent> = {
-  privacy: getPrivacyPolicyContent,
-  terms: getTermsContent,
-  rewards: getRewardsOfferContent,
-  refunds: getRefundsContent,
-  accessibility: getAccessibilityPolicyContent,
-};
 
 export function SiteFooter() {
-  const [openPolicy, setOpenPolicy] = useState<PolicyKey | null>(null);
-
   return (
     <footer
       className="mt-16 border-t border-border text-primary-foreground sm:mt-24"
@@ -51,43 +33,35 @@ export function SiteFooter() {
             <img src={logoUrl} alt="Moments Packaging Kenya logo" width={160} height={40} className="h-24 w-auto" />
           </Link>
           <nav aria-label="Legal and support" className="mt-4 flex flex-col gap-2.5">
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("privacy")}
-              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
-            >
+            <Link to="/privacy" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Privacy Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("terms")}
-              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
-            >
+            </Link>
+            <Link to="/terms" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Terms of Service
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("rewards")}
-              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
-            >
+            </Link>
+            <Link to="/rewards-terms" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Rewards &amp; Coupons Terms
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("refunds")}
-              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
-            >
+            </Link>
+            <Link to="/refunds" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Refunds &amp; Returns
-            </button>
-            <button
-              type="button"
-              onClick={() => setOpenPolicy("accessibility")}
-              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
-            >
+            </Link>
+            <Link to="/accessibility-policy" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Accessibility
-            </button>
+            </Link>
             <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Contact Us
+            </Link>
+            {/* Deliberately quieter than the links above (smaller, muted) — accessible to anyone
+             *  who looks, not a prominent CTA. Guest-only: account holders manage their data from
+             *  their own account settings instead. */}
+            <Link to="/manage-my-data" className="text-xs text-primary-foreground/60 hover:text-accent">
+              View or delete your data
+            </Link>
+            {/* Same quiet treatment — a clear but not bold path to actually START a refund/return
+             *  (find the eligible order in your history and click Request Refund there), distinct
+             *  from the "Refunds & Returns" policy explainer above. */}
+            <Link to="/account/orders" className="text-xs text-primary-foreground/60 hover:text-accent">
+              Request a refund or return
             </Link>
           </nav>
         </div>
@@ -267,8 +241,6 @@ export function SiteFooter() {
           <p>© {new Date().getFullYear()} Moments Packaging Kenya Ltd. All rights reserved.</p>
         </div>
       </div>
-
-      {openPolicy && <PolicyContentModal content={POLICY_CONTENT[openPolicy]()} onClose={() => setOpenPolicy(null)} />}
     </footer>
   );
 }

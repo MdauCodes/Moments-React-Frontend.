@@ -35,9 +35,9 @@ function OrderConfirmationPage() {
 
   const receipt = order?.paymentReference ?? order?.receiptNumber;
 
-  const fulfillment = order?.fulfillmentType ?? "ZONE_DELIVERY";
+  const fulfillment = order?.fulfillmentType ?? "MANUAL_DELIVERY";
   const isPickup = fulfillment === "PICKUP";
-  const isCourier = fulfillment === "OWN_COURIER";
+  const isCourier = fulfillment === "MANUAL_DELIVERY";
 
   const heading = isPickup
     ? "Thank you — ready for pickup"

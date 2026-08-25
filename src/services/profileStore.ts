@@ -76,30 +76,69 @@ export const profileStore = {
     return { profile: local ?? blank(), source: "mock" };
   },
 
-  async save(profile: CustomerProfile): Promise<{ profile: CustomerProfile; source: "live" | "mock" }> {
-    if (getAccessToken()) {
-      const live = await tryLive<CustomerProfile>("/api/v1/customer/profile", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(profile),
-      });
-      if (live) {
-        write(live);
-        return { profile: live, source: "live" };
-      }
+  /**
+   * Name edits don't apply directly — PATCH /api/v1/customer/profile queues them for admin
+   * approval (ODPC / Data Protection Act, 2019 alignment) and returns just a confirmation
+   * message, not the updated profile. So the locally-held `profile` is NOT replaced with the
+   * submitted values here; it keeps showing what's actually saved until an admin approves the
+   * change. Email isn't part of the queued-edit DTO at all (account-identity field, not a casual
+   * profile edit) — never sent. Phone isn't sent here either — see updatePhone(), which applies
+   * immediately since it's a low-fraud-risk convenience field, not something worth gating.
+   */
+  async save(profile: CustomerProfile): Promise<{ submitted: boolean; message: string }> {
+    if (!getAccessToken()) {
+      throw new Error("Sign in to update your profile.");
     }
-    write(profile);
-    return { profile, source: "mock" };
+    const res = await authFetch(apiUrl("/api/v1/customer/profile"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Failed to submit profile update.");
+    }
+    const data = (await res.json()) as { message: string };
+    return { submitted: true, message: data.message };
   },
 
+  /** Applies immediately, no admin review — see CustomerController.updatePhone on the backend. */
+  async updatePhone(phone: string): Promise<CustomerProfile> {
+    if (!getAccessToken()) {
+      throw new Error("Sign in to update your phone number.");
+    }
+    const res = await authFetch(apiUrl("/api/v1/customer/phone"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Failed to update phone number.");
+    }
+    const live = (await res.json()) as CustomerProfile;
+    const { profile: current } = await this.get();
+    const merged: CustomerProfile = { ...current, phone: live.phone, addresses: current.addresses };
+    write(merged);
+    return merged;
+  },
+
+  // Addresses have no backend persistence today (no address endpoint exists server-side) —
+  // these three are, and always were, purely a local cache. They no longer round-trip through
+  // save()'s network call now that save() is PATCH-based and its DTO doesn't carry addresses at
+  // all — writing straight to the local cache is what was actually happening for addresses
+  // either way, just without a pointless network call in front of it.
   async addAddress(addr: Omit<CustomerAddress, "id">): Promise<CustomerProfile> {
     const { profile } = await this.get();
     const newAddr: CustomerAddress = { ...addr, id: genId() };
     if (newAddr.isDefault) profile.addresses.forEach((a) => (a.isDefault = false));
     if (profile.addresses.length === 0) newAddr.isDefault = true;
     profile.addresses.push(newAddr);
-    const { profile: saved } = await this.save(profile);
-    return saved;
+    write(profile);
+    return profile;
   },
 
   async removeAddress(id: string): Promise<CustomerProfile> {
@@ -108,14 +147,14 @@ export const profileStore = {
     if (profile.addresses.length > 0 && !profile.addresses.some((a) => a.isDefault)) {
       profile.addresses[0].isDefault = true;
     }
-    const { profile: saved } = await this.save(profile);
-    return saved;
+    write(profile);
+    return profile;
   },
 
   async setDefault(id: string): Promise<CustomerProfile> {
     const { profile } = await this.get();
     profile.addresses.forEach((a) => (a.isDefault = a.id === id));
-    const { profile: saved } = await this.save(profile);
-    return saved;
+    write(profile);
+    return profile;
   },
 };

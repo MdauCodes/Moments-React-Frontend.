@@ -17,18 +17,30 @@ import avatarShrug from "@/assets/avatars/avatar_3.png";
 // No X button and no backdrop-click dismiss, deliberately — either one let a visitor "soft
 // close" the modal without deciding anything, which just re-armed it to pop back up a short
 // while later and read as nagging. Every path out now requires an explicit choice: pick an
-// account type, sign in, or hit "Continue without an account" on the decline screen (which sets
-// the permanent per-session decline flag). If the visitor never engages at all and just keeps
-// browsing/navigating, it can still show again on a later page load, capped at
-// MAX_SHOWS_PER_SESSION — that part is unchanged and isn't the disruptive behavior this fixes.
-const SHOW_DELAY_MS = 1800;
+// account type, sign in, or hit "Continue without an account" on the decline screen.
+//
+// Two independent throttles, on purpose:
+// - Per-SESSION soft cap (sessionStorage, MAX_SHOWS_PER_SESSION): if a visitor never decides
+//   either way and just keeps browsing/navigating within one browser session, they can still see
+//   it again on a later page load in that same session, capped at 3 — gives an undecided visitor
+//   a few chances without nagging every single page.
+// - Cross-session decline cooldown (localStorage, DECLINE_COOLDOWN_MS): once someone explicitly
+//   clicks "Continue without an account," don't show it again — even in a brand new browser
+//   session/tab — until the cooldown elapses. Before this, the decline flag lived in
+//   sessionStorage too, so it silently reset on every new tab/session and the modal kept nagging
+//   already-decided guests as if they'd never answered.
+const SHOW_DELAY_MS = 2500;
 const MAX_SHOWS_PER_SESSION = 3;
-const DECLINED_KEY = "moments_welcome_declined";
+const DECLINE_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
+const DECLINED_AT_KEY = "moments_welcome_declined_at";
 const SHOWN_COUNT_KEY = "moments_welcome_shown_count";
 
-function hasDeclined(): boolean {
+function isDeclineCoolingDown(): boolean {
   try {
-    return sessionStorage.getItem(DECLINED_KEY) === "true";
+    const raw = localStorage.getItem(DECLINED_AT_KEY);
+    if (!raw) return false;
+    const declinedAt = Number(raw);
+    return Number.isFinite(declinedAt) && Date.now() - declinedAt < DECLINE_COOLDOWN_MS;
   } catch {
     return false;
   }
@@ -52,7 +64,7 @@ function recordShown(): void {
 
 function recordDeclined(): void {
   try {
-    sessionStorage.setItem(DECLINED_KEY, "true");
+    localStorage.setItem(DECLINED_AT_KEY, String(Date.now()));
   } catch {
     // ignore
   }
@@ -70,7 +82,7 @@ const GRAY_INK = "#57534e";
 type View = "main" | "decline";
 
 function shouldShow(): boolean {
-  return !hasDeclined() && getShownCount() < MAX_SHOWS_PER_SESSION;
+  return !isDeclineCoolingDown() && getShownCount() < MAX_SHOWS_PER_SESSION;
 }
 
 // Small CTA pill shown inside each option card so it's unmistakably a
@@ -175,22 +187,22 @@ export function WelcomeStarterModal() {
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
                   <p className="mt-1.5 text-[13px] leading-snug sm:mt-2 sm:text-sm sm:leading-normal" style={{ color: `${FOREST_DEEP}bf` }}>
-                    Every account gets 1,000 Coupon Points (worth KES 100) free when you join. Earn more with every
-                    order through discounts, referral rewards, and VIP perks. Open a Business Account to unlock a
-                    one-time 5% promo code after your trade profile is approved.
+                    Every account comes with 1,000 free Coupon Points (worth KES 100) when you join. Earn even more
+                    with every order through exclusive discounts, referral rewards, and VIP perks. Open a Business
+                    Account to unlock a one-time 5% promo code once your trade profile has been approved.
                   </p>
                   <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}b3` }}>
-                    Full details in the{" "}
+                    See our{" "}
                     <RewardsTermsLink className="underline underline-offset-2 font-semibold text-[#57534e]">
-                      offer terms
-                    </RewardsTermsLink>
-                    .
+                      Offer Terms
+                    </RewardsTermsLink>{" "}
+                    for full details.
                   </p>
                 </div>
               </div>
 
               <p className="mt-4 text-center text-[11px] font-bold uppercase tracking-wider sm:mt-6 sm:text-left" style={{ color: FOREST }}>
-                Choose how you'd like to shop with us
+                Choose how you'd like to shop with us.
               </p>
 
               <div className="mt-2.5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">

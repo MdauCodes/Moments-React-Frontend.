@@ -21,6 +21,7 @@ import { filterVisibleIndustries, type Industry } from "@/data/products";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { CheckCircle2 } from "lucide-react";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 
 
@@ -101,6 +102,7 @@ function EnterpriseQuotePage() {
           estimatedQuantity: data.estimatedQuantity,
           productInterest: [data.industry, data.productInterest].filter(Boolean).join(" — "),
           message: data.message,
+          consentPolicyVersion: PRIVACY_POLICY_VERSION,
         },
       });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
@@ -123,7 +125,7 @@ function EnterpriseQuotePage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#c4622d]">
               Enterprise &amp; Bulk Orders
             </p>
-            <h1 className="mt-3 font-serif text-3xl leading-tight sm:text-4xl md:text-5xl">
+            <h1 className="mt-3 font-display text-3xl leading-tight sm:text-4xl md:text-5xl">
               Let's build something at scale.
             </h1>
             <p className="mx-auto mt-5 max-w-2xl text-base opacity-80 sm:text-lg">
@@ -151,7 +153,7 @@ function EnterpriseQuotePage() {
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#2d4a3e]/10">
                   <CheckCircle2 className="h-10 w-10 text-[#2d4a3e]" />
                 </div>
-                <h2 className="mt-5 font-serif text-2xl text-foreground sm:text-[28px]">
+                <h2 className="mt-5 font-display text-2xl text-foreground sm:text-[28px]">
                   Request received, {success.firstName}!
                 </h2>
                 <p className="mt-3 text-sm text-muted-foreground sm:text-base">
@@ -178,7 +180,7 @@ function EnterpriseQuotePage() {
                 className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8"
                 noValidate
               >
-                <h2 className="font-serif text-2xl text-foreground">Tell us about your project</h2>
+                <h2 className="font-display text-2xl text-foreground">Tell us about your project</h2>
                 <div className="mt-6 space-y-4">
                   <Field label="Contact name" error={errors.contactName} required>
                     <Input
@@ -272,7 +274,7 @@ function EnterpriseQuotePage() {
                   <ConsentCheckbox
                     checked={consent}
                     onCheckedChange={setConsent}
-                    purpose="prepare your quote and contact you about it"
+                    purpose="prepare my quote and contact me about it"
                   />
                 </div>
                 <Button
@@ -296,7 +298,7 @@ function EnterpriseQuotePage() {
               { n: "Nairobi", l: "based, Kenya-wide delivery" },
             ].map((t) => (
               <div key={t.l}>
-                <div className="font-serif text-3xl text-[#2d4a3e] sm:text-4xl">{t.n}</div>
+                <div className="font-display text-3xl text-[#2d4a3e] sm:text-4xl">{t.n}</div>
                 <div className="mt-2 text-sm text-[#1a1510]/70">{t.l}</div>
               </div>
             ))}

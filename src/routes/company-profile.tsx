@@ -178,7 +178,7 @@ function CompanyProfilePage() {
 
         <div className="relative grid w-full items-center gap-8 py-14 pl-8 pr-8 sm:py-16 lg:py-20 lg:pl-48 lg:pr-16">
           <div className="max-w-3xl">
-            <h1 className="font-display text-5xl font-medium leading-[1.02] text-white sm:text-6xl lg:text-7xl">
+            <h1 className="font-display text-4xl font-medium leading-[1.02] text-white sm:text-5xl lg:text-6xl">
               Company
               <br />
               <span style={{ color: "#ffffff" }}>Profile</span>

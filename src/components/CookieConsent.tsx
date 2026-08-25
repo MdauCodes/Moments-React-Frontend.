@@ -56,11 +56,12 @@ export function CookieConsent() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-foreground">
-              Cookies &amp; your privacy
+              Cookies and your privacy
             </p>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-              We use a few cookies to keep the site working and to understand what
-              helps shoppers most. Nothing creepy — see our{" "}
+              We use cookies to keep our website running smoothly, improve your shopping
+              experience, and understand how visitors use our site. We respect your privacy and
+              only use cookies as described in our{" "}
               <Link to="/privacy" className="text-foreground underline-offset-2 hover:underline">
                 Privacy Policy
               </Link>

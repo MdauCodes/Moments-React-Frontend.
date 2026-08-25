@@ -18,18 +18,20 @@
 import { apiUrl, apiFetch } from "@/config/api";
 import { authFetch, getAccessToken } from "@/contexts/AuthContext";
 import type { CartItem } from "@/contexts/CartContext";
+import type { RefundRequest, RefundDesiredAction } from "@/services/refundStore";
 
+// Mirrors the backend's OrderStatus enum exactly (order/entity/OrderStatus.java) — these are
+// the only values the API ever actually returns for order.status.
 export type CustomerOrderStatus =
-  | "AWAITING_PAYMENT"
   | "PENDING_PAYMENT"
   | "PAID"
-  | "PROCESSING"
-  | "PACKED"
-  | "SHIPPED"
+  | "PAYMENT_VERIFIED"
+  | "IN_PRODUCTION"
+  | "READY_FOR_DISPATCH"
+  | "DISPATCHED"
   | "DELIVERED"
   | "CANCELLED"
-  | "REFUNDED"
-  | "PAYMENT_FAILED";
+  | "REFUNDED";
 
 export type CustomerPaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "CANCELLED";
 
@@ -48,9 +50,9 @@ export interface CustomerOrderItem {
   isBackorder?: boolean;
 }
 
-export type CheckoutPaymentMethod = "PAYHERO" | "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";
+export type CheckoutPaymentMethod = "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";
 
-export type FulfillmentType = "ZONE_DELIVERY" | "PICKUP" | "OWN_COURIER";
+export type FulfillmentType = "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY";
 export type CourierType = "MATATU" | "PARCEL_SERVICE" | "BOLT_SEND" | "RIDER" | "OTHER";
 
 export interface CustomerOrder {
@@ -65,6 +67,9 @@ export interface CustomerOrder {
   invoiceNumber?: string | null;
   paidAt?: string | null;
   status: CustomerOrderStatus;
+  /** Per-fulfillment-mode status (see src/lib/orderStatusV2.ts) — null for orders not yet
+   *  backfilled; callers fall back to `status`. */
+  statusV2?: string | null;
   paymentStatus: CustomerPaymentStatus;
   paymentMethod: CheckoutPaymentMethod;
   paymentReference?: string;
@@ -93,17 +98,33 @@ export interface CustomerOrder {
   currency: "KES";
   createdAt: string;
   updatedAt: string;
-  trackingNumber?: string;
   receiptNumber?: string;
   trackingEvents?: { at: string; label: string; description?: string }[];
   fulfillmentType?: FulfillmentType;
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  collectorName?: string;
+  tumabodaStatus?: string | null;
+  tumabodaTrackingCode?: string | null;
+  /** Set once the customer self-confirms receipt via confirmDelivery() below — only present on
+   *  the verified (OTP-unlocked) view, like the rest of the financial/PII fields. */
+  customerConfirmedDeliveredAt?: string | null;
+  /** Whether confirmDelivery() will demand a scanned/typed receipt code — never the code itself,
+   *  which only ever exists on the physical receipt. */
+  deliveryVerificationRequired?: boolean;
   /** One-time secret for the Cloudinary tax-invoice upload flow — present only when etrRequested was true. */
   taxInvoiceUploadToken?: string | null;
   etrRequested?: boolean;
   documentsEmail?: string;
+  // -- Document availability (verified view only) — the actual PDF bytes are fetched through
+  // downloadTrackDocument() below, never a raw Cloudinary URL; these flags just say what's
+  // available to offer as a download button. --
+  receiptAvailable?: boolean;
+  taxInvoiceRequested?: boolean;
+  taxInvoiceAvailable?: boolean;
+  taxInvoiceAvailableUntil?: string | null;
+  etrAvailable?: boolean;
 }
 
 export interface PlaceOrderInput {
@@ -128,6 +149,20 @@ export interface PlaceOrderInput {
   courierType?: CourierType;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  /** Full name of whoever will collect the parcel, checked at the destination office —
+   *  MANUAL_DELIVERY only, needs at least two words (enforced both here and server-side). */
+  collectorName?: string;
+  /** TUMABODA_DELIVERY only — real-time quote needs these. Not yet populated by any UI; the
+   *  pin-drop/map component that would collect them is its own design pass, not built yet. */
+  dropoffLat?: number;
+  dropoffLng?: number;
+  /** Building/apartment/landmark detail — sent separately from customer.address so it reaches
+   *  TumaBoda as recipient.locationName rather than being merged into recipient.location. */
+  landmarkDetail?: string;
+  /** TUMABODA_DELIVERY only — a separate, manually-typed number for TumaBoda's rider-contact
+   *  SMS, distinct from customer.phone (which is the M-Pesa number). Required server-side for
+   *  TumaBoda orders — see CheckoutRequest.tumabodaContactPhone. */
+  tumabodaContactPhone?: string;
   /** Client-generated UUID — prevents duplicate orders on network retry. */
   idempotencyKey?: string;
   /** Customer's own KRA PIN, printed on the tax invoice for their own remittance records. */
@@ -136,6 +171,9 @@ export interface PlaceOrderInput {
   etrRequested?: boolean;
   /** Where to email the receipt/tax-invoice/ETR bundle — required server-side when etrRequested is true. */
   documentsEmail?: string;
+  /** The privacy policy's "Last updated" string shown next to the consent checkbox at the
+   *  moment of submission — see ConsentService/ConsentRecord on the backend. */
+  consentPolicyVersion?: string;
 }
 
 // ── Normalised status the UI cares about ─────────────────────────────────────
@@ -211,6 +249,7 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     invoiceNumber: raw.invoiceNumber ?? null,
     paidAt: raw.paidAt ?? null,
     status: raw.status,
+    statusV2: raw.statusV2 ?? null,
     paymentStatus: raw.paymentStatus ?? "PENDING",
     paymentMethod: raw.paymentMethod ?? "MPESA",
     customerName: raw.contactName ?? raw.customerName ?? "",
@@ -239,9 +278,21 @@ function normalizeTrackingDto(raw: Record<string, any>): CustomerOrder {
     vatAmount: raw.vatAmount ?? undefined,
     documentBundleStatus: raw.documentBundleStatus ?? undefined,
     etrAvailableUntil: raw.etrAvailableUntil ?? undefined,
+    etrRequested: raw.etrRequested ?? undefined,
+    documentsEmail: raw.documentsEmail ?? undefined,
+    receiptAvailable: raw.receiptAvailable ?? false,
+    taxInvoiceRequested: raw.taxInvoiceRequested ?? false,
+    taxInvoiceAvailable: raw.taxInvoiceAvailable ?? false,
+    taxInvoiceAvailableUntil: raw.taxInvoiceAvailableUntil ?? undefined,
+    etrAvailable: raw.etrAvailable ?? false,
     currency: "KES",
     createdAt: raw.createdAt ?? new Date().toISOString(),
     updatedAt: raw.updatedAt ?? new Date().toISOString(),
+    fulfillmentType: raw.fulfillmentType ?? undefined,
+    tumabodaStatus: raw.tumabodaStatus ?? null,
+    tumabodaTrackingCode: raw.tumabodaTrackingCode ?? null,
+    customerConfirmedDeliveredAt: raw.customerConfirmedDeliveredAt ?? null,
+    deliveryVerificationRequired: raw.deliveryVerificationRequired ?? false,
     trackingEvents: (raw.statusHistory ?? []).map((h: any) => ({
       at: h.changedAt,
       // Backend returns toStatus (not status) — fall back to status for safety
@@ -278,20 +329,35 @@ export const orderStore = {
       city: input.customer.city,
       county: input.customer.county,
       paymentMethod: input.paymentMethod,
-      fulfillmentType: input.fulfillmentType ?? "ZONE_DELIVERY",
+      fulfillmentType: input.fulfillmentType ?? "MANUAL_DELIVERY",
+      // productId/quantity/tierId matter here, not just cosmetically: this is what backend
+      // pricing actually resolves from whenever the server-side cart for this session is empty
+      // at checkout time (session/cart desync — the common case, since our cart is client-side/
+      // localStorage-only) — without them, checkout fails with "couldn't price your order
+      // correctly". unitPrice is sent for backward-compat/debugging only; the backend always
+      // re-resolves the real price from productId+tierId against Product/ProductPricingTier and
+      // never trusts this field for the actual charge.
       items: input.items.map((it) => ({
         productId: it.productId,
         quantity: it.quantity,
         size: it.size,
         material: it.material,
         finish: it.finish,
+        tierId: it.tierId ?? undefined,
+        unitPrice: it.unitPrice,
       })),
       shippingFee: input.shippingFee,
     };
+    if (input.consentPolicyVersion) body.consentPolicyVersion = input.consentPolicyVersion;
     if (input.idempotencyKey) body.idempotencyKey = input.idempotencyKey;
     if (input.courierType) body.courierType = input.courierType;
     if (input.courierServiceName) body.courierServiceName = input.courierServiceName;
     if (input.courierStageOrOffice) body.courierStageOrOffice = input.courierStageOrOffice;
+    if (input.collectorName) body.collectorName = input.collectorName;
+    if (input.dropoffLat != null) body.dropoffLat = input.dropoffLat;
+    if (input.dropoffLng != null) body.dropoffLng = input.dropoffLng;
+    if (input.landmarkDetail) body.landmarkDetail = input.landmarkDetail;
+    if (input.tumabodaContactPhone) body.tumabodaContactPhone = input.tumabodaContactPhone;
     if (input.customer.postalCode) body.postalCode = input.customer.postalCode;
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;
@@ -442,33 +508,41 @@ export const orderStore = {
    *              full record (financials, contact name, delivery address) instead of the
    *              redacted status-only view — see OrderTrackingDto.verified.
    */
-  async getStatus(reference: string, email?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    const qs = email?.trim() ? `?email=${encodeURIComponent(email.trim())}` : "";
-    const live = await tryLiveJson<Record<string, any>>(`/api/v1/orders/track/${encodeURIComponent(reference)}${qs}`);
+  async getStatus(reference: string, email?: string, accessToken?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
+    // email/accessToken travel as headers, not query params — accessToken unlocks full order
+    // PII, and a query string would otherwise land in access logs, browser history, and Referer
+    // headers.
+    const headers: Record<string, string> = {};
+    if (email?.trim()) headers["X-Order-Email"] = email.trim();
+    if (accessToken) headers["X-Order-Access-Token"] = accessToken;
+    const live = await tryLiveJson<Record<string, any>>(
+      `/api/v1/orders/track/${encodeURIComponent(reference)}`,
+      Object.keys(headers).length ? { headers } : undefined,
+    );
     if (live) {
       const order = normalizeTrackingDto(live);
       const all = readAll();
       const idx = all.findIndex((o) => o.reference === order.reference);
       if (idx >= 0) {
-        // Merge into the existing local record instead of overwriting it —
-        // the public tracking endpoint deliberately redacts PII (masked
-        // email, no phone/address/unit price) since anyone with just the
-        // reference can hit it. Blindly replacing a fuller checkout-time
-        // record with the redacted one would destroy data this browser
-        // already has a right to see (its own order).
         const existing = all[idx];
-        all[idx] = {
-          ...existing,
-          status: order.status,
-          paymentStatus: order.paymentStatus,
-          trackingEvents: order.trackingEvents?.length ? order.trackingEvents : existing.trackingEvents,
-          customerEmail: existing.customerEmail || order.customerEmail,
-          customerPhone: existing.customerPhone || order.customerPhone,
-          shippingAddress: existing.shippingAddress || order.shippingAddress,
-          city: existing.city || order.city,
-          items: existing.items?.length ? existing.items : order.items,
-          total: order.total || existing.total,
-        };
+        // A verified fetch (OTP-confirmed, or this browser's own checkout-time record) is a
+        // strict superset of the redacted unverified view — take it wholesale rather than
+        // cherry-picking fields. A narrower merge here previously caused new fields (fulfillmentType,
+        // tumabodaTrackingCode) to silently never propagate into an already-cached record.
+        all[idx] = order.verified
+          ? { ...existing, ...order }
+          : {
+              ...existing,
+              status: order.status,
+              paymentStatus: order.paymentStatus,
+              trackingEvents: order.trackingEvents?.length ? order.trackingEvents : existing.trackingEvents,
+              customerEmail: existing.customerEmail || order.customerEmail,
+              customerPhone: existing.customerPhone || order.customerPhone,
+              shippingAddress: existing.shippingAddress || order.shippingAddress,
+              city: existing.city || order.city,
+              items: existing.items?.length ? existing.items : order.items,
+              total: order.total || existing.total,
+            };
       } else {
         all.unshift(order);
       }
@@ -477,6 +551,61 @@ export const orderStore = {
     }
     const found = readAll().find((o) => o.reference === reference) ?? null;
     return { order: found, source: "mock" };
+  },
+
+  /**
+   * Downloads one of an order's documents (receipt / tax-invoice / etr) through the backend's
+   * OTP-re-checked proxy — never a raw Cloudinary URL, so a forwarded/leaked link can't work
+   * forever the way a direct link in an email used to. See CustomerOrder's
+   * receiptAvailable/taxInvoiceAvailable/etrAvailable flags for what to offer.
+   */
+  async downloadTrackDocument(
+    reference: string, email: string, accessToken: string, type: "receipt" | "tax-invoice" | "etr",
+  ): Promise<Blob> {
+    const res = await fetch(
+      apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/documents/${type}`),
+      { headers: { "X-Order-Email": email, "X-Order-Access-Token": accessToken } },
+    );
+    if (!res.ok) throw new Error("That document isn't available right now.");
+    return res.blob();
+  },
+
+  /**
+   * Guest counterpart to refundStore.submit/getForOrder — for a checkout with no account, proven
+   * via the same OTP email+accessToken pair as document downloads above rather than a login
+   * session. See PublicOrderController's /track/{reference}/refund-request endpoints.
+   */
+  async submitTrackRefundRequest(
+    reference: string, email: string, accessToken: string,
+    input: { reason: string; desiredAction: RefundDesiredAction },
+  ): Promise<RefundRequest> {
+    const res = await fetch(
+      apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/refund-request`),
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Order-Email": email,
+          "X-Order-Access-Token": accessToken,
+        },
+        body: JSON.stringify(input),
+      },
+    );
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Couldn't submit your request right now.");
+    }
+    return (await res.json()) as RefundRequest;
+  },
+
+  async getTrackRefundRequest(reference: string, email: string, accessToken: string): Promise<RefundRequest | null> {
+    const res = await fetch(
+      apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/refund-request`),
+      { headers: { "X-Order-Email": email, "X-Order-Access-Token": accessToken } },
+    );
+    if (res.status === 404) return null;
+    if (!res.ok) return null;
+    return (await res.json()) as RefundRequest;
   },
 
   /**
@@ -525,8 +654,59 @@ export const orderStore = {
   },
 
   /** Public order tracking by reference (alias for getStatus). */
-  async trackByReference(reference: string, email?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
-    return this.getStatus(reference, email);
+  async trackByReference(reference: string, email?: string, accessToken?: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
+    return this.getStatus(reference, email, accessToken);
+  },
+
+  /** Step 1 of order-email OTP verification — always resolves, even if the email doesn't match. */
+  async sendOrderOtp(reference: string, email: string): Promise<void> {
+    try {
+      await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/send-otp`, {
+        method: "POST",
+        json: { email },
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+  },
+
+  /** Step 2 — throws with the backend's message on an invalid/expired code. */
+  async verifyOrderOtp(reference: string, email: string, otp: string): Promise<{ accessToken: string }> {
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/verify-otp`, {
+        method: "POST",
+        json: { email, otp },
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Invalid or expired code.");
+    }
+    return (await res.json()) as { accessToken: string };
+  },
+
+  /** Customer self-confirms receipt of a dispatched order — requires the same email+accessToken
+   *  pair verifyOrderOtp() returned, plus (for orders that have one) the code printed on the
+   *  receipt as proof the parcel is actually in hand, scanned or typed in. Response is the
+   *  refreshed, verified tracking record, same shape getStatus() normalizes. */
+  async confirmDelivery(reference: string, email: string, accessToken: string, scannedCode?: string): Promise<CustomerOrder> {
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/v1/orders/track/${encodeURIComponent(reference)}/confirm-delivery`, {
+        method: "POST",
+        json: { email, accessToken, scannedCode },
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as any).message ?? "Could not confirm delivery.");
+    }
+    return normalizeTrackingDto(await res.json());
   },
 
   /** Public order lookup by email (paginated, masked results). */

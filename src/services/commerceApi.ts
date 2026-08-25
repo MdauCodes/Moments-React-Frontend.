@@ -87,6 +87,7 @@ function normalizeOrder(raw: any): OrderRecord {
     // Backend field: status (OrderStatus enum) — pass through directly.
     // If the value arrives in an unexpected shape, default to PENDING_PAYMENT.
     status: (raw?.status as OrderStatus) ?? "PENDING_PAYMENT",
+    statusV2: raw?.statusV2 ?? null,
 
     // Backend field: paymentStatus (PaymentStatus enum).
     // Backend values: PENDING | PAID | FAILED | REFUNDED
@@ -114,7 +115,7 @@ function normalizeOrder(raw: any): OrderRecord {
     createdAt: raw?.createdAt ?? new Date().toISOString(),
     updatedAt: raw?.updatedAt ?? raw?.createdAt ?? new Date().toISOString(),
 
-    trackingNumber: raw?.trackingNumber,
+    tumabodaTrackingCode: raw?.tumabodaTrackingCode,
     notes: raw?.notes,
     staffNotes: raw?.staffNotes ?? "",
     assignedTo: raw?.assignedTo,
@@ -125,6 +126,7 @@ function normalizeOrder(raw: any): OrderRecord {
     taxableAmount: num(raw?.taxableAmount),
     vatRate: raw?.vatRate != null ? Number(raw.vatRate) : undefined,
     etrRequested: raw?.etrRequested ?? false,
+    documentBundleStatus: raw?.documentBundleStatus ?? null,
     documentsEmail: raw?.documentsEmail,
     promoCode: raw?.promoCode,
     paymentMethod: raw?.paymentMethod,
@@ -133,6 +135,19 @@ function normalizeOrder(raw: any): OrderRecord {
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
+    collectorName: raw?.collectorName,
+    deliveryFeeAmount: raw?.deliveryFeeAmount != null ? num(raw.deliveryFeeAmount) : undefined,
+    deliveryFeeStatus: raw?.deliveryFeeStatus,
+    deliveryFeeMethod: raw?.deliveryFeeMethod,
+    tumabodaStatus: raw?.tumabodaStatus,
+    tumabodaDeliveryId: raw?.tumabodaDeliveryId,
+    tumabodaDeliveryNumber: raw?.tumabodaDeliveryNumber,
+    tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
+    tumabodaRiderVerifiedAt: raw?.tumabodaRiderVerifiedAt,
+    tumabodaBookingFailureReason: raw?.tumabodaBookingFailureReason ?? null,
+    tumabodaContactPhone: raw?.tumabodaContactPhone ?? null,
+    customerConfirmedDeliveredAt: raw?.customerConfirmedDeliveredAt,
+    deliveryVerificationCode: raw?.deliveryVerificationCode ?? null,
     refundRequestedAt: raw?.refundRequestedAt,
     refundRequestReason: raw?.refundRequestReason,
     refundRequestedBy: raw?.refundRequestedBy,
@@ -152,6 +167,7 @@ function normalizeOrder(raw: any): OrderRecord {
 
 export interface ListOrdersParams {
   status?: string;
+  fulfillmentType?: string;
   q?: string;
   page?: number;
   size?: number;
@@ -307,6 +323,36 @@ export async function markOrderPaymentRefunded(
   return { order: normalizeOrder(raw), source: "live" };
 }
 
+// POST /api/v1/admin/orders/{id}/delivery-fee/stk-push
+export async function triggerDeliveryFeeStk(
+  id: string,
+  amount: number,
+  phone: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/delivery-fee/stk-push`, {
+    method: "POST",
+    body: JSON.stringify({ amount, phone }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/delivery-fee/record
+export async function recordDeliveryFeePaid(
+  id: string,
+  amount: number,
+  method: "SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD",
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/delivery-fee/record`, {
+    method: "POST",
+    body: JSON.stringify({ amount, method }),
+  });
+  if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
 // PATCH /api/v1/admin/orders/{id}/restore-inventory  (@IsAdmin only)
 export async function restoreOrderInventory(
   id: string,
@@ -319,9 +365,105 @@ export async function restoreOrderInventory(
   return { order: normalizeOrder(raw), source: "live" };
 }
 
+// GET /api/v1/admin/orders/{id}/delivery-note.pdf — the document carrying the delivery-
+// verification QR/code, for staff to print and physically attach to the parcel. Never emailed,
+// never Cloudinary-hosted — see DeliveryNotePdfService.
+export async function fetchDeliveryNote(id: string): Promise<Blob> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/delivery-note.pdf`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  return res.blob();
+}
+
+// POST /api/v1/admin/orders/{id}/override-delivery-confirmation  (@IsAdmin only)
+export async function overrideDeliveryConfirmation(
+  id: string,
+  note: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/override-delivery-confirmation`, {
+    method: "POST",
+    body: JSON.stringify({ note }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/retry-tumaboda-delivery
+export async function retryTumaBodaDelivery(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/retry-tumaboda-delivery`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// A stuck TumaBoda order (booking permanently failed, retrying won't help) — switches
+// fulfillmentType to MANUAL_DELIVERY and carries the already-charged delivery fee over as paid.
+export async function rerouteToManualDelivery(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/reroute-to-manual-delivery`, {
+    method: "PATCH",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+// POST /api/v1/admin/orders/{id}/scan-rider — staff scan the rider's QR at pickup
+// (TumaBoda identity verification; see PaymentService.scanRiderForOrder).
+export async function scanRiderForOrder(
+  id: string,
+  scannedCode: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/scan-rider`, {
+    method: "POST",
+    body: JSON.stringify({ scannedCode }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
 // ---------- Payments ----------
-// Removed: GET /api/v1/admin/payments does not exist on the backend.
-// Payment info is available on each order via paymentStatus / paymentMethod.
+
+/** A PaymentRecord still stuck in INITIATED/PROCESSING after the automatic STK reconciliation
+ *  sweep (every 10 minutes) has had a chance to resolve it — see PaymentService.listStuckPayments
+ *  and StkReconciliationJob on the backend. */
+export interface StuckPayment {
+  paymentRecordId: string;
+  orderId: string;
+  orderReference: string;
+  contactName: string;
+  phone: string;
+  amount: number;
+  status: string;
+  checkoutRequestId: string | null;
+  createdAt: string;
+  fulfillmentType: string | null;
+}
+
+export async function fetchStuckPayments(): Promise<StuckPayment[]> {
+  return getJson<StuckPayment[]>("/api/v1/admin/orders/stuck-payments");
+}
 
 
 // ---------- Dashboard ----------
@@ -789,6 +931,9 @@ export interface DeliveryPerformance {
   deliveryRatePercent: number;
   avgDeliveryHours: number;
   deliverySampleCount: number;
+  paidRevenue: number;
+  /** null when there were no paid orders of this type in range — not a misleading zero. */
+  avgOrderValue: number | null;
 }
 
 export interface DeliveryAnalytics {
@@ -897,12 +1042,29 @@ export interface SuspiciousAccount {
   accountsSharingIp: number;
 }
 
+export interface TumaBodaAttentionOrder {
+  orderId: string;
+  reference: string;
+  /** "NO_DELIVERY_CREATED" or "DELIVERY_FAILED"/"DELIVERY_RETURNED"/"DELIVERY_CANCELLED". */
+  reason: string;
+  createdAt: string;
+}
+
+export interface UnconfirmedDelivery {
+  orderId: string;
+  reference: string;
+  fulfillmentType: string | null;
+  createdAt: string;
+}
+
 export interface NeedsAttentionSummary {
   operationalAlerts: Alerts;
   lapsedCustomers: LapsedCustomer[];
   salesDropAlerts: SalesDropAlert[];
   underperformingProducts: UnderperformingProduct[];
   suspiciousAccounts: SuspiciousAccount[];
+  tumaBodaOrdersNeedingAttention: TumaBodaAttentionOrder[];
+  unconfirmedDeliveries: UnconfirmedDelivery[];
 }
 
 export async function getNeedsAttention(): Promise<NeedsAttentionSummary> {

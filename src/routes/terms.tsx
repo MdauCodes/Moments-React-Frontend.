@@ -1,4 +1,5 @@
 
+import { useEffect } from "react";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -116,12 +117,22 @@ export function getTermsContent() {
       id: "accounts",
       title: "Accounts",
       body: (
-        <p>
-          You are responsible for keeping your account password confidential and for all activity
-          under your account. Notify us immediately at{" "}
-          <a href={`mailto:${COMPANY_EMAIL}`}>{COMPANY_EMAIL}</a> if you suspect unauthorised
-          access.
-        </p>
+        <>
+          <p>
+            You are responsible for keeping your account password confidential and for all
+            activity under your account. Notify us immediately at{" "}
+            <a href={`mailto:${COMPANY_EMAIL}`}>{COMPANY_EMAIL}</a> if you suspect unauthorised
+            access.
+          </p>
+          <p>
+            You can view or delete the personal data we hold about you at any time — from your
+            account settings if you have an account, or via{" "}
+            <a href="/manage-my-data">View or delete your data</a> if you ordered as a guest, sent
+            us an enquiry, or joined our newsletter without an account. See our{" "}
+            <a href="/privacy">Privacy Policy</a> for the full details of your rights under the
+            Data Protection Act, 2019.
+          </p>
+        </>
       ),
     },
     {
@@ -345,10 +356,16 @@ export function getRewardsOfferContent() {
       </>
     ),
     sections: full.sections.filter((s) => ids.includes(s.id)),
+    related: [
+      { to: "/", label: "Home" },
+      { to: "/terms", label: "Full Terms of Service" },
+      { to: "/privacy", label: "Privacy Policy" },
+    ],
   };
 }
 
 function TermsPage() {
+  useEffect(() => { document.title = "Terms of Service — Moments Packaging Kenya"; }, []);
   const content = getTermsContent();
   return (
     <SiteLayout>

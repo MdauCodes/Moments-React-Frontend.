@@ -69,6 +69,27 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Accessibility text-scaling — see the --a11y-font-scale definition and its own comment further
+     down. Overriding Tailwind's own font-size theme tokens (rather than root font-size) is what
+     keeps this scoped to text only: every text-* utility reads its size from these variables at
+     runtime (confirmed live, not just in theory — a var() override here visibly changes rendered
+     text without a rebuild), while spacing/sizing utilities never reference them at all, so they
+     stay completely fixed. Base values are Tailwind's own unmodified defaults, just wrapped in a
+     calc() multiplying by the scale — nothing here changes the type scale itself at 1x. */
+  --text-xs: calc(0.75rem * var(--a11y-font-scale));
+  --text-sm: calc(0.875rem * var(--a11y-font-scale));
+  --text-base: calc(1rem * var(--a11y-font-scale));
+  --text-lg: calc(1.125rem * var(--a11y-font-scale));
+  --text-xl: calc(1.25rem * var(--a11y-font-scale));
+  --text-2xl: calc(1.5rem * var(--a11y-font-scale));
+  --text-3xl: calc(1.875rem * var(--a11y-font-scale));
+  --text-4xl: calc(2.25rem * var(--a11y-font-scale));
+  --text-5xl: calc(3rem * var(--a11y-font-scale));
+  --text-6xl: calc(3.75rem * var(--a11y-font-scale));
+  --text-7xl: calc(4.5rem * var(--a11y-font-scale));
+  --text-8xl: calc(6rem * var(--a11y-font-scale));
+  --text-9xl: calc(8rem * var(--a11y-font-scale));
 }
 
 :root {
@@ -505,7 +526,13 @@
    --color-* Tailwind aliases) is enough because @theme inline above already
    maps every Tailwind color utility to these same variables. */
 :root { --a11y-font-scale: 1; }
-html { font-size: calc(16px * var(--a11y-font-scale)); }
+/* Root font-size stays FIXED (not scaled) — it's the base every `rem` spacing/sizing utility
+   (p-4, gap-2, h-10, rounded-lg, icon h-5 w-5, etc.) resolves against, and those should never
+   move when a visitor grows text. Text itself scales via the --text-* overrides below instead,
+   which only affects font-size specifically. Found live: scaling root font-size (the previous
+   approach) reflowed the ENTIRE layout — padding, icons, gaps all grew together with text, which
+   read as "zooming" rather than a text-only resize. */
+html { font-size: 16px; }
 
 .a11y-reduce-motion *,
 .a11y-reduce-motion *::before,
@@ -711,4 +738,72 @@ html { font-size: calc(16px * var(--a11y-font-scale)); }
   letter-spacing: 0.08em;
 }
 .admin-section-heading .admin-badge { text-transform: none; letter-spacing: 0; }
+
+/* Admin: per-fulfillment-mode kanban board (FulfillmentBoard) */
+.admin-board-columns {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 4px 12px;
+  align-items: flex-start;
+}
+.admin-board-column {
+  flex: 0 0 224px;
+  background: var(--admin-surface);
+  border: 1px solid var(--admin-border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+}
+.admin-board-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--admin-border);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+}
+.admin-board-column-body {
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+  overflow-y: auto;
+}
+.admin-board-card {
+  background: var(--admin-bg, #fff);
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  padding: 8px 10px;
+  display: grid;
+  gap: 4px;
+  cursor: pointer;
+  text-align: left;
+}
+.admin-board-card:hover { border-color: var(--admin-accent); }
+.admin-board-card-exception { border-color: #dc2626; background: rgba(220, 38, 38, 0.06); }
+.admin-board-card-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 130px;
+}
+.admin-board-card-action button {
+  padding: 5px 10px !important;
+  font-size: 11.5px !important;
+  min-height: unset !important;
+}
+
+/* Below ~780px, horizontal-scrolling columns become hard to scan on touch — stack them full-width
+ * instead, matching the vertical card-list pattern the rest of the admin panel already uses on
+ * mobile. Each column keeps its own internal scroll only on desktop; stacked, the page itself
+ * scrolls instead. */
+@media (max-width: 780px) {
+  .admin-board-columns { flex-direction: column; overflow-x: visible; }
+  .admin-board-column { flex-basis: auto; width: 100%; max-height: none; }
+  .admin-board-column-body { max-height: 60vh; }
+}
 

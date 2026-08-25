@@ -6,6 +6,7 @@ import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
 import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
 import { WelcomeStarterModal } from "@/components/WelcomeStarterModal";
+import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
@@ -16,37 +17,37 @@ import { LatestBlogsStrip } from "@/components/blog/LatestBlogsStrip";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
-import catPaperBagsImg from "@/assets/categories/cat-paper-bags.jpg";
-import catBoxesCartonsImg from "@/assets/categories/cat-boxes-cartons.jpg";
-import catCupsSleevesImg from "@/assets/categories/cat-cups-sleeves.jpg";
-import catMailersPouchesImg from "@/assets/categories/cat-mailers-pouches.jpg";
-import catLabelsStickersImg from "@/assets/categories/cat-labels-stickers.jpg";
-import catFoodContainersImg from "@/assets/categories/cat-food-containers.jpg";
-import catGiftEventImg from "@/assets/categories/cat-gift-event.jpg";
-import catBeautyPharmaImg from "@/assets/categories/cat-beauty-pharma.jpg";
+import catPaperBagsImg from "@/assets/categories/cat-paper-bags.webp";
+import catBoxesCartonsImg from "@/assets/categories/cat-boxes-cartons.webp";
+import catCupsSleevesImg from "@/assets/categories/cat-cups-sleeves.webp";
+import catMailersPouchesImg from "@/assets/categories/cat-mailers-pouches.webp";
+import catLabelsStickersImg from "@/assets/categories/cat-labels-stickers.webp";
+import catFoodContainersImg from "@/assets/categories/cat-food-containers.webp";
+import catGiftEventImg from "@/assets/categories/cat-gift-event.webp";
+import catBeautyPharmaImg from "@/assets/categories/cat-beauty-pharma.webp";
 // Segment photos — filenames match backend Segment.name exactly (see SEGMENT_IMAGES below).
-import segFoodPackagingImg from "@/assets/categories/food packaging segment photo.jpeg";
-import segDisposableTablewareImg from "@/assets/categories/disposable tablesware.png";
-import segCutleryImg from "@/assets/categories/cutlery.png";
-import segDrinksPackagingImg from "@/assets/categories/drinks packaging.png";
-import segKitchenTableImg from "@/assets/categories/kitchen and table.png";
-import segWoodenAccessoriesImg from "@/assets/categories/wooden accessories.png";
-import segHygieneImg from "@/assets/categories/hygiene.png";
-import segBagsSacksImg from "@/assets/categories/bags and sacks.png";
-import segGeneralSuppliesImg from "@/assets/categories/general supplies.png";
-import segCustomBrandingImg from "@/assets/categories/stickers and labels.png";
-import segCosmeticsImg from "@/assets/categories/cosmetics.png";
-import segAgricultureImg from "@/assets/categories/agriculture.png";
-import segDairyImg from "@/assets/categories/Dairy.png";
-import segPharmacyImg from "@/assets/categories/Pharmacy.png";
+import segFoodPackagingImg from "@/assets/categories/food packaging segment photo.webp";
+import segDisposableTablewareImg from "@/assets/categories/disposable tablesware.webp";
+import segCutleryImg from "@/assets/categories/cutlery.webp";
+import segDrinksPackagingImg from "@/assets/categories/drinks packaging.webp";
+import segKitchenTableImg from "@/assets/categories/kitchen and table.webp";
+import segWoodenAccessoriesImg from "@/assets/categories/wooden accessories.webp";
+import segHygieneImg from "@/assets/categories/hygiene.webp";
+import segBagsSacksImg from "@/assets/categories/bags and sacks.webp";
+import segGeneralSuppliesImg from "@/assets/categories/general supplies.webp";
+import segCustomBrandingImg from "@/assets/categories/stickers and labels.webp";
+import segCosmeticsImg from "@/assets/categories/cosmetics.webp";
+import segAgricultureImg from "@/assets/categories/agriculture.webp";
+import segDairyImg from "@/assets/categories/Dairy.webp";
+import segPharmacyImg from "@/assets/categories/Pharmacy.webp";
 import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
 import { filterVisibleIndustries } from "@/data/products";
-import cloudV3 from "@/assets/packaging-cloud-hero-v3.png";
-import cloudKraft from "@/assets/packaging-cloud-hero.png";
-import ecoCluster from "@/assets/company-profile/eco-packaging-cluster.png";
+import cloudV3 from "@/assets/packaging-cloud-hero-v3.webp";
+import cloudKraft from "@/assets/packaging-cloud-hero.webp";
+import ecoCluster from "@/assets/company-profile/eco-packaging-cluster.webp";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 
 const SPLASH_KEY = "moments_splash_shown";
@@ -122,6 +123,9 @@ function HomeNav() {
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
           <Link to="/company-profile" className="hover:opacity-80">
             About Us
+          </Link>
+          <Link to="/privacy" className="hover:opacity-80">
+            Privacy Policy
           </Link>
           <Link to="/sustainability" className="hover:opacity-80">
             Our Sustainability Pledge
@@ -244,6 +248,8 @@ function Hero() {
         <img
           src={cloudKraft}
           alt="A cluster of kraft paper packaging — bags, boxes, cups"
+          loading="lazy"
+          decoding="async"
           className="mpk-hero-img-b absolute pointer-events-none select-none"
           style={{
             zIndex: 1,
@@ -255,6 +261,8 @@ function Hero() {
         <img
           src={ecoCluster}
           alt="Eco-friendly food packaging — kraft bags, containers, cups and bagasse plates"
+          loading="lazy"
+          decoding="async"
           className="mpk-hero-img-c absolute pointer-events-none select-none"
           style={{
             zIndex: 1,
@@ -316,7 +324,7 @@ function Hero() {
                 <span key={`${item}-${idx}`} className="flex items-center" style={{ gap: "22px" }}>
                   <span
                     style={{
-                      fontSize: "11px",
+                      fontSize: "calc(11px * var(--a11y-font-scale))",
                       letterSpacing: "0.04em",
                       color: "rgba(255,255,255,0.94)",
                       fontWeight: 500,
@@ -350,7 +358,7 @@ function Hero() {
             <p
               className="uppercase font-medium"
               style={{
-                fontSize: "10px",
+                fontSize: "calc(10px * var(--a11y-font-scale))",
                 letterSpacing: "0.18em",
                 color: "rgba(255,255,255,0.8)",
                 marginBottom: "18px",
@@ -361,31 +369,31 @@ function Hero() {
             <h1
               className="font-display"
               style={{
-                fontSize: "clamp(28px, 3.8vw, 42px)",
+                fontSize: "calc(clamp(28px, 3.8vw, 42px) * var(--a11y-font-scale))",
                 lineHeight: 1.1,
                 letterSpacing: "-0.03em",
                 color: "white",
                 fontWeight: 500,
               }}
             >
-              Packaging for
+              Packaging Solutions for
               <br />
-              Kenyan brands —<br />
+              Kenyan Businesses —<br />
               <em className="italic" style={{ color: "#e8c878" }}>
-                unforgettable. Utafurahia
+                Quality You'll Love. Utafurahia
               </em>
             </h1>
             <p
               style={{
-                fontSize: "14px",
+                fontSize: "calc(14px * var(--a11y-font-scale))",
                 lineHeight: 1.7,
                 color: "rgba(255,255,255,0.88)",
                 maxWidth: "400px",
                 margin: "22px 0 30px",
               }}
             >
-              Bags, boxes, cups and more — order online, pay with M-Pesa. Delivered same day within Nairobi, up to 3
-              days countrywide.
+              Cups, containers, bags, and more — order online and pay via M-Pesa. Enjoy same-day delivery within
+              Nairobi and delivery within 3 days countrywide.
             </p>
             <div className="flex flex-col md:flex-row gap-3 max-w-sm md:max-w-none">
               <Link
@@ -396,7 +404,7 @@ function Hero() {
                   color: "#0d3320",
                   borderRadius: "10px",
                   padding: "15px 30px",
-                  fontSize: "15px",
+                  fontSize: "calc(15px * var(--a11y-font-scale))",
                 }}
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
@@ -468,7 +476,7 @@ function Hero() {
                   className="inline-block rounded-full"
                   style={{ width: "6px", height: "6px", background: "#00A651" }}
                 />
-                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
+                <span style={{ fontSize: "calc(11px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
               </div>
             </div>
           </div>
@@ -503,10 +511,10 @@ function TrustBar() {
             className="text-center flex-1"
             style={{ borderRight: i < TRUST_STATS.length - 1 ? "1px solid rgba(255,255,255,0.07)" : "none" }}
           >
-            <div className="font-display" style={{ fontSize: "27px", color: "var(--accent)" }}>
+            <div className="font-display" style={{ fontSize: "calc(27px * var(--a11y-font-scale))", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "13px", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "calc(13px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -521,10 +529,10 @@ function TrustBar() {
               borderBottom: i < arr.length - 2 ? "1px solid rgba(255,255,255,0.06)" : "none",
             }}
           >
-            <div className="font-display" style={{ fontSize: "20px", color: "var(--accent)" }}>
+            <div className="font-display" style={{ fontSize: "calc(20px * var(--a11y-font-scale))", color: "var(--accent)" }}>
               {s.num}
             </div>
-            <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
+            <div style={{ fontSize: "calc(12px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.82)", marginTop: "4px" }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -574,12 +582,12 @@ function CategoryRow() {
                 <ind.icon style={{ color: "var(--accent)" }} strokeWidth={1.7} className="h-5 w-5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate" style={{ fontSize: "13px", fontWeight: 500, color: "var(--ink)" }}>
+                <span className="block truncate" style={{ fontSize: "calc(13px * var(--a11y-font-scale))", fontWeight: 500, color: "var(--ink)" }}>
                   {ind.name}
                 </span>
                 <span
                   className="block truncate"
-                  style={{ fontSize: "10.5px", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
+                  style={{ fontSize: "calc(10.5px * var(--a11y-font-scale))", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
                 >
                   {ind.description}
                 </span>
@@ -597,6 +605,7 @@ function CategoryRow() {
 type ProductRowProps = {
   eyebrow: string;
   title: string;
+  desc?: string;
   seeAllHref?: string;
   fetcher: () => Promise<Product[]>;
   bg?: "background" | "cream";
@@ -604,7 +613,7 @@ type ProductRowProps = {
 
 /** A horizontally-scannable row of products — the homepage can stack several of these,
  * matching the multi-row catalogue feel of Kilimall/Jumia-style marketplaces. */
-function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "background" }: ProductRowProps) {
+function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, bg = "background" }: ProductRowProps) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [configuring, setConfiguring] = useState<Product | null>(null);
   const [preTier, setPreTier] = useState<string | null>(null);
@@ -637,6 +646,7 @@ function ProductRow({ eyebrow, title, seeAllHref = "/products", fetcher, bg = "b
           <div>
             <p className="text-[11px] uppercase tracking-[0.25em] text-accent">{eyebrow}</p>
             <h2 className="mt-2 font-display text-2xl font-medium text-foreground sm:text-3xl">{title}</h2>
+            {desc && <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">{desc}</p>}
           </div>
           <Link
             to={seeAllHref}
@@ -759,7 +769,7 @@ function CategoryGrid() {
 const CAROUSEL_TABS = [
   { key: "deals", eyebrow: "Save today", title: "Deals", cta: "Shop the deal", seeAllHref: "/products?deals=true", bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)", fetcher: () => api.getProducts({ isDiscount: true, size: 8 }) },
   { key: "new", eyebrow: "Just landed", title: "New arrivals", cta: "Shop new arrivals", seeAllHref: "/products?newArrivals=true", bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)", fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }) },
-  { key: "best", eyebrow: "Customer favourites", title: "Best sellers", cta: "Shop best sellers", seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
+  { key: "best", eyebrow: "Customer Favourites", title: "Best Sellers", cta: "Shop Best Sellers", seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
 ];
 
 function PromoCarousel() {
@@ -955,6 +965,7 @@ function HomePage() {
     <>
       <FirstVisitSplash />
       <WelcomeStarterModal />
+      <CookieConsent />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
         <AddToHomeScreenPrompt />
@@ -979,8 +990,9 @@ function HomePage() {
             bg="cream"
           />
           <ProductRow
-            eyebrow="Customer favourites"
-            title="Best sellers"
+            eyebrow="Customer Favourites"
+            title="Best Sellers"
+            desc="Discover some of our most popular packaging products, carefully selected and refreshed regularly to bring you the products customers love most."
             seeAllHref="/products?fastMoving=true"
             fetcher={() => api.getProducts({ isFastMoving: true, size: 8 })}
             bg="background"

@@ -38,6 +38,9 @@ export interface OrderRecord {
   id: string;
   reference: string;
   status: OrderStatus;
+  /** Per-fulfillment-mode status (see src/lib/orderStatusV2.ts) — null for orders not yet
+   *  backfilled; callers fall back to `status`. */
+  statusV2?: string | null;
   paymentStatus: PaymentStatus;
   paymentGateway: PaymentGateway;
   customerName: string;
@@ -55,7 +58,9 @@ export interface OrderRecord {
   currency: "KES";
   createdAt: string;
   updatedAt: string;
-  trackingNumber?: string;
+  /** Real backend field (OrderDto.tumabodaTrackingCode) — the code TumaBoda's tracking iframe
+   *  URL is built from. See TumaBodaTrackingWidget. */
+  tumabodaTrackingCode?: string;
   notes?: string;
   staffNotes?: string;
   assignedTo?: string;
@@ -66,16 +71,46 @@ export interface OrderRecord {
   taxableAmount?: number;
   vatRate?: number;
   etrRequested?: boolean;
+  /** Only set once etrRequested and an admin has uploaded the ETR at least once — PENDING/SENT/FAILED/EXPIRED. */
+  documentBundleStatus?: string | null;
   documentsEmail?: string;
   courierType?: string;
   courierServiceName?: string;
   courierStageOrOffice?: string;
+  collectorName?: string;
   promoCode?: string;
   paymentMethod?: string;
   fulfillmentType?: string;
   /** Sandbox/test-mode system — true only for orders placed by a designated internal test
    *  account. Never real revenue; shown as a "TEST" badge, filterable in the Orders list. */
   isTestOrder?: boolean;
+  /** Manual Delivery fee — agreed by phone after placement, never charged at checkout. */
+  deliveryFeeAmount?: number;
+  deliveryFeeStatus?: "UNPAID" | "PENDING_STK" | "PAID";
+  deliveryFeeMethod?: "SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD";
+  /** TumaBoda-fulfilled delivery visibility. */
+  tumabodaStatus?: string;
+  /** Null on a paid TUMABODA_DELIVERY order means delivery creation failed at payment time and
+   *  never retried — see AdminOrderController's retry-tumaboda-delivery action. */
+  tumabodaDeliveryId?: string;
+  tumabodaDeliveryNumber?: string;
+  tumabodaCost?: number;
+  /** Set when staff scan the rider's QR code at pickup (TumaBoda identity verification) — see
+   *  PaymentService.scanRiderForOrder. */
+  tumabodaRiderVerifiedAt?: string;
+  /** Non-null immediately after a TumaBoda booking attempt fails — check this right after a
+   *  "mark ready"/"dispatch confirm" response and surface it as an immediate error. */
+  tumabodaBookingFailureReason?: string | null;
+  /** Number the customer manually typed at checkout specifically for TumaBoda to contact them
+   *  on — distinct from the order's main `phone` (M-Pesa number), which may legitimately differ. */
+  tumabodaContactPhone?: string | null;
+  /** Set when the customer self-confirms receipt on the track-order page — see
+   *  OrderService.confirmDelivery. Distinct from any courier/staff-driven status. */
+  customerConfirmedDeliveredAt?: string;
+  /** Admin-only — never exposed to the customer. Staff can read this back to a customer over the
+   *  phone (having confirmed their identity some other way) if they've lost their receipt, so the
+   *  customer still self-confirms rather than needing a staff override. */
+  deliveryVerificationCode?: string | null;
   refundRequestedAt?: string;
   refundRequestReason?: string;
   refundRequestedBy?: string;

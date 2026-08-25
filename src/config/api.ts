@@ -3,6 +3,15 @@
 // INTENTIONALLY DIFFERENT ON EACH BRANCH — do not merge this line between `main` and `staging`.
 // `main` always points at the production Railway backend; `staging` always points at staging.
 // When merging one branch into the other, keep the target branch's own URL below.
+//
+// NOTE (carried over from staging, worth revisiting here): staging uses a custom domain
+// (api-staging.momentspackaging.com) sharing a registrable domain with its frontend, specifically
+// so the httpOnly auth cookie (see AuthCookieService) is first-party — Safari's Intelligent
+// Tracking Prevention blocks third-party cookies unconditionally. Production still points at the
+// raw *.up.railway.app URL below, cross-domain from momentspackaging.com — matches this
+// codebase's own documented architecture (_adminAuth.admin.architecture.tsx) and hasn't been a
+// reported problem, but if Safari login issues ever surface on production, this domain mismatch
+// is the first thing to check.
 export const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
 
 // Backwards-compatible aliases — existing modules import these.
@@ -35,23 +44,38 @@ export function getSessionId(): string {
   return id;
 }
 
-// ---------- Auth token (JWT in localStorage) ----------
-const TOKEN_KEY = "mpk_access_token";
+// ---------- Admin impersonation token ----------
+// Lives here (not in AuthContext) so apiFetch can read it without a circular import — it's a
+// plain sessionStorage read, no React dependency. Tab-scoped and deliberately NOT part of the
+// cookie-based session below: an admin previewing a customer's dashboard in a new tab must never
+// collide with or be upgradeable into a real login, and a cookie (shared across tabs on the same
+// origin) can't provide that isolation the way a sessionStorage-held bearer token can.
+const IMPERSONATION_KEY = "mpk_impersonation_token";
 
-export function getAuthToken(): string | null {
+export function getImpersonationToken(): string | null {
   if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(TOKEN_KEY);
+  try {
+    return window.sessionStorage.getItem(IMPERSONATION_KEY);
+  } catch {
+    return null;
+  }
 }
 
-export function setAuthToken(token: string | null): void {
+export function setImpersonationToken(token: string | null): void {
   if (typeof window === "undefined") return;
-  if (token) window.localStorage.setItem(TOKEN_KEY, token);
-  else window.localStorage.removeItem(TOKEN_KEY);
+  try {
+    if (token) window.sessionStorage.setItem(IMPERSONATION_KEY, token);
+    else window.sessionStorage.removeItem(IMPERSONATION_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 // ---------- Unified fetch helper ----------
 export interface ApiFetchOptions extends RequestInit {
-  /** Attach Authorization: Bearer <token> if a token is stored */
+  /** Attach Authorization: Bearer <token> when impersonating; otherwise a no-op — the customer's
+   *  own session travels via the httpOnly cookie automatically (credentials: 'include' below),
+   *  not a header this code can read. */
   auth?: boolean;
   /** Attach X-Session-Id header (anonymous cart) */
   session?: boolean;
@@ -66,8 +90,8 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
     h.set("Content-Type", "application/json");
   }
   if (auth) {
-    const t = getAuthToken();
-    if (t) h.set("Authorization", `Bearer ${t}`);
+    const impersonation = getImpersonationToken();
+    if (impersonation) h.set("Authorization", `Bearer ${impersonation}`);
   }
   if (session) {
     h.set("X-Session-Id", getSessionId());
@@ -75,6 +99,10 @@ export async function apiFetch(path: string, opts: ApiFetchOptions = {}): Promis
   return fetch(apiUrl(path), {
     ...rest,
     headers: h,
+    // Always included, not just when `auth` is set — the cookie only exists at all for a real
+    // logged-in customer, so this is a no-op for anonymous calls and correct for authenticated
+    // ones without every call site needing to remember to opt in.
+    credentials: "include",
     body: json !== undefined ? JSON.stringify(json) : body,
   });
 }

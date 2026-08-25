@@ -22,7 +22,7 @@ interface ConsentCheckboxProps {
 export function ConsentCheckbox({
   checked,
   onCheckedChange,
-  purpose = "respond to your request",
+  purpose = "respond to my request",
   variant = "default",
   className,
   id = "dpa-consent",

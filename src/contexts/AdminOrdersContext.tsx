@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { listOrders } from "@/services/commerceApi";
 import type { OrderRecord } from "@/services/commerceMock";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
 
 interface AdminOrdersContextValue {
   orders: OrderRecord[];
@@ -29,8 +30,15 @@ interface AdminOrdersContextValue {
 
 const AdminOrdersContext = createContext<AdminOrdersContextValue | undefined>(undefined);
 
-const POLL_INTERVAL_MS = 60_000;
-const PAGE_SIZE = 100;
+const POLL_INTERVAL_MS = 20_000;
+// Every consumer of this context (Orders page's delivery-mode tabs, dispatch/preparation/payment
+// queues, the dashboard, dev-tools) filters client-side over this one fetched batch — past this
+// many total orders, a filter can silently miss real matches sitting on a page never fetched.
+// Bumped from 100 as an immediate mitigation; the real fix (server-side pagination per view,
+// e.g. the Orders page's fulfillmentType tabs using the backend's already-supported query param
+// instead of an in-memory filter) needs its own pass since this context is shared by 7+ pages —
+// changing its fetch contract isn't safe to do as a drive-by.
+const PAGE_SIZE = 500;
 
 export function AdminOrdersProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAdminAuth();
@@ -49,7 +57,12 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
     const p = (async () => {
       try {
         const res = await listOrders({ size: PAGE_SIZE, page: 0 });
-        setOrders(res.rows);
+        // Oldest first — the order staff should actually work through them in, not newest-first
+        // (which buries the ones that have been waiting longest at the bottom of every queue).
+        const sorted = [...res.rows].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+        );
+        setOrders(sorted);
         setLastUpdatedAt(Date.now());
         setError(null);
         hasLoadedRef.current = true;
@@ -68,7 +81,7 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
     return p;
   }, [isAuthenticated]);
 
-  // Initial fetch + polling
+  // Initial fetch
   useEffect(() => {
     if (!isAuthenticated) {
       setOrders([]);
@@ -77,9 +90,13 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
       return;
     }
     void refresh();
-    const t = window.setInterval(() => void refresh(), POLL_INTERVAL_MS);
-    return () => window.clearInterval(t);
   }, [isAuthenticated, refresh]);
+
+  // Background polling — pauses entirely while the tab is hidden instead of wastefully
+  // refetching a backgrounded panel every 20s.
+  useVisibilityInterval(() => {
+    if (isAuthenticated) void refresh();
+  }, POLL_INTERVAL_MS);
 
   // Refetch on tab focus
   useEffect(() => {

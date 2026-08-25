@@ -20,14 +20,22 @@ import { useSiteConfig } from "@/contexts/SiteConfigContext";
 
 
 
+// Matches the backend's legacy OrderStatus enum (order/entity/OrderStatus.java) — this page
+// stays on that shared 9-value model rather than the new per-fulfillment-mode statuses (see
+// src/lib/orderStatusV2.ts), since it's a separate legacy page with its own mock-data-first
+// Order type (no fulfillmentType field) — folding it into the new system would mean giving it
+// that field and a live-data rewrite, disproportionate to fixing its type drift from the real
+// backend enum. Previously missing PAYMENT_VERIFIED/REFUNDED, which the real backend can send.
 type OrderStatus =
   | "PENDING_PAYMENT"
   | "PAID"
+  | "PAYMENT_VERIFIED"
   | "IN_PRODUCTION"
   | "READY_FOR_DISPATCH"
   | "DISPATCHED"
   | "DELIVERED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "REFUNDED";
 
 interface OrderItem {
   productName: string;
@@ -85,42 +93,50 @@ interface DashboardStats {
 const STATUS_LABEL: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "Pending Payment",
   PAID: "Paid",
+  PAYMENT_VERIFIED: "Payment Verified",
   IN_PRODUCTION: "In Production",
   READY_FOR_DISPATCH: "Ready",
   DISPATCHED: "Dispatched",
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
+  REFUNDED: "Refunded",
 };
 
 const STATUS_COLOR: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "bg-[#c4622d]/10 text-[#c4622d]",
   PAID: "bg-blue-100 text-blue-700",
+  PAYMENT_VERIFIED: "bg-teal-100 text-teal-700",
   IN_PRODUCTION: "bg-[#a07850]/15 text-[#a07850]",
   READY_FOR_DISPATCH: "bg-amber-100 text-amber-800",
   DISPATCHED: "bg-indigo-100 text-indigo-700",
   DELIVERED: "bg-[#2d4a3e]/10 text-[#2d4a3e]",
   CANCELLED: "bg-red-100 text-red-700",
+  REFUNDED: "bg-rose-100 text-rose-700",
 };
 
 const TABS: Array<{ key: OrderStatus | "ALL"; label: string }> = [
   { key: "ALL", label: "All" },
   { key: "PENDING_PAYMENT", label: "Pending Payment" },
   { key: "PAID", label: "Paid" },
+  { key: "PAYMENT_VERIFIED", label: "Payment Verified" },
   { key: "IN_PRODUCTION", label: "In Production" },
   { key: "READY_FOR_DISPATCH", label: "Ready" },
   { key: "DISPATCHED", label: "Dispatched" },
   { key: "DELIVERED", label: "Delivered" },
   { key: "CANCELLED", label: "Cancelled" },
+  { key: "REFUNDED", label: "Refunded" },
 ];
 
 const NEXT_STATUSES: Record<OrderStatus, OrderStatus[]> = {
   PENDING_PAYMENT: ["PAID", "CANCELLED"],
-  PAID: ["IN_PRODUCTION", "CANCELLED"],
+  PAID: ["PAYMENT_VERIFIED", "IN_PRODUCTION", "CANCELLED"],
+  PAYMENT_VERIFIED: ["IN_PRODUCTION", "CANCELLED"],
   IN_PRODUCTION: ["READY_FOR_DISPATCH", "CANCELLED"],
   READY_FOR_DISPATCH: ["DISPATCHED", "CANCELLED"],
   DISPATCHED: ["DELIVERED", "CANCELLED"],
   DELIVERED: [],
   CANCELLED: [],
+  REFUNDED: [],
 };
 
 const MOCK_STATS: DashboardStats = {
@@ -375,7 +391,7 @@ function StaffDashboard({ refresh }: { refresh: () => Promise<string | null> }) 
     <main className="min-h-screen bg-background px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-[1400px]">
         <header className="mb-6">
-          <h1 className="font-serif text-2xl text-foreground sm:text-3xl">Staff orders</h1>
+          <h1 className="font-display text-2xl text-foreground sm:text-3xl">Staff orders</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Manage live orders, payments and dispatch.
           </p>
@@ -478,7 +494,7 @@ function StatCard({
         {loading ? (
           <Skeleton className="h-8 w-24" />
         ) : (
-          <div className={`font-serif text-2xl sm:text-3xl ${color}`}>{value ?? "—"}</div>
+          <div className={`font-display text-2xl sm:text-3xl ${color}`}>{value ?? "—"}</div>
         )}
       </div>
     </div>

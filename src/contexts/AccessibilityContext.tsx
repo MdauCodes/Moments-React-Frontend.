@@ -23,11 +23,18 @@ const FONT_SCALE_STEP = 0.125;
 const LINE_HEIGHT_VALUES = [1.5, 1.8, 2.15] as const;
 const DYSLEXIA_FONT_HREF = "https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible&display=swap";
 
-// Site loads at the smallest available size by default — visitors who want
-// larger text can size up from here via the existing +/- controls, rather
-// than the reverse (starting large, having to size down).
+// Found live: defaulting to the SMALLEST available size (this comment used to argue for it —
+// "visitors who want larger text can size up from here") meant every visitor, whether or not
+// they'd ever touch the accessibility toolbar, saw text ~15% smaller than a normal 16px root
+// (checkout body text was rendering as small as 10-11px real pixels). Real e-commerce sites
+// (checked Jumia's and Amazon's own live sites) run their root at a plain, un-scaled 16px and
+// size individual text down deliberately in their own CSS from there — this site's Tailwind
+// classes were designed the same way, so shrinking the root on top of that was compounding, not
+// intentional. Neutral (1 = 100%, the browser/CSS default) is the correct starting point; the
+// toolbar's own +/- controls (down to FONT_SCALE_MIN, up to FONT_SCALE_MAX) are what should
+// carry a visitor's own preference from here, not this default.
 const DEFAULT_PREFS: A11yPrefs = {
-  fontScale: FONT_SCALE_MIN,
+  fontScale: 1,
   highContrast: false,
   reduceMotion: false,
   underlineLinks: false,

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from "react";
-import { apiUrl, setAuthToken, getAuthToken, getSessionId } from "@/config/api";
+import { apiUrl, getImpersonationToken, getSessionId } from "@/config/api";
 
 export interface AuthUser {
   id: string;
@@ -12,6 +12,9 @@ export interface AuthUser {
 
 interface AuthContextValue {
   user: AuthUser | null;
+  /** No longer a real bearer token — the session lives in an httpOnly cookie this code can't
+   *  read. Kept as a truthy/falsy signal for existing callers; use `isAuthenticated` instead of
+   *  checking this directly. */
   accessToken: string | null;
   isAuthenticated: boolean;
   isCustomer: boolean;
@@ -20,7 +23,9 @@ interface AuthContextValue {
   login: (email: string, password: string, turnstileToken?: string) => Promise<AuthUser | null>;
   logout: () => Promise<void>;
   refreshToken: () => Promise<string | null>;
-  setSession: (accessToken: string, refreshTokenValue?: string) => void;
+  /** Called after register/verify-email — the backend already set the session cookie in its
+   *  response, this just updates local state with the user info the same response carried. */
+  setSession: (user: AuthUser) => void;
   /** True when this tab is an admin previewing a customer's dashboard (see impersonateCustomer). */
   isImpersonating: boolean;
   exitImpersonation: () => void;
@@ -34,12 +39,13 @@ interface AuthContextValue {
   loginSessionId: string | null;
 }
 
-const RT_KEY = "mpk_rt";
 const REFRESH_INTERVAL_MS = 840_000; // 14 min
 
-// Impersonation lives in sessionStorage (tab-scoped, never localStorage) so an admin
+// Impersonation lives in sessionStorage (tab-scoped, never localStorage/cookies) so an admin
 // previewing a customer's dashboard in a new tab can never collide with or overwrite a real
-// customer/admin session sitting in that browser's localStorage — closing the tab discards it.
+// customer/admin session — closing the tab discards it. See config/api.ts's Javadoc-equivalent
+// comment on getImpersonationToken for why this stays bearer-token-based rather than moving to
+// the cookie session below.
 const IMPERSONATION_KEY = "mpk_impersonation_token";
 
 // See loginSessionId's doc comment on AuthContextValue for why this exists.
@@ -72,15 +78,6 @@ function clearLoginSessionNonce(): void {
   }
 }
 
-function readImpersonationToken(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage.getItem(IMPERSONATION_KEY);
-  } catch {
-    return null;
-  }
-}
-
 // Reads a one-time ?impersonate=<token> param (set by the admin "Preview dashboard" button),
 // moves it into sessionStorage, and strips it from the visible URL so it never lingers in
 // history/bookmarks.
@@ -102,23 +99,29 @@ function bootstrapImpersonationFromUrl(): string | null {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Module-scoped access token mirror (kept in sync with localStorage)
-let accessTokenMem: string | null = null;
+// Module-scoped mirror of "do we believe a cookie session is active" — kept in sync with React
+// state so getAccessToken() (called from many places outside any component, purely as a
+// truthy/falsy signal) doesn't need its own subscription. Never holds a real token value; the
+// httpOnly cookie is the only place the actual credential exists.
+let sessionActiveMem = false;
+
 export function getAccessToken(): string | null {
-  return readImpersonationToken() ?? accessTokenMem ?? getAuthToken();
+  const impersonation = getImpersonationToken();
+  if (impersonation) return impersonation;
+  return sessionActiveMem ? "cookie-session" : null;
 }
 
-// Decode JWT payload and extract AuthUser from claims.
-// Returns null if token is missing, malformed, or expired.
-function decodeJwt(token: string | null): AuthUser | null {
+// Decode JWT payload — used ONLY for the impersonation token, which is deliberately a plain,
+// client-visible bearer token by design (see getImpersonationToken's Javadoc-equivalent comment).
+// The real login session is never decoded client-side anymore; AuthUserDto in the response body
+// (or GET /auth/me) is the sole source of user info.
+function decodeImpersonationJwt(token: string | null): AuthUser | null {
   if (!token) return null;
   try {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-    // Check expiry
     if (payload.exp && payload.exp * 1000 < Date.now()) return null;
-    // Must have the claims we added in JwtService
     if (!payload.sub || !payload.userId || !payload.firstName) return null;
     return {
       id: payload.userId,
@@ -133,28 +136,49 @@ function decodeJwt(token: string | null): AuthUser | null {
   }
 }
 
+// Shared, de-duplicated refresh — module-level (not per-component) so authFetch's automatic
+// retry-on-401 and AuthProvider's own mount-time/interval refresh always share one in-flight
+// request instead of each firing its own. Without this, N components/requests hitting a 401 at
+// once each independently POST /auth/refresh with the same (single-use, rotating) refresh
+// cookie — only the first actually succeeds server-side, and the rest look like session-expired
+// to whichever caller loses the race. Returns true/false (session refreshed or not) rather than
+// a token, since the cookie is httpOnly — refreshing it isn't something JS can observe directly.
+let inFlightRefresh: Promise<boolean> | null = null;
+
+async function performRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(apiUrl("/api/v1/auth/refresh"), { method: "POST", credentials: "include" });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+function sharedRefresh(): Promise<boolean> {
+  if (!inFlightRefresh) {
+    inFlightRefresh = performRefresh().finally(() => {
+      inFlightRefresh = null;
+    });
+  }
+  return inFlightRefresh;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Initialise user instantly from existing token — no network call needed
-  const [user, setUser] = useState<AuthUser | null>(() => decodeJwt(getAuthToken()));
-  const [accessToken, setAccessTokenState] = useState<string | null>(getAuthToken());
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [sessionActive, setSessionActiveState] = useState(false);
   const [impersonationToken, setImpersonationToken] = useState<string | null>(
-    () => bootstrapImpersonationFromUrl() ?? readImpersonationToken(),
+    () => bootstrapImpersonationFromUrl() ?? getImpersonationToken(),
   );
-  // Not minted fresh on every mount — a plain page reload keeps the same sessionStorage value
-  // (correct: that's still the same login session). Only login()/setSession() mint a new one.
-  // The one exception: an already-authenticated user whose session predates this field existing
-  // gets one minted silently here so downstream consumers always have a stable value to compare
-  // against, without that first-mint being treated as a fresh login for dismissal purposes.
-  const [loginSessionId, setLoginSessionId] = useState<string | null>(() => {
-    const existing = readLoginSessionNonce();
-    if (existing) return existing;
-    return getAuthToken() ? mintLoginSessionNonce() : null;
-  });
+  const [loginSessionId, setLoginSessionId] = useState<string | null>(() => readLoginSessionNonce());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const impersonatedUser = impersonationToken ? decodeJwt(impersonationToken) : null;
+  const impersonatedUser = impersonationToken ? decodeImpersonationJwt(impersonationToken) : null;
   const effectiveUser = impersonatedUser ?? user;
-  const effectiveAccessToken = impersonationToken ?? accessToken;
+
+  const setSessionActive = (active: boolean) => {
+    sessionActiveMem = active;
+    setSessionActiveState(active);
+  };
 
   const exitImpersonation = () => {
     try {
@@ -170,67 +194,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const setAccessToken = (token: string | null) => {
-    accessTokenMem = token;
-    setAuthToken(token);
-    setAccessTokenState(token);
-    // Always sync user from token so they stay in step
-    setUser(decodeJwt(token));
-  };
-
-  const refreshToken = useCallback(async (): Promise<string | null> => {
-    const rt = typeof window !== "undefined" ? window.localStorage.getItem(RT_KEY) : null;
-    if (!rt) return null;
-    try {
-      const res = await fetch(apiUrl("/api/v1/auth/refresh"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: rt }),
-      });
-      if (!res.ok) throw new Error("refresh failed");
-      const data = await res.json();
-      if (data.accessToken) setAccessToken(data.accessToken);
-      if (data.refreshToken) window.localStorage.setItem(RT_KEY, data.refreshToken);
-      return data.accessToken ?? null;
-    } catch {
-      setAccessToken(null);
-      try {
-        window.localStorage.removeItem(RT_KEY);
-      } catch {
-        /* ignore */
-      }
-      return null;
-    }
-  }, []);
-
-  // On mount: if token is expired but refresh token exists, trigger refresh.
-  // Skipped while impersonating — that session deliberately has no refresh token, and this
-  // tab's localStorage may hold an unrelated real customer/admin session we must never touch.
+  // Session restore on mount — GET /auth/me with the cookie sent automatically. A 401 (access
+  // cookie expired but the longer-lived refresh cookie may still be valid — e.g. a page reload
+  // after 15+ minutes) triggers one refresh-and-retry before giving up, mirroring what the old
+  // localStorage-token version did on finding an expired token with a refresh token still present.
   useEffect(() => {
     if (impersonationToken) return;
-    const token = getAuthToken();
-    const rt = typeof window !== "undefined" ? window.localStorage.getItem(RT_KEY) : null;
-    if (rt && !decodeJwt(token)) {
-      // Token missing or expired — refresh silently
-      void refreshToken();
-    }
-  }, [refreshToken, impersonationToken]);
+    let cancelled = false;
+    (async () => {
+      let res = await fetch(apiUrl("/api/v1/auth/me"), { credentials: "include" });
+      if (res.status === 401) {
+        const refreshed = await sharedRefresh();
+        if (refreshed) res = await fetch(apiUrl("/api/v1/auth/me"), { credentials: "include" });
+      }
+      if (cancelled) return;
+      if (res.ok) {
+        const data = (await res.json()) as AuthUser;
+        setSessionActive(true);
+        setUser(data);
+        if (!readLoginSessionNonce()) mintLoginSessionNonce();
+        setLoginSessionId(readLoginSessionNonce());
+      } else {
+        setSessionActive(false);
+        setUser(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [impersonationToken]);
 
   // Auto-refresh interval — also skipped while impersonating, same reasoning as above.
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (!accessToken || impersonationToken) return;
+    if (!sessionActive || impersonationToken) return;
     intervalRef.current = setInterval(() => {
-      void refreshToken();
+      void sharedRefresh();
     }, REFRESH_INTERVAL_MS);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [accessToken, refreshToken, impersonationToken]);
+  }, [sessionActive, impersonationToken]);
+
+  const refreshToken = useCallback(async (): Promise<string | null> => {
+    const ok = await sharedRefresh();
+    setSessionActive(ok);
+    if (!ok) setUser(null);
+    return ok ? "cookie-session" : null;
+  }, []);
 
   const login = async (email: string, password: string, turnstileToken?: string) => {
     const res = await fetch(apiUrl("/api/v1/auth/login"), {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
       body: JSON.stringify({ email, password, turnstileToken }),
     });
@@ -245,54 +262,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw loginError;
     }
     const data = await res.json();
-    if (!data.accessToken) {
-      // Without a token, isAuthenticated can never become true (it requires
-      // both accessToken and user) — surface this as a real failure instead
-      // of returning a "successful" user while the header silently stays
-      // signed out.
-      throw new Error("Login succeeded but no session token was returned. Please try again.");
+    const nextUser = (data as { user?: AuthUser }).user ?? null;
+    if (!nextUser) {
+      // Without a user, isAuthenticated can never become true — surface this as a real failure
+      // instead of returning a "successful" login while the header silently stays signed out.
+      throw new Error("Login succeeded but no session was returned. Please try again.");
     }
-    setAccessToken(data.accessToken);
-    if (data.refreshToken) {
-      try {
-        window.localStorage.setItem(RT_KEY, data.refreshToken);
-      } catch {
-        /* ignore */
-      }
-    }
+    setSessionActive(true);
+    setUser(nextUser);
     setLoginSessionId(mintLoginSessionNonce());
-    return decodeJwt(data.accessToken) ?? (data.user as AuthUser) ?? null;
+    return nextUser;
   };
 
-  const setSession = (token: string, refreshTokenValue?: string) => {
-    setAccessToken(token);
-    if (refreshTokenValue) {
-      try {
-        window.localStorage.setItem(RT_KEY, refreshTokenValue);
-      } catch {
-        /* ignore */
-      }
-    }
+  const setSession = (nextUser: AuthUser) => {
+    setSessionActive(true);
+    setUser(nextUser);
     setLoginSessionId(mintLoginSessionNonce());
   };
 
   const logout = async () => {
-    const rt = typeof window !== "undefined" ? window.localStorage.getItem(RT_KEY) : null;
     try {
-      await fetch(apiUrl("/api/v1/auth/logout"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: rt }),
-      });
+      await fetch(apiUrl("/api/v1/auth/logout"), { method: "POST", credentials: "include" });
     } catch {
       /* ignore */
     }
-    setAccessToken(null);
-    try {
-      window.localStorage.removeItem(RT_KEY);
-    } catch {
-      /* ignore */
-    }
+    setSessionActive(false);
+    setUser(null);
     clearLoginSessionNonce();
     setLoginSessionId(null);
   };
@@ -300,8 +295,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const roles = effectiveUser?.roles ?? [];
   const value: AuthContextValue = {
     user: effectiveUser,
-    accessToken: effectiveAccessToken,
-    isAuthenticated: !!effectiveAccessToken && !!effectiveUser,
+    accessToken: getAccessToken(),
+    isAuthenticated: !!effectiveUser,
     isCustomer: roles.includes("ROLE_CUSTOMER"),
     isStaff: roles.includes("ROLE_STAFF"),
     isAdmin: roles.includes("ROLE_ADMIN"),
@@ -324,27 +319,36 @@ export function useAuth() {
 }
 
 /**
- * authFetch — wraps fetch and handles 401 by refresh+retry once.
+ * authFetch — wraps fetch with credentials for the cookie session, plus the impersonation bearer
+ * token when previewing a customer. On a 401 (cookie session only — impersonation tokens don't
+ * refresh, they're short-lived by design) it retries once via the shared, de-duplicated refresh.
+ *
+ * The `refresh`/`onAuthFailed` legacy positional params are kept for call-site compatibility but
+ * `refresh` is no longer used — every caller now gets the same de-duplicated cookie-refresh
+ * automatically instead of only the (few) call sites that used to remember to pass one in.
  */
 export async function authFetch(
   input: string,
   init: RequestInit = {},
-  refresh?: () => Promise<string | null>,
+  _legacyRefresh?: () => Promise<string | null>,
   onAuthFailed?: () => void,
 ): Promise<Response> {
   const headers = new Headers(init.headers);
-  const token = getAccessToken();
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-  let res = await fetch(input, { ...init, headers });
-  if (res.status !== 401 || !refresh) return res;
-  const newToken = await refresh();
-  if (!newToken) {
+  const impersonation = getImpersonationToken();
+  if (impersonation) headers.set("Authorization", `Bearer ${impersonation}`);
+  let res = await fetch(input, { ...init, headers, credentials: "include" });
+  if (res.status !== 401) return res;
+  if (impersonation) {
+    onAuthFailed?.();
+    return res;
+  }
+  const refreshed = await sharedRefresh();
+  if (!refreshed) {
     onAuthFailed?.();
     return res;
   }
   const retryHeaders = new Headers(init.headers);
-  retryHeaders.set("Authorization", `Bearer ${newToken}`);
-  res = await fetch(input, { ...init, headers: retryHeaders });
+  res = await fetch(input, { ...init, headers: retryHeaders, credentials: "include" });
   if (res.status === 401) onAuthFailed?.();
   return res;
 }

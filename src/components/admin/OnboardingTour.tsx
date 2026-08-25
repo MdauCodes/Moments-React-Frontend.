@@ -110,7 +110,13 @@ export function OnboardingTour({ role, userId, open, stepFilter, onClose }: Onbo
   if (!open || !tour || allSteps.length === 0) return null;
 
   const finish = (completed: boolean) => {
-    if (completed && !stepFilter) markOnboardingDone(userId);
+    // Any real dismissal — skip, Escape, backdrop click, or actually finishing — should stop the
+    // tour from auto-launching again, not just close this one mount. Previously only `completed`
+    // marked it done, so "Skip tour" (finish(false)) never persisted anything: the very next admin
+    // page navigation remounted AdminLayout, isOnboardingDone was still false, and the tour
+    // auto-launched again from step 1 — indistinguishable from never having been dismissed at all.
+    // stepFilter still excluded: that's the "?"-triggered single-page replay, not a real tour run.
+    if (!stepFilter) markOnboardingDone(userId);
     onClose(completed);
   };
 

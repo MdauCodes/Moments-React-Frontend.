@@ -49,3 +49,30 @@ export function reportAdminError(err: unknown, context: string): void {
     },
   });
 }
+
+/**
+ * TumaBoda booking failed for this order (see Order.tumabodaBookingFailureReason on the
+ * backend) — a business-logic failure embedded in an otherwise-200 response, not a thrown
+ * error, so it doesn't go through reportAdminError's err-based path above. Same loud,
+ * hard-to-miss shape (long duration + WhatsApp escalation): a rider genuinely will not show up
+ * for this order until someone retries the booking.
+ */
+export function reportTumaBodaBookingFailure(reference: string, reason: string): void {
+  const whatsappText = [
+    "Moments admin dashboard error report",
+    `Where: TumaBoda delivery booking — order ${reference}`,
+    `What: ${reason}`,
+    `When: ${new Date().toLocaleString("en-KE")}`,
+  ].join("\n");
+
+  toast.error(`TumaBoda booking failed — ${reference}`, {
+    description: `${reason} — no rider has been summoned for this order. Retry from the order detail page.`,
+    duration: 30000,
+    action: {
+      label: "Forward to Developer",
+      onClick: () => {
+        window.open(`https://wa.me/${DEVELOPER_WHATSAPP}?text=${encodeURIComponent(whatsappText)}`, "_blank", "noopener,noreferrer");
+      },
+    },
+  });
+}

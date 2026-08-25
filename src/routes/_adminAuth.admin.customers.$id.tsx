@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -32,6 +32,10 @@ function AdminCustomerDetailPage() {
   const [previewing, setPreviewing] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [savingTestAccount, setSavingTestAccount] = useState(false);
+  // Opened synchronously in the click handler, before the (async) impersonateCustomer call —
+  // window.open() after an await is silently blocked by most browsers' popup blockers since it's
+  // no longer treated as a direct response to the click.
+  const pendingPreviewWindow = useRef<Window | null>(null);
 
   async function toggleTestAccount() {
     if (!id || !customer) return;
@@ -47,18 +51,32 @@ function AdminCustomerDetailPage() {
     }
   }
 
-  async function previewDashboard() {
+  function previewDashboard() {
     if (!id) return;
+    pendingPreviewWindow.current?.close();
+    // No "noopener" here — it makes window.open() always return null (per spec), which would
+    // leave this blank tab un-navigable and stuck empty forever.
+    pendingPreviewWindow.current = window.open("", "_blank");
+    void startPreview(id);
+  }
+
+  async function startPreview(customerId: string) {
     setPreviewing(true);
     try {
-      const session = await impersonateCustomer(id);
+      const session = await impersonateCustomer(customerId);
       const dashboardPath = session.accountType === "BUSINESS" ? "/account/business" : "/account/merchant";
       const url = `${window.location.origin}${dashboardPath}?impersonate=${encodeURIComponent(session.accessToken)}`;
-      window.open(url, "_blank", "noopener");
+      if (pendingPreviewWindow.current) {
+        pendingPreviewWindow.current.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener");
+      }
     } catch (err) {
+      pendingPreviewWindow.current?.close();
       reportAdminError(err, "Couldn't start preview");
     } finally {
       setPreviewing(false);
+      pendingPreviewWindow.current = null;
     }
   }
 
@@ -135,7 +153,7 @@ function AdminCustomerDetailPage() {
                         <td><b>{o.reference}</b></td>
                         <td>{o.items.reduce((s, it) => s + it.qty, 0)} units</td>
                         <td><b>{formatKes(o.total)}</b></td>
-                        <td><OrderStatusBadge status={o.status} /></td>
+                        <td><OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} /></td>
                         <td><PaymentStatusBadge status={o.paymentStatus} /></td>
                         <td>{formatDateShort(o.createdAt)}</td>
                         <td><Link to={`/admin/orders/${id}`} className="admin-btn admin-btn-ghost">View</Link></td>

@@ -81,16 +81,34 @@ export const reviewStore = {
    */
   async listForProduct(productKey: string): Promise<{ reviews: ProductReview[]; summary: ReviewSummary; source: "live" | "mock" }> {
     const key = encodeURIComponent(productKey);
+    // Backend shapes: GET .../reviews returns a Spring Page ({content: [...], ...}, not a bare
+    // array or {reviews: [...]}), and each row is the public ReviewDto (comment/verified, not
+    // this page's body/verifiedPurchase names) — mapped below rather than assumed compatible.
     const [reviewsRes, summaryRes] = await Promise.all([
-      tryLive<ProductReview[] | { reviews: ProductReview[] }>(`/api/v1/public/products/${key}/reviews`),
-      tryLive<ReviewSummary>(`/api/v1/public/products/${key}/rating-summary`),
+      tryLive<{ content: Array<{ id: string; customerName: string; rating: number; comment: string; verified: boolean; createdAt: string }> }>(
+        `/api/v1/public/products/${key}/reviews`,
+      ),
+      tryLive<{ average: number; count: number }>(`/api/v1/public/products/${key}/rating-summary`),
     ]);
     if (reviewsRes || summaryRes) {
-      const reviews = reviewsRes
-        ? (Array.isArray(reviewsRes) ? reviewsRes : reviewsRes.reviews ?? [])
-        : [];
-      const summary = summaryRes ?? summarise(productKey, reviews);
-      return { reviews: reviews.filter((r) => !r.hidden), summary, source: "live" };
+      const reviews: ProductReview[] = (reviewsRes?.content ?? []).map((r) => ({
+        id: r.id,
+        productId: productKey,
+        customerName: r.customerName,
+        rating: r.rating as 1 | 2 | 3 | 4 | 5,
+        body: r.comment,
+        verifiedPurchase: !!r.verified,
+        hidden: false, // already excluded server-side; this listing endpoint never returns hidden rows
+        createdAt: r.createdAt,
+      }));
+      // average/count come from the backend (accurate across every review, not just this page);
+      // histogram has no backend equivalent yet, so it's a best-effort count over the fetched
+      // page only — fine while a product realistically has a handful of reviews, not a real gap
+      // worth a backend endpoint yet.
+      const summary: ReviewSummary = summaryRes
+        ? { ...summarise(productKey, reviews), average: summaryRes.average, count: summaryRes.count }
+        : summarise(productKey, reviews);
+      return { reviews, summary, source: "live" };
     }
     const all = read();
     return {
@@ -103,6 +121,7 @@ export const reviewStore = {
 
   async submit(input: {
     productId: string;
+    orderId: string;
     customerName: string;
     customerEmail?: string;
     rating: 1 | 2 | 3 | 4 | 5;
@@ -112,16 +131,33 @@ export const reviewStore = {
     verifiedPurchase?: boolean;
   }): Promise<{ review: ProductReview; source: "live" | "mock" }> {
     if (getAccessToken()) {
-      const live = await tryLive<ProductReview>(
+      // Backend's ReviewCreateRequest only knows productId/orderId/rating/comment — everything
+      // else on ProductReview (title, orderReference, verifiedPurchase, hidden) is either not a
+      // real backend concept (title) or already known client-side, so the response is merged
+      // into the shape the rest of this page expects rather than assuming the API echoes it back.
+      const liveResponse = await tryLive<{ id: string; customerName: string; rating: number; comment: string; verified: boolean; createdAt: string }>(
         `/api/v1/customer/reviews`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input),
+          body: JSON.stringify({ productId: input.productId, orderId: input.orderId, rating: input.rating, comment: input.body }),
         },
         true,
       );
-      if (live) {
+      if (liveResponse) {
+        const live: ProductReview = {
+          id: liveResponse.id,
+          productId: input.productId,
+          customerName: liveResponse.customerName,
+          customerEmail: input.customerEmail,
+          rating: liveResponse.rating as 1 | 2 | 3 | 4 | 5,
+          title: input.title,
+          body: liveResponse.comment,
+          orderReference: input.orderReference,
+          verifiedPurchase: !!liveResponse.verified,
+          hidden: false,
+          createdAt: liveResponse.createdAt,
+        };
         const all = read();
         all.unshift(live);
         write(all);

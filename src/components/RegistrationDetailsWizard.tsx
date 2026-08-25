@@ -7,6 +7,8 @@ import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useBotDefenseFields, HoneypotField } from "@/hooks/useBotDefense";
 import { api } from "@/services/api";
 import { apiUrl, getSessionId } from "@/config/api";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
+import type { AuthUser } from "@/contexts/AuthContext";
 
 type AccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
 type PurchasePurpose = { id: string; label: string };
@@ -30,7 +32,7 @@ export function RegistrationDetailsWizard({
   accountType: AccountType;
   referralCode?: string;
   compact?: boolean;
-  onSuccess: (result: { accessToken?: string; refreshToken?: string; firstName: string }) => void;
+  onSuccess: (result: { user: AuthUser | null; firstName: string }) => void;
 }) {
   const totalSteps = accountType === "BUSINESS" ? 2 : 3;
   const [step, setStep] = useState(1);
@@ -50,6 +52,9 @@ export function RegistrationDetailsWizard({
 
   const [consent, setConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Surfaced back on step 1 (where the email field actually lives) rather than just a toast at
+  // step 3 — a duplicate-email rejection is unactionable from a step with no email input on it.
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState("");
   const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
 
@@ -99,6 +104,7 @@ export function RegistrationDetailsWizard({
     try {
       const res = await fetch(apiUrl("/api/v1/auth/register"), {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
         body: JSON.stringify({
           email: email.trim(),
@@ -113,16 +119,25 @@ export function RegistrationDetailsWizard({
             ? { otherPurchasePurpose: otherPurchasePurpose.trim() }
             : { purchasePurposeId: purposeChoice }),
           ...(referralCode ? { referralCode } : {}),
+          consentPolicyVersion: PRIVACY_POLICY_VERSION,
           ...toPayload(turnstileToken),
         }),
       });
       const data = await res.json().catch(() => ({}) as Record<string, unknown>);
       if (!res.ok) {
-        throw new Error((data as { message?: string }).message ?? "Registration failed");
+        const message = (data as { message?: string }).message ?? "Registration failed";
+        if (res.status === 409) {
+          // Duplicate email/phone — jump back to the step that actually has those fields so the
+          // customer can see and fix the problem, instead of stranding the error on step 3.
+          setEmailError(message);
+          setStep(1);
+          toast.error(message);
+          return;
+        }
+        throw new Error(message);
       }
       onSuccess({
-        accessToken: (data as { accessToken?: string }).accessToken,
-        refreshToken: (data as { refreshToken?: string }).refreshToken,
+        user: (data as { user?: AuthUser }).user ?? null,
         firstName: firstName.trim() || "there",
       });
     } catch (err) {
@@ -160,7 +175,14 @@ export function RegistrationDetailsWizard({
           </div>
           <div>
             <label className={labelCls}>Email</label>
-            <input type="email" required className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input
+              type="email"
+              required
+              className={`${inputCls} ${emailError ? "border-destructive focus:ring-destructive/50" : ""}`}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setEmailError(null); }}
+            />
+            {emailError && <p className="mt-1 text-xs text-destructive">{emailError}</p>}
           </div>
           <div>
             <label className={labelCls}>Phone</label>
@@ -240,7 +262,7 @@ export function RegistrationDetailsWizard({
             )}
           </div>
           <HoneypotField value={honeypot} onChange={setHoneypot} />
-          <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage your account" />
+          <ConsentCheckbox checked={consent} onCheckedChange={setConsent} purpose="create and manage my account" />
           <TurnstileWidget onToken={setTurnstileToken} />
           <div className="flex gap-2">
             {totalSteps > 1 && (

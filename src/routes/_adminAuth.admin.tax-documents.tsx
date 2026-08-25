@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, RotateCw, Download, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -39,6 +39,11 @@ function AdminTaxDocumentsPage() {
   const [statusFilter, setStatusFilter] = useState<TaxDocumentStatus | "">("");
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
+  // Opened synchronously in the row's click handler, before the (async) fetch — window.open()
+  // called after an await is silently blocked by most browsers' popup blockers since it's no
+  // longer treated as a direct response to the click. Same fix as the customer-facing document
+  // downloads and DeliveryNoteButton.
+  const pendingPreviewWindow = useRef<Window | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -66,17 +71,32 @@ function AdminTaxDocumentsPage() {
     }
   }
 
-  async function preview(row: TaxDocumentAdminDto) {
+  function preview(row: TaxDocumentAdminDto) {
+    pendingPreviewWindow.current?.close();
+    // No "noopener" here — it makes window.open() always return null (per spec), which would
+    // leave this blank tab un-navigable and stuck empty forever. Only our own blob: URL ever
+    // loads in it, so the window.opener access noopener blocks isn't a real risk here.
+    pendingPreviewWindow.current = window.open("", "_blank");
+    void fetchAndShowPreview(row);
+  }
+
+  async function fetchAndShowPreview(row: TaxDocumentAdminDto) {
     setPreviewingId(row.id);
     try {
       const blob = await adminResources.taxDocuments.preview(row.id);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank", "noopener");
+      if (pendingPreviewWindow.current) {
+        pendingPreviewWindow.current.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener");
+      }
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
+      pendingPreviewWindow.current?.close();
       reportAdminError(err, "Preview failed");
     } finally {
       setPreviewingId(null);
+      pendingPreviewWindow.current = null;
     }
   }
 
@@ -154,7 +174,7 @@ function AdminTaxDocumentsPage() {
                         <button
                           className="admin-btn admin-btn-ghost"
                           disabled={previewingId === r.id}
-                          onClick={() => void preview(r)}
+                          onClick={() => preview(r)}
                           title="Regenerates the PDF live from the order's current data — works even for expired documents"
                         >
                           {previewingId === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}

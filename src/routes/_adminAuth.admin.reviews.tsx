@@ -11,6 +11,7 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { MockBanner } from "@/components/admin/commerceUi";
 import { reviewStore, type ProductReview } from "@/services/reviewStore";
+import { orderReviewStore, type AdminOrderReview } from "@/services/orderReviewStore";
 
 
 
@@ -34,6 +35,9 @@ function AdminReviewsPage() {
   const [filter, setFilter] = useState<Filter>("ALL");
   const [query, setQuery] = useState("");
 
+  const [orderReviews, setOrderReviews] = useState<AdminOrderReview[]>([]);
+  const [orderReviewsLoading, setOrderReviewsLoading] = useState(true);
+
   useEffect(() => { document.title = "Reviews · Moments admin"; }, []);
 
   const load = async () => {
@@ -49,7 +53,19 @@ function AdminReviewsPage() {
     }
   };
 
-  useEffect(() => { void load(); }, []);
+  const loadOrderReviews = async () => {
+    setOrderReviewsLoading(true);
+    try {
+      const res = await orderReviewStore.listAll();
+      setOrderReviews(res.rows);
+    } catch (err) {
+      reportAdminError(err, "Failed to load order reviews");
+    } finally {
+      setOrderReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => { void load(); void loadOrderReviews(); }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -104,7 +120,7 @@ function AdminReviewsPage() {
   };
 
   return (
-    <AdminLayout title="Reviews" onReload={load}>
+    <AdminLayout title="Reviews" onReload={() => { void load(); void loadOrderReviews(); }}>
       <div className="admin-page-stack">
         <MockBanner source={source} />
 
@@ -191,6 +207,41 @@ function AdminReviewsPage() {
                       <Trash2 size={14} />
                     </button>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Order/delivery-experience reviews — separate feature from product reviews above.
+            Minimal version: view only, no hide/delete. */}
+        <div className="admin-label" style={{ marginTop: 8 }}>Order & delivery experience reviews</div>
+        <div className="admin-panel" data-admin-table-scroll>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Rating</th>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Feedback</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderReviewsLoading ? (
+                <tr><td colSpan={5}><div className="admin-empty"><Loader2 size={14} className="animate-spin" /> Loading…</div></td></tr>
+              ) : orderReviews.length === 0 ? (
+                <tr><td colSpan={5}><div className="admin-empty">No order/delivery reviews yet.</div></td></tr>
+              ) : orderReviews.map((r) => (
+                <tr key={r.id}>
+                  <td><Stars value={r.rating} /></td>
+                  <td><code style={{ fontSize: 12 }}>{r.orderReference}</code></td>
+                  <td>
+                    <b>{r.customerName}</b>
+                    <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{r.customerEmail}</div>
+                  </td>
+                  <td style={{ maxWidth: 360, color: "var(--admin-muted)", fontSize: 12, whiteSpace: "pre-wrap" }}>{r.comment || "—"}</td>
+                  <td style={{ fontSize: 12 }}>{new Date(r.createdAt).toLocaleString("en-KE")}</td>
                 </tr>
               ))}
             </tbody>

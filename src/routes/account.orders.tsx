@@ -15,7 +15,7 @@ const PAGE_SIZE = 10;
 
 function statusTone(status: string) {
   if (status === "DELIVERED" || status === "PAID") return "bg-accent/15 text-accent";
-  if (status === "PAYMENT_FAILED" || status === "CANCELLED") return "bg-destructive/15 text-destructive";
+  if (status === "CANCELLED" || status === "REFUNDED") return "bg-destructive/15 text-destructive";
   return "bg-secondary text-foreground";
 }
 
@@ -75,7 +75,7 @@ function MyOrdersPage() {
                       {o.status.replace(/_/g, " ")}
                     </span>
                     <span className="font-semibold">{fmt(o.total)}</span>
-                    {o.status === "PENDING_PAYMENT" || o.status === "PAYMENT_FAILED" ? (
+                    {o.status === "PENDING_PAYMENT" ? (
                       <Link
                         to="/checkout"
                         className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground hover:bg-primary/90"

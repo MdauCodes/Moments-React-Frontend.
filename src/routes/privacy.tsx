@@ -1,7 +1,10 @@
 
+import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_ADDRESS } from "@/data/products";
 import { LegalPageLayout, type LegalSection } from "@/components/LegalPageLayout";
 import { SiteLayout } from "@/components/SiteLayout";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 
 
@@ -28,6 +31,18 @@ export function getPrivacyPolicyContent() {
             <a href={`tel:${COMPANY_PHONE.replace(/\s/g, "")}`}>{COMPANY_PHONE}</a>.
           </p>
         </>
+      ),
+    },
+    {
+      id: "odpc",
+      title: "ODPC registration",
+      body: (
+        <p>
+          Moments Packaging Kenya Ltd is registered as a <strong>Data Controller</strong> with the
+          Office of the Data Protection Commissioner (ODPC) of Kenya, under registration number{" "}
+          <strong>134-4514-F461</strong>. The certificate is valid from 19 August 2026 to 19 August
+          2028.
+        </p>
       ),
     },
     {
@@ -156,15 +171,24 @@ export function getPrivacyPolicyContent() {
               surrounds.
             </li>
             <li>
-              <strong>Cloud hosting and database providers</strong> (Cloudflare for hosting and
-              Supabase for application database and storage) acting on our instructions.
+              <strong>TumaBoda</strong> — our on-demand courier partner for real-time, tracked
+              deliveries. For orders you choose to have delivered this way, we share your name,
+              phone number, and delivery address with TumaBoda so their assigned rider can find
+              you and contact you during delivery. TumaBoda does not receive your payment details
+              or order contents.
+            </li>
+            <li>
+              <strong>Cloud hosting and database providers</strong> (Railway for our application
+              backend and PostgreSQL database, Render for frontend hosting, and Cloudinary for
+              file and backup storage) acting on our instructions.
             </li>
             <li>
               <strong>WhatsApp / Meta</strong> — when you message us via WhatsApp Business.
             </li>
             <li>
-              <strong>Email providers</strong> we use to send transactional and (where you opted
-              in) marketing email.
+              <strong>Brevo</strong> — our transactional and (where you opted in) marketing email
+              provider, used to send order confirmations, account and delivery notifications, and
+              newsletters.
             </li>
             <li>
               <strong>Regulators, ODPC and law enforcement</strong> where we are legally required
@@ -274,18 +298,20 @@ export function getPrivacyPolicyContent() {
             the email or phone on your account). We will respond within 30 days as required by
             the Act.
           </p>
+          <p>
+            <strong>Self-service, no email needed:</strong> if you have an account, you can view
+            or delete your data from your account settings once logged in. If you ordered as a
+            guest, sent us an enquiry, or joined our newsletter without creating an account, use{" "}
+            <Link to="/manage-my-data">View or delete your data</Link> (also linked in the site
+            footer) — enter your email, confirm a one-time code, and you can see what we hold and
+            request deletion directly, without needing to email us.
+          </p>
+          <p>
+            <strong>If we don&rsquo;t respond in time:</strong> a data deletion request that
+            receives no admin decision within 30 days of submission is automatically granted —
+            we do not rely on inaction to keep data we should have deleted.
+          </p>
         </>
-      ),
-    },
-    {
-      id: "odpc",
-      title: "ODPC registration",
-      body: (
-        <p>
-          Moments Packaging Kenya Ltd is in the process of registering as a Data Controller with
-          the Office of the Data Protection Commissioner (ODPC) of Kenya. Our registration
-          reference will be published on this page once issued.
-        </p>
       ),
     },
     {
@@ -340,7 +366,7 @@ export function getPrivacyPolicyContent() {
 
   return {
     title: "Privacy Policy",
-    updated: "May 19, 2026",
+    updated: PRIVACY_POLICY_VERSION,
     intro: (
       <>
         How Moments Packaging Kenya collects, uses, shares and protects your personal data when
@@ -354,11 +380,13 @@ export function getPrivacyPolicyContent() {
       { to: "/terms", label: "Terms of Service" },
       { to: "/refunds", label: "Refund & Returns Policy" },
       { to: "/accessibility-policy", label: "Accessibility Policy" },
+      { to: "/manage-my-data", label: "View or Delete Your Data" },
     ],
   };
 }
 
 function PrivacyPage() {
+  useEffect(() => { document.title = "Privacy Policy — Moments Packaging Kenya"; }, []);
   const content = getPrivacyPolicyContent();
   return (
     <SiteLayout>

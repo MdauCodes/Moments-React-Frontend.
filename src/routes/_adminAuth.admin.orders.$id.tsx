@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { reportAdminError } from "@/lib/adminErrorToast";
+import { reportAdminError, reportTumaBodaBookingFailure } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   GatewayChip,
@@ -13,8 +13,8 @@ import {
   PaymentStatusBadge,
   formatDate,
   formatKes,
-  getNextAction,
 } from "@/components/admin/commerceUi";
+import { getNextActionV2 } from "@/lib/orderStatusV2";
 import {
   getOrder,
   updateOrderStatus,
@@ -22,6 +22,8 @@ import {
   resolveOrderRefundRequest,
   markOrderPaymentRefunded,
   restoreOrderInventory,
+  triggerDeliveryFeeStk,
+  recordDeliveryFeePaid,
 } from "@/services/commerceApi";
 import type { OrderRecord, OrderStatus } from "@/services/commerceMock";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -79,7 +81,11 @@ function AdminOrderDetailPage() {
       const res = await updateOrderStatus(order.id, status, staffNotes || undefined);
       if (res.order) {
         setOrder(res.order);
-        toast.success(`Order moved to ${ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}`);
+        if (res.order.tumabodaBookingFailureReason) {
+          reportTumaBodaBookingFailure(res.order.reference, res.order.tumabodaBookingFailureReason);
+        } else {
+          toast.success(`Order moved to ${ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? status}`);
+        }
       }
     } catch (err) {
       reportAdminError(err, "Failed to update status");
@@ -159,6 +165,57 @@ function AdminOrderDetailPage() {
     }
   };
 
+  const [feeAmount, setFeeAmount] = useState("");
+  const [feePhone, setFeePhone] = useState("");
+  const [feeMethod, setFeeMethod] = useState<"SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD">("SELF_PAID");
+  const [feeBusy, setFeeBusy] = useState(false);
+
+  const handleTriggerFeeStk = async () => {
+    if (!order) return;
+    const amount = Number(feeAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!feePhone.trim()) {
+      toast.error("Enter the customer's phone number");
+      return;
+    }
+    setFeeBusy(true);
+    try {
+      const res = await triggerDeliveryFeeStk(order.id, amount, feePhone.trim());
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("STK prompt sent — confirm once the customer enters their PIN");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to send STK prompt");
+    } finally {
+      setFeeBusy(false);
+    }
+  };
+
+  const handleRecordFeePaid = async () => {
+    if (!order) return;
+    const amount = Number(feeAmount || order.deliveryFeeAmount || 0);
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    setFeeBusy(true);
+    try {
+      const res = await recordDeliveryFeePaid(order.id, amount, feeMethod);
+      if (res.order) {
+        setOrder(res.order);
+        toast.success("Delivery fee recorded as paid");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to record delivery fee");
+    } finally {
+      setFeeBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout title={`Order ${id}`}>
@@ -188,7 +245,7 @@ function AdminOrderDetailPage() {
           <Link to="/admin/orders" className="admin-btn admin-btn-ghost">
             ← All orders
           </Link>
-          <OrderStatusBadge status={order.status} />
+          <OrderStatusBadge status={order.status} fulfillmentType={order.fulfillmentType} statusV2={order.statusV2} />
           <PaymentStatusBadge status={order.paymentStatus} />
           <GatewayChip gateway={order.paymentGateway} />
           <span style={{ color: "var(--admin-muted)", fontSize: 12 }}>Created {formatDate(order.createdAt)}</span>
@@ -299,12 +356,12 @@ function AdminOrderDetailPage() {
                   <div style={{ marginTop: 4, fontSize: 13, fontFamily: "monospace" }}>{(order as any).promoCode}</div>
                 </>
               )}
-              {order.trackingNumber && (
+              {order.tumabodaTrackingCode && (
                 <>
                   <div style={{ marginTop: 10 }} className="admin-label">
                     Tracking number
                   </div>
-                  <div style={{ marginTop: 4, fontSize: 13, fontFamily: "monospace" }}>{order.trackingNumber}</div>
+                  <div style={{ marginTop: 4, fontSize: 13, fontFamily: "monospace" }}>{order.tumabodaTrackingCode}</div>
                 </>
               )}
               {(order as any).fulfillmentType && (
@@ -319,11 +376,28 @@ function AdminOrderDetailPage() {
               )}
             </div>
 
-            {/* Courier details — only when OWN_COURIER */}
-            {(order as any).fulfillmentType === "OWN_COURIER" && (
+            {/* Courier details — only when MANUAL_DELIVERY */}
+            {(order as any).fulfillmentType === "MANUAL_DELIVERY" && (
               <div className="admin-panel" style={{ padding: 16 }}>
                 <div className="admin-label">Courier details</div>
                 <div style={{ marginTop: 8, fontSize: 13 }}>
+                  {/* Highlighted above the rest — this is what the destination office actually
+                      checks against ID before handing the parcel over, so it's what staff need to
+                      relay to the courier, not just background detail. */}
+                  <div
+                    style={{
+                      padding: "8px 10px",
+                      marginBottom: 10,
+                      borderRadius: 6,
+                      background: "rgba(34, 139, 34, 0.08)",
+                      border: "1px solid rgba(34, 139, 34, 0.3)",
+                    }}
+                  >
+                    <div className="admin-label" style={{ fontSize: 11 }}>Collector's name (checked at pickup)</div>
+                    <div style={{ marginTop: 2, fontWeight: 600 }}>
+                      {(order as any).collectorName || "— not provided —"}
+                    </div>
+                  </div>
                   <div>
                     <b>Type:</b>{" "}
                     {String((order as any).courierType ?? "—").replace(/_/g, " ")}
@@ -352,6 +426,76 @@ function AdminOrderDetailPage() {
                 >
                   Transport cost to be confirmed at dispatch.
                 </div>
+
+                <div style={{ marginTop: 14, borderTop: "1px solid var(--admin-border)", paddingTop: 12 }}>
+                  <div className="admin-label">Delivery fee</div>
+                  <div style={{ marginTop: 6, fontSize: 13 }}>
+                    <b>Status:</b> {order.deliveryFeeStatus ?? "UNPAID"}
+                    {order.deliveryFeeAmount != null && (
+                      <>
+                        {" · "}
+                        <b>Amount:</b> {formatKes(order.deliveryFeeAmount)}
+                      </>
+                    )}
+                    {order.deliveryFeeMethod && (
+                      <>
+                        {" · "}
+                        <b>Method:</b> {order.deliveryFeeMethod.replace(/_/g, " ")}
+                      </>
+                    )}
+                  </div>
+
+                  {order.deliveryFeeStatus !== "PAID" && (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      <input
+                        type="number"
+                        placeholder="Agreed fee amount (KES)"
+                        value={feeAmount}
+                        onChange={(e) => setFeeAmount(e.target.value)}
+                        className="admin-input"
+                        style={{ fontSize: 13 }}
+                      />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <input
+                          type="tel"
+                          placeholder="Customer phone (for STK)"
+                          value={feePhone}
+                          onChange={(e) => setFeePhone(e.target.value)}
+                          className="admin-input"
+                          style={{ fontSize: 13, flex: 1 }}
+                        />
+                        <button
+                          type="button"
+                          className="admin-btn"
+                          disabled={feeBusy}
+                          onClick={handleTriggerFeeStk}
+                        >
+                          Send STK prompt
+                        </button>
+                      </div>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <select
+                          value={feeMethod}
+                          onChange={(e) => setFeeMethod(e.target.value as typeof feeMethod)}
+                          className="admin-input"
+                          style={{ fontSize: 13 }}
+                        >
+                          <option value="SELF_PAID">Customer paid directly (e.g. paybill)</option>
+                          <option value="ADMIN_STK">STK prompt confirmed paid</option>
+                          <option value="MANUAL_RECORD">Cash / other — just record it</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-primary"
+                          disabled={feeBusy}
+                          onClick={handleRecordFeePaid}
+                        >
+                          Mark fee as paid
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -369,14 +513,14 @@ function AdminOrderDetailPage() {
                   payment/preparation/dispatch queues — only the one valid
                   next step is shown, not every status always-enabled. */}
               {(() => {
-                const next = getNextAction(order.status);
+                const next = getNextActionV2(order.fulfillmentType, order.statusV2, order.status);
                 if (!next) return null;
                 return (
                   <button
                     className="admin-btn admin-btn-primary"
                     disabled={saving}
                     style={{ marginTop: 8 }}
-                    onClick={() => handleStatusChange(next.nextStatus)}
+                    onClick={() => handleStatusChange(next.nextLegacyStatus)}
                   >
                     {saving && <Loader2 size={14} className="animate-spin inline mr-1" />}
                     {next.label}

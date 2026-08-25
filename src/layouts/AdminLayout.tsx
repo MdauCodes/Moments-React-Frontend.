@@ -19,20 +19,23 @@ import {
   RefreshCw,
   CheckCircle2,
   PackageCheck,
-  Send,
+  ScanLine,
   ShieldCheck,
   Boxes,
   HelpCircle,
   Briefcase,
   TicketPercent,
   Landmark,
+  HandCoins,
   Gift,
   TrendingUp,
   BookOpen,
   Share2,
   Receipt,
   FileCheck2,
+  ClipboardCheck,
   Wrench,
+  ScrollText,
   Coins,
   ListTree,
   LayoutGrid,
@@ -40,6 +43,7 @@ import {
   UserPlus,
   AlertTriangle,
   Layers,
+  Undo2,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -49,6 +53,7 @@ import { resolveStaffRole, STAFF_ROLE_DISPLAY } from "@/lib/roles";
 import { OnboardingTour } from "@/components/admin/OnboardingTour";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
+import { adminResources, type AdminNotificationDto } from "@/services/adminResources";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 function MockModeBanner() {
@@ -89,6 +94,10 @@ interface NavItem {
   badge?: number;
   /** Item is visible when user has ANY of these permissions. Omit = always visible. */
   requiresAny?: PermissionCode[];
+  /** Renders faded with a tooltip explaining why, instead of the normal hover/active styling —
+   *  for pages that still exist but whose primary action has moved elsewhere (e.g. a partner's
+   *  own portal), without removing staff's ability to open the page for reference. */
+  disabledNote?: string;
   /** Item is only ever visible to the Super Admin staff role, regardless of permissions. */
   superAdminOnly?: boolean;
 }
@@ -98,6 +107,9 @@ interface NavSection {
   items: NavItem[];
 }
 
+// Ordered by day-to-day usability for staff, not alphabetically or by when a section was
+// added — daily operational work first, technical/reference material last (Help and Developer
+// are both low-frequency reference material, so they sit next to each other at the bottom).
 const navSections: NavSection[] = [
   {
     label: "Overview",
@@ -107,24 +119,14 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Queues",
+    label: "Orders",
     items: [
-      { label: "Payment Queue", to: "/admin/queues/payment", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
-      { label: "Preparation Queue", to: "/admin/queues/preparation", icon: PackageCheck, requiresAny: [PERM.ORDER_PREPARE] },
-      { label: "Dispatch Queue", to: "/admin/queues/dispatch", icon: Send, requiresAny: [PERM.ORDER_DISPATCH] },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
-      { label: "Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Referral Payout Tiers", to: "/admin/referral-tiers", icon: Share2, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Settings", to: "/admin/rewards-settings", icon: Coins, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "All Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
+      { label: "Pickup", to: "/admin/board/pickup", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+      { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+      { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+      { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
+      { label: "Refund Requests", to: "/admin/refund-requests", icon: Undo2, requiresAny: [PERM.PAYMENT_REFUND] },
     ],
   },
   {
@@ -143,8 +145,38 @@ const navSections: NavSection[] = [
       { label: "Customers", to: "/admin/customers", icon: Users, requiresAny: [PERM.CUSTOMER_VIEW] },
       { label: "Business Accounts", to: "/admin/business-accounts", icon: Briefcase, requiresAny: [PERM.CUSTOMER_VIEW] },
       { label: "Credit Accounts", to: "/admin/credit-accounts", icon: Landmark, requiresAny: [PERM.CUSTOMER_VIEW] },
+      { label: "Change Requests", to: "/admin/change-requests", icon: ClipboardCheck, requiresAny: [PERM.CUSTOMER_VIEW] },
       { label: "Enquiries", to: "/admin/enquiries", icon: LayoutList, requiresAny: [PERM.ENQUIRY_VIEW] },
       { label: "Reviews", to: "/admin/reviews", icon: Star, requiresAny: [PERM.REVIEW_MODERATE] },
+    ],
+  },
+  {
+    label: "Sales",
+    items: [
+      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
+      { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
+      { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Referral Payout Tiers", to: "/admin/referral-tiers", icon: Share2, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Rewards Settings", to: "/admin/rewards-settings", icon: Coins, requiresAny: [PERM.SETTINGS_MANAGE] },
+    ],
+  },
+  {
+    label: "Analytics",
+    items: [
+      { label: "Overview", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Needs Attention", to: "/admin/analytics/needs-attention", icon: AlertTriangle, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Customers", to: "/admin/analytics/customers", icon: Users, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Signups & Demographics", to: "/admin/analytics/signups-demographics", icon: UserPlus, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Geographic", to: "/admin/analytics/geographic", icon: MapPin, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Delivery", to: "/admin/analytics/delivery", icon: Truck, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Products & Inventory", to: "/admin/analytics/products", icon: Boxes, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Profitability", to: "/admin/analytics/profitability", icon: TrendingUp, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Tax & Compliance", to: "/admin/analytics/tax", icon: Receipt, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Rewards & Referrals", to: "/admin/analytics/rewards", icon: Gift, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Data Visualization", to: "/admin/analytics/data-visualization", icon: LayoutGrid, requiresAny: [PERM.ANALYTICS_VIEW] },
     ],
   },
   {
@@ -171,25 +203,10 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Analytics",
-    items: [
-      { label: "Overview", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Needs Attention", to: "/admin/analytics/needs-attention", icon: AlertTriangle, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Customers", to: "/admin/analytics/customers", icon: Users, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Signups & Demographics", to: "/admin/analytics/signups-demographics", icon: UserPlus, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Geographic", to: "/admin/analytics/geographic", icon: MapPin, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Delivery", to: "/admin/analytics/delivery", icon: Truck, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Products & Inventory", to: "/admin/analytics/products", icon: Boxes, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Profitability", to: "/admin/analytics/profitability", icon: TrendingUp, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Tax & Compliance", to: "/admin/analytics/tax", icon: Receipt, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Rewards & Referrals", to: "/admin/analytics/rewards", icon: Gift, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Data Visualization", to: "/admin/analytics/data-visualization", icon: LayoutGrid, requiresAny: [PERM.ANALYTICS_VIEW] },
-    ],
-  },
-  {
     label: "Developer",
     items: [
       { label: "Developer Tools", to: "/admin/dev-tools", icon: Wrench, superAdminOnly: true },
+      { label: "Dev Logs", to: "/admin/dev-logs", icon: ScrollText, superAdminOnly: true },
     ],
   },
 ];
@@ -404,19 +421,25 @@ function getInitials(name: string): string {
 function NavLink({ item, active }: { item: NavItem; active: boolean }) {
   const Icon = item.icon;
   const tourKey = item.to.split("/").filter(Boolean).slice(-1)[0] ?? item.to;
+  const faded = Boolean(item.disabledNote);
   return (
     <Link
       to={item.to}
       data-tour={`nav-${tourKey}`}
-      style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}) }}
+      title={item.disabledNote}
+      style={{
+        ...styles.navItem,
+        ...(active ? styles.navItemActive : {}),
+        ...(faded ? { opacity: 0.55 } : {}),
+      }}
       onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!active) {
+        if (!active && !faded) {
           e.currentTarget.style.background = "var(--admin-sidebar-surface)";
           e.currentTarget.style.color = "var(--admin-sidebar-text)";
         }
       }}
       onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!active) {
+        if (!active && !faded) {
           e.currentTarget.style.background = "transparent";
           e.currentTarget.style.color = "var(--admin-sidebar-muted)";
         }
@@ -459,6 +482,64 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const staffRole = resolveStaffRole(user);
+
+  // Bell was previously purely decorative — a static dot, no real data behind it at all (no
+  // notification system existed anywhere in the backend before this). Polls the unread count
+  // rather than the full list, so the topbar doesn't pay for a list fetch on every page just to
+  // show a badge.
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifItems, setNotifItems] = useState<AdminNotificationDto[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    function poll() {
+      adminResources.notifications.unreadCount()
+        .then((res) => { if (!cancelled) setUnreadCount(res.count); })
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  async function toggleNotifPanel() {
+    const opening = !notifOpen;
+    setNotifOpen(opening);
+    if (opening) {
+      setNotifLoading(true);
+      try {
+        const res = await adminResources.notifications.list();
+        setNotifItems(res.content);
+      } catch {
+        // Silently leave the panel empty on failure — this is a convenience surface, not
+        // critical-path; a broken fetch here shouldn't produce an error toast on every page.
+      } finally {
+        setNotifLoading(false);
+      }
+    }
+  }
+
+  async function handleMarkRead(id: string) {
+    setNotifItems((items) => items.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnreadCount((c) => Math.max(0, c - 1));
+    try {
+      await adminResources.notifications.markRead(id);
+    } catch {
+      // Best-effort — the next poll/list fetch will reconcile if this silently failed.
+    }
+  }
+
+  async function handleMarkAllRead() {
+    setNotifItems((items) => items.map((n) => ({ ...n, read: true })));
+    setUnreadCount(0);
+    try {
+      await adminResources.notifications.markAllRead();
+    } catch {
+      // Best-effort, same reasoning as handleMarkRead.
+    }
+  }
 
   const handleReload = async () => {
     if (reloading) return;
@@ -633,10 +714,77 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
             >
               <HelpCircle size={15} />
             </button>
-            <button type="button" style={styles.bellBtn} aria-label="Notifications">
-              <Bell size={15} />
-              <span style={styles.bellDot} />
-            </button>
+            <div style={{ position: "relative" }}>
+              <button type="button" style={styles.bellBtn} aria-label="Notifications" onClick={toggleNotifPanel}>
+                <Bell size={15} />
+                {unreadCount > 0 && <span style={styles.bellDot} />}
+              </button>
+              {notifOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    right: 0,
+                    top: 40,
+                    width: 340,
+                    maxHeight: 420,
+                    overflowY: "auto",
+                    background: "var(--admin-surface)",
+                    border: "1px solid var(--admin-border, rgba(0,0,0,0.1))",
+                    borderRadius: 10,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    zIndex: 50,
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--admin-border, rgba(0,0,0,0.08))" }}>
+                    <span style={{ fontSize: 13, fontWeight: 650 }}>Notifications</span>
+                    {unreadCount > 0 && (
+                      <button type="button" onClick={handleMarkAllRead} style={{ fontSize: 11, color: "var(--admin-accent)", background: "none", border: "none", cursor: "pointer" }}>
+                        Mark all read
+                      </button>
+                    )}
+                  </div>
+                  {notifLoading ? (
+                    <div style={{ padding: 16, fontSize: 12, color: "var(--admin-muted)" }}>Loading…</div>
+                  ) : notifItems.length === 0 ? (
+                    <div style={{ padding: 16, fontSize: 12, color: "var(--admin-muted)" }}>Nothing yet.</div>
+                  ) : (
+                    notifItems.map((n) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => {
+                          if (!n.read) void handleMarkRead(n.id);
+                          if (n.type === "REFUND_REQUESTED") {
+                            navigate("/admin/refund-requests");
+                            setNotifOpen(false);
+                          } else if (n.orderReference) {
+                            // The orders list has no query-param-driven initial search yet, so
+                            // this can't deep-link straight to the order — the reference is
+                            // already in the notification text above for the admin to search
+                            // manually.
+                            navigate("/admin/orders");
+                            setNotifOpen(false);
+                          }
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          textAlign: "left",
+                          padding: "10px 14px",
+                          background: n.read ? "transparent" : "var(--admin-surface-2)",
+                          border: "none",
+                          borderBottom: "1px solid var(--admin-border, rgba(0,0,0,0.06))",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <div style={{ fontSize: 12.5, fontWeight: n.read ? 500 : 650 }}>{n.title}</div>
+                        <div style={{ fontSize: 11.5, color: "var(--admin-muted)", marginTop: 2 }}>{n.message}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
             {actionLabel && (
               <button type="button" style={styles.actionBtn} onClick={onAction}>
                 {actionLabel}

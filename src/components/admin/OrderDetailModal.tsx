@@ -1,19 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { adminResources, type DocumentBundleAdminDto } from "@/services/adminResources";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Section, Row } from "@/components/admin/AdminSectionUi";
 import {
+  DeliveryFeeStatusBadge,
   OrderStatusBadge,
   PaymentStatusBadge,
   formatKes,
   formatDate,
   ORDER_STATUS_OPTIONS,
-  getNextAction,
 } from "@/components/admin/commerceUi";
+import { tumaBodaOrderIsReadyOrBeyond } from "@/components/admin/TumaBodaFulfillmentPanel";
+import { FULFILLMENT_MODES, type FulfillmentModeKey } from "@/lib/fulfillmentModes";
 import {
   getOrder,
   updateOrderStatus,
@@ -47,7 +50,14 @@ function statusLabel(raw: string | undefined | null): string {
         .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
+/**
+ * Centered modal — replaces the old side-drawer. Manual Delivery and Pickup orders behave like
+ * any other dialog (X / overlay-click / Escape all close it); a TumaBoda order that hasn't been
+ * marked ready yet is deliberately NOT dismissible (no close affordance at all) — staff walk it
+ * through production and booking in one continuous view rather than being able to wander off
+ * and lose track of it mid-preparation. See TumaBodaFulfillmentPanel.tumaBodaOrderIsReadyOrBeyond.
+ */
+export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
   const [order, setOrder] = useState<OrderRecord | null>(null);
   const [loading, setLoading] = useState(false);
   const [staffNotes, setStaffNotes] = useState("");
@@ -94,6 +104,14 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   }, [orderId]);
 
   const o = order as (OrderRecord & Record<string, any>) | null;
+
+  const canClose = !o || o.fulfillmentType !== "TUMABODA_DELIVERY" || tumaBodaOrderIsReadyOrBeyond(o);
+
+  function handleOrderUpdated(updated: OrderRecord) {
+    setOrder(updated);
+    setSelectedStatus(updated.status);
+    onChanged?.();
+  }
 
   // Refunds are deliberately NOT one automated action — logging a request just records the
   // complaint. Every consequence is a separate, explicit admin step, never bundled together.
@@ -175,10 +193,8 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
     try {
       const res = await updateOrderStatus(o.id, selectedStatus as OrderStatus, staffNotes || undefined);
       if (res.order) {
-        setOrder(res.order);
-        setSelectedStatus(res.order.status);
+        handleOrderUpdated(res.order);
         toast.success(`Status updated to ${statusLabel(selectedStatus)}`);
-        onChanged?.();
       }
     } catch (err) {
       reportAdminError(err, "Failed to update status");
@@ -212,10 +228,8 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
     try {
       const res = await updateOrderStatus(o.id, "CANCELLED" as OrderStatus, staffNotes || undefined);
       if (res.order) {
-        setOrder(res.order);
-        setSelectedStatus(res.order.status);
+        handleOrderUpdated(res.order);
         toast.success(`Order ${o.reference} cancelled`);
-        onChanged?.();
       }
     } catch (err) {
       reportAdminError(err, "Cancel failed");
@@ -225,13 +239,22 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
   };
 
   return (
-    <Sheet
+    <Dialog
       open={!!orderId}
       onOpenChange={(v) => {
-        if (!v) onClose();
+        if (!v && canClose) onClose();
       }}
     >
-      <SheetContent side="right" className="w-full sm:max-w-2xl overflow-y-auto p-0">
+      <DialogContent
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto p-0"
+        hideCloseButton={!canClose}
+        onInteractOutside={(e) => {
+          if (!canClose) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (!canClose) e.preventDefault();
+        }}
+      >
         {loading || !o ? (
           <div className="p-6 space-y-4">
             <Skeleton className="h-8 w-48" />
@@ -249,61 +272,42 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <div className="text-xs text-muted-foreground">Order reference</div>
                   <div className="font-mono text-base font-semibold">{o.reference}</div>
                 </div>
-                <OrderStatusBadge status={o.status} />
+                <OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} />
                 {o.isTestOrder && (
                   <span className="inline-flex rounded-full bg-yellow-500/15 px-2 py-0.5 text-[10px] font-bold tracking-wide text-yellow-700">
                     TEST
                   </span>
                 )}
               </div>
-              <button onClick={onClose} className="rounded-sm p-1 opacity-70 hover:opacity-100" aria-label="Close">
-                <X size={18} />
-              </button>
             </div>
+
+            {!canClose && (
+              <div className="mx-6 mt-4 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                This order can't be closed until it's marked ready — finish preparing it below.
+              </div>
+            )}
 
             <div className="space-y-6 p-6">
               {/* Customer contact */}
               <Section title="Customer contact">
                 <Row label="Name" value={o.customerName || "—"} />
                 <Row label="Email" value={o.customerEmail || "—"} />
-                <Row label="Phone" value={o.customerPhone || "—"} />
+                <Row label="Phone (M-Pesa)" value={o.customerPhone || "—"} />
+                {o.fulfillmentType === "TUMABODA_DELIVERY" && (
+                  <Row label="Phone given to TumaBoda" value={o.tumabodaContactPhone || "—"} />
+                )}
               </Section>
 
-              {/* Fulfillment — adapts to type (matches checkout's two-section model) */}
-              {o.fulfillmentType === "OWN_COURIER" ? (
-                <>
-                  <Section title="1. Destination — where the customer collects">
-                    <Row label="Town" value={o.city || "—"} />
-                    <Row label="County" value={o.county || "—"} />
-                    <Row label="Nearest courier office (customer-side)" value={o.shippingAddress || "—"} />
-                    {o.postalCode && <Row label="Postal code" value={o.postalCode} />}
-                  </Section>
-
-                  <Section title="2. Dispatch — sacco / courier we use">
-                    <Row label="Courier type" value={(o.courierType ?? "—").toString().replace(/_/g, " ")} />
-                    <Row label="Sacco / service name" value={o.courierServiceName || "— (to confirm with customer)"} />
-                    <Row label="Nairobi stage / office" value={o.courierStageOrOffice || "— (to confirm)"} />
-                    <div className="mt-2 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                      Transport cost is paid by the customer directly to the sacco / courier on collection
-                      (or at dispatch, confirmed by phone). Not included in the order total.
-                    </div>
-                  </Section>
-                </>
-              ) : o.fulfillmentType === "PICKUP" ? (
-                <Section title="Fulfillment — pickup at shop">
-                  <Row label="Method" value="Customer pickup at our shop" />
-                  <div className="mt-2 rounded-md border border-dashed bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
-                    No delivery address required. Call the customer when the order is ready for pickup.
-                  </div>
-                </Section>
-              ) : (
-                <Section title="Delivery address">
-                  <Row label="Street / building" value={o.shippingAddress || "—"} />
-                  <Row label="City" value={o.city || "—"} />
-                  <Row label="County" value={o.county || "—"} />
-                  {o.postalCode && <Row label="Postal code" value={o.postalCode} />}
-                </Section>
-              )}
+              {/* Fulfillment — genuinely distinct per mode, not a shared shell with conditionals.
+                  Which panel renders comes from the fulfillment-mode registry (src/lib/
+                  fulfillmentModes.ts), not a hardcoded per-type switch — a future provider adds
+                  a registry entry, not a new branch here. */}
+              {(() => {
+                const mode = FULFILLMENT_MODES[o.fulfillmentType as FulfillmentModeKey];
+                if (!mode) return null;
+                const Panel = mode.Panel;
+                return <Panel order={o} onOrderUpdated={handleOrderUpdated} onClose={onClose} />;
+              })()}
 
               {/* Items */}
               <Section title="Items">
@@ -340,18 +344,23 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
               </Section>
 
               {/* Financials */}
-              <Section title="Financials">
+              <Section title="Financials" collapsible defaultOpen={false}>
                 <Row label="Subtotal" value={formatKes(o.subtotal)} />
                 <Row
                   label="Delivery fee"
                   value={
-                    o.fulfillmentType === "OWN_COURIER"
-                      ? "Paid to courier on collection"
-                      : o.fulfillmentType === "PICKUP"
-                        ? "Free (pickup)"
-                        : Number(o.shippingFee) === 0
-                          ? "Free"
-                          : formatKes(o.shippingFee)
+                    o.fulfillmentType === "MANUAL_DELIVERY" ? (
+                      <span className="inline-flex items-center gap-2">
+                        {o.deliveryFeeAmount != null ? formatKes(o.deliveryFeeAmount) : "Not yet arranged"}
+                        <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
+                      </span>
+                    ) : o.fulfillmentType === "PICKUP" ? (
+                      "Free (pickup)"
+                    ) : Number(o.shippingFee) === 0 ? (
+                      "Free"
+                    ) : (
+                      formatKes(o.shippingFee)
+                    )
                   }
                 />
                 {Number(o.discount ?? 0) > 0 && <Row label="Discount" value={`− ${formatKes(o.discount)}`} />}
@@ -369,7 +378,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
 
               {/* ETR / documents bundle shortcut — only shown for orders that opted in at checkout */}
               {o.etrRequested && (
-                <Section title="ETR & Tax Documents">
+                <Section title="ETR & Tax Documents" collapsible defaultOpen={false}>
                   <Row label="Documents email" value={o.documentsEmail ?? "—"} />
                   <div className="flex items-center justify-between gap-3 py-1.5">
                     <span className="text-sm text-muted-foreground">Status</span>
@@ -390,7 +399,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
               )}
 
               {/* Payment */}
-              <Section title="Payment">
+              <Section title="Payment" collapsible defaultOpen={false}>
                 <Row label="Method" value={o.paymentMethod ?? o.paymentGateway ?? "—"} />
                 <div className="flex items-center justify-between gap-3 py-1.5">
                   <span className="text-sm text-muted-foreground">Status</span>
@@ -400,63 +409,25 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                   <Row
                     label="Fulfillment type"
                     value={
-                      o.fulfillmentType === "OWN_COURIER"
+                      o.fulfillmentType === "MANUAL_DELIVERY"
                         ? "Customer's sacco / courier"
                         : o.fulfillmentType === "PICKUP"
                           ? "Pickup at shop"
-                          : "Zone delivery"
+                          : "TumaBoda delivery"
                     }
                   />
                 )}
               </Section>
 
-              {/* Update status — manual override, restricted to ORDER_MANAGE_ALL.
-                  Queue-specific advances (Verify Payment, Start Production, Dispatch)
-                  live on their own queue pages for the specialist roles. */}
+              {/* Manual override — an escape hatch for edge cases the per-mode flow above
+                  doesn't cover (correcting a mis-click, jumping straight to a status). The
+                  primary action for whatever stage the order is actually at lives in the
+                  fulfillment panel above, not duplicated here. */}
               {canOverrideStatus && (
-                <Section title="Update order status">
+                <Section title="Manual override" collapsible defaultOpen={false}>
                   <div className="space-y-3 pt-1">
-                    {o.status === "PENDING_PAYMENT" && (
-                      <p className="text-xs text-muted-foreground">
-                        Waiting for the customer's M-Pesa payment — nothing to do here yet.
-                      </p>
-                    )}
-
-                    {/* Single contextual next-action, same pattern as the
-                        payment/preparation/dispatch queues. */}
-                    {(() => {
-                      const next = getNextAction(o.status as OrderStatus);
-                      if (!next) return null;
-                      return (
-                        <button
-                          className="admin-btn admin-btn-primary w-full"
-                          disabled={updatingStatus || cancelling}
-                          onClick={async () => {
-                            setSelectedStatus(next.nextStatus);
-                            setUpdatingStatus(true);
-                            try {
-                              const res = await updateOrderStatus(o.id, next.nextStatus, staffNotes || undefined);
-                              if (res.order) {
-                                setOrder(res.order);
-                                setSelectedStatus(res.order.status);
-                                toast.success(`Status updated to ${statusLabel(next.nextStatus)}`);
-                                onChanged?.();
-                              }
-                            } catch (err) {
-                              reportAdminError(err, "Failed to update status");
-                            } finally {
-                              setUpdatingStatus(false);
-                            }
-                          }}
-                        >
-                          {updatingStatus && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                          {next.label}
-                        </button>
-                      );
-                    })()}
-
                     <details>
-                      <summary className="cursor-pointer text-xs text-muted-foreground">Manual override</summary>
+                      <summary className="cursor-pointer text-xs text-muted-foreground">Set status manually</summary>
                       {/* REFUNDED is deliberately excluded — only set through the Refund
                           section below, never as a quick dropdown pick. */}
                       <div className="mt-2 space-y-3">
@@ -484,16 +455,24 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
                     </details>
 
                     {o.status !== "CANCELLED" && o.status !== "REFUNDED" && (
-                      <button
-                        type="button"
-                        className="admin-btn admin-btn-ghost w-full"
-                        style={{ color: "var(--admin-clay, #c0392b)", borderColor: "var(--admin-clay, #c0392b)" }}
-                        disabled={updatingStatus || cancelling}
-                        onClick={handleCancelOrder}
-                      >
-                        {cancelling && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                        Cancel order
-                      </button>
+                      o.tumabodaDeliveryId ? (
+                        <p className="text-xs text-muted-foreground">
+                          This order already has a TumaBoda rider booked, so it can't be cancelled
+                          here — no TumaBoda API exists to cancel an in-flight delivery. Contact
+                          TumaBoda directly, then handle this order manually.
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost w-full"
+                          style={{ color: "var(--admin-clay, #c0392b)", borderColor: "var(--admin-clay, #c0392b)" }}
+                          disabled={updatingStatus || cancelling}
+                          onClick={handleCancelOrder}
+                        >
+                          {cancelling && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                          Cancel order
+                        </button>
+                      )
                     )}
                   </div>
                 </Section>
@@ -502,7 +481,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
               {/* Refund — its own section, separate from status: refunding is a distinct
                   decision from moving an order through fulfilment. Logging a request just
                   records the complaint; nothing else changes until an admin explicitly acts. */}
-              <Section title="Refund">
+              <Section title="Refund" collapsible defaultOpen={false}>
                 {o.refundRequestedAt && !o.refundResolvedAt ? (
                   <div className="rounded-md border border-dashed border-destructive/40 bg-destructive/5 p-3">
                     <div className="text-sm font-semibold">Refund requested — awaiting manual resolution</div>
@@ -579,7 +558,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
 
               {/* Status history */}
               {Array.isArray(o.statusHistory) && o.statusHistory.length > 0 && (
-                <Section title="Status history">
+                <Section title="Status history" collapsible defaultOpen={false}>
                   <ol className="space-y-3">
                     {[...o.statusHistory].reverse().map((h: any, i: number) => (
                       <li key={i} className="border-l-2 border-primary/30 pl-3">
@@ -599,7 +578,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
               )}
 
               {/* Staff */}
-              <Section title="Staff">
+              <Section title="Staff" collapsible defaultOpen={false}>
                 {canAssign ? (
                   <AssignSelect
                     orderId={o.id}
@@ -635,25 +614,7 @@ export function OrderDetailDrawer({ orderId, onClose, onChanged }: Props) {
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
-      <div className="rounded-lg border bg-card p-4 space-y-1">{children}</div>
-    </section>
-  );
-}
-
-function Row({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-1.5">
-      <span className="text-sm text-muted-foreground shrink-0">{label}</span>
-      <span className={`text-sm text-right ${bold ? "font-semibold" : ""}`}>{value}</span>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

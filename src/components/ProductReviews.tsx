@@ -20,6 +20,7 @@ export function ProductReviews({ productId, productName, productSlug, onSummary 
   const [summary, setSummary] = useState<ReviewSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [eligibleOrderRef, setEligibleOrderRef] = useState<string | null>(null);
+  const [eligibleOrderId, setEligibleOrderId] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   const lookupKey = productSlug ?? productId;
@@ -39,7 +40,7 @@ export function ProductReviews({ productId, productName, productSlug, onSummary 
 
   // Determine if this user has a DELIVERED order containing this product → eligible to review
   useEffect(() => {
-    if (!isAuthenticated) { setEligibleOrderRef(null); return; }
+    if (!isAuthenticated) { setEligibleOrderRef(null); setEligibleOrderId(null); return; }
     let cancelled = false;
     orderStore.listMine().then(({ rows }) => {
       if (cancelled) return;
@@ -47,6 +48,7 @@ export function ProductReviews({ productId, productName, productSlug, onSummary 
         o.status === "DELIVERED" && o.items.some((i) => i.productId === productId),
       );
       setEligibleOrderRef(match?.reference ?? null);
+      setEligibleOrderId(match?.id ?? null);
     });
     return () => { cancelled = true; };
   }, [isAuthenticated, productId]);
@@ -108,10 +110,11 @@ export function ProductReviews({ productId, productName, productSlug, onSummary 
       )}
 
       {/* Form */}
-      {showForm && eligibleOrderRef && (
+      {showForm && eligibleOrderRef && eligibleOrderId && (
         <ReviewForm
           productId={productId}
           productName={productName}
+          orderId={eligibleOrderId}
           orderReference={eligibleOrderRef}
           defaultName={user ? `${user.firstName} ${user.lastName}`.trim() : ""}
           defaultEmail={user?.email}
@@ -181,6 +184,7 @@ export function ProductReviews({ productId, productName, productSlug, onSummary 
 interface ReviewFormProps {
   productId: string;
   productName: string;
+  orderId: string;
   orderReference: string;
   defaultName: string;
   defaultEmail?: string;
@@ -188,7 +192,7 @@ interface ReviewFormProps {
   onSubmitted: (review: ProductReview, summary: ReviewSummary) => void;
 }
 
-function ReviewForm({ productId, productName, orderReference, defaultName, defaultEmail, onCancel, onSubmitted }: ReviewFormProps) {
+function ReviewForm({ productId, productName, orderId, orderReference, defaultName, defaultEmail, onCancel, onSubmitted }: ReviewFormProps) {
   const [rating, setRating] = useState<1 | 2 | 3 | 4 | 5>(5);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [name, setName] = useState(defaultName);
@@ -208,6 +212,7 @@ function ReviewForm({ productId, productName, orderReference, defaultName, defau
     try {
       const { review } = await reviewStore.submit({
         productId,
+        orderId,
         customerName: name,
         customerEmail: defaultEmail,
         rating,

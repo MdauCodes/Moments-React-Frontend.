@@ -1,13 +1,16 @@
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Package, MapPin, Phone, Mail, RotateCcw, ShoppingBag, CheckCircle2, Clock, Truck, AlertCircle, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
-import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PrintReceipt } from "@/components/PrintReceipt";
+import { RefundForm } from "@/components/RefundForm";
+import { OrderReviewForm } from "@/components/OrderReviewForm";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
-import { refundStore, refundEligibility, type RefundRequest, type RefundDesiredAction } from "@/services/refundStore";
+import { resolveStatusDisplay } from "@/lib/orderStatusV2";
+import { refundStore, refundEligibility, type RefundRequest } from "@/services/refundStore";
+import { orderReviewStore, type OrderReview } from "@/services/orderReviewStore";
 import { useCart } from "@/contexts/CartContext";
 
 
@@ -18,14 +21,14 @@ function fmt(n: number) {
 
 function statusIcon(status: string) {
   if (status === "DELIVERED") return CheckCircle2;
-  if (status === "SHIPPED" || status === "PACKED") return Truck;
-  if (status === "PAYMENT_FAILED" || status === "CANCELLED") return AlertCircle;
+  if (status === "DISPATCHED") return Truck;
+  if (status === "CANCELLED" || status === "REFUNDED") return AlertCircle;
   return Clock;
 }
 
 function statusTone(status: string) {
   if (status === "DELIVERED" || status === "PAID") return "bg-accent/15 text-accent";
-  if (status === "PAYMENT_FAILED" || status === "CANCELLED") return "bg-destructive/15 text-destructive";
+  if (status === "CANCELLED" || status === "REFUNDED") return "bg-destructive/15 text-destructive";
   return "bg-secondary text-foreground";
 }
 
@@ -37,10 +40,13 @@ function OrderDetailPage() {
   const [refund, setRefund] = useState<RefundRequest | null>(null);
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [orderReview, setOrderReview] = useState<OrderReview | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
     orderStore.getMine(reference ?? "").then((res) => setOrder(res.order));
     refundStore.getForOrder(reference ?? "").then(setRefund);
+    orderReviewStore.getForOrder(reference ?? "").then(setOrderReview);
   }, [reference]);
 
   const StatusIcon = useMemo(() => statusIcon(order?.status ?? ""), [order?.status]);
@@ -102,14 +108,10 @@ function OrderDetailPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusTone(order.status)}`}>
-              <StatusIcon className="h-3.5 w-3.5" /> {order.status.replace(/_/g, " ")}
+              <StatusIcon className="h-3.5 w-3.5" />{" "}
+              {resolveStatusDisplay(order.fulfillmentType, order.statusV2)?.label ?? order.status.replace(/_/g, " ")}
             </span>
             <PrintReceipt order={order} />
-            {eligibility.eligible && !refund && (
-              <button onClick={() => setShowRefundForm(true)} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary">
-                <Undo2 className="h-3.5 w-3.5" /> Request refund
-              </button>
-            )}
             <button onClick={handleReorder} disabled={reordering} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
               <RotateCcw className="h-3.5 w-3.5" /> {reordering ? "Adding…" : "Re-order"}
             </button>
@@ -125,6 +127,17 @@ function OrderDetailPage() {
           </div>
         )}
 
+        {/* Deliberately understated — findable, not a bold header action. Most orders never need
+            this, and the ones that do are already looking for it (via the status/tracking above). */}
+        {eligibility.eligible && !refund && !showRefundForm && (
+          <button
+            onClick={() => setShowRefundForm(true)}
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            <Undo2 className="h-3 w-3" /> Something wrong with this order? Request a refund or replacement
+          </button>
+        )}
+
         {showRefundForm && (
           <RefundForm
             onCancel={() => setShowRefundForm(false)}
@@ -136,6 +149,40 @@ function OrderDetailPage() {
               toast.success("Refund request submitted — we'll respond within 2 business days.");
             }}
             daysRemaining={eligibility.daysRemaining ?? 14}
+          />
+        )}
+
+        {order.status === "DELIVERED" && orderReview && (
+          <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
+            <p className="font-semibold">Thanks for your feedback on this order</p>
+            <div className="mt-1 flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span key={n} className={n <= orderReview.rating ? "text-accent" : "text-foreground/20"}>★</span>
+              ))}
+            </div>
+            {orderReview.comment && <p className="mt-1 text-xs text-muted-foreground">{orderReview.comment}</p>}
+          </div>
+        )}
+
+        {order.status === "DELIVERED" && !orderReview && !showReviewForm && (
+          <button
+            onClick={() => setShowReviewForm(true)}
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Rate your order & delivery experience
+          </button>
+        )}
+
+        {showReviewForm && (
+          <OrderReviewForm
+            onCancel={() => setShowReviewForm(false)}
+            onSubmit={async (rating, comment) => {
+              if (!order) return;
+              const review = await orderReviewStore.submit(order.reference, { rating, comment: comment || undefined });
+              setOrderReview(review);
+              setShowReviewForm(false);
+              toast.success("Thanks for your feedback!");
+            }}
           />
         )}
 
@@ -161,8 +208,8 @@ function OrderDetailPage() {
             {order.trackingEvents && order.trackingEvents.length > 0 && (
               <div className="rounded-2xl border border-border bg-card p-6">
                 <h2 className="font-display text-lg">Tracking</h2>
-                {order.trackingNumber && (
-                  <p className="mt-1 text-xs text-muted-foreground">Tracking number: <span className="font-mono">{order.trackingNumber}</span></p>
+                {order.tumabodaTrackingCode && (
+                  <p className="mt-1 text-xs text-muted-foreground">Tracking number: <span className="font-mono">{order.tumabodaTrackingCode}</span></p>
                 )}
                 <ol className="mt-4 space-y-4">
                   {order.trackingEvents.map((ev, i) => (
@@ -185,7 +232,7 @@ function OrderDetailPage() {
               <h2 className="font-display text-lg">Summary</h2>
               <dl className="mt-4 space-y-2 text-sm">
                 <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd>{fmt(order.subtotal)}</dd></div>
-                <div className="flex justify-between"><dt className="text-muted-foreground">Shipping</dt><dd>{order.fulfillmentType === "OWN_COURIER" ? "Paid to courier" : order.fulfillmentType === "PICKUP" ? "Free (pickup)" : order.shippingFee === 0 ? "Free" : fmt(order.shippingFee)}</dd></div>
+                <div className="flex justify-between"><dt className="text-muted-foreground">Shipping</dt><dd>{order.fulfillmentType === "MANUAL_DELIVERY" ? "Paid to courier" : order.fulfillmentType === "PICKUP" ? "Free (pickup)" : order.shippingFee === 0 ? "Free" : fmt(order.shippingFee)}</dd></div>
                 <div className="border-t border-border pt-2 flex justify-between font-semibold"><dt>Total</dt><dd>{fmt(order.total)}</dd></div>
               </dl>
               <div className="mt-4 rounded-lg bg-secondary p-3 text-xs">
@@ -197,7 +244,7 @@ function OrderDetailPage() {
 
             <div className="rounded-2xl border border-border bg-card p-6">
               <h2 className="font-display text-lg">
-                {order.fulfillmentType === "OWN_COURIER"
+                {order.fulfillmentType === "MANUAL_DELIVERY"
                   ? "Delivery — via your sacco / courier"
                   : order.fulfillmentType === "PICKUP"
                     ? "Pickup at our shop"
@@ -206,7 +253,7 @@ function OrderDetailPage() {
               <div className="mt-3 space-y-2 text-sm">
                 <p className="font-semibold">{order.customerName}</p>
 
-                {order.fulfillmentType === "OWN_COURIER" ? (
+                {order.fulfillmentType === "MANUAL_DELIVERY" ? (
                   <>
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mt-3">
                       1. Where you'll collect
@@ -263,75 +310,6 @@ function OrderDetailPage() {
         </div>
       </section>
     </SiteLayout>
-  );
-}
-
-function RefundForm({
-  onCancel,
-  onSubmit,
-  daysRemaining,
-}: {
-  onCancel: () => void;
-  onSubmit: (reason: string, desiredAction: RefundDesiredAction) => Promise<void>;
-  daysRemaining: number;
-}) {
-  const [reason, setReason] = useState("");
-  const [desiredAction, setDesiredAction] = useState<RefundDesiredAction>("REFUND");
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (reason.trim().length < 10) {
-      toast.error("Please describe the issue (at least 10 characters)");
-      return;
-    }
-    setSubmitting(true);
-    try {
-      await onSubmit(reason.trim(), desiredAction);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-4 rounded-2xl border border-border bg-card p-5">
-      <p className="font-display text-lg">Request a refund or replacement</p>
-      <p className="mt-1 text-xs text-muted-foreground">
-        You have {daysRemaining} day{daysRemaining === 1 ? "" : "s"} left in the 14-day return window.
-      </p>
-      <div className="mt-4 grid gap-3">
-        <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Preferred resolution</label>
-        <div className="flex flex-wrap gap-2">
-          {(["REFUND", "REPLACE", "STORE_CREDIT"] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => setDesiredAction(opt)}
-              className={`rounded-full border px-4 py-1.5 text-xs ${
-                desiredAction === opt ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-secondary"
-              }`}
-            >
-              {opt === "REFUND" ? "Refund" : opt === "REPLACE" ? "Replacement" : "Store credit"}
-            </button>
-          ))}
-        </div>
-        <textarea
-          required
-          rows={4}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          maxLength={1000}
-          placeholder="Tell us what went wrong (damaged, wrong item, late delivery, …)"
-          className="mt-1 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
-        />
-      </div>
-      <div className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="rounded-full border border-border px-4 py-2 text-xs hover:bg-secondary">Cancel</button>
-        <button type="submit" disabled={submitting} className="rounded-full bg-primary px-5 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
-          {submitting ? "Submitting…" : "Submit request"}
-        </button>
-      </div>
-    </form>
   );
 }
 

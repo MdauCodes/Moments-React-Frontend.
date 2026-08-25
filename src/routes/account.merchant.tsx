@@ -26,6 +26,8 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { useAuth } from "@/contexts/AuthContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { profileStore, type CustomerProfile } from "@/services/profileStore";
+import { PrivacyDataSection } from "@/components/PrivacyDataSection";
+import { AccountSecuritySection } from "@/components/AccountSecuritySection";
 import {
   referralStore,
   type ReferralStatus,
@@ -464,6 +466,8 @@ function SettingsTab() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [saving, setSaving] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
 
   useEffect(() => {
     profileStore.get().then((res) => {
@@ -474,6 +478,7 @@ function SettingsTab() {
         p.email = user.email;
       }
       setProfile(p);
+      setPhoneDraft(p.phone);
     });
   }, [user]);
 
@@ -486,11 +491,26 @@ function SettingsTab() {
     if (!profile) return;
     setSaving(true);
     try {
-      const { profile: saved, source } = await profileStore.save(profile);
-      setProfile(saved);
-      toast.success(source === "live" ? "Profile saved" : "Saved locally");
+      const { message } = await profileStore.save(profile);
+      toast.success(message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit profile update.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSavePhone(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingPhone(true);
+    try {
+      const updated = await profileStore.updatePhone(phoneDraft.trim());
+      setProfile(updated);
+      toast.success("Phone number updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update phone number.");
+    } finally {
+      setSavingPhone(false);
     }
   }
 
@@ -514,23 +534,10 @@ function SettingsTab() {
               onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
             />
           </label>
-          <label>
+          <label className="sm:col-span-2">
             <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</span>
-            <input
-              type="email"
-              className={settingsInputCls}
-              value={profile.email}
-              onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            />
-          </label>
-          <label>
-            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone</span>
-            <input
-              className={settingsInputCls}
-              value={profile.phone}
-              placeholder="+254 7…"
-              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-            />
+            <input type="email" className={`${settingsInputCls} cursor-not-allowed opacity-60`} value={profile.email} disabled />
+            <span className="mt-1 block text-[11px] text-muted-foreground">Contact us to change your email address.</span>
           </label>
           <div className="flex justify-end sm:col-span-2">
             <button
@@ -541,8 +548,35 @@ function SettingsTab() {
               {saving && <InlineProgress size="sm" />} Save
             </button>
           </div>
+          <p className="text-[11px] text-muted-foreground sm:col-span-2">Name changes are reviewed by our team before they apply.</p>
         </form>
       </Section>
+
+      {/* Split out from the name form above — phone applies immediately (see profileStore.updatePhone),
+          it isn't part of the reviewed-before-applying queue those fields go through. */}
+      <Section icon={SettingsIcon} title="Phone">
+        <form onSubmit={handleSavePhone} className="flex flex-wrap items-end gap-3">
+          <label className="min-w-[200px] flex-1">
+            <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone</span>
+            <input
+              className={settingsInputCls}
+              value={phoneDraft}
+              placeholder="+254 7…"
+              onChange={(e) => setPhoneDraft(e.target.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={savingPhone || phoneDraft.trim() === profile.phone}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {savingPhone && <InlineProgress size="sm" />} Save
+          </button>
+        </form>
+        <p className="mt-2 text-[11px] text-muted-foreground">Applies immediately — no admin review needed.</p>
+      </Section>
+
+      <AccountSecuritySection />
 
       <Section icon={SettingsIcon} title="Saved addresses">
         <p className="text-sm text-muted-foreground">
@@ -557,6 +591,8 @@ function SettingsTab() {
           Manage saved addresses <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </Section>
+
+      <PrivacyDataSection />
     </div>
   );
 }

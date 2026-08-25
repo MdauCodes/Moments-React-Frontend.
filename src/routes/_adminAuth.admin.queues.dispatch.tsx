@@ -59,7 +59,10 @@ function DispatchQueuePage() {
         (o) =>
           o.status === "READY_FOR_DISPATCH" &&
           o.paymentStatus === "PAID" &&
-          !DISPATCHED_STATUSES.has(o.status),
+          !DISPATCHED_STATUSES.has(o.status) &&
+          // Pickup never gets "dispatched" — the customer collects in person, staff mark it
+          // picked up from the order detail page instead. See getNextActionV2.
+          o.fulfillmentType !== "PICKUP",
       ),
     [orders],
   );
@@ -102,7 +105,7 @@ function DispatchQueuePage() {
       <td>{o.county ?? "—"}</td>
       <td>
         {o.fulfillmentType ?? "—"}
-        {o.fulfillmentType === "OWN_COURIER" && o.courierType && (
+        {o.fulfillmentType === "MANUAL_DELIVERY" && o.courierType && (
           <div style={{ fontSize: 11, color: "var(--admin-muted)" }}>{o.courierType}</div>
         )}
       </td>

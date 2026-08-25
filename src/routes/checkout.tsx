@@ -13,21 +13,38 @@ import {
   Store,
   Truck,
   PackageCheck,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth, authFetch } from "@/contexts/AuthContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
-import { fetchDeliveryZones, type DeliveryZone } from "@/services/deliveryZoneService";
 import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
-import { apiUrl } from "@/config/api";
+import { profileStore } from "@/services/profileStore";
+import { apiUrl, apiFetch } from "@/config/api";
 import { CountySelect } from "@/components/CountySelect";
+import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { buildReceiptPdfBlob } from "@/lib/pdf";
 import type { CustomerOrder } from "@/services/orderStore";
+import { getDeliveryPartner } from "@/data/deliveryPartners";
+
+const tumaBodaPartner = getDeliveryPartner("tumaboda");
+
+/** Business-hours cutoff, hardcoded per the current rule: orders placed past 5pm are prepared
+ *  and dispatched the next morning instead of same-day. Checked against Africa/Nairobi time
+ *  explicitly (not the browser's local time) so this is correct regardless of where the
+ *  customer's device thinks it is. */
+function isAfterBusinessHours(): boolean {
+  const nairobiHour = Number(
+    new Intl.DateTimeFormat("en-KE", { hour: "numeric", hour12: false, timeZone: "Africa/Nairobi" }).format(new Date()),
+  );
+  return nairobiHour >= 17;
+}
 
 /**
  * Generates the tax invoice PDF client-side (same renderer as the self-serve download on the
@@ -77,7 +94,8 @@ async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, bu
     });
 
     const sigRes = await fetch(
-      apiUrl(`/api/v1/tax-documents/${encodeURIComponent(order.reference)}/upload-signature?token=${encodeURIComponent(uploadToken)}`),
+      apiUrl(`/api/v1/tax-documents/${encodeURIComponent(order.reference)}/upload-signature`),
+      { headers: { "X-Upload-Token": uploadToken } },
     );
     if (!sigRes.ok) return;
     const sig = await sigRes.json();
@@ -113,13 +131,40 @@ async function uploadTaxInvoicePdf(order: CustomerOrder, uploadToken: string, bu
 
 
 
+/** Only for guests — a logged-in account already gets real prefill from its saved profile
+ *  (see the profileStore effect below). A guest who checked out before had nothing remembered
+ *  at all; this closes that gap the same low-stakes way (name/email/phone/address only, nothing
+ *  payment-related), without requiring an account. */
+const GUEST_CHECKOUT_KEY = "mpk_guest_checkout_details_v1";
+
+/** Everything the guest-checkout localStorage blob can carry — the plain contact/address fields
+ *  passively prefill blank inputs (existing behavior), while `fulfillment`/`resolvedAddress` are
+ *  only ever applied via the explicit "Use my saved details" one-tap shortcut (never silently, so
+ *  a returning guest isn't auto-jumped into a delivery mode without choosing to). `resolvedAddress`
+ *  is omitted for PICKUP orders (nothing to resolve) and for anything saved before this shortcut
+ *  existed — those older blobs still work for the passive prefill, they just won't offer the
+ *  one-tap shortcut until the guest's next checkout after this ships. */
+type SavedGuestCheckoutDetails = {
+  name?: string;
+  email?: string;
+  phone?: string;
+  tumabodaPhone?: string;
+  city?: string;
+  county?: string;
+  address?: string;
+  postalCode?: string;
+  collectorName?: string;
+  fulfillment?: FulfillmentType;
+  resolvedAddress?: ResolvedAddress | null;
+};
+
 const BRAND = "#1a472a";
 const POLL_MS = 3000;
 const MAX_POLLS = 20;
 const TIMEOUT_MS = POLL_MS * MAX_POLLS;
 const RESEND_AFTER_MS = 30_000;
 
-type Step = "contact" | "payment";
+type Step = "contact" | "delivery";
 type PayState = "idle" | "sending" | "waiting" | "success" | "failed" | "timeout";
 
 function fmt(n: number) {
@@ -145,9 +190,38 @@ function isValidKenyanPhone(p: string) {
   return /^\+2547\d{8}$/.test(n);
 }
 
+/** At least a first and last name — the collector's name is checked against ID at the
+ *  destination office, so a single word isn't enough to be useful for that. */
+function hasFullName(n: string) {
+  return n.trim().split(/\s+/).filter(Boolean).length >= 2;
+}
+
 const inputCls =
   "w-full rounded-lg border border-border bg-background px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-[color:var(--brand-ring)] focus:border-transparent transition";
 const labelCls = "block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5";
+
+/**
+ * Scrolls a just-revealed section into view the moment its stage becomes "complete" — used across
+ * the delivery step's accordion-style stages (fulfillment choice, address resolution, Manual
+ * Delivery's two sections) so the customer lands on what's next instead of having to scroll
+ * themselves. Edge-triggered off a ref, not the `complete` boolean directly, so it fires exactly
+ * once per completion (not on every re-render while already complete) — and resets when a stage
+ * is reopened via its own "Change"/"Edit" control, so completing it again re-scrolls too.
+ */
+function useScrollIntoViewOnComplete<T extends HTMLElement>(complete: boolean, ref: React.RefObject<T | null>) {
+  const wasComplete = useRef(false);
+  useEffect(() => {
+    if (complete && !wasComplete.current) {
+      wasComplete.current = true;
+      const timer = setTimeout(() => {
+        ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 60);
+      return () => clearTimeout(timer);
+    }
+    if (!complete) wasComplete.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [complete]);
+}
 
 function CheckoutModal() {
   const { items, cartTotal, clearCart } = useCart();
@@ -163,25 +237,78 @@ function CheckoutModal() {
       : Math.random().toString(36).slice(2) + Date.now().toString(36),
   );
 
-  // Fulfillment
-  const [fulfillment, setFulfillment] = useState<FulfillmentType>("OWN_COURIER");
+  // Fulfillment — null until the customer makes the pickup-vs-delivery choice; for "delivery",
+  // it then resolves to TUMABODA_DELIVERY or MANUAL_DELIVERY automatically based on coverage
+  // (see the effect below), or MANUAL_DELIVERY explicitly if they can't find their address.
+  const [fulfillment, setFulfillment] = useState<FulfillmentType | null>(null);
+  // Top-level gate: has the customer chosen "have it delivered" at all yet? Distinct from
+  // `fulfillment` because "delivery chosen, but not yet resolved to Manual vs TumaBoda" is a
+  // real intermediate state (waiting on county + coverage check).
+  const [wantsDelivery, setWantsDelivery] = useState<boolean | null>(null);
   const [courierType, setCourierType] = useState<CourierType | "">("");
   const [courierServiceName, setCourierServiceName] = useState("");
   const [courierStageOrOffice, setCourierStageOrOffice] = useState("");
+  // Full name of whoever will actually collect the parcel — checked against ID at the
+  // destination office, per the client's explicit decision. Deliberately separate from the
+  // orderer's own `name`, since they're often not the same person.
+  const [collectorName, setCollectorName] = useState("");
+  // Set once the courier-suggestion autofill below actually fills something in, purely to show
+  // the right copy ("based on past orders" vs. a general starting guess) — null otherwise.
+  const [courierSuggestionSource, setCourierSuggestionSource] = useState<string | null>(null);
 
   // Contact / delivery
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  // Separate, manually-typed number specifically for TumaBoda to SMS/call the rider contact —
+  // deliberately never pre-filled from `phone` above. The two can legitimately differ (M-Pesa
+  // line vs. the number someone actually wants a rider calling), and having the customer type
+  // this one themselves, for this stated purpose, is what makes "they consented to sharing this
+  // number with TumaBoda" a real, defensible fact rather than an inferred one.
+  const [tumabodaPhone, setTumabodaPhone] = useState("");
   const [city, setCity] = useState("");
   const [county, setCounty] = useState("");
   const [postalCode, setPostalCode] = useState("");
   const [address, setAddress] = useState("");
+
+  // Precise pin, required once TumaBoda is the resolved fulfillment — feeds dropoffLat/Lng for
+  // TumaBoda's real-time quote and delivery creation. Deliberately doesn't try to derive `county`
+  // from this: Google's formatted address string doesn't reliably map onto our 47-county list,
+  // and a silent mismatch there would quietly break the coverage check. County stays a separate,
+  // manual source of truth until the finer coverage-check follow-up (tracked separately) replaces it.
+  const [addressText, setAddressText] = useState("");
+  const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
+  // "Can't find your address? Pick your county instead" escape hatch — a real flag, not a
+  // sentinel value stuffed into `county`, so it can't collide with a real county string.
+  const [showCountyFallback, setShowCountyFallback] = useState(false);
+  const [locatingMe, setLocatingMe] = useState(false);
+  const [courierInfoExpanded, setCourierInfoExpanded] = useState(false);
+  const [manualDeliveryInfoExpanded, setManualDeliveryInfoExpanded] = useState(false);
+  // Raw device fix from "Use my current location" — held here for explicit confirmation (GPS can
+  // be wrong: indoors, VPN, stale cache) rather than being silently trusted or silently dropped
+  // into the search box. Cleared once the customer confirms or rejects it.
+  const [gpsFallback, setGpsFallback] = useState<{ description: string; latitude: number; longitude: number; county: string | null } | null>(null);
+  // Live delivery-fee preview — debounced call to /api/v1/public/tumaboda/quote whenever the
+  // resolved pin changes (see the effect below). Fails closed: an error here drops TumaBoda
+  // back to Manual Delivery automatically rather than ever proceeding with a guessed fee.
+  const [quotePreview, setQuotePreview] = useState<{
+    mode: "UPFRONT" | "POD";
+    feeKes: number;
+  } | null>(null);
+  const [quoteChecking, setQuoteChecking] = useState(false);
+  const [quoteUnavailable, setQuoteUnavailable] = useState(false);
+
+  // Gates the two sub-views of the "delivery" step: fulfillment/courier details form, then (once
+  // confirmed) the payment screen — kept as its own separate step for clarity (found live:
+  // merging it into one long scrolling page read as more cluttered, not more compact).
+  const [detailsConfirmed, setDetailsConfirmed] = useState(false);
   const [etrRequested, setEtrRequested] = useState(false);
   const [documentsEmail, setDocumentsEmail] = useState("");
   const [taxInvoiceKraPin, setTaxInvoiceKraPin] = useState("");
   const [kraPinPrefilled, setKraPinPrefilled] = useState(false);
-  const [paymentGateway, setPaymentGateway] = useState<"PAYHERO" | "MPESA">("MPESA");
+  // PayHero was cosmetic — an identical Daraja call under a different label — and has been
+  // removed entirely. M-Pesa (Daraja) is the only gateway now.
+  const paymentGateway = "MPESA" as const;
 
   // Promo code
   const [promoCode, setPromoCode] = useState("");
@@ -209,15 +336,16 @@ function CheckoutModal() {
       .catch(() => {});
   }, [isAuthenticated]);
 
-  // Default the documents-delivery email to the logged-in account's email the moment the
-  // customer ticks the ETR box — still fully editable, and does nothing for guests (who must
-  // type one in themselves).
+  // Default the documents-delivery email to whatever the customer already typed in the contact
+  // step the moment they tick the ETR box — still fully editable. Works for guests too: `email`
+  // is collected in step 1 regardless of auth status, so there's no reason to make a guest
+  // retype the same address a second time here.
   useEffect(() => {
-    if (etrRequested && !documentsEmail && isAuthenticated && user?.email) {
-      setDocumentsEmail(user.email);
+    if (etrRequested && !documentsEmail && email.trim()) {
+      setDocumentsEmail(email.trim());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [etrRequested, isAuthenticated]);
+  }, [etrRequested]);
 
   // Silently (no toast/error) try the welcome code as soon as it qualifies —
   // the backend's own min-order-amount check is the source of truth for
@@ -330,6 +458,28 @@ function CheckoutModal() {
   // discount is stale (computed off a total that no longer applies). Clear it and make
   // the customer re-apply, rather than silently showing a wrong number on screen.
   const prevPromoCodeRef = useRef<string | null>(null);
+  // Tracks the last value the city auto-fill effect itself wrote, so the Manual Delivery
+  // "Delivering to — Change" button can safely clear a still-unedited guess without ever
+  // touching a value the customer typed or edited themselves.
+  const lastCityGuessRef = useRef<string>("");
+  // Same idea for the courier-suggestion autofill — lets a "Change" that picks a new address/town
+  // clear a still-unedited suggestion (so the new town gets its own fresh lookup instead of being
+  // silently blocked by leftover values from the previous one) without ever touching a courier
+  // field the customer actually typed themselves.
+  const lastCourierSuggestionRef = useRef<{ type: CourierType | ""; service: string; stage: string } | null>(null);
+
+  // Scroll targets for the delivery step's accordion stages — see useScrollIntoViewOnComplete.
+  const pickupSectionRef = useRef<HTMLDivElement>(null);
+  const deliverySearchSectionRef = useRef<HTMLDivElement>(null);
+  const coverageResultSectionRef = useRef<HTMLDivElement>(null);
+  const manualSection2Ref = useRef<HTMLElement>(null);
+  // Lets "Edit" on the collapsed Manual Delivery Section 1 summary reopen the full field set
+  // without clearing the destination town that's already there.
+  const [manualSection1ForceOpen, setManualSection1ForceOpen] = useState(false);
+  // A returning guest's last checkout, full enough to offer the one-tap "Use my saved details"
+  // shortcut — set on mount below, cleared once the shortcut is used or the guest starts
+  // choosing manually so the banner doesn't linger after it's no longer relevant.
+  const [savedGuestShortcut, setSavedGuestShortcut] = useState<SavedGuestCheckoutDetails | null>(null);
   useEffect(() => {
     const currentCode = appliedPromo?.code ?? null;
     if (prevPromoCodeRef.current !== currentCode && appliedRedemption) {
@@ -380,22 +530,188 @@ function CheckoutModal() {
     setRedeemError(null);
   }
 
-  const [zones, setZones] = useState<DeliveryZone[]>([]);
-  const [selectedZone, setSelectedZone] = useState<DeliveryZone | null>(null);
-  const [zoneSearch, setZoneSearch] = useState("");
-  const [zoneOpen, setZoneOpen] = useState(false);
-  const zoneRef = useRef<HTMLDivElement>(null);
+  // Destination-driven coverage check — resolves whether real-time-quoted courier delivery is
+  // available for the chosen county. Never surfaced to the customer as a named partner, just
+  // "Courier Delivery" vs the Manual Delivery fallback. Static-allowlist-backed for now.
+  const [covered, setCovered] = useState<boolean | null>(null);
+  const [coverageChecking, setCoverageChecking] = useState(false);
 
   useEffect(() => {
-    if (!zoneOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (zoneRef.current && !zoneRef.current.contains(e.target as Node)) {
-        setZoneOpen(false);
+    if (!county.trim()) {
+      setCovered(null);
+      return;
+    }
+    let cancelled = false;
+    setCoverageChecking(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/v1/public/delivery-coverage?county=${encodeURIComponent(county.trim())}`));
+        if (cancelled) return;
+        const data = await res.json();
+        setCovered(!!data.covered);
+      } catch {
+        if (!cancelled) setCovered(null);
+      } finally {
+        if (!cancelled) setCoverageChecking(false);
       }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
     };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
-  }, [zoneOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [county]);
+
+  // Once "have it delivered" is chosen, resolve fulfillment automatically from the coverage
+  // check: first resolution picks TumaBoda (covered) or Manual (not covered); if the customer
+  // then changes county away from a covered area, correct back to Manual so they're never left
+  // on an option that just disappeared. Doesn't fight a manual override the other way (e.g. the
+  // "can't find your address, switch to Courier" escape hatch below) — that's a deliberate choice,
+  // not a resolution artifact, so it's left alone unless the county itself changes.
+  useEffect(() => {
+    if (wantsDelivery !== true) return;
+    if (covered === true && fulfillment === null) setFulfillment("TUMABODA_DELIVERY");
+    else if (covered === false && fulfillment === null) setFulfillment("MANUAL_DELIVERY");
+    else if (covered === false && fulfillment === "TUMABODA_DELIVERY") setFulfillment("MANUAL_DELIVERY");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [covered, wantsDelivery]);
+
+  // Manual Delivery's own "Destination town" field used to always start blank, even when the
+  // customer had already searched and picked a real address up above (just one that wasn't
+  // TumaBoda-covered) — forcing them to type the same town a second time. Only fills a still-
+  // blank field, same "never overwrite what's typed" rule as every other auto-fill in this file.
+  // Also covers the "pick your county instead" escape hatch: a customer who lands there is
+  // typically genuinely upcountry (their real town didn't resolve via the Nairobi-biased address
+  // search at all), so without this they'd pick e.g. "Nyeri" from the county dropdown and then
+  // have to type "Nyeri" again right below as the destination town — the same real duplicate-entry
+  // problem this effect already exists to prevent for the resolved-address path.
+  useEffect(() => {
+    if (fulfillment !== "MANUAL_DELIVERY" || city.trim()) return;
+    const guess = resolvedAddress ? resolvedAddress.description.split(",")[0]?.trim() : county.trim();
+    if (guess) {
+      setCity(guess);
+      lastCityGuessRef.current = guess;
+    }
+  }, [fulfillment, resolvedAddress, county, city]);
+
+  // Most Manual Delivery orders are collected by the person who placed them — prefill the
+  // collector's name from the contact name already given, but only when it's already a full
+  // name (first + last); a single-word contact name isn't enough to satisfy the collector-name
+  // requirement anyway, so leaving it blank there prompts the customer to actually type the full
+  // name needed for verification rather than silently carrying over something incomplete.
+  useEffect(() => {
+    if (fulfillment !== "MANUAL_DELIVERY" || collectorName.trim()) return;
+    if (hasFullName(name)) setCollectorName(name.trim());
+  }, [fulfillment, name, collectorName]);
+
+  // Courier-autofill "learning system" — once a destination town is known, ask the backend what
+  // courier real past orders to that town actually used (falls back to a general seeded route
+  // guess if no history exists yet). Only fills fields still blank, same rule as every other
+  // autofill here; a value the customer already picked/typed is never touched, and this never
+  // re-fires just because those fields later get filled (they're deliberately left out of the
+  // dependency array below — only `city`/`fulfillment` changing should trigger a fresh lookup).
+  useEffect(() => {
+    if (fulfillment !== "MANUAL_DELIVERY" || !city.trim()) return;
+    if (courierType || courierServiceName.trim() || courierStageOrOffice.trim()) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await apiFetch(`/api/v1/public/courier-suggestion?town=${encodeURIComponent(city.trim())}`);
+        if (cancelled || res.status === 204 || !res.ok) return;
+        const suggestion = await res.json();
+        if (cancelled) return;
+        setCourierType((prev) => prev || suggestion.courierType || "");
+        setCourierServiceName((prev) => prev || suggestion.courierServiceName || "");
+        setCourierStageOrOffice((prev) => prev || suggestion.courierStageOrOffice || "");
+        setCourierSuggestionSource(suggestion.source ?? null);
+        lastCourierSuggestionRef.current = {
+          type: suggestion.courierType ?? "",
+          service: suggestion.courierServiceName ?? "",
+          stage: suggestion.courierStageOrOffice ?? "",
+        };
+      } catch {
+        // Best-effort suggestion — silent failure, customer just fills Section 2 in themselves.
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fulfillment, city]);
+
+  // Accordion-style auto-scroll for the delivery step — see useScrollIntoViewOnComplete's own
+  // Javadoc-style comment above. One call per stage; each only fires once per completion.
+  useScrollIntoViewOnComplete(fulfillment === "PICKUP", pickupSectionRef);
+  useScrollIntoViewOnComplete(wantsDelivery === true, deliverySearchSectionRef);
+  useScrollIntoViewOnComplete(Boolean(resolvedAddress) || showCountyFallback, coverageResultSectionRef);
+  useScrollIntoViewOnComplete(
+    fulfillment === "MANUAL_DELIVERY" && city.trim().length > 0 && hasFullName(collectorName),
+    manualSection2Ref,
+  );
+
+  // Live delivery-fee preview — fires whenever the resolved pin changes, so the customer sees
+  // the real fee before committing rather than only finding out at final checkout. Fails
+  // CLOSED on any error: TumaBoda is auto-dropped back to Manual Delivery, never left showing a
+  // guessed or stale fee. contactReady is just `name` — the quote request needs no phone number
+  // at all (the M-Pesa phone isn't even collected until the later payment screen).
+  const contactReady = Boolean(name.trim());
+  useEffect(() => {
+    // cartTotal drops to 0 the moment a successful order clears the cart (see the payment-success
+    // handler below), while this page is still mounted for its 1.2s redirect delay — without this
+    // guard, that transient zero total re-fires a quote request TumaBoda correctly rejects
+    // (goodsValueKes must be positive), which then flips fulfillment to Manual Delivery and pops
+    // an error toast right after the customer just saw a success state.
+    if (fulfillment !== "TUMABODA_DELIVERY" || !resolvedAddress || !contactReady || cartTotal <= 0) {
+      setQuotePreview(null);
+      setQuoteUnavailable(false);
+      return;
+    }
+    let cancelled = false;
+    setQuoteChecking(true);
+    setQuoteUnavailable(false);
+    const t = setTimeout(async () => {
+      try {
+        // POST body rather than a query string — this carries the customer's name and location,
+        // which shouldn't land in access logs, browser history, or Referer headers.
+        const res = await fetch(apiUrl(`/api/v1/public/tumaboda/quote`), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: resolvedAddress.latitude,
+            lng: resolvedAddress.longitude,
+            subtotal: cartTotal,
+            contactName: name.trim(),
+            location: resolvedAddress.description ?? "",
+          }),
+        });
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.available) {
+          setQuotePreview({ mode: data.mode, feeKes: Number(data.customerFacingFeeKes) });
+          setQuoteUnavailable(false);
+        } else {
+          setQuotePreview(null);
+          setQuoteUnavailable(true);
+          setFulfillment("MANUAL_DELIVERY");
+          toast.error(data.message || "TumaBoda delivery isn't available right now — switched to Manual Delivery.");
+        }
+      } catch {
+        if (cancelled) return;
+        setQuotePreview(null);
+        setQuoteUnavailable(true);
+        setFulfillment("MANUAL_DELIVERY");
+        toast.error("TumaBoda delivery isn't available right now — switched to Manual Delivery.");
+      } finally {
+        if (!cancelled) setQuoteChecking(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fulfillment, resolvedAddress, cartTotal, contactReady]);
 
   // Payment state
   const [payState, setPayState] = useState<PayState>("idle");
@@ -418,6 +734,66 @@ function CheckoutModal() {
     }
   }, [user]);
 
+  // Most customers want TumaBoda's rider calling the same number they're paying with — once
+  // they've typed it once (for TumaBoda), don't make them retype it again for M-Pesa. Only fills
+  // an still-blank phone field, so a customer who wants a different M-Pesa number is never
+  // overwritten after typing one.
+  useEffect(() => {
+    if (fulfillment === "TUMABODA_DELIVERY" && tumabodaPhone.trim() && !phone.trim()) {
+      setPhone(tumabodaPhone);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tumabodaPhone, fulfillment]);
+
+  // Saved-address reuse — prefill from the account's default address so a returning customer
+  // isn't retyping the same details every order. Only fills blank fields, never overwrites
+  // something the customer already typed. profileStore's CustomerAddress has no county field
+  // today, so county still needs picking manually — a real, known limitation, not an oversight.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    profileStore
+      .get()
+      .then(({ profile }) => {
+        const defaultAddr = profile.addresses.find((a) => a.isDefault) ?? profile.addresses[0];
+        if (!defaultAddr) return;
+        setPhone((prev) => prev || defaultAddr.phone || "");
+        setTumabodaPhone((prev) => prev || defaultAddr.phone || "");
+        setCity((prev) => prev || defaultAddr.city || "");
+        setAddress((prev) => prev || defaultAddr.line1 || "");
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  // Guest counterpart to the profileStore prefill above — same "only fill blank fields" rule,
+  // just sourced from this browser's own last checkout instead of an account. See
+  // GUEST_CHECKOUT_KEY and the save-on-success effect near payment completion below.
+  useEffect(() => {
+    if (isAuthenticated) return;
+    try {
+      const raw = localStorage.getItem(GUEST_CHECKOUT_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as SavedGuestCheckoutDetails;
+      setName((prev) => prev || saved.name || "");
+      setEmail((prev) => prev || saved.email || "");
+      setPhone((prev) => prev || saved.phone || "");
+      setTumabodaPhone((prev) => prev || saved.phone || saved.tumabodaPhone || "");
+      setCity((prev) => prev || saved.city || "");
+      setCounty((prev) => prev || saved.county || "");
+      setAddress((prev) => prev || saved.address || "");
+      setCollectorName((prev) => prev || saved.collectorName || "");
+      // Only offer the one-tap shortcut when there's actually a full delivery mode to restore —
+      // PICKUP needs nothing further, a delivery mode needs its resolved address too (see the
+      // type's own comment on why this can be absent for older saved blobs).
+      if (saved.fulfillment === "PICKUP" || (saved.fulfillment && saved.resolvedAddress)) {
+        setSavedGuestShortcut(saved);
+      }
+    } catch {
+      // Corrupt/blocked storage — just skip prefill, nothing to recover.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (items.length === 0 && payState === "idle") {
       navigate("/cart", { replace: true });
@@ -425,12 +801,6 @@ function CheckoutModal() {
   }, [items.length, navigate, payState]);
 
   useEffect(() => () => clearAllTimers(), []);
-
-  useEffect(() => {
-    fetchDeliveryZones()
-      .then(setZones)
-      .catch(() => {});
-  }, []);
 
   function clearAllTimers() {
     const t = timersRef.current;
@@ -445,7 +815,7 @@ function CheckoutModal() {
     navigate("/cart");
   }
 
-  function validateContact(): boolean {
+  function validateContactInfo(): boolean {
     if (!name.trim() || !email.trim()) {
       toast.error("Please fill all required fields");
       return false;
@@ -454,18 +824,45 @@ function CheckoutModal() {
       toast.error("Enter a valid email");
       return false;
     }
-    if (!isValidKenyanPhone(phone)) {
-      toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
+    return true;
+  }
+
+  function handleContactSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!validateContactInfo()) return;
+    setStep("delivery");
+  }
+
+  function validateDeliveryDetails(): boolean {
+    if (!fulfillment) {
+      toast.error("Please choose pickup or delivery");
       return false;
     }
-    if (fulfillment === "ZONE_DELIVERY") {
-      if (!address.trim() || !city.trim() || !county.trim() || !selectedZone) {
-        toast.error("Select a delivery zone and fill in the address");
+    if (fulfillment !== "PICKUP" && !county.trim()) {
+      toast.error("Please select where you'd like your order delivered");
+      return false;
+    }
+    // TumaBoda needs real coordinates to book a rider — a county alone isn't enough. Without this
+    // gate, an order could be placed and paid as "Fulfilled by TumaBoda" with no way for the
+    // backend to actually create the delivery (createTumaBodaDelivery silently skips when
+    // deliveryLat/Lng are null), leaving a paid order with no rider ever dispatched.
+    if (fulfillment === "TUMABODA_DELIVERY" && !resolvedAddress) {
+      toast.error("Please pin your exact delivery address so we can book your TumaBoda rider");
+      return false;
+    }
+    // Fail closed here too, not just in the effect: never let the customer proceed to payment
+    // on a still-loading, failed, or stale-from-a-previous-address quote.
+    if (fulfillment === "TUMABODA_DELIVERY" && (quoteChecking || !quotePreview)) {
+      toast.error("Please wait for the delivery fee to finish calculating.");
+      return false;
+    }
+    if (fulfillment === "MANUAL_DELIVERY") {
+      if (!city.trim()) {
+        toast.error("Please fill in the destination town");
         return false;
       }
-    } else if (fulfillment === "OWN_COURIER") {
-      if (!city.trim() || !county.trim()) {
-        toast.error("Please fill in the destination town and county");
+      if (!hasFullName(collectorName)) {
+        toast.error("Please enter the full name (first and last) of whoever will collect the parcel");
         return false;
       }
       if (!courierType) {
@@ -483,23 +880,117 @@ function CheckoutModal() {
       toast.error("Enter a valid email to receive your receipt, tax invoice and ETR");
       return false;
     }
+    if (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone)) {
+      toast.error("Please enter the phone number TumaBoda's rider should contact for this delivery");
+      return false;
+    }
     return true;
   }
 
-  function handleContactSubmit(e: FormEvent) {
+  function handleDeliveryDetailsSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!validateContact()) return;
+    if (!validateDeliveryDetails()) return;
     if (!consent) {
       toast.error("Please tick the consent box to continue");
       return;
     }
-    setStep("payment");
+    setDetailsConfirmed(true);
+  }
+
+  // Clears an untouched courier suggestion so a new address/town gets its own fresh lookup
+  // instead of being silently blocked by leftover values from the previous one — same reasoning
+  // as the city-guess clearing already done on these same "Change" buttons.
+  function clearUntouchedCourierSuggestion() {
+    const s = lastCourierSuggestionRef.current;
+    if (!s) return;
+    if (courierType === s.type && courierServiceName.trim() === s.service && courierStageOrOffice.trim() === s.stage) {
+      setCourierType("");
+      setCourierServiceName("");
+      setCourierStageOrOffice("");
+      setCourierSuggestionSource(null);
+      lastCourierSuggestionRef.current = null;
+    }
+  }
+
+  // One-tap "Use my saved details" — restores a returning guest's last checkout in a single
+  // action instead of them re-picking Pickup/Delivery and re-searching an address they've already
+  // given us before. Deliberately does NOT force the old fulfillment mode back for a delivery
+  // order: only the resolved address/county are restored, and the existing coverage-check +
+  // auto-resolve effects pick TumaBoda vs Manual fresh from that — coverage can genuinely change
+  // between visits, so re-deciding it is more correct than trusting a stale prior choice.
+  function applySavedGuestDetails() {
+    const saved = savedGuestShortcut;
+    if (!saved) return;
+    setName((prev) => prev || saved.name || "");
+    setEmail((prev) => prev || saved.email || "");
+    setPhone((prev) => prev || saved.phone || "");
+    setTumabodaPhone((prev) => prev || saved.tumabodaPhone || saved.phone || "");
+    if (saved.postalCode) setPostalCode((prev) => prev || saved.postalCode || "");
+    if (saved.fulfillment === "PICKUP") {
+      setWantsDelivery(false);
+      setFulfillment("PICKUP");
+    } else if (saved.resolvedAddress) {
+      setWantsDelivery(true);
+      setResolvedAddress(saved.resolvedAddress);
+      setAddressText(saved.resolvedAddress.description);
+      if (saved.county) setCounty(saved.county);
+      if (saved.city) setCity((prev) => prev || saved.city || "");
+      if (saved.address) setAddress((prev) => prev || saved.address || "");
+      if (saved.collectorName) setCollectorName((prev) => prev || saved.collectorName || "");
+    }
+    setSavedGuestShortcut(null);
+  }
+
+  async function useMyLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("Your browser doesn't support location detection — please search your address instead.");
+      return;
+    }
+    setLocatingMe(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        let description = "Current location (approximate)";
+        let county: string | null = null;
+        try {
+          const res = await apiFetch(
+            `/api/v1/public/tumaboda/maps/reverse-geocode?lat=${latitude}&lng=${longitude}`,
+          );
+          if (res.ok) {
+            const details = await res.json();
+            if (details?.formattedAddress) description = details.formattedAddress;
+            // The backend already best-effort-matches a county for this pin (nearest seeded
+            // area) — carry it through so a GPS-resolved address doesn't need it re-asked,
+            // same as a searched address already does via fetchPlaceDetails.
+            if (details?.county) county = details.county;
+          }
+        } catch {
+          // Reverse-geocode failed — still proceed with the raw coordinates below.
+        }
+        // Never lock the raw device fix straight in as the delivery point — GPS can be wrong
+        // (indoors, VPN, stale cache). Surface it for the customer to explicitly confirm or reject
+        // first; only a "yes" commits it as resolvedAddress.
+        setGpsFallback({ description, latitude, longitude, county });
+        setLocatingMe(false);
+      },
+      () => {
+        setLocatingMe(false);
+        toast.error("Couldn't access your location — please search for your address instead, or select your county below.");
+      },
+      { enableHighAccuracy: true, timeout: 10_000 },
+    );
   }
 
   async function startPayment() {
+    // fulfillment is only null before the customer reaches this point — handleDeliveryDetailsSubmit
+    // already validated it's set before detailsConfirmed (and thus the Pay button) is reachable.
+    if (!fulfillment) return;
     setErrorMsg(null);
     setPayState("sending");
     const phoneNormalized = normalizePhone(phone);
+
+    const deliveryLocationText =
+      fulfillment === "TUMABODA_DELIVERY" ? resolvedAddress?.description ?? "" : address.trim();
 
     try {
       let id = orderId;
@@ -512,7 +1003,7 @@ function CheckoutModal() {
             name: name.trim(),
             email: email.trim(),
             phone: phoneNormalized,
-            address: fulfillment === "PICKUP" ? "" : address.trim(),
+            address: fulfillment === "PICKUP" ? "" : deliveryLocationText,
             city: fulfillment === "PICKUP" ? "" : city.trim(),
             county: fulfillment === "PICKUP" ? "" : county.trim(),
             postalCode: postalCode.trim() || undefined,
@@ -521,16 +1012,22 @@ function CheckoutModal() {
           paymentMethod: paymentGateway,
           fulfillmentType: fulfillment,
           idempotencyKey: idempotencyKey.current,
+          consentPolicyVersion: PRIVACY_POLICY_VERSION,
           promoCode: appliedPromo?.code,
           redeemPoints: appliedRedemption?.points,
           etrRequested,
           documentsEmail: etrRequested ? documentsEmail.trim() : undefined,
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
-          ...(fulfillment === "OWN_COURIER" && courierType
+          dropoffLat: fulfillment !== "PICKUP" ? resolvedAddress?.latitude ?? undefined : undefined,
+          dropoffLng: fulfillment !== "PICKUP" ? resolvedAddress?.longitude ?? undefined : undefined,
+          tumabodaContactPhone:
+            fulfillment === "TUMABODA_DELIVERY" ? normalizePhone(tumabodaPhone) : undefined,
+          ...(fulfillment === "MANUAL_DELIVERY" && courierType
             ? {
                 courierType: courierType as CourierType,
                 courierServiceName: courierServiceName.trim() || undefined,
                 courierStageOrOffice: courierStageOrOffice.trim() || undefined,
+                collectorName: collectorName.trim() || undefined,
               }
             : {}),
         });
@@ -585,6 +1082,30 @@ function CheckoutModal() {
         clearAllTimers();
         setPayState("success");
         clearCart();
+        if (!isAuthenticated) {
+          try {
+            const toSave: SavedGuestCheckoutDetails = {
+              name, email, phone, tumabodaPhone, city, county, address, postalCode, collectorName,
+              fulfillment: fulfillment ?? undefined,
+            };
+            // Only worth restoring for a delivery mode if there's a real resolved address to go
+            // with it — without one (e.g. the "pick your county instead" escape hatch), the
+            // one-tap shortcut would have nothing to actually skip past.
+            if (fulfillment && fulfillment !== "PICKUP" && resolvedAddress) {
+              toSave.resolvedAddress = resolvedAddress;
+            }
+            localStorage.setItem(GUEST_CHECKOUT_KEY, JSON.stringify(toSave));
+          } catch {
+            // Storage full/blocked — losing this prefill-for-next-time is harmless, order already succeeded.
+          }
+        }
+        if (isAfterBusinessHours()) {
+          toast.info("We're closed for the night", {
+            description:
+              "Your order will be prepared first thing tomorrow morning — you'll get an email and SMS the moment it's dispatched.",
+            duration: 15000,
+          });
+        }
         setTimeout(() => {
           navigate(`/order-confirmation?ref=${ref}`);
         }, 1200);
@@ -622,26 +1143,33 @@ function CheckoutModal() {
 
   if (items.length === 0 && payState === "idle") return null;
 
-  const shippingFee = fulfillment === "ZONE_DELIVERY" && selectedZone ? selectedZone.feeAmount : 0;
+  // UPFRONT TumaBoda: real quote gets added to the charge. POD: rider collects at the door, so
+  // Moments never charges it here — deliberately zero regardless of quotePreview, matching the
+  // backend's own POD-vs-upfront split (CheckoutService.checkout).
+  const shippingFee =
+    fulfillment === "TUMABODA_DELIVERY" && quotePreview?.mode === "UPFRONT" ? quotePreview.feeKes : 0;
   const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0) - (appliedRedemption?.discount ?? 0);
   const shippingLabel =
     fulfillment === "PICKUP"
       ? "Pickup at shop"
-      : fulfillment === "OWN_COURIER"
-        ? "Courier — to be confirmed"
-        : selectedZone
-          ? `Delivery — ${selectedZone.zoneName}`
-          : "Delivery";
+      : fulfillment === "TUMABODA_DELIVERY"
+        ? "Fulfilled by TumaBoda"
+        : "Courier — to be confirmed";
   const shippingValue =
     fulfillment === "PICKUP"
       ? "Free"
-      : fulfillment === "OWN_COURIER"
-        ? "To be confirmed"
-        : shippingFee === 0
-          ? "Free"
-          : fmt(shippingFee);
+      : fulfillment === "TUMABODA_DELIVERY"
+        ? quotePreview
+          ? quotePreview.mode === "POD"
+            ? `${fmt(quotePreview.feeKes)} on delivery`
+            : fmt(quotePreview.feeKes)
+          : quoteChecking
+            ? "Calculating…"
+            : "Pending"
+        : "To be confirmed";
 
   const brandStyle = { ["--brand-ring" as string]: BRAND } as React.CSSProperties;
+  const deliveryChoiceMade = fulfillment === "PICKUP" || wantsDelivery === true;
 
   return (
     <div
@@ -673,9 +1201,9 @@ function CheckoutModal() {
       {/* Step indicator */}
       <div className="border-b border-border bg-card/50">
         <div className="mx-auto flex max-w-2xl items-center justify-center gap-3 px-4 py-3 text-xs sm:text-sm">
-          <StepDot active={step === "contact"} done={step === "payment"} label="1. Contact & delivery" />
-          <span className="h-px w-8 bg-border sm:w-16" />
-          <StepDot active={step === "payment"} done={false} label="2. Payment" />
+          <StepDot active={step === "contact"} done={step !== "contact"} label="1. Contact" />
+          <span className="h-px w-6 bg-border sm:w-16" />
+          <StepDot active={step === "delivery"} done={false} label="2. Delivery & payment" />
         </div>
       </div>
 
@@ -685,16 +1213,15 @@ function CheckoutModal() {
           <RewardDeliveryBanners topOffsetClassName="top-[104px]" />
           <div className={`mb-4 ${REWARD_BANNER_SPACER_CLASS}`} aria-hidden="true" />
           {step === "contact" && (
-            <>
             <form onSubmit={handleContactSubmit} className="space-y-5">
               <div>
-                <h2 className="font-display text-2xl text-foreground">How would you like to receive your order?</h2>
+                <h2 className="font-display text-2xl text-foreground">Almost There — Let's Get Your Order Ready</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {isAuthenticated ? (
-                    "Choose a fulfillment option, then confirm your details."
+                    "A few details, then tell us where — we'll show you what's available."
                   ) : (
                     <>
-                      Checking out as a guest.{" "}
+                      You're checking out as a guest.{" "}
                       <Link
                         to="/account/login?redirect=/checkout"
                         className="font-semibold underline"
@@ -702,28 +1229,10 @@ function CheckoutModal() {
                       >
                         Sign in
                       </Link>{" "}
-                      for faster checkout next time.
+                      for a faster checkout and a smoother shopping experience next time.
                     </>
                   )}
                 </p>
-              </div>
-
-              {/* Fulfillment selector */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <FulfillmentCard
-                  active={fulfillment === "OWN_COURIER"}
-                  onClick={() => setFulfillment("OWN_COURIER")}
-                  icon={<PackageCheck className="h-5 w-5" />}
-                  title="Deliver via courier"
-                  desc="We hand off to your chosen courier. Transport cost confirmed at dispatch."
-                />
-                <FulfillmentCard
-                  active={fulfillment === "PICKUP"}
-                  onClick={() => setFulfillment("PICKUP")}
-                  icon={<Store className="h-5 w-5" />}
-                  title="Pick up at shop"
-                  desc="Collect from our shop. No delivery fee."
-                />
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -737,7 +1246,7 @@ function CheckoutModal() {
                     placeholder="Jane Wanjiru"
                   />
                 </div>
-                <div>
+                <div className="sm:col-span-2">
                   <label className={labelCls}>Email</label>
                   <input
                     type="email"
@@ -748,19 +1257,696 @@ function CheckoutModal() {
                     placeholder="you@example.com"
                   />
                 </div>
-                <div>
-                  <label className={labelCls}>Phone (M-Pesa)</label>
-                  <input
-                    className={inputCls}
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="0712 345 678"
-                    inputMode="tel"
+                {/* Phone numbers are collected later — the TumaBoda delivery-contact number (for
+                    orders that need one) on the delivery-details step, and the M-Pesa number on
+                    its own payment step right after, pre-filled from whichever TumaBoda number
+                    was already typed since most customers use the same line for both. See those
+                    two steps for both fields. */}
+              </div>
+
+              <button
+                type="submit"
+                className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90"
+                style={{ backgroundColor: BRAND }}
+              >
+                Continue <ArrowRight className="h-4 w-4" />
+              </button>
+            </form>
+          )}
+
+          {step === "delivery" && !detailsConfirmed && payState === "idle" && (
+            <>
+            <form onSubmit={handleDeliveryDetailsSubmit} className="space-y-5">
+              <button
+                type="button"
+                onClick={() => setStep("contact")}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+
+              <div>
+                <h2 className="font-display text-2xl text-foreground">How Would You Like to Receive Your Order?</h2>
+                <p className="mt-1 text-sm text-muted-foreground">Choose your preferred option to see the details we need.</p>
+              </div>
+
+              {/* One-tap shortcut for a returning guest — see applySavedGuestDetails. Only shown
+                  before anything's been chosen yet, so it can't linger after it's no longer
+                  relevant. */}
+              {savedGuestShortcut && !deliveryChoiceMade && !resolvedAddress && !showCountyFallback && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border p-3 text-sm" style={{ borderColor: BRAND, backgroundColor: `${BRAND}0d` }}>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground">Use your details from last time?</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {savedGuestShortcut.fulfillment === "PICKUP"
+                        ? "Pick up at our shop"
+                        : savedGuestShortcut.resolvedAddress?.description}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={applySavedGuestDetails}
+                    className="shrink-0 rounded-full px-4 py-2 text-xs font-semibold text-white"
+                    style={{ backgroundColor: BRAND }}
+                  >
+                    Use these
+                  </button>
+                </div>
+              )}
+
+              {/* Step 1 of this page: pickup vs. delivery, always asked first — everything else
+                  below reveals progressively based on this and, for delivery, the destination.
+                  Collapses to a one-line summary once chosen, same accordion pattern as the
+                  address/Manual-Delivery stages below, so the page doesn't keep showing a
+                  decision that's already made. */}
+              {deliveryChoiceMade ? (
+                <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivery method</p>
+                    <p className="truncate font-medium text-foreground">
+                      {fulfillment === "PICKUP" ? "Pick up at our shop" : "Have it delivered"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWantsDelivery(null);
+                      setFulfillment(null);
+                      setResolvedAddress(null);
+                      setAddressText("");
+                      setGpsFallback(null);
+                      setCounty("");
+                      setShowCountyFallback(false);
+                      if (city.trim() && city.trim() === lastCityGuessRef.current) setCity("");
+                      clearUntouchedCourierSuggestion();
+                    }}
+                    className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                  >
+                    Change
+                  </button>
+                </div>
+              ) : (
+                // Reaching this branch already means neither choice is made yet (that's what
+                // !deliveryChoiceMade means), so neither card can legitimately be "active" here —
+                // the collapsed summary above takes over as soon as one is.
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FulfillmentCard
+                    active={false}
+                    onClick={() => {
+                      setWantsDelivery(false);
+                      setFulfillment("PICKUP");
+                    }}
+                    icon={<Store className="h-5 w-5" />}
+                    title="Pick Up at Our Shop"
+                    desc="Collect your order directly from our shop — no delivery fee."
+                  />
+                  <FulfillmentCard
+                    active={false}
+                    onClick={() => {
+                      setWantsDelivery(true);
+                      setFulfillment(null);
+                    }}
+                    icon={<Truck className="h-5 w-5" />}
+                    title="Have It Delivered"
+                    desc="Tell us where you'd like your order delivered, and we'll show you the available delivery options."
                   />
                 </div>
+              )}
 
-                <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4">
+              {wantsDelivery === true && (
+                <div ref={deliverySearchSectionRef} className="space-y-4">
+                  {/* Location asked ONCE, first — coverage (TumaBoda vs Courier) resolves FROM
+                      this, instead of a blind county question deciding it beforehand. Current
+                      location is the primary action (fastest path); search is the alternative. */}
+                  {!resolvedAddress && !showCountyFallback && (
+                    <div>
+                      <label className={labelCls}>
+                        Where should we deliver? <span className="text-destructive">*</span>
+                      </label>
+                      <p className="mb-2 mt-1 text-xs text-muted-foreground">
+                        Search your address or use your current location — we'll show you what's available there.
+                        Tip: a single landmark or area name (e.g. "Yaya Center") often finds it faster than a full
+                        address.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={useMyLocation}
+                        disabled={locatingMe}
+                        className="mb-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                        style={{ backgroundColor: BRAND }}
+                      >
+                        <Truck className="h-4 w-4" /> {locatingMe ? "Locating…" : "Use my current location"}
+                      </button>
+                      {gpsFallback ? (
+                        <GpsConfirmPrompt
+                          description={gpsFallback.description}
+                          onConfirm={() => {
+                            setResolvedAddress({
+                              description: gpsFallback.description,
+                              placeId: null,
+                              latitude: gpsFallback.latitude,
+                              longitude: gpsFallback.longitude,
+                              county: gpsFallback.county,
+                            });
+                            setGpsFallback(null);
+                          }}
+                          onReject={() => setGpsFallback(null)}
+                        />
+                      ) : (
+                        <AddressAutocompleteInput
+                          value={addressText}
+                          onChange={setAddressText}
+                          onSelect={(addr) => {
+                            setResolvedAddress(addr);
+                            if (addr.county) setCounty(addr.county);
+                          }}
+                          placeholder="Start typing your delivery address…"
+                          animatedPlaceholder
+                        />
+                      )}
+                      <div className="mt-3 border-t border-border pt-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowCountyFallback(true)}
+                          className="text-xs font-semibold text-foreground underline underline-offset-2"
+                        >
+                          Can't find your address? Pick your county instead →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {(resolvedAddress || showCountyFallback) && (
+                    <div ref={coverageResultSectionRef} className="space-y-4">
+                      {/* County wasn't attached to the resolved address (TumaBoda's live proxy
+                          didn't have a close-enough seeded-area match) or the customer skipped
+                          straight to the county fallback above — confirm it before checking
+                          coverage, rather than guessing. */}
+                      {!county.trim() && (
+                        <div>
+                          <label className={labelCls}>
+                            {resolvedAddress ? "Confirm your county" : "County"} <span className="text-destructive">*</span>
+                          </label>
+                          <CountySelect value={county} onChange={setCounty} placeholder="Select county…" />
+                        </div>
+                      )}
+
+                      {coverageChecking && (
+                        <p className="text-xs text-muted-foreground">Checking delivery options for your area…</p>
+                      )}
+
+                      {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
+                          areas default here; uncovered areas fall to Manual below instead. */}
+                      {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
+                        <div className="relative overflow-hidden rounded-2xl border border-border text-sm">
+                          {/* Real photo, not a logo/icon — a rider actually delivering reads as trust
+                              far better than a mark, per the client's explicit call. Runs full-bleed
+                              behind the whole card (not just a header strip) so it reads as the card's
+                              background, not a thumbnail — the gradient keeps every line of text and
+                              every field beneath it legible regardless of how tall the card grows. */}
+                          {tumaBodaPartner && (
+                            <img
+                              src={tumaBodaPartner.photo}
+                              alt={`${tumaBodaPartner.name} rider delivering`}
+                              className="absolute inset-0 h-full w-full object-cover object-top"
+                            />
+                          )}
+                          <div
+                            className="absolute inset-0"
+                            style={
+                              tumaBodaPartner
+                                ? {
+                                    backgroundImage:
+                                      "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.12) 14%, transparent 30%, transparent 30%, color-mix(in oklab, var(--background) 70%, transparent) 42%, var(--background) 50%)",
+                                  }
+                                : { backgroundColor: "hsl(var(--secondary) / 0.3)" }
+                            }
+                          />
+                          <div className="relative">
+                          {tumaBodaPartner ? (
+                            // Extra top padding, not just the label's own height, so the photo gets a
+                            // genuinely clear, unobstructed band before the fade starts (per client
+                            // request — "clear at the top... fades as it goes downwards").
+                            <div className="flex items-center gap-2 p-4 pb-28 sm:pb-32">
+                              <span className="font-semibold text-white drop-shadow-sm">Fulfilled by TumaBoda</span>
+                              <span
+                                className="rounded-full bg-white/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                style={{ color: BRAND }}
+                              >
+                                Doorstep
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-4 pb-0">
+                              <Truck className="h-4 w-4" style={{ color: BRAND }} />
+                              <span className="font-semibold text-foreground">Fulfilled by TumaBoda</span>
+                              <span
+                                className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
+                              >
+                                Doorstep
+                              </span>
+                            </div>
+                          )}
+                          <div className="px-4 pb-4">
+                          <div className="mb-3 flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                            <div className="min-w-0">
+                              <p className="text-xs uppercase tracking-wide text-muted-foreground">Your delivery address</p>
+                              <p className="truncate font-medium text-foreground">
+                                {resolvedAddress?.description ?? county.trim() ?? ""}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setResolvedAddress(null);
+                                setAddressText("");
+                                setGpsFallback(null);
+                                setCounty("");
+                                setShowCountyFallback(false);
+                                // A prior address may have already resolved fulfillment (e.g. to
+                                // MANUAL_DELIVERY for an uncovered area) — without resetting this too,
+                                // the auto-resolve effect below (gated on fulfillment === null) never
+                                // fires again, so a second, covered address silently keeps the first
+                                // address's fulfillment instead of re-resolving to TumaBoda.
+                                setFulfillment(null);
+                              }}
+                              className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                            >
+                              Change
+                            </button>
+                          </div>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-muted-foreground">Tracked delivery to your doorstep.</p>
+                            <button
+                              type="button"
+                              onClick={() => setCourierInfoExpanded((v) => !v)}
+                              className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-foreground underline underline-offset-2"
+                            >
+                              {courierInfoExpanded ? "Less" : "More"}
+                              <ChevronDown
+                                className={`h-3 w-3 transition-transform ${courierInfoExpanded ? "rotate-180" : ""}`}
+                              />
+                            </button>
+                          </div>
+                          {courierInfoExpanded && (
+                            <p className="mt-1 text-muted-foreground">
+                              A TumaBoda rider picks up your order and brings it straight to the address you pin
+                              below. You'll see the exact delivery fee before you pay — pin your address to
+                              calculate it.
+                            </p>
+                          )}
+
+                          {resolvedAddress ? (
+                            <div className="mt-3 space-y-3">
+                              {/* Live delivery-fee preview — see the debounced quote effect above.
+                                  Mode-specific copy directly answers "when am I charged for this". */}
+                              <div className="rounded-xl border border-border bg-background/70 p-3 text-sm">
+                                {quoteChecking ? (
+                                  <p className="flex items-center gap-2 text-muted-foreground">
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Calculating delivery fee…
+                                  </p>
+                                ) : quotePreview ? (
+                                  quotePreview.mode === "POD" ? (
+                                    <p>
+                                      <span className="font-semibold text-foreground">
+                                        Pay {fmt(quotePreview.feeKes)} via M-Pesa
+                                      </span>{" "}
+                                      when your rider arrives — not charged now.
+                                    </p>
+                                  ) : (
+                                    <p>
+                                      <span className="font-semibold text-foreground">
+                                        {fmt(quotePreview.feeKes)} delivery fee
+                                      </span>{" "}
+                                      added to your total, paid now with the rest of your order.
+                                    </p>
+                                  )
+                                ) : quoteUnavailable ? (
+                                  <p className="text-destructive">
+                                    TumaBoda delivery isn't available right now for this address.
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="mt-3">
+                              <p className="mb-2 text-foreground/90">
+                                <span className="font-semibold text-destructive">Required:</span> pin your exact
+                                address so a rider can be sent to collect and deliver your order.
+                              </p>
+                              {gpsFallback ? (
+                                <GpsConfirmPrompt
+                                  description={gpsFallback.description}
+                                  onConfirm={() => {
+                                    setResolvedAddress({
+                                      description: gpsFallback.description,
+                                      placeId: null,
+                                      latitude: gpsFallback.latitude,
+                                      longitude: gpsFallback.longitude,
+                                      county: gpsFallback.county,
+                                    });
+                                    setGpsFallback(null);
+                                  }}
+                                  onReject={() => setGpsFallback(null)}
+                                />
+                              ) : (
+                                <>
+                                  <AddressAutocompleteInput
+                                    value={addressText}
+                                    onChange={setAddressText}
+                                    onSelect={(addr) => setResolvedAddress(addr)}
+                                    placeholder="Start typing your delivery address…"
+                                    animatedPlaceholder
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={useMyLocation}
+                                    disabled={locatingMe}
+                                    className="mt-2 text-xs font-semibold underline underline-offset-2 disabled:opacity-60"
+                                    style={{ color: BRAND }}
+                                  >
+                                    {locatingMe ? "Locating…" : "Use my current location"}
+                                  </button>
+                                </>
+                              )}
+                              <div className="mt-3 border-t border-border pt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setFulfillment("MANUAL_DELIVERY")}
+                                  className="text-xs font-semibold text-foreground underline underline-offset-2"
+                                >
+                                  Can't find your address? Switch to Courier delivery instead →
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          </div>
+                          </div>
+                        </div>
+                      )}
+
+                {fulfillment === "MANUAL_DELIVERY" && (
+                  <div className="space-y-4">
+                    {(resolvedAddress || county.trim()) && (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Delivering to</p>
+                          <p className="truncate font-medium text-foreground">
+                            {resolvedAddress?.description ?? county.trim()}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            // Same reset as the TumaBoda card's own "Change" button — clearing
+                            // fulfillment too is what lets the auto-resolve effect above pick a
+                            // fresh mode for whatever address/county comes next.
+                            setResolvedAddress(null);
+                            setAddressText("");
+                            setGpsFallback(null);
+                            setCounty("");
+                            setShowCountyFallback(false);
+                            setFulfillment(null);
+                            // Only clear an untouched auto-fill guess — a city the customer typed
+                            // or edited themselves is left alone even if it happens to still be
+                            // the same text.
+                            if (city.trim() && city.trim() === lastCityGuessRef.current) {
+                              setCity("");
+                            }
+                            clearUntouchedCourierSuggestion();
+                          }}
+                          className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    )}
+                    <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground/90">
+                      <p>
+                        <span className="font-semibold">How it works:</span> we hand your parcel to a{" "}
+                        <span className="font-semibold">delivery partner</span> — a bus company, sacco, or parcel
+                        courier — who carries it to your town. You then collect it from their office there.
+                      </p>
+                      {manualDeliveryInfoExpanded && (
+                        <p className="mt-2 text-muted-foreground">
+                          Common delivery partners include 2NK, 4NTE, Kukena, Easy Coach, Tahmeed, G4S, and Pickup
+                          Mtaani. The two short sections below help us get your parcel to the right place quickly —
+                          if you're not sure about something, just leave it blank and our team will call to confirm
+                          before we dispatch your order.
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setManualDeliveryInfoExpanded((v) => !v)}
+                        className="mt-2 flex items-center gap-0.5 text-xs font-semibold underline underline-offset-2"
+                      >
+                        {manualDeliveryInfoExpanded ? "Show less" : "Read more"}
+                        <ChevronDown
+                          className={`h-3 w-3 transition-transform ${manualDeliveryInfoExpanded ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* SECTION 1 — DESTINATION. Collapses to a one-line summary once its required
+                        fields are filled (destination town is often already auto-filled from the
+                        address searched above) — "Edit" reopens the full field set without
+                        clearing anything. */}
+                    {city.trim() && hasFullName(collectorName) && !manualSection1ForceOpen ? (
+                      <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-background/60 p-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-xs uppercase tracking-wide text-muted-foreground">Destination town</p>
+                          <p className="truncate font-medium text-foreground">{city.trim()}</p>
+                          <p className="mt-1 truncate text-xs text-muted-foreground">
+                            Collected by <span className="font-medium text-foreground">{collectorName.trim()}</span>
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setManualSection1ForceOpen(true)}
+                          className="shrink-0 text-xs font-semibold underline underline-offset-2"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    ) : (
+                      <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                        <div className="mb-3 flex items-baseline justify-between gap-2">
+                          <h3 className="font-display text-lg text-foreground">1. Where do you need it delivered?</h3>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                            Your side
+                          </span>
+                        </div>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>
+                              Destination town <span className="text-destructive">*</span>
+                            </label>
+                            <input
+                              className={inputCls}
+                              required
+                              value={city}
+                              onChange={(e) => setCity(e.target.value)}
+                              placeholder="e.g. Nyeri, Meru, Eldoret"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>
+                              Who will collect it? (full name) <span className="text-destructive">*</span>
+                            </label>
+                            <input
+                              className={inputCls}
+                              required
+                              value={collectorName}
+                              onChange={(e) => setCollectorName(e.target.value)}
+                              placeholder="e.g. Jane Wanjiru"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              This name is checked at the destination office before your parcel is handed over —
+                              enter the full name (first and last) of whoever will actually pick it up, even if
+                              that's someone other than you.
+                            </p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>Where you'll collect your parcel (optional)</label>
+                            <input
+                              className={inputCls}
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              placeholder="e.g. 2NK Nyeri town office, Easy Coach Eldoret stage"
+                            />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              The office nearest you where you'll pick up your parcel once it arrives. Not sure
+                              which one? Leave blank — we'll call to confirm with you.
+                            </p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}>Postal code (optional)</label>
+                            <input
+                              className={inputCls}
+                              value={postalCode}
+                              onChange={(e) => setPostalCode(e.target.value)}
+                              placeholder="00100"
+                            />
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* SECTION 2 — DISPATCH */}
+                    <section ref={manualSection2Ref} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                      <div className="mb-3 flex items-baseline justify-between gap-2">
+                        <h3 className="font-display text-lg text-foreground">
+                          2. Which delivery partner should send it from Nairobi?
+                        </h3>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          Our side
+                        </span>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <div className={labelCls}>
+                            How should it be sent? <span className="text-destructive">*</span>
+                          </div>
+                          {/* Boxed like a real required field (same weight as the text inputs
+                              around it), not a loose row of filter-style tags that reads as
+                              optional — an amber outline nudges toward picking one until they do,
+                              without looking like a hard validation error before they've tried. */}
+                          <div
+                            className={`rounded-lg border p-3 transition ${
+                              courierType ? "border-border" : "border-amber-400/70 bg-amber-50/60 dark:bg-amber-950/10"
+                            }`}
+                          >
+                            <div className="flex flex-wrap gap-2">
+                              {(
+                                [
+                                  { v: "MATATU", label: "Sacco / Matatu / SGR" },
+                                  { v: "PARCEL_SERVICE", label: "Parcel Service" },
+                                  { v: "BOLT_SEND", label: "Bolt / Uber" },
+                                  { v: "RIDER", label: "Boda / Rider" },
+                                  { v: "OTHER", label: "Other" },
+                                ] as { v: CourierType; label: string }[]
+                              ).map((c) => (
+                                <button
+                                  key={c.v}
+                                  type="button"
+                                  onClick={() => {
+                                    setCourierType(c.v);
+                                    // An explicit pick means whatever was suggested no longer
+                                    // reflects the customer's own choice — drop the "suggested"
+                                    // hint so it doesn't misdescribe a manually-made pick.
+                                    setCourierSuggestionSource(null);
+                                    lastCourierSuggestionRef.current = null;
+                                  }}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                                    courierType === c.v
+                                      ? "border-transparent text-white"
+                                      : "border-border bg-background text-foreground hover:bg-secondary"
+                                  }`}
+                                  style={courierType === c.v ? { backgroundColor: BRAND } : undefined}
+                                >
+                                  {c.label}
+                                </button>
+                              ))}
+                            </div>
+                            {!courierType && (
+                              <p className="mt-2 text-xs font-medium text-amber-800 dark:text-amber-300">
+                                Pick one — we need this to arrange your delivery.
+                              </p>
+                            )}
+                          </div>
+                          {courierSuggestionSource && (
+                            <p className="mt-1.5 text-xs text-muted-foreground">
+                              {courierSuggestionSource === "HISTORY"
+                                ? "Suggested from other customers' past orders to this town"
+                                : "Suggested based on commonly known routes to this town"}{" "}
+                              — feel free to change it.
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className={labelCls}>
+                            Which company? <span className="text-destructive">*</span>
+                          </label>
+                          <input
+                            className={inputCls}
+                            required
+                            value={courierServiceName}
+                            onChange={(e) => {
+                              setCourierServiceName(e.target.value);
+                              setCourierSuggestionSource(null);
+                              lastCourierSuggestionRef.current = null;
+                            }}
+                            placeholder="e.g. 2NK, 4NTE, Kukena, Easy Coach, Tahmeed, G4S, Pickup Mtaani"
+                            list="courier-suggestions"
+                          />
+                          <datalist id="courier-suggestions">
+                            <option value="2NK Sacco" />
+                            <option value="4NTE Sacco" />
+                            <option value="Kukena Sacco" />
+                            <option value="Easy Coach" />
+                            <option value="Tahmeed" />
+                            <option value="Mash Poa" />
+                            <option value="Modern Coast" />
+                            <option value="Guardian Coach" />
+                            <option value="Climax Coach" />
+                            <option value="G4S Courier" />
+                            <option value="Pickup Mtaani" />
+                            <option value="Wells Fargo Courier" />
+                            <option value="Not sure — please call me" />
+                          </datalist>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            The bus company, sacco, or courier that will carry your parcel — e.g. a sacco, bus
+                            service, or parcel courier. Not sure yet? Type <em>"Not sure — call me"</em> and our
+                            staff will help.
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className={labelCls}>Where should we drop it off in Nairobi? (optional)</label>
+                          <input
+                            className={inputCls}
+                            value={courierStageOrOffice}
+                            onChange={(e) => setCourierStageOrOffice(e.target.value)}
+                            placeholder="e.g. 2NK Accra Road, Machakos Country Bus stage, Easy Coach River Road"
+                          />
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Extra detail for our team, if you happen to know it — just leave this blank if you don't.
+                          </p>
+                        </div>
+
+                        <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+                          <strong>Transport cost is paid directly to the sacco / courier</strong> on collection (or at
+                          dispatch — we'll confirm by phone). It is separate from your product total below.
+                        </div>
+                      </div>
+                    </section>
+                  </div>
+                )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {fulfillment === "PICKUP" && (
+                <div ref={pickupSectionRef} className="rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
+                  No delivery fee — we'll prepare your order and call you when it's ready for pickup at our shop.
+                  <label className="mt-3 flex cursor-not-allowed items-center gap-2.5 rounded-xl border border-dashed border-border bg-background/50 px-3 py-2.5 opacity-60">
+                    <input type="checkbox" disabled className="h-4 w-4 rounded border-border" />
+                    <span className="text-xs">
+                      <span className="font-medium">Pay in cash at pickup</span>
+                      <span className="ml-1.5 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                        Coming soon
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+
+              {fulfillment && (
+                <div className="rounded-2xl border border-border bg-secondary/30 p-4">
                   <label className="flex items-start gap-2.5 text-sm text-foreground/90">
                     <input
                       type="checkbox"
@@ -769,12 +1955,12 @@ function CheckoutModal() {
                       onChange={(e) => setEtrRequested(e.target.checked)}
                     />
                     <span>
-                      <span className="font-medium">Send me my ETR & tax documents</span>
+                      <span className="font-medium">Send Me My ETR & Tax Documents</span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
-                        You'll automatically receive your ETR (KRA-compliant receipt) along with your tax invoice and
-                        receipt, once you check this and enter a reachable email — we email all three together as
-                        soon as we've uploaded your ETR. The ETR stays available for re-download/resend for 2
-                        months after that.
+                        Check this option and provide a valid, reachable email address to receive your ETR
+                        (KRA-compliant receipt), tax invoice, and receipt by email. We'll send all three documents
+                        together as soon as your ETR is uploaded. Your ETR will remain available for re-download or
+                        resend for 2 months.
                       </span>
                     </span>
                   </label>
@@ -790,15 +1976,17 @@ function CheckoutModal() {
                           onChange={(e) => setDocumentsEmail(e.target.value)}
                           placeholder="you@example.com"
                         />
-                        {isAuthenticated && user?.email && documentsEmail !== user.email && (
+                        {email.trim() && documentsEmail === email.trim() ? (
+                          <p className="mt-1 text-xs text-muted-foreground">Same as your contact email — edit if you'd like documents sent elsewhere.</p>
+                        ) : email.trim() && documentsEmail !== email.trim() ? (
                           <button
                             type="button"
                             className="mt-1 text-xs font-medium text-accent underline underline-offset-2"
-                            onClick={() => setDocumentsEmail(user.email!)}
+                            onClick={() => setDocumentsEmail(email.trim())}
                           >
-                            Use my account email ({user.email})
+                            Use my email ({email.trim()})
                           </button>
-                        )}
+                        ) : null}
                       </div>
                       <div>
                         <label className={labelCls}>Your KRA PIN (optional)</label>
@@ -821,209 +2009,66 @@ function CheckoutModal() {
                     </div>
                   )}
                 </div>
+              )}
 
-                {fulfillment === "OWN_COURIER" && (
-                  <div className="sm:col-span-2 space-y-4">
-                    <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground/90">
-                      <p>
-                        <span className="font-semibold">How delivery works:</span> we hand your parcel to a{" "}
-                        <span className="font-semibold">sacco or parcel service</span> (e.g. 2NK, 4NTE, Kukena, Easy
-                        Coach, Tahmeed, G4S, Pickup Mtaani). They handle the transport to your town, and you collect it
-                        from their office there.
-                      </p>
-                      <p className="mt-2 text-muted-foreground">
-                        The two short sections below help us get your parcel to the right place quickly. If you're
-                        unsure about anything, just leave it blank — our team will call you to confirm before dispatch.
-                      </p>
-                    </div>
-
-                    {/* SECTION 1 — DESTINATION */}
-                    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-                      <div className="mb-3 flex items-baseline justify-between gap-2">
-                        <h3 className="font-display text-lg text-foreground">1. Where do you need it delivered?</h3>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Your side
-                        </span>
-                      </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <div>
-                          <label className={labelCls}>
-                            Destination town <span className="text-destructive">*</span>
-                          </label>
-                          <input
-                            className={inputCls}
-                            required
-                            value={city}
-                            onChange={(e) => setCity(e.target.value)}
-                            placeholder="e.g. Nyeri, Meru, Eldoret"
-                          />
-                        </div>
-                        <div>
-                          <label className={labelCls}>
-                            County <span className="text-destructive">*</span>
-                          </label>
-                          <CountySelect value={county} onChange={setCounty} required placeholder="Select county…" />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className={labelCls}>Nearest courier office to you (optional)</label>
-                          <input
-                            className={inputCls}
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            placeholder="e.g. 2NK Nyeri town office, Easy Coach Eldoret stage"
-                          />
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            The sacco / parcel office on <em>your</em> side where you'll pick up the parcel. Not sure
-                            which one? Leave blank — we'll call to confirm with you.
-                          </p>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className={labelCls}>Postal code (optional)</label>
-                          <input
-                            className={inputCls}
-                            value={postalCode}
-                            onChange={(e) => setPostalCode(e.target.value)}
-                            placeholder="00100"
-                          />
-                        </div>
-                      </div>
-                    </section>
-
-                    {/* SECTION 2 — DISPATCH */}
-                    <section className="rounded-2xl border border-border bg-card p-4 sm:p-5">
-                      <div className="mb-3 flex items-baseline justify-between gap-2">
-                        <h3 className="font-display text-lg text-foreground">
-                          2. Do you have an idea of which sacco / courier office in Nairobi we should use? (this is
-                          helpful to us)
-                        </h3>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          Our side
-                        </span>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div>
-                          <div className={labelCls}>
-                            Courier type <span className="text-destructive">*</span>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {(
-                              [
-                                { v: "MATATU", label: "Sacco / Matatu / SGR" },
-                                { v: "PARCEL_SERVICE", label: "Parcel Service" },
-                                { v: "BOLT_SEND", label: "Bolt / Uber" },
-                                { v: "RIDER", label: "Boda / Rider" },
-                                { v: "OTHER", label: "Other" },
-                              ] as { v: CourierType; label: string }[]
-                            ).map((c) => (
-                              <button
-                                key={c.v}
-                                type="button"
-                                onClick={() => setCourierType(c.v)}
-                                className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                                  courierType === c.v
-                                    ? "border-transparent text-white"
-                                    : "border-border bg-background text-foreground hover:bg-secondary"
-                                }`}
-                                style={courierType === c.v ? { backgroundColor: BRAND } : undefined}
-                              >
-                                {c.label}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className={labelCls}>
-                            Sacco / courier service name <span className="text-destructive">*</span>
-                          </label>
-                          <input
-                            className={inputCls}
-                            required
-                            value={courierServiceName}
-                            onChange={(e) => setCourierServiceName(e.target.value)}
-                            placeholder="e.g. 2NK, 4NTE, Kukena, Easy Coach, Tahmeed, G4S, Pickup Mtaani"
-                            list="courier-suggestions"
-                          />
-                          <datalist id="courier-suggestions">
-                            <option value="2NK Sacco" />
-                            <option value="4NTE Sacco" />
-                            <option value="Kukena Sacco" />
-                            <option value="Easy Coach" />
-                            <option value="Tahmeed" />
-                            <option value="Mash Poa" />
-                            <option value="Modern Coast" />
-                            <option value="Guardian Coach" />
-                            <option value="Climax Coach" />
-                            <option value="G4S Courier" />
-                            <option value="Pickup Mtaani" />
-                            <option value="Wells Fargo Courier" />
-                            <option value="Not sure — please call me" />
-                          </datalist>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Type any sacco or courier name. If you're not yet sure, type <em>"Not sure — call me"</em>{" "}
-                            and our staff will help.
-                          </p>
-                        </div>
-
-                        <div>
-                          <label className={labelCls}>Dispatch stage / office in Nairobi (optional)</label>
-                          <input
-                            className={inputCls}
-                            value={courierStageOrOffice}
-                            onChange={(e) => setCourierStageOrOffice(e.target.value)}
-                            placeholder="e.g. 2NK Accra Road, Machakos Country Bus stage, Easy Coach River Road"
-                          />
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            The stage / booking office on <em>our</em> side. Leave blank if unsure.
-                          </p>
-                        </div>
-
-                        <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-                          <strong>Transport cost is paid directly to the sacco / courier</strong> on collection (or at
-                          dispatch — we'll confirm by phone). It is separate from your product total below.
-                        </div>
-                      </div>
-                    </section>
-                  </div>
-                )}
-
-                {fulfillment === "PICKUP" && (
-                  <div className="sm:col-span-2 rounded-2xl border border-border bg-secondary/30 p-4 text-sm text-muted-foreground">
-                    No delivery fee — we'll prepare your order and call you when it's ready for pickup at our shop.
-                  </div>
-                )}
-              </div>
+              {fulfillment === "TUMABODA_DELIVERY" && (
+                <div>
+                  <label className={labelCls}>Phone number for delivery contact</label>
+                  <input
+                    className={inputCls}
+                    required
+                    value={tumabodaPhone}
+                    onChange={(e) => setTumabodaPhone(e.target.value)}
+                    placeholder="0712 345 678"
+                    inputMode="tel"
+                  />
+                  <p className="mt-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs font-medium text-foreground/90">
+                    This number will be given directly to TumaBoda, our delivery partner, so
+                    their rider can contact you about this delivery. It's collected separately
+                    from your M-Pesa number, which you'll enter at payment. See our{" "}
+                    <a href="/privacy" target="_blank" rel="noreferrer" className="underline">
+                      Privacy Policy
+                    </a>
+                    .
+                  </p>
+                </div>
+              )}
 
               <ConsentCheckbox
                 checked={consent}
                 onCheckedChange={setConsent}
-                purpose="process and deliver your order"
+                purpose="process and deliver my order"
                 className="mt-2"
               />
 
               <button
                 type="submit"
-                disabled={!consent}
+                disabled={
+                  !consent ||
+                  (fulfillment === "TUMABODA_DELIVERY" && !isValidKenyanPhone(tumabodaPhone))
+                }
                 className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
                 style={{ backgroundColor: BRAND }}
               >
                 Continue to payment <ArrowRight className="h-4 w-4" />
               </button>
             </form>
-            <div className="mt-6">
-              <QuickAddProductStrip cardWidthClassName="w-36 sm:w-44" />
+            {/* Full-bleed breakout — the rest of this step is capped at max-w-2xl for readable line
+                length, but the horizontally-scrolling product strip benefits from the full modal
+                width instead of being squeezed into that same narrow column. */}
+            <div className="mt-6 w-screen ml-[calc(50%-50vw)] mr-[calc(50%-50vw)] px-4 sm:px-6">
+              <QuickAddProductStrip cardWidthClassName="w-40 sm:w-56 lg:w-64" wrap />
             </div>
             </>
           )}
 
-          {step === "payment" && (
+          {step === "delivery" && (detailsConfirmed || payState !== "idle") && (
             <div className="space-y-6">
               {payState === "idle" && (
                 <>
                   <button
                     type="button"
-                    onClick={() => setStep("contact")}
+                    onClick={() => setDetailsConfirmed(false)}
                     className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-secondary"
                   >
                     <ArrowLeft className="h-4 w-4" /> Edit order details
@@ -1032,42 +2077,23 @@ function CheckoutModal() {
                   <div>
                     <h2 className="font-display text-2xl text-foreground">Review &amp; pay</h2>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      You'll get an M-Pesa prompt on{" "}
-                      <span className="font-semibold text-foreground">{normalizePhone(phone)}</span>.
+                      Enter the number to receive your M-Pesa payment prompt on.
                     </p>
                   </div>
 
-                  {/* Payment method selector */}
-                  <div className="rounded-2xl border border-border bg-card p-5">
-                    <h3 className="text-sm font-semibold text-foreground">Payment method</h3>
-                    <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      {(
-                        [
-                          { id: "MPESA", label: "M-Pesa", hint: "Lipa Na M-Pesa — Safaricom Daraja" },
-                          { id: "PAYHERO", label: "M-Pesa (alternative)", hint: "Same STK push, alternate route" },
-                        ] as const
-                      ).map((opt) => {
-                        const active = paymentGateway === opt.id;
-                        return (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            onClick={() => setPaymentGateway(opt.id)}
-                            className={`flex flex-col items-start gap-1 rounded-xl border p-3 text-left text-sm transition ${
-                              active
-                                ? "border-foreground bg-secondary"
-                                : "border-border bg-background hover:bg-secondary/50"
-                            }`}
-                          >
-                            <span className="font-semibold text-foreground">{opt.label}</span>
-                            <span className="text-xs text-muted-foreground">{opt.hint}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
-                      Both options send an M-Pesa STK push to your phone for approval.
-                    </p>
+                  <div>
+                    <label className={labelCls}>Phone (M-Pesa)</label>
+                    <input
+                      className={inputCls}
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="0712 345 678"
+                      inputMode="tel"
+                    />
+                    {tumabodaPhone.trim() && phone.trim() === tumabodaPhone.trim() && (
+                      <p className="mt-1 text-xs text-muted-foreground">Same as your delivery contact number — edit if you'd like to pay from a different line.</p>
+                    )}
                   </div>
 
                   {/* Order summary */}
@@ -1182,8 +2208,15 @@ function CheckoutModal() {
 
                   <button
                     type="button"
-                    onClick={startPayment}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90"
+                    onClick={() => {
+                      if (!isValidKenyanPhone(phone)) {
+                        toast.error("Enter a valid Safaricom number (07XXXXXXXX or +2547XXXXXXXX) — M-Pesa requires a Safaricom line");
+                        return;
+                      }
+                      startPayment();
+                    }}
+                    disabled={!isValidKenyanPhone(phone)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-full px-6 py-4 text-base font-semibold text-white shadow-lg transition hover:opacity-90 disabled:opacity-60"
                     style={{ backgroundColor: BRAND }}
                   >
                     <Smartphone className="h-5 w-5" />
@@ -1274,7 +2307,7 @@ function CheckoutModal() {
                       type="button"
                       onClick={() => {
                         setPayState("idle");
-                        setStep("contact");
+                        setDetailsConfirmed(false);
                       }}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
@@ -1311,7 +2344,7 @@ function CheckoutModal() {
                       type="button"
                       onClick={() => {
                         setPayState("idle");
-                        setStep("contact");
+                        setDetailsConfirmed(false);
                       }}
                       className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary"
                     >
@@ -1334,7 +2367,17 @@ function CheckoutModal() {
   );
 }
 
-function StepDot({ active, done, label }: { active: boolean; done: boolean; label: string }) {
+function StepDot({
+  active,
+  done,
+  label,
+  shortLabel,
+}: {
+  active: boolean;
+  done: boolean;
+  label: string;
+  shortLabel?: string;
+}) {
   return (
     <span
       className={`inline-flex items-center gap-2 rounded-full px-3 py-1 ${
@@ -1345,7 +2388,16 @@ function StepDot({ active, done, label }: { active: boolean; done: boolean; labe
         className={`inline-block h-2 w-2 rounded-full ${active || done ? "" : "bg-border"}`}
         style={active || done ? { backgroundColor: BRAND } : undefined}
       />
-      <span className={`${active ? "font-semibold" : ""}`}>{label}</span>
+      <span className={`whitespace-nowrap ${active ? "font-semibold" : ""}`}>
+        {shortLabel ? (
+          <>
+            <span className="sm:hidden">{shortLabel}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </>
+        ) : (
+          label
+        )}
+      </span>
     </span>
   );
 }
@@ -1369,42 +2421,102 @@ function CenteredState({ icon, title, subtitle }: { icon: React.ReactNode; title
   );
 }
 
+/** GPS can be wrong (indoors, VPN, stale cache) — asks the customer to explicitly confirm the
+ *  reverse-geocoded fix before it's trusted as the delivery point, instead of silently seeding it in. */
+function GpsConfirmPrompt({
+  description,
+  onConfirm,
+  onReject,
+}: {
+  description: string;
+  onConfirm: () => void;
+  onReject: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-secondary/30 p-3 text-sm">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">We think you're near</p>
+      <p className="mt-0.5 font-medium text-foreground">{description}</p>
+      <p className="mt-1 text-xs text-muted-foreground">Is this right?</p>
+      <div className="mt-2 flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="flex-1 rounded-full px-4 py-2 text-xs font-semibold text-white"
+          style={{ backgroundColor: BRAND }}
+        >
+          Yes, deliver here
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          className="flex-1 rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground hover:border-foreground/40"
+        >
+          No, let me search
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function FulfillmentCard({
   active,
   onClick,
   icon,
   title,
   desc,
+  badge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   title: string;
   desc: string;
+  badge?: string;
 }) {
+  // A div, not a button — the whole-card-is-clickable pattern read as confusing (per the
+  // client's explicit feedback); a dedicated "Select" button at the bottom is the one thing
+  // that actually selects this option.
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`group flex h-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition ${
-        active ? "border-transparent bg-secondary shadow-sm ring-2" : "border-border bg-card hover:border-foreground/30"
+    <div
+      className={`flex h-full flex-col items-start gap-2 rounded-2xl border p-4 text-left transition ${
+        active ? "border-transparent bg-secondary shadow-sm ring-2" : "border-border bg-card"
       }`}
       style={active ? ({ ["--tw-ring-color" as string]: BRAND, color: "inherit" } as React.CSSProperties) : undefined}
     >
-      <span
-        className="inline-flex h-9 w-9 items-center justify-center rounded-full"
-        style={{
-          backgroundColor: active ? BRAND : "transparent",
-          color: active ? "#fff" : undefined,
-          border: active ? "none" : "1px solid var(--border)",
-        }}
-      >
-        {icon}
-      </span>
+      <div className="flex w-full items-start justify-between gap-2">
+        <span
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full"
+          style={{
+            backgroundColor: active ? BRAND : "transparent",
+            color: active ? "#fff" : undefined,
+            border: active ? "none" : "1px solid var(--border)",
+          }}
+        >
+          {icon}
+        </span>
+        {badge && (
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+            style={{ backgroundColor: `${BRAND}1a`, color: BRAND }}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
       <span className="font-semibold text-foreground">{title}</span>
       <span className="text-xs text-muted-foreground leading-snug">{desc}</span>
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-pressed={active}
+        className={`mt-auto min-h-[44px] w-auto self-start rounded-full px-5 py-2.5 text-xs font-semibold transition ${
+          active ? "text-white" : "bg-accent text-accent-foreground hover:bg-accent/90"
+        }`}
+        style={active ? { backgroundColor: BRAND } : undefined}
+      >
+        {active ? "Selected ✓" : "Select"}
+      </button>
+    </div>
   );
 }
 

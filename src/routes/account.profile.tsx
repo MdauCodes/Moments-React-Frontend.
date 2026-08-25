@@ -7,6 +7,8 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { profileStore, type CustomerProfile, type CustomerAddress } from "@/services/profileStore";
 import { useAuth } from "@/contexts/AuthContext";
+import { AccountSecuritySection } from "@/components/AccountSecuritySection";
+import { PrivacyDataSection } from "@/components/PrivacyDataSection";
 
 
 
@@ -17,6 +19,8 @@ function ProfilePage() {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [saving, setSaving] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [savingPhone, setSavingPhone] = useState(false);
 
   useEffect(() => {
     profileStore.get().then((res) => {
@@ -28,6 +32,7 @@ function ProfilePage() {
         p.email = user.email;
       }
       setProfile(p);
+      setPhoneDraft(p.phone);
     });
   }, [user]);
 
@@ -44,11 +49,26 @@ function ProfilePage() {
     if (!profile) return;
     setSaving(true);
     try {
-      const { profile: saved, source } = await profileStore.save(profile);
-      setProfile(saved);
-      toast.success(source === "live" ? "Profile saved" : "Saved locally");
+      const { message } = await profileStore.save(profile);
+      toast.success(message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to submit profile update.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleSavePhone(e: FormEvent) {
+    e.preventDefault();
+    setSavingPhone(true);
+    try {
+      const updated = await profileStore.updatePhone(phoneDraft.trim());
+      setProfile(updated);
+      toast.success("Phone number updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update phone number.");
+    } finally {
+      setSavingPhone(false);
     }
   }
 
@@ -56,19 +76,50 @@ function ProfilePage() {
     <SiteLayout>
       <section className="mx-auto max-w-4xl px-5 py-12 lg:px-8 lg:py-16">
         <h1 className="font-display text-3xl sm:text-4xl">Profile</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Update your contact details and saved addresses.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Update your contact details and saved addresses. Name changes are reviewed by our team before they apply.
+        </p>
 
         <form onSubmit={handleSave} className="mt-10 grid gap-4 rounded-2xl border border-border bg-card p-6 sm:grid-cols-2">
           <Field label="First name" value={profile.firstName} onChange={(v) => setProfile({ ...profile, firstName: v })} />
           <Field label="Last name" value={profile.lastName} onChange={(v) => setProfile({ ...profile, lastName: v })} />
-          <Field label="Email" type="email" value={profile.email} onChange={(v) => setProfile({ ...profile, email: v })} />
-          <Field label="Phone" value={profile.phone} onChange={(v) => setProfile({ ...profile, phone: v })} placeholder="+254 7…" />
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Email</label>
+            <input type="email" value={profile.email} disabled className={`${inputCls} cursor-not-allowed opacity-60`} />
+            <p className="mt-1 text-[11px] text-muted-foreground">Contact us to change your email address.</p>
+          </div>
           <div className="sm:col-span-2 flex justify-end">
             <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60">
               {saving && <InlineProgress size="sm" />} Save
             </button>
           </div>
         </form>
+
+        {/* Split out from the name form above — phone applies immediately (see
+            profileStore.updatePhone), it isn't part of the reviewed-before-applying queue. */}
+        <form onSubmit={handleSavePhone} className="mt-4 flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-6">
+          <div className="min-w-[220px] flex-1">
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Phone</label>
+            <input
+              className={inputCls}
+              value={phoneDraft}
+              placeholder="+254 7…"
+              onChange={(e) => setPhoneDraft(e.target.value)}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">Applies immediately — no admin review needed.</p>
+          </div>
+          <button
+            type="submit"
+            disabled={savingPhone || phoneDraft.trim() === profile.phone}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+          >
+            {savingPhone && <InlineProgress size="sm" />} Save
+          </button>
+        </form>
+
+        <div className="mt-6">
+          <AccountSecuritySection />
+        </div>
 
         <div className="mt-10">
           <div className="flex items-center justify-between">
@@ -108,6 +159,10 @@ function ProfilePage() {
               ))}
             </ul>
           )}
+        </div>
+
+        <div className="mt-10">
+          <PrivacyDataSection />
         </div>
       </section>
     </SiteLayout>
