@@ -30,7 +30,7 @@ interface AdminOrdersContextValue {
 
 const AdminOrdersContext = createContext<AdminOrdersContextValue | undefined>(undefined);
 
-const POLL_INTERVAL_MS = 20_000;
+const POLL_INTERVAL_MS = 240_000;
 // Every consumer of this context (Orders page's delivery-mode tabs, dispatch/preparation/payment
 // queues, the dashboard, dev-tools) filters client-side over this one fetched batch — past this
 // many total orders, a filter can silently miss real matches sitting on a page never fetched.
