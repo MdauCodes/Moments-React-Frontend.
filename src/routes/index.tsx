@@ -175,49 +175,80 @@ function usePrefersReducedMotion() {
 }
 
 // ── Rotating hero tagline ──
-// Sequential fade (out fully, swap text, in), never a simultaneous crossfade — two overlapping
-// strings mid-transition read as broken/flickery (overlapping glyphs), unlike two overlapping
-// photos, which is why this can't just reuse the hero photos' opacity-crossfade technique.
+// The finishing line fades fully to invisible (clean exit — never a simultaneous crossfade;
+// two overlapping strings mid-transition read as broken/flickery, unlike two overlapping
+// photos), then the next line types in character by character with a blinking cursor, then
+// holds fully readable. Only ever one line on screen, so the typing reveal never collides
+// with anything fading out underneath it.
 const HERO_TAGLINES = [
   "Quality Packaging that Matters",
   "Anything Packaging, tafuta sisi",
   "Quality You'll Love. Utafurahia",
 ];
-const HERO_TAGLINE_HOLD_MS = 5200;
-const HERO_TAGLINE_FADE_MS = 550;
+const HERO_TAGLINE_HOLD_MS = 4200;
+const HERO_TAGLINE_FADE_OUT_MS = 380;
+const HERO_TAGLINE_TYPE_MS = 42;
 
 function RotatingTagline() {
-  const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
+  const [display, setDisplay] = useState(HERO_TAGLINES[0]);
+  const [opacity, setOpacity] = useState(1);
+  const [typing, setTyping] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
-    if (reducedMotion) return; // stays on the first tagline, no animation, no rotation
-    let timeoutId: number;
-    const advance = () => {
-      setVisible(false);
-      timeoutId = window.setTimeout(() => {
-        setIndex((i) => (i + 1) % HERO_TAGLINES.length);
-        setVisible(true);
-        timeoutId = window.setTimeout(advance, HERO_TAGLINE_HOLD_MS);
-      }, HERO_TAGLINE_FADE_MS);
+    if (reducedMotion) return; // stays on the first tagline, fully typed, no animation
+
+    let cancelled = false;
+    const timers: number[] = [];
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        timers.push(window.setTimeout(resolve, ms));
+      });
+
+    async function run() {
+      let taglineIndex = 0;
+      // The first tagline is already shown fully typed (initial state) — hold it, then start
+      // the fade-out/type-in cycle from the second tagline onward.
+      await wait(HERO_TAGLINE_HOLD_MS);
+      while (!cancelled) {
+        taglineIndex = (taglineIndex + 1) % HERO_TAGLINES.length;
+        const text = HERO_TAGLINES[taglineIndex];
+
+        setOpacity(0);
+        await wait(HERO_TAGLINE_FADE_OUT_MS);
+        if (cancelled) return;
+
+        setDisplay("");
+        setOpacity(1);
+        setTyping(true);
+        for (let i = 1; i <= text.length; i++) {
+          if (cancelled) return;
+          setDisplay(text.slice(0, i));
+          await wait(HERO_TAGLINE_TYPE_MS);
+        }
+        setTyping(false);
+
+        await wait(HERO_TAGLINE_HOLD_MS);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+      timers.forEach(window.clearTimeout);
     };
-    timeoutId = window.setTimeout(advance, HERO_TAGLINE_HOLD_MS);
-    return () => window.clearTimeout(timeoutId);
   }, [reducedMotion]);
 
   return (
     <span
       style={{
         display: "inline-block",
-        opacity: visible ? 1 : 0,
-        transform: visible ? "translateY(0)" : "translateY(6px)",
-        transition: reducedMotion
-          ? "none"
-          : `opacity ${HERO_TAGLINE_FADE_MS}ms ease, transform ${HERO_TAGLINE_FADE_MS}ms ease`,
+        opacity,
+        transition: reducedMotion ? "none" : `opacity ${HERO_TAGLINE_FADE_OUT_MS}ms ease`,
       }}
     >
-      {HERO_TAGLINES[index]}
+      {display}
+      {typing && !reducedMotion && <span className="mpk-hero-cursor">|</span>}
     </span>
   );
 }
@@ -247,6 +278,8 @@ function Hero() {
           .mpk-hero-img-a { opacity: 1 !important; }
           .mpk-hero-img-b, .mpk-hero-img-c { opacity: 0 !important; }
         }
+        @keyframes mpk-cursor-blink { 0%, 45% { opacity: 1; } 50%, 100% { opacity: 0; } }
+        .mpk-hero-cursor { animation: mpk-cursor-blink 1s steps(1) infinite; margin-left: 1px; }
         @keyframes mpk-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .mpk-marquee-track { animation: mpk-marquee 18s linear infinite; }
         @media (max-width: 767px) { .mpk-hero-section { min-height: 760px !important; } }
