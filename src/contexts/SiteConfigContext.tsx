@@ -9,6 +9,10 @@ export interface SiteConfig {
   companyEmail: string;
   companyPhone: string;
   businessKraPin: string;
+  /** Preview-only values for the checkout UI — CheckoutService's own geofence check is the
+   *  authoritative source for what's actually charged. */
+  cbdHandDeliveryFeeKes: number;
+  cbdFreeDeliveryThresholdKes: number;
 }
 
 const DEFAULTS: SiteConfig = {
@@ -19,6 +23,8 @@ const DEFAULTS: SiteConfig = {
   companyEmail: "info@momentspackaging.com",
   companyPhone: "0119 556 688",
   businessKraPin: "",
+  cbdHandDeliveryFeeKes: 150,
+  cbdFreeDeliveryThresholdKes: 5000,
 };
 
 const LS_KEY = "moments_maintenance_override";
@@ -81,6 +87,8 @@ export function SiteConfigProvider({ children }: { children: ReactNode }) {
           companyEmail: data?.companyEmail ?? DEFAULTS.companyEmail,
           companyPhone: data?.companyPhone ?? DEFAULTS.companyPhone,
           businessKraPin: data?.businessKraPin ?? DEFAULTS.businessKraPin,
+          cbdHandDeliveryFeeKes: Number(data?.cbdHandDeliveryFeeKes) || DEFAULTS.cbdHandDeliveryFeeKes,
+          cbdFreeDeliveryThresholdKes: Number(data?.cbdFreeDeliveryThresholdKes) || DEFAULTS.cbdFreeDeliveryThresholdKes,
         });
       })
       .catch(() => {

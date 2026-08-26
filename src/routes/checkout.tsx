@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth, authFetch } from "@/contexts/AuthContext";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { orderStore, type FulfillmentType, type CourierType } from "@/services/orderStore";
 import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
@@ -39,6 +40,26 @@ const tumaBodaPartner = getDeliveryPartner("tumaboda");
  *  and dispatched the next morning instead of same-day. Checked against Africa/Nairobi time
  *  explicitly (not the browser's local time) so this is correct regardless of where the
  *  customer's device thinks it is. */
+// Mirrors CheckoutService.isWithinNairobiCbd exactly (same centre, same 1.5km radius) — used only
+// to decide which delivery-method UI to show. The backend re-checks this itself before charging
+// anything, so a drift between the two copies would at worst show the wrong UI option, never the
+// wrong charge.
+const CBD_CENTER_LAT = -1.2864;
+const CBD_CENTER_LNG = 36.8172;
+const CBD_RADIUS_KM = 1.5;
+const EARTH_RADIUS_KM = 6371;
+
+function isWithinNairobiCbd(lat: number, lng: number): boolean {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const deltaLat = toRad(lat - CBD_CENTER_LAT);
+  const deltaLng = toRad(lng - CBD_CENTER_LNG);
+  const a =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(toRad(CBD_CENTER_LAT)) * Math.cos(toRad(lat)) * Math.sin(deltaLng / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_KM * c <= CBD_RADIUS_KM;
+}
+
 function isAfterBusinessHours(): boolean {
   const nairobiHour = Number(
     new Intl.DateTimeFormat("en-KE", { hour: "numeric", hour12: false, timeZone: "Africa/Nairobi" }).format(new Date()),
@@ -535,6 +556,15 @@ function CheckoutModal() {
   // "Courier Delivery" vs the Manual Delivery fallback. Static-allowlist-backed for now.
   const [covered, setCovered] = useState<boolean | null>(null);
   const [coverageChecking, setCoverageChecking] = useState(false);
+
+  // Nairobi CBD gets its own dual delivery-method choice (Hand Delivery vs TumaBoda) — see the
+  // resolved-TumaBoda branch below. Everywhere else, TumaBoda-covered addresses only get the
+  // generic "switch to Manual Delivery" escape hatch.
+  const isCbd =
+    resolvedAddress && resolvedAddress.latitude != null && resolvedAddress.longitude != null
+      ? isWithinNairobiCbd(resolvedAddress.latitude, resolvedAddress.longitude)
+      : false;
+  const { cbdHandDeliveryFeeKes, cbdFreeDeliveryThresholdKes } = useSiteConfig();
 
   useEffect(() => {
     if (!county.trim()) {
@@ -1455,6 +1485,48 @@ function CheckoutModal() {
                         <p className="text-xs text-muted-foreground">Checking delivery options for your area…</p>
                       )}
 
+                      {/* Nairobi CBD only: a real choice between our own hand delivery and TumaBoda,
+                          shown before either card so it reads as a decision, not an afterthought.
+                          Only appears while TumaBoda is still the (default, unconfirmed) resolution —
+                          once the customer's explicitly picked Manual Delivery some other way, this
+                          stays out of their way. */}
+                      {isCbd && covered === true && fulfillment === "TUMABODA_DELIVERY" && (
+                        <div className="rounded-2xl border border-border bg-card p-4 text-sm">
+                          <p className="mb-3 font-semibold text-foreground">
+                            Nairobi CBD — how should this be delivered?
+                          </p>
+                          <div className="space-y-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFulfillment("MANUAL_DELIVERY");
+                                setCourierType("HAND_DELIVERY");
+                                setCourierServiceName("Moments Packaging (in-house)");
+                              }}
+                              className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-foreground/30 hover:bg-secondary"
+                            >
+                              <span className="flex items-center gap-3">
+                                <PackageCheck className="h-5 w-5 shrink-0" style={{ color: BRAND }} />
+                                <span>
+                                  <span className="block text-sm font-semibold text-foreground">
+                                    Hand delivery by our own team
+                                  </span>
+                                  <span className="block text-xs text-muted-foreground">
+                                    {fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of{" "}
+                                    {fmt(cbdFreeDeliveryThresholdKes)} or more
+                                  </span>
+                                </span>
+                              </span>
+                              <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            </button>
+                            <div className="flex items-center gap-2 rounded-xl border border-transparent px-4 py-1 text-xs text-muted-foreground">
+                              <Truck className="h-3.5 w-3.5 shrink-0" />
+                              Or keep the TumaBoda option shown below — its exact fee is quoted there.
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Resolved TumaBoda path — branded per the client's explicit call. Covered
                           areas default here; uncovered areas fall to Manual below instead. */}
                       {covered === true && fulfillment === "TUMABODA_DELIVERY" && (
@@ -1588,24 +1660,29 @@ function CheckoutModal() {
                                   </p>
                                 ) : null}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() => setFulfillment("MANUAL_DELIVERY")}
-                                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-foreground/30 hover:bg-secondary"
-                              >
-                                <span className="flex items-center gap-3">
-                                  <PackageCheck className="h-5 w-5 shrink-0" style={{ color: BRAND }} />
-                                  <span>
-                                    <span className="block text-sm font-semibold text-foreground">
-                                      Prefer a courier or sacco you arrange by phone?
-                                    </span>
-                                    <span className="block text-xs text-muted-foreground">
-                                      Switch to Manual Delivery instead of TumaBoda
+                              {/* CBD already got its own dual-choice card above (Hand Delivery vs
+                                  TumaBoda) — this generic escape hatch is for every other
+                                  TumaBoda-covered area, so it doesn't duplicate that choice here. */}
+                              {!isCbd && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFulfillment("MANUAL_DELIVERY")}
+                                  className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-foreground/30 hover:bg-secondary"
+                                >
+                                  <span className="flex items-center gap-3">
+                                    <PackageCheck className="h-5 w-5 shrink-0" style={{ color: BRAND }} />
+                                    <span>
+                                      <span className="block text-sm font-semibold text-foreground">
+                                        Prefer a courier or sacco you arrange by phone?
+                                      </span>
+                                      <span className="block text-xs text-muted-foreground">
+                                        Switch to Manual Delivery instead of TumaBoda
+                                      </span>
                                     </span>
                                   </span>
-                                </span>
-                                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                              </button>
+                                  <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                </button>
+                              )}
                             </div>
                           ) : (
                             <div className="mt-3">
@@ -1813,6 +1890,32 @@ function CheckoutModal() {
 
                     {/* SECTION 2 — DISPATCH */}
                     <section ref={manualSection2Ref} className="rounded-2xl border border-border bg-card p-4 sm:p-5">
+                      {courierType === "HAND_DELIVERY" ? (
+                        // Nothing to pick here — it's our own team, not a third-party courier/sacco,
+                        // so there's no "which company" question to ask.
+                        <div className="flex items-start gap-3">
+                          <PackageCheck className="h-5 w-5 shrink-0" style={{ color: BRAND }} />
+                          <div>
+                            <h3 className="font-display text-lg text-foreground">Hand delivery by our own team</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of{" "}
+                              {fmt(cbdFreeDeliveryThresholdKes)} or more — added to your total, paid now with the
+                              rest of your order.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCourierType("");
+                                setCourierServiceName("");
+                              }}
+                              className="mt-2 text-xs font-semibold underline underline-offset-2"
+                            >
+                              Not what you wanted? Choose a courier/sacco instead
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                      <>
                       <div className="mb-3 flex items-baseline justify-between gap-2">
                         <h3 className="font-display text-lg text-foreground">
                           2. Which delivery partner should send it from Nairobi?
@@ -1947,6 +2050,8 @@ function CheckoutModal() {
                           dispatch — we'll confirm by phone). It is separate from your product total below.
                         </div>
                       </div>
+                      </>
+                      )}
                     </section>
                   </div>
                 )}
