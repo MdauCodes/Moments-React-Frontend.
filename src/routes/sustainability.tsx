@@ -1,8 +1,8 @@
 import { Leaf, Users, ShieldCheck, Recycle } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import esgPoster1 from "@/assets/company-profile/esg-poster-1.jpg";
-import sproutingLeafIcon from "@/assets/sustainability-sprouting-leaf.jpg";
 import { LogoLeafIcon } from "@/components/icons/LogoLeafIcon";
+import logoUrl from "@/assets/moments_logo_without_background.png";
 
 const FOREST = "#0d3320";
 const FOREST_DEEP = "#08231a";
@@ -32,8 +32,13 @@ function SustainabilityPage() {
 
           <div className="mx-auto mt-8 max-w-4xl space-y-4 text-[15px] leading-relaxed text-white/85">
             <p>
-              <LogoLeafIcon size={14} className="mr-1 inline-block align-text-bottom" />
-              At Moments Packaging Ltd, sustainability is more than a business objective — it is a core value that
+              <img
+                src={logoUrl}
+                alt="Moments Packaging Ltd"
+                className="mr-1.5 inline-block align-text-bottom"
+                style={{ height: "1.9em", width: "auto" }}
+              />{" "}
+              treats sustainability as more than a business objective — it is a core value that
               shapes the way we design, source and deliver packaging solutions. We are committed to creating products
               that support our customers while contributing to a healthier planet and a more sustainable future.
             </p>
@@ -87,11 +92,9 @@ function SustainabilityPage() {
             style={{ borderColor: `${GOLD}33`, background: FOREST }}
           >
             <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-              <img
-                src={sproutingLeafIcon}
-                alt="Sprouting leaf"
-                className="h-16 w-16 shrink-0 rounded-full bg-white p-1.5 sm:h-20 sm:w-20"
-              />
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white p-1.5 sm:h-20 sm:w-20">
+                <LogoLeafIcon size={46} />
+              </div>
               <div>
                 <p className="text-sm leading-relaxed text-white/88">
                   Every package we supply carries an opportunity to make a positive impact. When you see the{" "}
