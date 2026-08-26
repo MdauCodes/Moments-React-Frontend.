@@ -1903,10 +1903,21 @@ function CheckoutModal() {
                           <div>
                             <h3 className="font-display text-lg text-foreground">Hand delivery by our own team</h3>
                             <p className="mt-1 text-sm text-muted-foreground">
-                              {qualifiesForFreeCbdDelivery
-                                ? `Free delivery — your order already qualifies (${fmt(cbdFreeDeliveryThresholdKes)}+).`
-                                : `${fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of ${fmt(cbdFreeDeliveryThresholdKes)} or more.`}{" "}
-                              Added to your total, paid now with the rest of your order.
+                              {qualifiesForFreeCbdDelivery ? (
+                                <>
+                                  <span className="font-semibold text-foreground">Free</span> — your order
+                                  already qualifies ({fmt(cbdFreeDeliveryThresholdKes)}+). You won't be charged
+                                  anything for delivery.
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-semibold text-foreground">
+                                    {fmt(cbdHandDeliveryFeeKes)} delivery fee
+                                  </span>{" "}
+                                  — added to your total, paid now with the rest of your order. Free on orders of{" "}
+                                  {fmt(cbdFreeDeliveryThresholdKes)} or more.
+                                </>
+                              )}
                             </p>
                             {/* A sacco/courier picker doesn't make sense for a CBD hop — those exist
                                 for inter-town transport. TumaBoda is the only other real option here. */}
