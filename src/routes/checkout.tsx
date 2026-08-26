@@ -1591,9 +1591,20 @@ function CheckoutModal() {
                               <button
                                 type="button"
                                 onClick={() => setFulfillment("MANUAL_DELIVERY")}
-                                className="text-xs font-semibold text-foreground underline underline-offset-2"
+                                className="flex w-full items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left transition hover:border-foreground/30 hover:bg-secondary"
                               >
-                                Prefer a courier/sacco arranged by phone instead? Switch to Manual Delivery →
+                                <span className="flex items-center gap-3">
+                                  <PackageCheck className="h-5 w-5 shrink-0" style={{ color: BRAND }} />
+                                  <span>
+                                    <span className="block text-sm font-semibold text-foreground">
+                                      Prefer a courier or sacco you arrange by phone?
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                      Switch to Manual Delivery instead of TumaBoda
+                                    </span>
+                                  </span>
+                                </span>
+                                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                               </button>
                             </div>
                           ) : (
