@@ -1588,6 +1588,13 @@ function CheckoutModal() {
                                   </p>
                                 ) : null}
                               </div>
+                              <button
+                                type="button"
+                                onClick={() => setFulfillment("MANUAL_DELIVERY")}
+                                className="text-xs font-semibold text-foreground underline underline-offset-2"
+                              >
+                                Prefer a courier/sacco arranged by phone instead? Switch to Manual Delivery →
+                              </button>
                             </div>
                           ) : (
                             <div className="mt-3">
