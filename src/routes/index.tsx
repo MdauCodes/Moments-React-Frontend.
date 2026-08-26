@@ -161,6 +161,67 @@ function HomeNav() {
   );
 }
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
+// ── Rotating hero tagline ──
+// Sequential fade (out fully, swap text, in), never a simultaneous crossfade — two overlapping
+// strings mid-transition read as broken/flickery (overlapping glyphs), unlike two overlapping
+// photos, which is why this can't just reuse the hero photos' opacity-crossfade technique.
+const HERO_TAGLINES = [
+  "Quality Packaging that Matters",
+  "Anything Packaging, tafuta sisi",
+  "Quality You'll Love. Utafurahia",
+];
+const HERO_TAGLINE_HOLD_MS = 5200;
+const HERO_TAGLINE_FADE_MS = 550;
+
+function RotatingTagline() {
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) return; // stays on the first tagline, no animation, no rotation
+    let timeoutId: number;
+    const advance = () => {
+      setVisible(false);
+      timeoutId = window.setTimeout(() => {
+        setIndex((i) => (i + 1) % HERO_TAGLINES.length);
+        setVisible(true);
+        timeoutId = window.setTimeout(advance, HERO_TAGLINE_HOLD_MS);
+      }, HERO_TAGLINE_FADE_MS);
+    };
+    timeoutId = window.setTimeout(advance, HERO_TAGLINE_HOLD_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [reducedMotion]);
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(6px)",
+        transition: reducedMotion
+          ? "none"
+          : `opacity ${HERO_TAGLINE_FADE_MS}ms ease, transform ${HERO_TAGLINE_FADE_MS}ms ease`,
+      }}
+    >
+      {HERO_TAGLINES[index]}
+    </span>
+  );
+}
+
 // ── Hero ──
 function Hero() {
   const { openRegister } = useAuthModal();
@@ -181,23 +242,10 @@ function Hero() {
         .mpk-hero-img-b { animation: mpk-hero-b 21s ease-in-out infinite; }
         .mpk-hero-img-c { animation: mpk-hero-c 21s ease-in-out infinite; }
 
-        /* Rotating hero tagline — same 21s three-way crossfade rhythm as the hero photos
-           above (reuses the identical keyframes), so the whole hero breathes on one unified
-           cadence instead of two competing motions. Grid stacking (all three lines in the
-           same cell) lets the wrapper's height auto-fit whichever line is tallest at the
-           current viewport width, so a shorter or longer line swapping in never reflows the
-           paragraph/buttons below it. */
-        .mpk-hero-tagline { display: grid; }
-        .mpk-hero-tagline > span { grid-area: 1 / 1; }
-        .mpk-hero-tagline-a { animation: mpk-hero-a 21s ease-in-out infinite; }
-        .mpk-hero-tagline-b { animation: mpk-hero-b 21s ease-in-out infinite; }
-        .mpk-hero-tagline-c { animation: mpk-hero-c 21s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
-          .mpk-hero-img-a, .mpk-hero-img-b, .mpk-hero-img-c,
-          .mpk-hero-tagline-a, .mpk-hero-tagline-b, .mpk-hero-tagline-c { animation: none !important; }
-          .mpk-hero-img-a, .mpk-hero-tagline-a { opacity: 1 !important; }
-          .mpk-hero-img-b, .mpk-hero-img-c,
-          .mpk-hero-tagline-b, .mpk-hero-tagline-c { opacity: 0 !important; }
+          .mpk-hero-img-a, .mpk-hero-img-b, .mpk-hero-img-c { animation: none !important; }
+          .mpk-hero-img-a { opacity: 1 !important; }
+          .mpk-hero-img-b, .mpk-hero-img-c { opacity: 0 !important; }
         }
         @keyframes mpk-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .mpk-marquee-track { animation: mpk-marquee 18s linear infinite; }
@@ -398,10 +446,8 @@ function Hero() {
               Packaging Solutions for
               <br />
               Kenyan Businesses —<br />
-              <em className="italic mpk-hero-tagline" style={{ color: "#e8c878" }}>
-                <span className="mpk-hero-tagline-a">Quality Packaging that Matters</span>
-                <span className="mpk-hero-tagline-b">Anything Packaging, tafuta sisi</span>
-                <span className="mpk-hero-tagline-c">Quality You'll Love. Utafurahia</span>
+              <em className="italic" style={{ color: "#e8c878" }}>
+                <RotatingTagline />
               </em>
             </h1>
             <p
