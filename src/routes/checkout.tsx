@@ -565,6 +565,12 @@ function CheckoutModal() {
       ? isWithinNairobiCbd(resolvedAddress.latitude, resolvedAddress.longitude)
       : false;
   const { cbdHandDeliveryFeeKes, cbdFreeDeliveryThresholdKes } = useSiteConfig();
+  // Matches CheckoutService's own subtotal >= threshold check exactly — shown here so the
+  // customer sees "free" up front instead of a fee number that the actual charge then contradicts.
+  const qualifiesForFreeCbdDelivery = cartTotal >= cbdFreeDeliveryThresholdKes;
+  const cbdHandDeliveryLabel = qualifiesForFreeCbdDelivery
+    ? `Free delivery — your order already qualifies (${fmt(cbdFreeDeliveryThresholdKes)}+)`
+    : `${fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of ${fmt(cbdFreeDeliveryThresholdKes)} or more`;
 
   useEffect(() => {
     if (!county.trim()) {
@@ -1512,8 +1518,7 @@ function CheckoutModal() {
                                     Hand delivery by our own team
                                   </span>
                                   <span className="block text-xs text-muted-foreground">
-                                    {fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of{" "}
-                                    {fmt(cbdFreeDeliveryThresholdKes)} or more
+                                    {cbdHandDeliveryLabel}
                                   </span>
                                 </span>
                               </span>
@@ -1898,19 +1903,23 @@ function CheckoutModal() {
                           <div>
                             <h3 className="font-display text-lg text-foreground">Hand delivery by our own team</h3>
                             <p className="mt-1 text-sm text-muted-foreground">
-                              {fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of{" "}
-                              {fmt(cbdFreeDeliveryThresholdKes)} or more — added to your total, paid now with the
-                              rest of your order.
+                              {qualifiesForFreeCbdDelivery
+                                ? `Free delivery — your order already qualifies (${fmt(cbdFreeDeliveryThresholdKes)}+).`
+                                : `${fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of ${fmt(cbdFreeDeliveryThresholdKes)} or more.`}{" "}
+                              Added to your total, paid now with the rest of your order.
                             </p>
+                            {/* A sacco/courier picker doesn't make sense for a CBD hop — those exist
+                                for inter-town transport. TumaBoda is the only other real option here. */}
                             <button
                               type="button"
                               onClick={() => {
+                                setFulfillment("TUMABODA_DELIVERY");
                                 setCourierType("");
                                 setCourierServiceName("");
                               }}
                               className="mt-2 text-xs font-semibold underline underline-offset-2"
                             >
-                              Not what you wanted? Choose a courier/sacco instead
+                              Not what you wanted? Switch back to TumaBoda
                             </button>
                           </div>
                         </div>
