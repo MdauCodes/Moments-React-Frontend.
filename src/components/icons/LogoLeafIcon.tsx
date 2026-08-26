@@ -1,24 +1,31 @@
 import logoUrl from "@/assets/moments_logo_without_background.png";
 
-// Source logo is 341x120px. This crops out just the sprouting-leaf-merged-with-"O"
-// glyph (the second character of "moments") exactly as it appears in the logo,
-// rather than redrawing it — so it always matches the real mark pixel-for-pixel.
-// Coordinates found by pixel analysis (flood-fill from the recycling-circle glyph,
-// cross-checked by RGB sampling against the neighbouring letters) against the live
-// asset, not eyeballed — the glyph's true bounds are x:[76,146] y:[9,86].
+// Source logo is 341x120px. This crops out just the sprouting leaf sitting above the
+// recycling-circle "O" (the second character of "moments") — the leaf only, not the
+// circle beneath it — exactly as it appears in the logo, rather than redrawing it, so
+// it always matches the real mark pixel-for-pixel. Bounds found by scanning for
+// leaf-green pixels (G channel well above both R and B, distinguishing it from both
+// the dark-green wordmark and the gold recycling circle) against the live asset, then
+// hand-verified against a zoomed render — not eyeballed.
 const SOURCE_W = 341;
 const SOURCE_H = 120;
-const CROP = { left: 73, top: 7, width: 76, height: 82 };
+const CROP = { left: 62, top: 6, width: 86, height: 40 };
 
-/** The logo's sprouting-leaf + recycling-circle "O" glyph, cropped from the real
- *  logo file — used as a small symbolic mark wherever "Moments" is referenced. */
+/** The logo's sprouting-leaf glyph alone, cropped from the real logo file — used as a
+ *  small symbolic mark wherever "Moments" is referenced.
+ *
+ *  `size` sets the rendered HEIGHT, not width — every call site uses this inline against
+ *  text (`align-text-bottom`), where what actually needs to match is the line height, not
+ *  a square footprint. The leaf's real shape is wide and short (86x40 in the source), so
+ *  scaling by width would render it unexpectedly flat; width instead follows the leaf's
+ *  own proportions from whatever height is requested. */
 export function LogoLeafIcon({ size = 20, className }: { size?: number; className?: string }) {
-  const scale = size / CROP.width;
+  const scale = size / CROP.height;
   const bgWidth = SOURCE_W * scale;
   const bgHeight = SOURCE_H * scale;
   const bgPosX = -(CROP.left * scale);
   const bgPosY = -(CROP.top * scale);
-  const displayHeight = CROP.height * scale;
+  const displayWidth = CROP.width * scale;
 
   return (
     <span
@@ -28,9 +35,9 @@ export function LogoLeafIcon({ size = 20, className }: { size?: number; classNam
       style={{
         display: "inline-block",
         flexShrink: 0,
-        width: size,
-        minWidth: size,
-        height: displayHeight,
+        width: displayWidth,
+        minWidth: displayWidth,
+        height: size,
         backgroundImage: `url(${logoUrl})`,
         backgroundRepeat: "no-repeat",
         backgroundSize: `${bgWidth}px ${bgHeight}px`,

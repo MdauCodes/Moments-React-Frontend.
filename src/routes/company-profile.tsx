@@ -20,6 +20,7 @@ import {
 import { SiteLayout } from "@/components/SiteLayout";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import { LogoLeafIcon } from "@/components/icons/LogoLeafIcon";
+import logoUrl from "@/assets/moments_logo_without_background.png";
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
 import pdfAsset from "@/assets/company-profile/moments-company-profile.pdf";
@@ -251,10 +252,12 @@ function CompanyProfilePage() {
             <span className="block h-px w-12" style={{ background: GOLD }} />
           </div>
           <p className="mt-5 text-justify text-base leading-relaxed text-white/85">
-            <LogoLeafIcon size={16} className="mr-1 inline-block align-text-bottom" />
-            <span className="font-semibold" style={{ color: GOLD_SOFT }}>
-              Moments Packaging (K) Ltd
-            </span>{" "}
+            <img
+              src={logoUrl}
+              alt="Moments Packaging (K) Ltd"
+              className="mr-1.5 inline-block align-text-bottom"
+              style={{ height: "1.3em", width: "auto" }}
+            />{" "}
             is a customer-focused packaging solutions company based in Nairobi. We offer a wide range of supplies
             designed for everyday business needs across food, beverages, cosmetics, retail and more. With a focus on
             reliability, convenience and excellent customer service, we deliver innovative packaging countrywide while
