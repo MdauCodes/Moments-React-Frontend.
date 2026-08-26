@@ -180,6 +180,25 @@ function Hero() {
         .mpk-hero-img-a { animation: mpk-hero-a 21s ease-in-out infinite; }
         .mpk-hero-img-b { animation: mpk-hero-b 21s ease-in-out infinite; }
         .mpk-hero-img-c { animation: mpk-hero-c 21s ease-in-out infinite; }
+
+        /* Rotating hero tagline — same 21s three-way crossfade rhythm as the hero photos
+           above (reuses the identical keyframes), so the whole hero breathes on one unified
+           cadence instead of two competing motions. Grid stacking (all three lines in the
+           same cell) lets the wrapper's height auto-fit whichever line is tallest at the
+           current viewport width, so a shorter or longer line swapping in never reflows the
+           paragraph/buttons below it. */
+        .mpk-hero-tagline { display: grid; }
+        .mpk-hero-tagline > span { grid-area: 1 / 1; }
+        .mpk-hero-tagline-a { animation: mpk-hero-a 21s ease-in-out infinite; }
+        .mpk-hero-tagline-b { animation: mpk-hero-b 21s ease-in-out infinite; }
+        .mpk-hero-tagline-c { animation: mpk-hero-c 21s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .mpk-hero-img-a, .mpk-hero-img-b, .mpk-hero-img-c,
+          .mpk-hero-tagline-a, .mpk-hero-tagline-b, .mpk-hero-tagline-c { animation: none !important; }
+          .mpk-hero-img-a, .mpk-hero-tagline-a { opacity: 1 !important; }
+          .mpk-hero-img-b, .mpk-hero-img-c,
+          .mpk-hero-tagline-b, .mpk-hero-tagline-c { opacity: 0 !important; }
+        }
         @keyframes mpk-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .mpk-marquee-track { animation: mpk-marquee 18s linear infinite; }
         @media (max-width: 767px) { .mpk-hero-section { min-height: 760px !important; } }
@@ -379,8 +398,10 @@ function Hero() {
               Packaging Solutions for
               <br />
               Kenyan Businesses —<br />
-              <em className="italic" style={{ color: "#e8c878" }}>
-                Quality You'll Love. Utafurahia
+              <em className="italic mpk-hero-tagline" style={{ color: "#e8c878" }}>
+                <span className="mpk-hero-tagline-a">Quality Packaging that Matters</span>
+                <span className="mpk-hero-tagline-b">Anything Packaging, tafuta sisi</span>
+                <span className="mpk-hero-tagline-c">Quality You'll Love. Utafurahia</span>
               </em>
             </h1>
             <p
