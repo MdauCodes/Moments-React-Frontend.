@@ -110,7 +110,7 @@ function SustainabilityPage() {
 
           {/* Single ESG poster */}
           <div className="mt-12">
-            <p className="text-center text-[11px] font-semibold uppercase tracking-[0.3em]" style={{ color: GOLD }}>
+            <p className="text-center text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: GOLD }}>
               Our ESG &amp; Sustainability Policy
             </p>
             <a
