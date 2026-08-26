@@ -256,7 +256,7 @@ function CompanyProfilePage() {
               src={logoUrl}
               alt="Moments Packaging (K) Ltd"
               className="mr-1.5 inline-block align-text-bottom"
-              style={{ height: "1.3em", width: "auto" }}
+              style={{ height: "1.9em", width: "auto" }}
             />{" "}
             is a customer-focused packaging solutions company based in Nairobi. We offer a wide range of supplies
             designed for everyday business needs across food, beverages, cosmetics, retail and more. With a focus on
