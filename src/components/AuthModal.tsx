@@ -189,6 +189,7 @@ function RegisterStep() {
       navigate("/account/business");
     } else {
       toast.success("Account created — you're in.");
+      navigate("/account/dashboard");
     }
   }
 
