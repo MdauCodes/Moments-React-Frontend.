@@ -472,7 +472,7 @@ function CompanyProfilePage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.32em]" style={{ color: GOLD }}>
               Get in touch
             </p>
-            <h2 className="mt-3 font-display text-4xl font-medium text-white sm:text-5xl lg:text-6xl">Contact Us</h2>
+            <h2 className="mt-3 font-display text-3xl font-medium text-white sm:text-4xl lg:text-5xl">Contact Us</h2>
             <div className="mt-5 h-px w-16" style={{ background: GOLD }} />
 
             <div className="mt-8 space-y-5">
