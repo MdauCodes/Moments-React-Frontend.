@@ -1,9 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { AdminLayout } from "@/layouts/AdminLayout";
-import { Forbidden } from "@/components/admin/Forbidden";
 import { reportAdminError } from "@/lib/adminErrorToast";
-import { useAuth } from "@/contexts/AdminAuthContext";
-import { resolveStaffRole } from "@/lib/roles";
 import { adminResources, type AppLogEntry, type LogDigestSummary } from "@/services/adminResources";
 
 function fmtDate(iso?: string) {
@@ -74,11 +70,9 @@ function DigestPreviewPanel() {
   );
 }
 
-function AdminDevLogsPage() {
-  const { user } = useAuth();
-  const staffRole = resolveStaffRole(user);
-  const allowed = staffRole === "SUPER_ADMIN";
-
+/** Gating and the AdminLayout chrome are handled once by the parent developer-section
+ *  page (`_adminAuth.admin.developer.tsx`), which renders this as one of its tabs. */
+export function DevLogsPanel() {
   const [rows, setRows] = useState<AppLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
@@ -96,7 +90,6 @@ function AdminDevLogsPage() {
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
-    if (!allowed) return;
     let cancelled = false;
     setLoading(true);
     adminResources.devLogs
@@ -117,14 +110,11 @@ function AdminDevLogsPage() {
       .catch((err) => reportAdminError(err, "Failed to load logs"))
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [allowed, level, loggerName, q, task, actor, responseCode, success, from, to, page, reloadKey]);
-
-  if (!allowed) return <AdminLayout title="Dev logs"><Forbidden resource="developer logs" /></AdminLayout>;
+  }, [level, loggerName, q, task, actor, responseCode, success, from, to, page, reloadKey]);
 
   return (
-    <AdminLayout title="Dev logs" onReload={() => setReloadKey((k) => k + 1)}>
-      <div className="admin-page-stack">
-        <DigestPreviewPanel />
+    <div className="admin-page-stack">
+      <DigestPreviewPanel />
 
         <div className="admin-panel admin-toolbar" data-admin-toolbar style={{ flexWrap: "wrap", gap: 8 }}>
           <select className="admin-input" value={level} onChange={(e) => { setLevel(e.target.value); setPage(0); }} style={{ maxWidth: 130 }}>
@@ -155,6 +145,7 @@ function AdminDevLogsPage() {
               setLevel(""); setLoggerName(""); setQ(""); setTask(""); setActor(""); setResponseCode(""); setSuccess(""); setFrom(""); setTo(""); setPage(0);
             }}>Clear</button>
           )}
+          <button className="admin-btn admin-btn-ghost" onClick={() => setReloadKey((k) => k + 1)}>Refresh</button>
         </div>
 
         <div className="admin-panel" data-admin-table-scroll>
@@ -204,8 +195,5 @@ function AdminDevLogsPage() {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }
-
-export default AdminDevLogsPage;

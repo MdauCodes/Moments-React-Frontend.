@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { AdminLayout } from "@/layouts/AdminLayout";
-import { Forbidden } from "@/components/admin/Forbidden";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import {
   adminResources,
@@ -12,8 +10,6 @@ import {
   type LeadPreviewDto,
 } from "@/services/adminResources";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
-import { useAdminAuth } from "@/contexts/AdminAuthContext";
-import { resolveStaffRole } from "@/lib/roles";
 
 type DryRunItemRow = { product: ProductDto | null; quantity: string };
 
@@ -645,31 +641,25 @@ function ComingSoonCard() {
   );
 }
 
-function AdminDevToolsPage() {
-  const { user } = useAdminAuth();
-  const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
-  if (!isSuperAdmin) return <AdminLayout title="Developer Tools"><Forbidden resource="Developer Tools" /></AdminLayout>;
-
+/** Gating and the AdminLayout chrome are handled once by the parent developer-section
+ *  page (`_adminAuth.admin.developer.tsx`), which renders this as one of its tabs. */
+export function DevToolsPanel() {
   return (
-    <AdminLayout title="Developer Tools">
-      <div className="admin-page-stack">
-        <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
-          <p style={{ margin: 0 }}>
-            <b>Super Admin only.</b> Everything on this page is designed to never touch real customer/order data —
-            no Order, Payment or Cart row is ever created by these tools.
-          </p>
-        </div>
-        <CheckoutDryRunCard />
-        <StkPushTestCard />
-        <PdfPreviewCard />
-        <TestTaxInvoiceEmailCard />
-        <BirthdayJobTestCard />
-        <LeadDigestTestCard />
-        <RisellerSyncTestCard />
-        <ComingSoonCard />
+    <div className="admin-page-stack">
+      <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
+        <p style={{ margin: 0 }}>
+          <b>Super Admin only.</b> Everything on this page is designed to never touch real customer/order data —
+          no Order, Payment or Cart row is ever created by these tools.
+        </p>
       </div>
-    </AdminLayout>
+      <CheckoutDryRunCard />
+      <StkPushTestCard />
+      <PdfPreviewCard />
+      <TestTaxInvoiceEmailCard />
+      <BirthdayJobTestCard />
+      <LeadDigestTestCard />
+      <RisellerSyncTestCard />
+      <ComingSoonCard />
+    </div>
   );
 }
-
-export default AdminDevToolsPage;

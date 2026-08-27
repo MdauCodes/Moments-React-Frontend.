@@ -122,8 +122,7 @@ const AdminFeatureGuidePage = lazy(() => import("@/routes/_adminAuth.admin.featu
 const AdminChangelogPage = lazy(() => import("@/routes/_adminAuth.admin.changelog"));
 const AdminChangeRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.change-requests"));
 const AdminArchitecturePage = lazy(() => import("@/routes/_adminAuth.admin.architecture"));
-const AdminDevToolsPage = lazy(() => import("@/routes/_adminAuth.admin.dev-tools"));
-const AdminDevLogsPage = lazy(() => import("@/routes/_adminAuth.admin.dev-logs"));
+const AdminDeveloperPage = lazy(() => import("@/routes/_adminAuth.admin.developer"));
 const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"));
 const AdminDeliverySettingsPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-settings"));
 const AdminRefundRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.refund-requests"));
@@ -263,8 +262,7 @@ export default function App() {
                       <Route path="/admin/promo-codes" element={<Suspense fallback={<AdminRouteFallback />}><AdminPromoCodesPage /></Suspense>} />
                       <Route path="/admin/tax-documents" element={<Suspense fallback={<AdminRouteFallback />}><AdminTaxDocumentsPage /></Suspense>} />
                       <Route path="/admin/document-bundles" element={<Suspense fallback={<AdminRouteFallback />}><AdminDocumentBundlesPage /></Suspense>} />
-                      <Route path="/admin/dev-tools" element={<Suspense fallback={<AdminRouteFallback />}><AdminDevToolsPage /></Suspense>} />
-                      <Route path="/admin/dev-logs" element={<Suspense fallback={<AdminRouteFallback />}><AdminDevLogsPage /></Suspense>} />
+                      <Route path="/admin/developer" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeveloperPage /></Suspense>} />
                       <Route path="/admin/rewards-tiers" element={<Suspense fallback={<AdminRouteFallback />}><AdminRewardsTiersPage /></Suspense>} />
                       <Route path="/admin/referral-tiers" element={<Suspense fallback={<AdminRouteFallback />}><AdminReferralTiersPage /></Suspense>} />
                       <Route path="/admin/rewards-report" element={<Suspense fallback={<AdminRouteFallback />}><AdminRewardsReportPage /></Suspense>} />

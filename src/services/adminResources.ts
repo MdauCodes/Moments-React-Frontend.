@@ -199,6 +199,30 @@ export type LogDigestSummary = {
   topWarnings: Array<{ message: string; count: number }>;
 };
 
+export type CheckoutFunnelStep = "OPENED" | "CONTACT_COMPLETED" | "DELIVERY_CONFIRMED" | "ORDER_PLACED";
+
+export type CheckoutFunnelStepSummary = {
+  step: CheckoutFunnelStep;
+  sessions: number;
+  pctOfOpened: number;
+  pctOfPrevious: number | null;
+};
+
+export type CheckoutFunnelSummary = {
+  days: number;
+  steps: CheckoutFunnelStepSummary[];
+  droppedAfterDeliveryConfirmed: number;
+};
+
+export type CheckoutFunnelSession = {
+  sessionId: string;
+  lastStep: CheckoutFunnelStep;
+  lastSeenAt: string;
+  email?: string;
+  phone?: string;
+  fulfillmentType?: string;
+};
+
 export type MockModeState = { enabled: boolean; message?: string };
 
 export type UserDto = {
@@ -414,6 +438,12 @@ export const adminResources = {
   devLogs: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) =>
       unwrap(await adminJson<PageResponse<AppLogEntry> | AppLogEntry[]>(`/api/v1/admin/logs${qs(params)}`)),
+  },
+  checkoutFunnel: {
+    summary: (days: number) =>
+      adminJson<CheckoutFunnelSummary>(`/api/v1/admin/checkout-funnel/summary?days=${days}`),
+    droppedSessions: (days: number, limit = 200) =>
+      adminJson<CheckoutFunnelSession[]>(`/api/v1/admin/checkout-funnel/dropped-sessions?days=${days}&limit=${limit}`),
   },
   promoCodes: {
     list: () => adminJson<PromoCodeDto[]>("/api/v1/admin/promo-codes"),

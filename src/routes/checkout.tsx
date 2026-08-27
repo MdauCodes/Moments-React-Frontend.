@@ -24,6 +24,7 @@ import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
 import { profileStore } from "@/services/profileStore";
 import { apiUrl, apiFetch } from "@/config/api";
+import { trackFunnelStep } from "@/services/checkoutFunnelTracker";
 import { CountySelect } from "@/components/CountySelect";
 import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
@@ -838,6 +839,9 @@ function CheckoutModal() {
 
   useEffect(() => () => clearAllTimers(), []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { trackFunnelStep("OPENED"); }, []);
+
   function clearAllTimers() {
     const t = timersRef.current;
     if (t.poll) clearTimeout(t.poll);
@@ -866,6 +870,7 @@ function CheckoutModal() {
   function handleContactSubmit(e: FormEvent) {
     e.preventDefault();
     if (!validateContactInfo()) return;
+    trackFunnelStep("CONTACT_COMPLETED", { email: email.trim(), phone: normalizePhone(phone) });
     setStep("delivery");
   }
 
@@ -930,6 +935,7 @@ function CheckoutModal() {
       toast.error("Please tick the consent box to continue");
       return;
     }
+    trackFunnelStep("DELIVERY_CONFIRMED", { fulfillmentType: fulfillment ?? undefined });
     setDetailsConfirmed(true);
   }
 
@@ -1071,6 +1077,7 @@ function CheckoutModal() {
         ref = order.reference;
         setOrderId(id);
         setOrderRef(ref);
+        trackFunnelStep("ORDER_PLACED", { orderReference: ref });
         if (etrRequested) {
           toast.success(`Your receipt, tax invoice and ETR will be emailed to ${documentsEmail.trim()} once we've uploaded your ETR.`);
           if (order.taxInvoiceUploadToken) {
