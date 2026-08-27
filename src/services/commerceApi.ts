@@ -195,15 +195,16 @@ export async function getOrder(id: string): Promise<{ order: OrderRecord | undef
 }
 
 // Backend PATCH /api/v1/admin/orders/{id}/status
-// Body: { status: OrderStatus, staffNotes?: string }
+// Body: { status: OrderStatus, staffNotes?: string, receiptReference?: string }
 export async function updateOrderStatus(
   id: string,
   status: OrderStatus,
   staffNotes?: string,
+  receiptReference?: string,
 ): Promise<{ order: OrderRecord | undefined; source: Source }> {
   const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ status, staffNotes }),
+    body: JSON.stringify({ status, staffNotes, receiptReference }),
   });
   if (!res.ok) throw new ApiError({ status: res.status, message: res.statusText });
   const raw = await res.json();

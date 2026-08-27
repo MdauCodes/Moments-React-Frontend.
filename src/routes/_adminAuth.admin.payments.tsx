@@ -58,7 +58,10 @@ function StuckPaymentsPage() {
     if (!row) return;
     setBusyId(row.paymentRecordId);
     try {
-      await updateOrderStatus(row.orderId, "PAID", referenceNote);
+      // Passed as receiptReference (the real PaymentRecord.receiptNumber), not staffNotes — this
+      // used to only land in the free-text notes field, so the actual M-Pesa/payment reference
+      // was never captured on the payment record itself.
+      await updateOrderStatus(row.orderId, "PAID", undefined, referenceNote);
       toast.success(`${row.orderReference} marked paid`);
       setMarkPaidRow(null);
       await refresh();
