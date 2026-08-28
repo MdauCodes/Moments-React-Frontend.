@@ -298,6 +298,14 @@ export type ProductImageGenerationBudgetDto = {
   costPerImageUsd: number;
   candidateCount: number;
 };
+export type GeneratedProductImageDto = {
+  id: string;
+  productId: string;
+  productName: string;
+  imageUrl: string;
+  isPrimary: boolean;
+  createdAt: string;
+};
 
 export type LeadPreviewDto = {
   id: string;
@@ -446,6 +454,8 @@ export const adminResources = {
       adminJson<ProductImageGenerationBatchDto[]>("/api/v1/admin/products/image-generation/batches"),
     getBatch: (id: string) =>
       adminJson<ProductImageGenerationBatchDto>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`),
+    getBatchImages: (id: string) =>
+      adminJson<GeneratedProductImageDto[]>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}/images`),
     deleteBatch: (id: string) =>
       adminJson<void>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },

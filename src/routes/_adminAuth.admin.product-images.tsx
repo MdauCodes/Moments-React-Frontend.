@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { Loader2, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { Loader2, Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import {
   adminResources,
+  type GeneratedProductImageDto,
   type ProductImageGenerationBatchDto,
   type ProductImageGenerationBudgetDto,
 } from "@/services/adminResources";
@@ -28,6 +29,63 @@ function statusColor(status: ProductImageGenerationBatchDto["status"]) {
   }
 }
 
+function groupByProduct(images: GeneratedProductImageDto[]) {
+  const map = new Map<string, { productName: string; images: GeneratedProductImageDto[] }>();
+  for (const img of images) {
+    const entry = map.get(img.productId) ?? { productName: img.productName, images: [] };
+    entry.images.push(img);
+    map.set(img.productId, entry);
+  }
+  return Array.from(map.values());
+}
+
+function BatchImagesPanel({ batchId }: { batchId: string }) {
+  const [images, setImages] = useState<GeneratedProductImageDto[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    adminResources.productImageGeneration.getBatchImages(batchId)
+      .then((res) => { if (!cancelled) setImages(res); })
+      .catch((err) => { reportAdminError(err, "Failed to load batch images"); if (!cancelled) setImages([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [batchId]);
+
+  if (loading) {
+    return <p style={{ fontSize: 12.5, color: "var(--admin-muted)", padding: "10px 0" }}><Loader2 size={13} className="animate-spin" style={{ display: "inline", marginRight: 6 }} />Loading images…</p>;
+  }
+  if (!images || images.length === 0) {
+    return <p style={{ fontSize: 12.5, color: "var(--admin-muted)", padding: "10px 0" }}>No images recorded for this batch (all products failed, or none succeeded yet).</p>;
+  }
+
+  const groups = groupByProduct(images);
+
+  return (
+    <div style={{ padding: "12px 0", display: "grid", gap: 14 }}>
+      {groups.map((g) => (
+        <div key={g.productName}>
+          <p style={{ margin: "0 0 6px", fontSize: 12.5, fontWeight: 600 }}>{g.productName}</p>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {g.images.map((img) => (
+              <a key={img.id} href={img.imageUrl} target="_blank" rel="noreferrer" title={img.isPrimary ? "Primary image" : "Gallery image"}>
+                <img
+                  src={img.imageUrl} alt={g.productName}
+                  style={{
+                    width: 72, height: 72, objectFit: "cover", borderRadius: 8,
+                    border: img.isPrimary ? "2px solid var(--admin-accent, #2f6f4f)" : "1px solid var(--admin-border)",
+                  }}
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminProductImagesPage() {
   const { user } = useAdminAuth();
   const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
@@ -39,6 +97,7 @@ function AdminProductImagesPage() {
   const [limit, setLimit] = useState("10");
   const [starting, setStarting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
 
   async function refresh() {
     try {
@@ -186,31 +245,55 @@ function AdminProductImagesPage() {
                   <th>Succeeded</th>
                   <th>Failed</th>
                   <th></th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {batches.map((b) => (
-                  <tr key={b.id}>
-                    <td>{new Date(b.createdAt).toLocaleString()}</td>
-                    <td>{b.triggerType}</td>
-                    <td style={{ color: statusColor(b.status), fontWeight: 600 }}>{b.status.replace(/_/g, " ")}</td>
-                    <td>{b.requestedCount}</td>
-                    <td>{b.succeededCount}</td>
-                    <td>{b.failedCount}</td>
-                    <td>
-                      {b.status !== "DELETED" && !RUNNING_STATUSES.has(b.status) && (
-                        <button
-                          type="button" className="admin-btn admin-btn-ghost"
-                          disabled={deletingId === b.id}
-                          onClick={() => void deleteBatch(b.id)}
-                          aria-label="Delete batch"
-                        >
-                          {deletingId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                        </button>
+                {batches.map((b) => {
+                  const expanded = expandedBatchId === b.id;
+                  const canViewImages = b.succeededCount > 0;
+                  return (
+                    <Fragment key={b.id}>
+                      <tr>
+                        <td>{new Date(b.createdAt).toLocaleString()}</td>
+                        <td>{b.triggerType}</td>
+                        <td style={{ color: statusColor(b.status), fontWeight: 600 }}>{b.status.replace(/_/g, " ")}</td>
+                        <td>{b.requestedCount}</td>
+                        <td>{b.succeededCount}</td>
+                        <td>{b.failedCount}</td>
+                        <td>
+                          {canViewImages && (
+                            <button
+                              type="button" className="admin-btn admin-btn-ghost"
+                              onClick={() => setExpandedBatchId(expanded ? null : b.id)}
+                            >
+                              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />} View images
+                            </button>
+                          )}
+                        </td>
+                        <td>
+                          {b.status !== "DELETED" && !RUNNING_STATUSES.has(b.status) && (
+                            <button
+                              type="button" className="admin-btn admin-btn-ghost"
+                              disabled={deletingId === b.id}
+                              onClick={() => void deleteBatch(b.id)}
+                              aria-label="Delete batch"
+                            >
+                              {deletingId === b.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                      {expanded && (
+                        <tr>
+                          <td colSpan={8} style={{ background: "var(--admin-hover, rgba(0,0,0,0.02))" }}>
+                            <BatchImagesPanel batchId={b.id} />
+                          </td>
+                        </tr>
                       )}
-                    </td>
-                  </tr>
-                ))}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           )}
