@@ -44,6 +44,7 @@ import {
   AlertTriangle,
   Layers,
   Undo2,
+  Image,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -206,6 +207,7 @@ const navSections: NavSection[] = [
     label: "Developer",
     items: [
       { label: "Developer Tools", to: "/admin/dev-tools", icon: Wrench, superAdminOnly: true },
+      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, superAdminOnly: true },
       { label: "Dev Logs", to: "/admin/dev-logs", icon: ScrollText, superAdminOnly: true },
     ],
   },

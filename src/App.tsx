@@ -123,6 +123,7 @@ const AdminChangelogPage = lazy(() => import("@/routes/_adminAuth.admin.changelo
 const AdminChangeRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.change-requests"));
 const AdminArchitecturePage = lazy(() => import("@/routes/_adminAuth.admin.architecture"));
 const AdminDevToolsPage = lazy(() => import("@/routes/_adminAuth.admin.dev-tools"));
+const AdminProductImagesPage = lazy(() => import("@/routes/_adminAuth.admin.product-images"));
 const AdminDevLogsPage = lazy(() => import("@/routes/_adminAuth.admin.dev-logs"));
 const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"));
 const AdminRefundRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.refund-requests"));
@@ -263,6 +264,7 @@ export default function App() {
                       <Route path="/admin/tax-documents" element={<Suspense fallback={<AdminRouteFallback />}><AdminTaxDocumentsPage /></Suspense>} />
                       <Route path="/admin/document-bundles" element={<Suspense fallback={<AdminRouteFallback />}><AdminDocumentBundlesPage /></Suspense>} />
                       <Route path="/admin/dev-tools" element={<Suspense fallback={<AdminRouteFallback />}><AdminDevToolsPage /></Suspense>} />
+                      <Route path="/admin/product-images" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductImagesPage /></Suspense>} />
                       <Route path="/admin/dev-logs" element={<Suspense fallback={<AdminRouteFallback />}><AdminDevLogsPage /></Suspense>} />
                       <Route path="/admin/rewards-tiers" element={<Suspense fallback={<AdminRouteFallback />}><AdminRewardsTiersPage /></Suspense>} />
                       <Route path="/admin/referral-tiers" element={<Suspense fallback={<AdminRouteFallback />}><AdminReferralTiersPage /></Suspense>} />

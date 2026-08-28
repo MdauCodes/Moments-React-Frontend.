@@ -278,6 +278,27 @@ export type BirthdayJobRunResult = {
   rewardedCount: number;
   matches: BirthdayJobMatchResult[];
 };
+export type ProductImageGenerationTriggerType = "SCHEDULED" | "MANUAL";
+export type ProductImageGenerationStatus =
+  | "IN_PROGRESS" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "STOPPED_BUDGET_LIMIT" | "DELETED";
+export type ProductImageGenerationBatchDto = {
+  id: string;
+  triggerType: ProductImageGenerationTriggerType;
+  status: ProductImageGenerationStatus;
+  requestedCount: number;
+  succeededCount: number;
+  failedCount: number;
+  createdAt: string;
+  deletedAt: string | null;
+};
+export type ProductImageGenerationBudgetDto = {
+  spentUsd: number;
+  ceilingUsd: number;
+  remainingUsd: number;
+  costPerImageUsd: number;
+  candidateCount: number;
+};
+
 export type LeadPreviewDto = {
   id: string;
   email: string;
@@ -410,6 +431,23 @@ export const adminResources = {
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/preview"),
     sendLogDigestNow: () =>
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/run", { method: "POST" }),
+  },
+  productImageGeneration: {
+    getCandidateCount: () =>
+      adminJson<number>("/api/v1/admin/products/image-generation/candidates"),
+    getBudget: () =>
+      adminJson<ProductImageGenerationBudgetDto>("/api/v1/admin/products/image-generation/budget"),
+    runBatch: (limit: number) =>
+      adminJson<ProductImageGenerationBatchDto>("/api/v1/admin/products/image-generation/run", {
+        method: "POST",
+        body: JSON.stringify({ limit }),
+      }),
+    listBatches: () =>
+      adminJson<ProductImageGenerationBatchDto[]>("/api/v1/admin/products/image-generation/batches"),
+    getBatch: (id: string) =>
+      adminJson<ProductImageGenerationBatchDto>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`),
+    deleteBatch: (id: string) =>
+      adminJson<void>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`, { method: "DELETE" }),
   },
   devLogs: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) =>
