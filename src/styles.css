@@ -285,6 +285,7 @@
   .admin-textarea { min-height: 96px; resize: vertical; }
   .admin-label { color: var(--admin-muted); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; }
   .admin-btn { align-items: center; border: 1px solid var(--admin-border); border-radius: 8px; cursor: pointer; display: inline-flex; font: inherit; font-size: 12px; gap: 6px; justify-content: center; padding: 8px 12px; }
+  .admin-btn:disabled { cursor: not-allowed; opacity: 0.5; }
   .admin-btn-primary { background: var(--admin-accent); border-color: var(--admin-accent); color: var(--cream); }
   .admin-btn-ghost { background: var(--admin-surface); color: var(--admin-text); }
   .admin-btn-danger { background: color-mix(in oklab, var(--admin-clay) 16%, var(--admin-surface)); border-color: var(--admin-clay); color: var(--admin-clay); }

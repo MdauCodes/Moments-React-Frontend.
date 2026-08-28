@@ -206,7 +206,7 @@ function AdminProductImagesPage() {
               </div>
 
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <label style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>Products to generate for</label>
+                <label style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>Number of products</label>
                 <input
                   className="admin-input" style={{ width: 100 }} type="number" min={1}
                   value={limit} onChange={(e) => setLimit(e.target.value)}
@@ -226,6 +226,11 @@ function AdminProductImagesPage() {
                   </span>
                 )}
               </div>
+              <p style={{ marginTop: 8, fontSize: 11.5, color: "var(--admin-muted)" }}>
+                This is a count of <b>products</b>, not images — each product gets up to 3 images, so 10 products
+                can generate up to 30 images. Only products with no image at all are ever picked; a product that
+                fails is simply retried automatically the next time you start a batch.
+              </p>
             </>
           )}
         </div>
