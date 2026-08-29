@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 
 import type { Product } from "@/data/products";
@@ -21,7 +21,6 @@ function trackClick(id: string) {
 }
 
 export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
-  const navigate = useNavigate();
   const stock = getStockInfo(p, null, 0);
 
   const image = p.primaryImageUrl;
@@ -61,11 +60,6 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
   const [activeTierId, setActiveTierId] = useState<string | null>(hasTiers ? tierKey(tiers[0]) : null);
   const activeTier = hasTiers ? (tiers.find((t) => tierKey(t) === activeTierId) ?? tiers[0]) : null;
 
-  const handleCardClick = () => {
-    trackClick(p.id);
-    navigate(`/products/${p.slug}`);
-  };
-
   const handlePillClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setActiveTierId(id);
@@ -79,8 +73,11 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
   const isTracked = stock.state !== "untracked" && (stock.state as string) !== "made_to_order";
 
   return (
+    // display:contents keeps the grid/flex layout exactly as if <article> were the direct child —
+    // the real <a href> this renders is what makes each product discoverable/crawlable by search
+    // engines, which the previous onClick-only <article> never was.
+    <Link to={`/products/${p.slug}`} onClick={() => trackClick(p.id)} className="contents">
     <article
-      onClick={handleCardClick}
       className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
     >
       <div className="relative aspect-square w-full overflow-hidden bg-secondary sm:aspect-[4/3] lg:aspect-[16/10]">
@@ -267,6 +264,7 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
         </div>
       </div>
     </article>
+    </Link>
   );
 }
 
