@@ -1,10 +1,14 @@
 import { Fragment, useEffect, useState } from "react";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
+import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { resolveStaffRole } from "@/lib/roles";
 import { adminResources, type AppLogEntry, type LogDigestSummary } from "@/services/adminResources";
+import { downloadDevLogsPdf } from "@/lib/pdf";
+
+const EXPORT_SIZE_CAP = 2000;
 
 function fmtDate(iso?: string) {
   if (!iso) return "—";
@@ -94,6 +98,48 @@ function AdminDevLogsPage() {
   const [to, setTo] = useState("");
   const [expanded, setExpanded] = useState<number | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [exporting, setExporting] = useState(false);
+
+  const currentFilters = {
+    level: level || undefined,
+    loggerName: loggerName || undefined,
+    q: q || undefined,
+    task: task || undefined,
+    actor: actor || undefined,
+    responseCode: responseCode || undefined,
+    success: success ? success === "true" : undefined,
+    from: from ? new Date(from).toISOString() : undefined,
+    to: to ? new Date(to).toISOString() : undefined,
+  };
+
+  const exportPdf = async () => {
+    setExporting(true);
+    try {
+      const data = await adminResources.devLogs.list({ ...currentFilters, page: 0, size: EXPORT_SIZE_CAP });
+      if (data.rows.length === 0) {
+        toast.error("No logs match the current filters.");
+        return;
+      }
+      const filterLabel = [
+        level && `Level: ${level}`,
+        task && `Task contains "${task}"`,
+        actor && `Actor contains "${actor}"`,
+        responseCode && `Response: ${responseCode}`,
+        success && `Outcome: ${success === "true" ? "Succeeded" : "Failed"}`,
+        loggerName && `Logger contains "${loggerName}"`,
+        q && `Message contains "${q}"`,
+        (from || to) && `${from || "…"} → ${to || "…"}`,
+      ].filter(Boolean).join("  ·  ");
+      await downloadDevLogsPdf(data.rows, { filterLabel: filterLabel || undefined });
+      if (data.total > data.rows.length) {
+        toast(`Exported the most recent ${data.rows.length} of ${data.total} matching entries — narrow the filters to capture the rest.`);
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to export logs");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!allowed) return;
@@ -155,6 +201,9 @@ function AdminDevLogsPage() {
               setLevel(""); setLoggerName(""); setQ(""); setTask(""); setActor(""); setResponseCode(""); setSuccess(""); setFrom(""); setTo(""); setPage(0);
             }}>Clear</button>
           )}
+          <button className="admin-btn admin-btn-primary" onClick={exportPdf} disabled={exporting}>
+            {exporting ? "Exporting…" : "Download PDF"}
+          </button>
         </div>
 
         <div className="admin-panel" data-admin-table-scroll>

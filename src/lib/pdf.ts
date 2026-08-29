@@ -1009,3 +1009,81 @@ export async function downloadAnalyticsReportPdf(payload: AnalyticsExportPayload
     `${BRAND.name}  ·  ${payload.pageTitle}  ·  ${payload.rangeLabel}`,
   );
 }
+
+// ── 6. Dev logs export (super-admin only, /admin/developer?tab=logs) ─────────
+// A cleaner, shareable snapshot of the currently-filtered log view — not a raw
+// dump of every field (stack traces stay in-app, viewed via the row expander).
+
+export interface DevLogRow {
+  level: string;
+  task?: string | null;
+  actor?: string | null;
+  responseCode?: string | null;
+  success?: boolean | null;
+  message?: string | null;
+  createdAt?: string | null;
+}
+
+export async function downloadDevLogsPdf(rows: DevLogRow[], meta: { filterLabel?: string } = {}) {
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  const pw = doc.internal.pageSize.getWidth();
+  const logo = await loadLogo();
+
+  let y = masthead(doc, { docType: "Dev Logs Export", logo });
+  y += 3;
+
+  doc.setFontSize(8.5);
+  doc.setTextColor(...MUTED);
+  doc.text(`Filter: ${meta.filterLabel || "All logs"}`, 14, y);
+  y += 5;
+
+  const errorCt = rows.filter((r) => r.level === "ERROR").length;
+  const warnCt = rows.filter((r) => r.level === "WARN").length;
+  const failedCt = rows.filter((r) => r.success === false).length;
+  const cw = (pw - 28 - 18) / 4;
+
+  kpiCard(doc, 14, y, cw, 20, "Entries", fmtNum(rows.length));
+  kpiCard(doc, 14 + (cw + 6), y, cw, 20, "Errors", fmtNum(errorCt));
+  kpiCard(doc, 14 + (cw + 6) * 2, y, cw, 20, "Warnings", fmtNum(warnCt));
+  kpiCard(doc, 14 + (cw + 6) * 3, y, cw, 20, "Failed calls", fmtNum(failedCt));
+  y += 26;
+
+  autoTable(doc, {
+    ...TABLE_DEFAULTS,
+    startY: y,
+    head: [["When", "Level", "Task", "Actor", "Response", "Outcome", "Message"]],
+    body: rows.map((r) => [
+      r.createdAt ? fmtDT(r.createdAt) : "—",
+      r.level,
+      r.task ?? "—",
+      r.actor ?? "—",
+      r.responseCode ?? "—",
+      r.success === true ? "OK" : r.success === false ? "Failed" : "—",
+      r.message ?? "—",
+    ]) as RowInput[],
+    styles: {
+      ...(TABLE_DEFAULTS.styles as object),
+      fontSize: 7.5,
+    },
+    columnStyles: {
+      0: { cellWidth: 30 },
+      1: { cellWidth: 16 },
+      2: { cellWidth: 40 },
+      3: { cellWidth: 34 },
+      4: { cellWidth: 20 },
+      5: { cellWidth: 18 },
+    },
+    didParseCell: (data) => {
+      if (data.section === "body" && data.column.index === 1) {
+        if (data.cell.raw === "ERROR") data.cell.styles.textColor = DANGER;
+        else if (data.cell.raw === "WARN") data.cell.styles.textColor = [180, 120, 20];
+      }
+    },
+  });
+
+  save(
+    doc,
+    `dev-logs-${new Date().toISOString().slice(0, 10)}.pdf`,
+    `${BRAND.name}  ·  Dev Logs Export  ·  ${rows.length} entries  ·  ${errorCt} errors  ·  ${warnCt} warnings  ·  ${failedCt} failed calls`,
+  );
+}
