@@ -1,14 +1,48 @@
+import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { LaunchCountdown } from "@/components/LaunchCountdown";
+import { LaunchBanner } from "@/components/LaunchBanner";
+
+const DISMISSED_KEY = "mpk_site_lock_dismissed";
+
+function readDismissed(): boolean {
+  try {
+    return window.sessionStorage.getItem(DISMISSED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Full-site lock overlay — blurs and blocks all interactions across the app.
- * Used while the site is being prepared for launch. Exempts /admin/* routes so
- * staff can keep working (product/catalog edits, etc.) while customers are locked out.
+ * Full-site lock overlay — blurs and blocks all interactions across the app, with a way out:
+ * "Continue to site" dismisses it for this browser tab's session (sessionStorage, not
+ * localStorage — this is a pre-launch gate for anonymous visitors, so a permanent dismissal would
+ * defeat its purpose on a return visit days later) and swaps in a persistent, non-dismissible
+ * countdown banner instead — checkout stays fully explorable, payments just don't fire (see
+ * SiteLockConfig.SITE_LOCK_ENABLED on the backend, which is the actual enforcement).
+ * Exempts /admin/* routes so staff can keep working while customers see either the overlay or
+ * the banner.
  */
 export function SiteLockOverlay() {
   const location = useLocation();
+  const [dismissed, setDismissed] = useState(readDismissed);
+
   if (location.pathname.startsWith("/admin")) {
     return null;
+  }
+
+  if (dismissed) {
+    return <LaunchBanner />;
+  }
+
+  function dismiss() {
+    try {
+      window.sessionStorage.setItem(DISMISSED_KEY, "1");
+    } catch {
+      // Storage blocked (private mode, disabled) — still dismiss for this render, just won't
+      // persist across a navigation/reload.
+    }
+    setDismissed(true);
   }
 
   return (
@@ -21,14 +55,6 @@ export function SiteLockOverlay() {
         backdropFilter: "blur(14px) saturate(120%)",
         WebkitBackdropFilter: "blur(14px) saturate(120%)",
         backgroundColor: "oklch(0.18 0.02 60 / 0.45)",
-      }}
-      onClickCapture={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
-      onKeyDownCapture={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
       }}
     >
       <div
@@ -59,6 +85,18 @@ export function SiteLockOverlay() {
             WhatsApp
           </a>
           .
+        </p>
+        <LaunchCountdown />
+        <button
+          type="button"
+          onClick={dismiss}
+          className="mt-7 inline-flex items-center justify-center rounded-full border px-5 py-2 text-xs font-semibold transition-colors hover:bg-black/5"
+          style={{ borderColor: "color-mix(in oklab, var(--kraft) 45%, transparent)", color: "var(--forest)" }}
+        >
+          Continue to site
+        </button>
+        <p className="mt-2 text-[11px]" style={{ color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}>
+          You can look around and try checkout — payments won't charge you until launch.
         </p>
       </div>
     </div>
