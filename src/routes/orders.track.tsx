@@ -773,6 +773,39 @@ function OrderCard({
   order, compact = false, email, accessToken,
 }: { order: CustomerOrder; compact?: boolean; email?: string; accessToken?: string }) {
   const [downloadingType, setDownloadingType] = useState<string | null>(null);
+  const [retryOpen, setRetryOpen] = useState(false);
+  const [retryPhone, setRetryPhone] = useState(order.customerPhone ?? "");
+  const [retrying, setRetrying] = useState(false);
+
+  // Only shown once OTP-verified (same email+accessToken gate as the document downloads below) —
+  // this actually re-initiates a real M-Pesa charge, so it gets the same identity proof as every
+  // other sensitive action on this page. Previously there was no way at all for a guest to retry
+  // a failed payment from here: payment-failed.html's own "Retry Payment" button pointed to the
+  // logged-in-only /account/orders page, which a guest customer can't reach.
+  async function handleRetryPayment() {
+    if (!retryPhone.trim()) {
+      toast.error("Enter the M-Pesa number to send the prompt to");
+      return;
+    }
+    if (!order.id) {
+      toast.error("Couldn't identify this order — please refresh the page and try again.");
+      return;
+    }
+    setRetrying(true);
+    try {
+      const res = await orderStore.startMpesaStk(order.id, retryPhone.trim());
+      if (res.success) {
+        toast.success("M-Pesa prompt sent — check your phone, then refresh this page once you've paid.");
+        setRetryOpen(false);
+      } else {
+        toast.error(res.message ?? "Could not send the M-Pesa prompt. Please try again.");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send the M-Pesa prompt. Please try again.");
+    } finally {
+      setRetrying(false);
+    }
+  }
   // Opened synchronously in the click handler, before the (async) fetch starts — the same
   // "blank tab now, navigate it later" pattern TumaBodaFulfillmentPanel already uses. Calling
   // window.open() AFTER an await (the original bug here) is no longer considered a direct
@@ -857,6 +890,42 @@ function OrderCard({
         )}
         {order.tumabodaTrackingCode && <div><dt className="text-muted-foreground">Tracking #</dt><dd>{order.tumabodaTrackingCode}</dd></div>}
       </dl>
+
+      {order.status === "PENDING_PAYMENT" && email && accessToken && (
+        <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+          {!retryOpen ? (
+            <button
+              type="button"
+              onClick={() => setRetryOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+            >
+              Retry payment
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Retry payment</p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="tel"
+                  value={retryPhone}
+                  onChange={(e) => setRetryPhone(e.target.value)}
+                  placeholder="07XX XXX XXX"
+                  className={inputCls + " flex-1"}
+                  disabled={retrying}
+                />
+                <button
+                  type="button"
+                  disabled={retrying}
+                  onClick={() => void handleRetryPayment()}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {retrying && <InlineProgress size="sm" />} Send M-Pesa prompt
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {compact && (
         <button
