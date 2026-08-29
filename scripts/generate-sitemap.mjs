@@ -11,7 +11,7 @@
 // INTENTIONALLY duplicates the API base URL rather than importing src/config/api.ts — matches
 // that file's own "intentionally different per branch" convention, and a plain Node script can't
 // import a .ts file without an extra build step. Keep this in sync with api.ts on this branch.
-const API_BASE = "https://api-staging.momentspackaging.com";
+const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
 
 // Sitemap URLs are always canonical production URLs regardless of which branch/backend this
 // script pulls product data from — staging is never submitted to Search Console.
