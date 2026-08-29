@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 // server's local timezone.
 const LAUNCH_AT = new Date("2026-09-04T00:00:00+03:00").getTime();
 
+// Warm, kraft-paper-adjacent orange — distinct from the site's forest-green body copy so the
+// countdown reads as an accent, not just more text.
+const COUNTDOWN_COLOR = "#c2650f";
+
 function getRemaining() {
   const diff = LAUNCH_AT - Date.now();
   if (diff <= 0) return null;
@@ -32,17 +36,13 @@ export function useLaunchCountdown() {
   return remaining;
 }
 
-/** Shared by SiteLockOverlay (full-screen modal) and LaunchBanner (persistent top bar) so both
- *  read the same countdown instead of duplicating the ticking logic. */
-export function LaunchCountdown({ compact = false }: { compact?: boolean }) {
+/** The compact, inline countdown used by LaunchBanner. */
+export function LaunchCountdown() {
   const remaining = useLaunchCountdown();
 
   if (!remaining) {
     return (
-      <p
-        className={compact ? "text-xs font-semibold" : "mt-5 text-sm font-semibold"}
-        style={{ color: "var(--forest)" }}
-      >
+      <p className="text-xs font-semibold" style={{ color: COUNTDOWN_COLOR }}>
         Launching any moment now.
       </p>
     );
@@ -55,49 +55,18 @@ export function LaunchCountdown({ compact = false }: { compact?: boolean }) {
     [remaining.seconds, "sec"],
   ];
 
-  if (compact) {
-    return (
-      <div className="flex items-center gap-2">
-        {units.map(([value, label]) => (
-          <span key={label} className="flex items-baseline gap-0.5">
-            <span className="font-display text-sm font-semibold tabular-nums" style={{ color: "var(--forest)" }}>
-              {pad(value)}
-            </span>
-            <span className="text-[9px] uppercase tracking-wide" style={{ color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}>
-              {label}
-            </span>
-          </span>
-        ))}
-      </div>
-    );
-  }
-
   return (
-    <div className="mt-6">
-      <p
-        className="text-[10px] uppercase tracking-[0.3em]"
-        style={{ color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
-      >
-        Launching in
-      </p>
-      <div className="mt-2 flex justify-center gap-3">
-        {units.map(([value, label]) => (
-          <div key={label} className="flex flex-col items-center">
-            <span
-              className="font-display text-2xl leading-none tabular-nums sm:text-3xl"
-              style={{ color: "var(--forest)" }}
-            >
-              {pad(value)}
-            </span>
-            <span
-              className="mt-1 text-[10px] uppercase tracking-wide"
-              style={{ color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
-            >
-              {label}
-            </span>
-          </div>
-        ))}
-      </div>
+    <div className="flex items-center gap-2">
+      {units.map(([value, label]) => (
+        <span key={label} className="flex items-baseline gap-0.5">
+          <span className="font-display text-sm font-semibold tabular-nums" style={{ color: COUNTDOWN_COLOR }}>
+            {pad(value)}
+          </span>
+          <span className="text-[9px] uppercase tracking-wide" style={{ color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}>
+            {label}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }

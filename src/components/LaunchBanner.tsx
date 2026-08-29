@@ -1,10 +1,10 @@
 import { LaunchCountdown } from "@/components/LaunchCountdown";
 
 /**
- * Persistent, non-dismissible top bar shown once a visitor has dismissed SiteLockOverlay's full
- * block for this browser session. Deliberately has no close button — unlike the overlay itself,
- * this is meant to stay visible for as long as the pre-launch lock is on, as a constant reminder
- * that the site (and checkout) aren't fully live yet.
+ * Persistent, non-dismissible top bar shown for the entire pre-launch window (see
+ * SiteLockOverlay — this replaced its old full-screen blocking modal entirely). Deliberately has
+ * no close button: this is meant to stay visible as a constant reminder that the site (and
+ * checkout) aren't fully live yet, for the whole visit.
  */
 export function LaunchBanner() {
   return (
@@ -21,7 +21,16 @@ export function LaunchBanner() {
         <span style={{ color: "var(--forest)" }}>Moments Packaging</span> is putting on the
         finishing touches — checkout won't charge you until launch.
       </p>
-      <LaunchCountdown compact />
+      <LaunchCountdown />
+      <a
+        href="https://wa.me/254119556688"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+        style={{ backgroundColor: "#25D366" }}
+      >
+        WhatsApp us
+      </a>
     </div>
   );
 }
