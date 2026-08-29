@@ -61,11 +61,20 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
   const activeTier = hasTiers ? (tiers.find((t) => tierKey(t) === activeTierId) ?? tiers[0]) : null;
 
   const handlePillClick = (e: React.MouseEvent, id: string) => {
+    // preventDefault is the important one here, not just stopPropagation: the card is now
+    // wrapped in a real <Link> (a real <a href>, for crawlability). stopPropagation alone stops
+    // this click from reaching the Link's own onClick — which is where React Router would
+    // normally call preventDefault() to hijack the click for client-side routing — so without
+    // calling it here too, the browser's native anchor navigation fires unimpeded regardless of
+    // what this handler does, sending the customer to the full product page instead of just
+    // switching tiers.
+    e.preventDefault();
     e.stopPropagation();
     setActiveTierId(id);
   };
 
   const handleCTAClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     onConfigure(p, activeTierId ?? undefined);
   };
