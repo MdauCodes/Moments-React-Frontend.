@@ -434,36 +434,64 @@ function invalidStyle(isInvalid: boolean): CSSProperties {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-function ImagePicker({
-  value,
+/**
+ * Full gallery manager — replaces the old single-image ImagePicker. Manages both the "images"
+ * array and which one is "primary" (a separate pointer, not just images[0] — matches the
+ * backend's actual primaryImageUrl/imageUrls fields) so an admin can see everything a generation
+ * or cleanup batch produced, remove any one, reorder, or promote a different image to primary,
+ * without leaving this page.
+ */
+function ImageGalleryManager({
+  images,
+  primary,
   onChange,
   invalid,
 }: {
-  value: string;
-  onChange: (url: string) => void;
+  images: string[];
+  primary: string;
+  onChange: (next: { images: string[]; primary: string }) => void;
   invalid?: boolean;
 }) {
   const [urlDraft, setUrlDraft] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-
-  // Staged file (not yet uploaded) — preview shown locally first.
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [pendingPreviewUrl, setPendingPreviewUrl] = useState<string | null>(null);
 
-  // Revoke object URL to avoid memory leaks
   useEffect(() => {
     return () => {
       if (pendingPreviewUrl) URL.revokeObjectURL(pendingPreviewUrl);
     };
   }, [pendingPreviewUrl]);
 
+  // Fold a legacy single-image product (primary set, images array empty) into one list.
+  const gallery = images.length > 0 ? images : primary ? [primary] : [];
+  const showInvalid = invalid && gallery.length === 0;
+
+  function addImage(url: string) {
+    const next = gallery.includes(url) ? gallery : [...gallery, url];
+    onChange({ images: next, primary: primary || url });
+  }
+  function removeImage(url: string) {
+    const next = gallery.filter((u) => u !== url);
+    onChange({ images: next, primary: primary === url ? (next[0] ?? "") : primary });
+  }
+  function setPrimary(url: string) {
+    onChange({ images: gallery, primary: url });
+  }
+  function move(index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= gallery.length) return;
+    const next = [...gallery];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange({ images: next, primary });
+  }
+
   const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
 
-    // Basic client-side validation before previewing
     const MAX_BYTES = 5 * 1024 * 1024;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
       setUploadError("Only JPEG, PNG or WebP images are allowed.");
@@ -493,7 +521,7 @@ function ImagePicker({
     setUploading(true);
     try {
       const result = await adminResources.uploadImage(pendingFile, "products");
-      onChange(result.url);
+      addImage(result.url);
       cancelPending();
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : "Upload failed");
@@ -502,67 +530,74 @@ function ImagePicker({
     }
   };
 
-  // What to show in the preview area: pending (local) takes precedence over uploaded value.
-  const previewSrc = pendingPreviewUrl ?? value;
-  const showInvalid = invalid && !previewSrc;
-
-  const previewBoxStyle: CSSProperties = {
-    ...s.imgPreview,
-    ...(pendingPreviewUrl ? { outline: "2px dashed var(--admin-accent)", outlineOffset: 2 } : {}),
-  };
-  const placeholderStyle: CSSProperties = {
-    ...s.imgPlaceholder,
-    ...(showInvalid ? { borderColor: "var(--admin-clay)", color: "var(--admin-clay)" } : {}),
-  };
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {previewSrc ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {gallery.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+          {gallery.map((url, i) => {
+            const isPrimary = url === primary;
+            return (
+              <div key={url} style={{ ...s.previewCard, position: "relative" }}>
+                <div style={{ position: "relative" }}>
+                  <img src={url} alt="" style={{ ...s.previewImg, aspectRatio: "1/1" }} />
+                  {isPrimary && (
+                    <span
+                      style={{
+                        position: "absolute", top: 6, left: 6,
+                        background: "var(--admin-accent)", color: "var(--cream)",
+                        fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase",
+                        padding: "3px 8px", borderRadius: 999,
+                      }}
+                    >
+                      Primary
+                    </span>
+                  )}
+                </div>
+                <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button type="button" style={{ ...s.ghostBtn, padding: "4px 8px" }} onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move earlier">‹</button>
+                    <button type="button" style={{ ...s.ghostBtn, padding: "4px 8px" }} onClick={() => move(i, 1)} disabled={i === gallery.length - 1} aria-label="Move later">›</button>
+                    {!isPrimary && (
+                      <button type="button" style={{ ...s.ghostBtn, flex: 1, fontSize: 10.5 }} onClick={() => setPrimary(url)}>
+                        Make primary
+                      </button>
+                    )}
+                  </div>
+                  <button type="button" style={{ ...s.dangerBtn, padding: "5px 10px", fontSize: 11 }} onClick={() => removeImage(url)}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={{ ...s.imgPlaceholder, ...(showInvalid ? { borderColor: "var(--admin-clay)", color: "var(--admin-clay)" } : {}) }}>
+          {uploading ? "Uploading…" : "No images yet"}
+        </div>
+      )}
+
+      {pendingPreviewUrl && (
         <div style={{ position: "relative", display: "inline-block" }}>
-          <img src={previewSrc} alt="Product preview" style={previewBoxStyle} />
-          {pendingPreviewUrl && (
-            <span
-              style={{
-                position: "absolute",
-                top: 8,
-                left: 8,
-                background: "var(--admin-accent)",
-                color: "var(--cream)",
-                fontSize: 10,
-                fontWeight: 700,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "3px 8px",
-                borderRadius: 999,
-              }}
-            >
-              Preview — not yet uploaded
-            </span>
-          )}
+          <img src={pendingPreviewUrl} alt="Pending preview" style={s.imgPreview} />
+          <span
+            style={{
+              position: "absolute", top: 8, left: 8,
+              background: "var(--admin-accent)", color: "var(--cream)",
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase",
+              padding: "3px 8px", borderRadius: 999,
+            }}
+          >
+            Preview — not yet uploaded
+          </span>
           {uploading && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.45)",
-                color: "var(--cream)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 10,
-                fontSize: 13,
-                fontWeight: 600,
-              }}
-            >
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", color: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, fontSize: 13, fontWeight: 600 }}>
               Uploading…
             </div>
           )}
         </div>
-      ) : (
-        <div style={placeholderStyle}>{uploading ? "Uploading…" : "No image yet"}</div>
       )}
 
-      {/* Pending file action bar */}
       {pendingFile && (
         <div style={{ ...s.inlineRow, gap: 8 }}>
           <button
@@ -584,7 +619,7 @@ function ImagePicker({
 
       <div style={s.inlineRow}>
         <label style={{ ...s.fileBtn, opacity: uploading ? 0.6 : 1, pointerEvents: uploading ? "none" : "auto" }}>
-          {pendingFile ? "Choose a different file" : "Choose file"}
+          {pendingFile ? "Choose a different file" : "Add image"}
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
@@ -596,7 +631,7 @@ function ImagePicker({
         {/* capture="environment" opens the device's rear camera directly on mobile/tablet
             instead of the gallery picker — no effect on desktop, where the attribute is
             simply ignored and this behaves like a normal file input. Kept as a separate
-            button from "Choose file" so an admin can still pick an existing photo when
+            button from "Add image" so an admin can still pick an existing photo when
             that's what they actually want. */}
         <label style={{ ...s.fileBtn, opacity: uploading ? 0.6 : 1, pointerEvents: uploading ? "none" : "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
           <Camera size={14} />
@@ -610,16 +645,11 @@ function ImagePicker({
             style={{ display: "none" }}
           />
         </label>
-        {value && !pendingFile && !uploading && (
-          <button type="button" style={s.ghostBtn} onClick={() => onChange("")}>
-            Remove
-          </button>
-        )}
       </div>
       <div style={s.inlineRow}>
         <input
           style={{ ...s.input, flex: 1 }}
-          placeholder="…or paste an image URL"
+          placeholder="…or paste an image URL to add it"
           value={urlDraft}
           onChange={(e) => {
             setUrlDraft(e.target.value);
@@ -632,11 +662,11 @@ function ImagePicker({
           onClick={() => {
             const url = urlDraft.trim();
             if (!url) return;
-            onChange(url);
+            addImage(url);
             setUrlDraft("");
           }}
         >
-          Use URL
+          Add URL
         </button>
       </div>
       {uploadError && <div style={{ ...s.helper, color: "var(--admin-clay)" }}>{uploadError}</div>}
@@ -646,7 +676,8 @@ function ImagePicker({
         </div>
       )}
       <div style={s.helper}>
-        JPEG, PNG or WebP · max 5 MB. Choose a file to preview it first, then click <strong>Upload to server</strong> to send it to the backend.
+        JPEG, PNG or WebP · max 5 MB each. Use the arrows to reorder, "Make primary" to change the lead
+        image, or "Remove" to drop one — nothing is saved until you save the product.
       </div>
     </div>
   );
@@ -1577,10 +1608,11 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
         </div>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Product Image" subtitle="Primary photo shown on the storefront" defaultOpen={false}>
-        <ImagePicker
-          value={values.image}
-          onChange={(url) => set("image", url)}
+      <CollapsibleSection title="Product Images" subtitle="All photos shown on the storefront gallery — first one shown is the primary" defaultOpen={false}>
+        <ImageGalleryManager
+          images={values.images}
+          primary={values.image}
+          onChange={({ images, primary }) => { set("images", images); set("image", primary); }}
           invalid={submitted && !values.image}
         />
       </CollapsibleSection>
