@@ -280,7 +280,7 @@ export type BirthdayJobRunResult = {
 };
 export type ProductImageGenerationTriggerType = "SCHEDULED" | "MANUAL";
 export type ProductImageGenerationStatus =
-  | "IN_PROGRESS" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "STOPPED_BUDGET_LIMIT" | "DELETED";
+  | "IN_PROGRESS" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "STOPPED_BUDGET_LIMIT" | "DELETED" | "INTERRUPTED";
 export type ImageGenerationMode = "GENERATE" | "CLEANUP";
 export type ProductImageGenerationBatchDto = {
   id: string;

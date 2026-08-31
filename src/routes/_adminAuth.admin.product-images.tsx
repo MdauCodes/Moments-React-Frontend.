@@ -25,6 +25,7 @@ function statusColor(status: ProductImageGenerationBatchDto["status"]) {
     case "COMPLETED": return "#15803d";
     case "COMPLETED_WITH_ERRORS": return "#b45309";
     case "STOPPED_BUDGET_LIMIT": return "#b91c1c";
+    case "INTERRUPTED": return "#b91c1c";
     case "DELETED": return "var(--admin-muted)";
     default: return "var(--admin-muted)";
   }
