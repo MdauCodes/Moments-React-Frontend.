@@ -179,6 +179,7 @@ function AdminProductImagesPage() {
   const [startingCleanup, setStartingCleanup] = useState(false);
   const [cleanupProduct, setCleanupProduct] = useState<ProductDto | null>(null);
   const [startingCleanupForProduct, setStartingCleanupForProduct] = useState(false);
+  const [resettingAll, setResettingAll] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
 
@@ -268,6 +269,23 @@ function AdminProductImagesPage() {
       reportAdminError(err, "Failed to start cleanup for this product");
     } finally {
       setStartingCleanupForProduct(false);
+    }
+  }
+
+  async function resetAllCleanups() {
+    if (!window.confirm(
+      "This reverts every cleaned-up product back to just its original raw photo, and deletes every " +
+      "AI-cleaned image from Cloudinary. Use this before re-running cleanup with an improved prompt. Continue?"
+    )) return;
+    setResettingAll(true);
+    try {
+      const count = await adminResources.productImageGeneration.resetAllCleanups();
+      toast.success(`Reset ${count} cleanup batch${count === 1 ? "" : "es"} back to raw photos.`);
+      await refresh();
+    } catch (err) {
+      reportAdminError(err, "Failed to reset cleanups");
+    } finally {
+      setResettingAll(false);
     }
   }
 
@@ -417,6 +435,21 @@ function AdminProductImagesPage() {
                     {startingCleanupForProduct && <Loader2 size={14} className="animate-spin" />} Clean this product
                   </button>
                 </div>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 14, marginTop: 14 }}>
+                <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--admin-muted)" }}>
+                  Not happy with the current cleanup results? Reset every cleaned product back to just its
+                  original raw photo in one go — useful right after a prompt change, before re-running cleanup.
+                </p>
+                <button
+                  type="button" className="admin-btn admin-btn-ghost"
+                  style={{ borderColor: "var(--admin-clay)", color: "var(--admin-clay)" }}
+                  disabled={resettingAll || hasRunning}
+                  onClick={() => void resetAllCleanups()}
+                >
+                  {resettingAll ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Reset all cleanups
+                </button>
               </div>
 
               {hasRunning && (

@@ -62,7 +62,12 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
           onClick={() => setLightboxOpen(true)}
           className="group relative block aspect-square max-h-[380px] w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:max-h-[440px]"
         >
-          <img src={activeImage} alt={productName} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+          <img
+            key={activeIndex}
+            src={activeImage}
+            alt={productName}
+            className="h-full w-full animate-in fade-in object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
           <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1 rounded-full bg-black/55 px-2.5 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
             <ZoomIn size={13} /> Click to zoom
           </span>
@@ -97,7 +102,7 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
           role="dialog"
           aria-modal="true"
           aria-label={`${productName} — full-size image`}
-          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/85 p-4"
+          className="fixed inset-0 z-[300] flex animate-in fade-in items-center justify-center bg-black/85 p-4 duration-150"
           onClick={() => setLightboxOpen(false)}
         >
           <button
@@ -129,9 +134,10 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
             </>
           )}
           <img
+            key={activeIndex}
             src={activeImage}
             alt={productName}
-            className="max-h-[88vh] max-w-[92vw] rounded-lg object-contain"
+            className="max-h-[88vh] max-w-[92vw] animate-in fade-in zoom-in-95 rounded-lg object-contain duration-200"
             onClick={(e) => e.stopPropagation()}
           />
           {images.length > 1 && (

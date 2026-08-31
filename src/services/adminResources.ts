@@ -473,6 +473,8 @@ export const adminResources = {
       adminJson<ProductImageGenerationBatchDto>(`/api/v1/admin/products/image-generation/cleanup/run/${encodeURIComponent(productId)}`, {
         method: "POST",
       }),
+    resetAllCleanups: () =>
+      adminJson<number>("/api/v1/admin/products/image-generation/cleanup/reset-all", { method: "POST" }),
   },
   devLogs: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) =>

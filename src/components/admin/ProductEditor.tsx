@@ -532,6 +532,11 @@ function ImageGalleryManager({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {gallery.length > 0 && (
+        <p style={s.helper}>
+          {gallery.length} image{gallery.length === 1 ? "" : "s"} · primary shown first on the storefront
+        </p>
+      )}
       {gallery.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
           {gallery.map((url, i) => {
