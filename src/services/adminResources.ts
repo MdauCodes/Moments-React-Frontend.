@@ -281,9 +281,11 @@ export type BirthdayJobRunResult = {
 export type ProductImageGenerationTriggerType = "SCHEDULED" | "MANUAL";
 export type ProductImageGenerationStatus =
   | "IN_PROGRESS" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "STOPPED_BUDGET_LIMIT" | "DELETED";
+export type ImageGenerationMode = "GENERATE" | "CLEANUP";
 export type ProductImageGenerationBatchDto = {
   id: string;
   triggerType: ProductImageGenerationTriggerType;
+  mode: ImageGenerationMode;
   status: ProductImageGenerationStatus;
   requestedCount: number;
   succeededCount: number;
@@ -458,6 +460,19 @@ export const adminResources = {
       adminJson<GeneratedProductImageDto[]>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}/images`),
     deleteBatch: (id: string) =>
       adminJson<void>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    getCleanupCandidateCount: () =>
+      adminJson<number>("/api/v1/admin/products/image-generation/cleanup/candidates"),
+    getCleanupBudget: () =>
+      adminJson<ProductImageGenerationBudgetDto>("/api/v1/admin/products/image-generation/cleanup/budget"),
+    runCleanupBatch: (limit: number) =>
+      adminJson<ProductImageGenerationBatchDto>("/api/v1/admin/products/image-generation/cleanup/run", {
+        method: "POST",
+        body: JSON.stringify({ limit }),
+      }),
+    runCleanupForProduct: (productId: string) =>
+      adminJson<ProductImageGenerationBatchDto>(`/api/v1/admin/products/image-generation/cleanup/run/${encodeURIComponent(productId)}`, {
+        method: "POST",
+      }),
   },
   devLogs: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) =>

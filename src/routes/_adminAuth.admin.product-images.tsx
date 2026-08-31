@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { Loader2, Image as ImageIcon, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Image as ImageIcon, Trash2, ChevronDown, ChevronUp, Sparkles, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
@@ -7,6 +7,7 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import {
   adminResources,
   type GeneratedProductImageDto,
+  type ProductDto,
   type ProductImageGenerationBatchDto,
   type ProductImageGenerationBudgetDto,
 } from "@/services/adminResources";
@@ -86,28 +87,114 @@ function BatchImagesPanel({ batchId }: { batchId: string }) {
   );
 }
 
+// ── Product search picker (for the "clean up one specific product" trigger) ────────────────────
+
+function useDebounced(value: string, delayMs: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(t);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+function ProductPicker({ selected, onSelect }: { selected: ProductDto | null; onSelect: (p: ProductDto | null) => void }) {
+  const [q, setQ] = useState("");
+  const debouncedQ = useDebounced(q, 300);
+  const [results, setResults] = useState<ProductDto[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!debouncedQ.trim() || selected) { setResults([]); return; }
+    setLoading(true);
+    adminResources.products.list({ q: debouncedQ, size: 8 })
+      .then((page) => setResults(page.rows))
+      .catch(() => setResults([]))
+      .finally(() => setLoading(false));
+  }, [debouncedQ, selected]);
+
+  if (selected) {
+    return (
+      <div className="admin-input" style={{ flex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selected.name}</span>
+        <button type="button" onClick={() => { onSelect(null); setQ(""); }} aria-label="Clear product" style={{ background: "none", border: "none", cursor: "pointer", display: "flex" }}>
+          <X size={14} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ position: "relative", flex: 2 }}>
+      <div style={{ position: "relative" }}>
+        <Search size={13} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", opacity: 0.5 }} />
+        <input
+          className="admin-input" style={{ paddingLeft: 26, width: "100%" }}
+          placeholder="Search product by name…"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+      </div>
+      {open && q.trim() && (
+        <div className="admin-panel" style={{ position: "absolute", zIndex: 20, top: "100%", left: 0, right: 0, marginTop: 4, maxHeight: 240, overflowY: "auto", padding: 4 }}>
+          {loading ? (
+            <div style={{ padding: 8, fontSize: 12.5, color: "var(--admin-muted)" }}>Searching…</div>
+          ) : results.length === 0 ? (
+            <div style={{ padding: 8, fontSize: 12.5, color: "var(--admin-muted)" }}>No products found.</div>
+          ) : (
+            results.map((p) => (
+              <button
+                key={p.id} type="button"
+                onMouseDown={() => { onSelect(p); setOpen(false); }}
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "6px 8px", borderRadius: 6, border: "none", background: "none", cursor: "pointer", fontSize: 13 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "var(--admin-hover, rgba(0,0,0,0.05))")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "none")}
+              >
+                {p.name}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function AdminProductImagesPage() {
   const { user } = useAdminAuth();
   const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
 
   const [candidateCount, setCandidateCount] = useState<number | null>(null);
   const [budget, setBudget] = useState<ProductImageGenerationBudgetDto | null>(null);
+  const [cleanupCandidateCount, setCleanupCandidateCount] = useState<number | null>(null);
+  const [cleanupBudget, setCleanupBudget] = useState<ProductImageGenerationBudgetDto | null>(null);
   const [batches, setBatches] = useState<ProductImageGenerationBatchDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState("10");
   const [starting, setStarting] = useState(false);
+  const [cleanupLimit, setCleanupLimit] = useState("10");
+  const [startingCleanup, setStartingCleanup] = useState(false);
+  const [cleanupProduct, setCleanupProduct] = useState<ProductDto | null>(null);
+  const [startingCleanupForProduct, setStartingCleanupForProduct] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
 
   async function refresh() {
     try {
-      const [count, budgetDto, batchList] = await Promise.all([
+      const [count, budgetDto, cleanupCount, cleanupBudgetDto, batchList] = await Promise.all([
         adminResources.productImageGeneration.getCandidateCount(),
         adminResources.productImageGeneration.getBudget(),
+        adminResources.productImageGeneration.getCleanupCandidateCount(),
+        adminResources.productImageGeneration.getCleanupBudget(),
         adminResources.productImageGeneration.listBatches(),
       ]);
       setCandidateCount(count);
       setBudget(budgetDto);
+      setCleanupCandidateCount(cleanupCount);
+      setCleanupBudget(cleanupBudgetDto);
       setBatches(batchList);
     } catch (err) {
       reportAdminError(err, "Failed to load image generation status");
@@ -131,6 +218,8 @@ function AdminProductImagesPage() {
 
   if (!isSuperAdmin) return <AdminLayout title="Product Images (AI)"><Forbidden resource="Product Images (AI)" /></AdminLayout>;
 
+  const hasRunning = batches.some((b) => RUNNING_STATUSES.has(b.status));
+
   async function startRun() {
     const n = Number(limit);
     if (!Number.isFinite(n) || n < 1) {
@@ -149,6 +238,39 @@ function AdminProductImagesPage() {
     }
   }
 
+  async function startCleanupRun() {
+    const n = Number(cleanupLimit);
+    if (!Number.isFinite(n) || n < 1) {
+      toast.error("Enter a valid number of products");
+      return;
+    }
+    setStartingCleanup(true);
+    try {
+      await adminResources.productImageGeneration.runCleanupBatch(n);
+      toast.success(`Cleanup batch started for ${n} product${n === 1 ? "" : "s"}.`);
+      await refresh();
+    } catch (err) {
+      reportAdminError(err, "Failed to start cleanup batch");
+    } finally {
+      setStartingCleanup(false);
+    }
+  }
+
+  async function startCleanupForProduct() {
+    if (!cleanupProduct) return;
+    setStartingCleanupForProduct(true);
+    try {
+      await adminResources.productImageGeneration.runCleanupForProduct(cleanupProduct.id);
+      toast.success(`Cleanup started for "${cleanupProduct.name}".`);
+      setCleanupProduct(null);
+      await refresh();
+    } catch (err) {
+      reportAdminError(err, "Failed to start cleanup for this product");
+    } finally {
+      setStartingCleanupForProduct(false);
+    }
+  }
+
   async function deleteBatch(id: string) {
     if (!window.confirm("This deletes all images generated in this batch from Cloudinary and clears them from any product that still uses them (unless an admin has since manually replaced the image). Continue?")) return;
     setDeletingId(id);
@@ -163,16 +285,16 @@ function AdminProductImagesPage() {
     }
   }
 
-  const hasRunning = batches.some((b) => RUNNING_STATUSES.has(b.status));
-
   return (
     <AdminLayout title="Product Images (AI)">
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p style={{ margin: 0 }}>
-            <b>Super Admin only.</b> Generates catalog-style product images via Gemini and uploads them to
-            Cloudinary. Admin-triggered only — there is no scheduled/automatic run. Each run stops early if the
-            next image would exceed the configured budget ceiling.
+            <b>Super Admin only.</b> Two ways to get product images via Gemini, both admin-triggered only (no
+            scheduled/automatic run), both stopping early if the next image would exceed the shared budget ceiling.
+            <b> Generate</b> invents a plausible image from the product's name/description (no reference photo, so
+            results only approximate the real product). <b>Clean up</b> edits a real admin-uploaded photo into 3
+            polished catalog images — more accurate, since it's grounded in what the product actually looks like.
           </p>
         </div>
 
@@ -236,6 +358,78 @@ function AdminProductImagesPage() {
         </div>
 
         <div className="admin-panel" style={{ padding: 18 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+            <Sparkles size={16} />
+            <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Clean up images (from a real photo)</h3>
+          </div>
+
+          {loading ? (
+            <p style={{ fontSize: 12.5, color: "var(--admin-muted)" }}><Loader2 size={13} className="animate-spin" style={{ display: "inline", marginRight: 6 }} />Loading status…</p>
+          ) : (
+            <>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 16 }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--admin-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>Products with a raw photo, not yet cleaned</p>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{cleanupCandidateCount ?? "—"}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--admin-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>Spent (shared budget)</p>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{cleanupBudget ? fmtUsd(cleanupBudget.spentUsd) : "—"}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--admin-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>Remaining budget</p>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{cleanupBudget ? fmtUsd(cleanupBudget.remainingUsd) : "—"}</p>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 11, color: "var(--admin-muted)", textTransform: "uppercase", letterSpacing: 0.4 }}>Cost per image</p>
+                  <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{cleanupBudget ? fmtUsd(cleanupBudget.costPerImageUsd) : "—"}</p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
+                <label style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>Number of products</label>
+                <input
+                  className="admin-input" style={{ width: 100 }} type="number" min={1}
+                  value={cleanupLimit} onChange={(e) => setCleanupLimit(e.target.value)}
+                  disabled={hasRunning}
+                />
+                <button
+                  type="button" className="admin-btn admin-btn-primary"
+                  disabled={startingCleanup || hasRunning}
+                  onClick={() => void startCleanupRun()}
+                >
+                  {startingCleanup && <Loader2 size={14} className="animate-spin" />} Start cleanup batch
+                </button>
+              </div>
+
+              <div style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 14 }}>
+                <p style={{ margin: "0 0 8px", fontSize: 12.5, color: "var(--admin-muted)" }}>
+                  Or clean up one specific product on demand — works even if it's already been cleaned before,
+                  so you can re-run it if the first result wasn't good.
+                </p>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <ProductPicker selected={cleanupProduct} onSelect={setCleanupProduct} />
+                  <button
+                    type="button" className="admin-btn admin-btn-primary"
+                    disabled={!cleanupProduct || startingCleanupForProduct || hasRunning}
+                    onClick={() => void startCleanupForProduct()}
+                  >
+                    {startingCleanupForProduct && <Loader2 size={14} className="animate-spin" />} Clean this product
+                  </button>
+                </div>
+              </div>
+
+              {hasRunning && (
+                <p style={{ marginTop: 12, fontSize: 12.5, color: "var(--admin-muted)" }}>
+                  <Loader2 size={12} className="animate-spin" style={{ display: "inline", marginRight: 4 }} />
+                  A batch is already running (generate or cleanup) — refreshing automatically.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="admin-panel" style={{ padding: 18 }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600 }}>Batch history</h3>
           {batches.length === 0 ? (
             <p style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>No batches yet.</p>
@@ -244,6 +438,7 @@ function AdminProductImagesPage() {
               <thead>
                 <tr>
                   <th>Started</th>
+                  <th>Mode</th>
                   <th>Trigger</th>
                   <th>Status</th>
                   <th>Requested</th>
@@ -261,6 +456,7 @@ function AdminProductImagesPage() {
                     <Fragment key={b.id}>
                       <tr>
                         <td>{new Date(b.createdAt).toLocaleString()}</td>
+                        <td>{b.mode === "CLEANUP" ? "Clean up" : "Generate"}</td>
                         <td>{b.triggerType}</td>
                         <td style={{ color: statusColor(b.status), fontWeight: 600 }}>{b.status.replace(/_/g, " ")}</td>
                         <td>{b.requestedCount}</td>
@@ -291,7 +487,7 @@ function AdminProductImagesPage() {
                       </tr>
                       {expanded && (
                         <tr>
-                          <td colSpan={8} style={{ background: "var(--admin-hover, rgba(0,0,0,0.02))" }}>
+                          <td colSpan={9} style={{ background: "var(--admin-hover, rgba(0,0,0,0.02))" }}>
                             <BatchImagesPanel batchId={b.id} />
                           </td>
                         </tr>
