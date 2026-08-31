@@ -215,6 +215,10 @@
     font-family: var(--font-sans);
     font-feature-settings: "ss01", "cv11";
     -webkit-font-smoothing: antialiased;
+    /* Reserves room for LaunchBanner (fixed, pre-launch only) so it doesn't overlap the site
+       header or any other top-of-page content — 0px whenever that banner isn't mounted (it clears
+       this custom property itself on unmount, e.g. post-launch or on /admin routes). */
+    padding-top: var(--launch-banner-h, 0px);
   }
 
   h1, h2, h3, h4, h5 {

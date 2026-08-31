@@ -128,7 +128,13 @@ export function SiteHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/85 backdrop-blur-md">
+      {/* top: 0 would re-dock the header right under the (higher z-index) LaunchBanner once
+          scrolled past it — this keeps it docked below the banner instead, matching the padding
+          styles.css already reserves for the banner on initial load. */}
+      <header
+        className="sticky z-40 border-b border-border/60 bg-background/85 backdrop-blur-md"
+        style={{ top: "var(--launch-banner-h, 0px)" }}
+      >
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-5 py-4 lg:gap-5 lg:px-8">
           <Link to="/" className="group flex shrink-0 items-center" aria-label="Moments Packaging Kenya — Home">
             <img
