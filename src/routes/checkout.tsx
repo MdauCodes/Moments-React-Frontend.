@@ -1211,7 +1211,14 @@ function CheckoutModal() {
             : "Pending"
         : "To be confirmed";
 
-  const brandStyle = { ["--brand-ring" as string]: BRAND } as React.CSSProperties;
+  // paddingTop reserves room for LaunchBanner (z-[250], above this modal's z-[100]) — without it,
+  // the banner overlapped this modal's own header ("Secure checkout") since a fixed full-screen
+  // overlay like this one is outside document flow and doesn't benefit from the body-level
+  // padding styles.css reserves for normal pages.
+  const brandStyle = {
+    ["--brand-ring" as string]: BRAND,
+    paddingTop: "var(--launch-banner-h, 0px)",
+  } as React.CSSProperties;
   const deliveryChoiceMade = fulfillment === "PICKUP" || wantsDelivery === true;
 
   return (
