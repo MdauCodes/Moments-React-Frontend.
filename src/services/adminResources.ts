@@ -224,6 +224,7 @@ export type UserDto = {
   updatedAt?: string;
 };
 export type SettingDto = { id?: string; key: string; value: string; description?: string };
+export type LiveTestUnlockStatusDto = { active: boolean; until: string | null };
 export type AdminNotificationDto = {
   id: string;
   type: string;
@@ -637,6 +638,17 @@ export const adminResources = {
   settings: {
     list: () => adminJson<SettingDto[]>("/api/v1/admin/settings"),
     upsert: (body: SettingDto) => adminJson<SettingDto>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(body) }),
+  },
+  // Super-admin-only, real-payment unlock for supervised live testing — see
+  // LiveTestUnlockService's backend class Javadoc for exactly what this does.
+  liveTestUnlock: {
+    status: () => adminJson<LiveTestUnlockStatusDto>("/api/v1/admin/live-test-unlock"),
+    open: (durationMinutes: number) =>
+      adminJson<LiveTestUnlockStatusDto>("/api/v1/admin/live-test-unlock/open", {
+        method: "POST",
+        body: JSON.stringify({ durationMinutes }),
+      }),
+    close: () => adminJson<void>("/api/v1/admin/live-test-unlock/close", { method: "POST" }),
   },
   notifications: {
     list: () => adminJson<{ content: AdminNotificationDto[] }>("/api/v1/admin/notifications?size=20"),

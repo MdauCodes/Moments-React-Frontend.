@@ -601,7 +601,7 @@ function AdminOrdersPage() {
                           </td>
                         )}
                         <td>
-                          <b>{o.reference}</b>{o.isTestOrder && <TestBadge />}
+                          <b>{o.reference}</b>{o.isTestOrder && <TestBadge />}{o.liveTestOrder && <LiveTestBadge />}
                         </td>
                         <td style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
                           <FulfillmentBadge fulfillmentType={o.fulfillmentType} />
@@ -678,7 +678,7 @@ function AdminOrdersPage() {
               ) : pageRows.map((o) => (
                 <div key={o.id} className="admin-card">
                   <div className="admin-card-row">
-                    <span><b>{o.reference}</b>{o.isTestOrder && <TestBadge />}</span>
+                    <span><b>{o.reference}</b>{o.isTestOrder && <TestBadge />}{o.liveTestOrder && <LiveTestBadge />}</span>
                     <b>{formatKes(o.total)}</b>
                   </div>
                   <div className="admin-card-row">
@@ -791,6 +791,22 @@ function TestBadge() {
       }}
     >
       TEST
+    </span>
+  );
+}
+
+/** A real, paid order placed during a supervised /admin/live-test-unlock window — unlike TEST,
+ *  this money genuinely moved; the badge is purely so staff can find/report on these later. */
+function LiveTestBadge() {
+  return (
+    <span
+      style={{
+        display: "inline-flex", marginLeft: 6, padding: "1px 6px", borderRadius: 999,
+        fontSize: 10, fontWeight: 700, letterSpacing: "0.04em",
+        background: "rgba(185, 28, 28, 0.12)", color: "#b91c1c",
+      }}
+    >
+      LIVE TEST
     </span>
   );
 }

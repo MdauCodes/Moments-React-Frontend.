@@ -132,6 +132,7 @@ function normalizeOrder(raw: any): OrderRecord {
     paymentMethod: raw?.paymentMethod,
     fulfillmentType: raw?.fulfillmentType,
     isTestOrder: raw?.isTestOrder ?? false,
+    liveTestOrder: raw?.liveTestOrder ?? false,
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,

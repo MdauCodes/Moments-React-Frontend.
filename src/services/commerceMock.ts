@@ -84,6 +84,7 @@ export interface OrderRecord {
   /** Sandbox/test-mode system — true only for orders placed by a designated internal test
    *  account. Never real revenue; shown as a "TEST" badge, filterable in the Orders list. */
   isTestOrder?: boolean;
+  liveTestOrder?: boolean;
   /** Manual Delivery fee — agreed by phone after placement, never charged at checkout. */
   deliveryFeeAmount?: number;
   deliveryFeeStatus?: "UNPAID" | "PENDING_STK" | "PAID";

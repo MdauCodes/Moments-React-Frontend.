@@ -137,6 +137,7 @@ const AdminFulfillmentBoardPage = lazy(() => import("@/routes/_adminAuth.admin.b
 const AdminReviewsPage = lazy(() => import("@/routes/_adminAuth.admin.reviews"));
 const AdminRolesPage = lazy(() => import("@/routes/_adminAuth.admin.roles"));
 const AdminSettingsPage = lazy(() => import("@/routes/_adminAuth.admin.settings"));
+const AdminLiveTestUnlockPage = lazy(() => import("@/routes/_adminAuth.admin.live-test-unlock"));
 const AdminStaffPage = lazy(() => import("@/routes/_adminAuth.admin.staff"));
 const AdminUsersPage = lazy(() => import("@/routes/_adminAuth.admin.users"));
 
@@ -289,6 +290,7 @@ export default function App() {
                       <Route path="/admin/reviews" element={<Suspense fallback={<AdminRouteFallback />}><AdminReviewsPage /></Suspense>} />
                       <Route path="/admin/roles" element={<Suspense fallback={<AdminRouteFallback />}><AdminRolesPage /></Suspense>} />
                       <Route path="/admin/settings" element={<Suspense fallback={<AdminRouteFallback />}><AdminSettingsPage /></Suspense>} />
+                      <Route path="/admin/live-test-unlock" element={<Suspense fallback={<AdminRouteFallback />}><AdminLiveTestUnlockPage /></Suspense>} />
                       <Route path="/admin/staff" element={<Suspense fallback={<AdminRouteFallback />}><AdminStaffPage /></Suspense>} />
                       <Route path="/admin/users" element={<Suspense fallback={<AdminRouteFallback />}><AdminUsersPage /></Suspense>} />
                     </Route>
