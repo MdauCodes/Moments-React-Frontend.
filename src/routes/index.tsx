@@ -43,7 +43,7 @@ import segCosmeticsImg from "@/assets/categories/cosmetics.webp";
 import segAgricultureImg from "@/assets/categories/agriculture.webp";
 import segDairyImg from "@/assets/categories/Dairy.webp";
 import segPharmacyImg from "@/assets/categories/Pharmacy.webp";
-import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift } from "lucide-react";
+import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift, Tag, Sparkles, Flame } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
@@ -791,10 +791,24 @@ function CategoryGrid() {
 // copy, like real ad creative — not a product-listing grid — cycling
 // through Deals / New Arrivals / Best Sellers every few seconds. ──
 const CAROUSEL_TABS = [
-  { key: "deals", eyebrow: "Save today", title: "Deals", cta: "Shop the deal", seeAllHref: "/products?deals=true", bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)", fetcher: () => api.getProducts({ isDiscount: true, size: 8 }) },
-  { key: "new", eyebrow: "Just landed", title: "New arrivals", cta: "Shop new arrivals", seeAllHref: "/products?newArrivals=true", bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)", fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }) },
-  { key: "best", eyebrow: "Customer Favourites", title: "Best Sellers", cta: "Shop Best Sellers", seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)", fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }) },
+  {
+    key: "deals", eyebrow: "Save today", title: "Deals", cta: "Shop the deal",
+    seeAllHref: "/deals", bg: "linear-gradient(120deg, #7a2f22 0%, #5c2119 100%)",
+    icon: Tag, fetcher: () => api.getProducts({ isDiscount: true, size: 8 }),
+  },
+  {
+    key: "new", eyebrow: "Just landed", title: "New arrivals", cta: "Shop new arrivals",
+    seeAllHref: "/products?newArrivals=true", bg: "linear-gradient(120deg, #0d3320 0%, #08231a 100%)",
+    icon: Sparkles, fetcher: () => api.getProducts({ isNewArrival: true, size: 8 }),
+  },
+  {
+    key: "best", eyebrow: "Customer Favourites", title: "Best Sellers", cta: "Shop Best Sellers",
+    seeAllHref: "/products?fastMoving=true", bg: "linear-gradient(120deg, #6b4a12 0%, #4a3208 100%)",
+    icon: Flame, fetcher: () => api.getProducts({ isFastMoving: true, size: 8 }),
+  },
 ];
+
+const CAROUSEL_INTERVAL_MS = 6000;
 
 function PromoCarousel() {
   const [active, setActive] = useState(0);
@@ -802,10 +816,25 @@ function PromoCarousel() {
 
   useEffect(() => {
     let cancelled = false;
-    CAROUSEL_TABS.forEach((tab, i) => {
-      tab.fetcher()
-        .then((data) => { if (!cancelled) setProductsByTab((prev) => ({ ...prev, [i]: data })); })
-        .catch(() => { if (!cancelled) setProductsByTab((prev) => ({ ...prev, [i]: [] })); });
+    // A tab's own filter (isDiscount/isNewArrival/isFastMoving) can genuinely match fewer than 4
+    // products — previously this just rendered a lone small card floating in an otherwise-empty
+    // panel. Top up with the site's general popularity feed (deduped) so the showcase always
+    // reads as a full, deliberate lineup rather than a half-empty accident.
+    Promise.all([api.getRecommended().catch(() => [] as Product[])]).then(([fallback]) => {
+      if (cancelled) return;
+      CAROUSEL_TABS.forEach((tab, i) => {
+        tab.fetcher()
+          .then((data) => {
+            if (cancelled) return;
+            let combined = data;
+            if (combined.length < 4) {
+              const seen = new Set(combined.map((p) => p.id));
+              combined = [...combined, ...fallback.filter((p) => !seen.has(p.id))].slice(0, 4);
+            }
+            setProductsByTab((prev) => ({ ...prev, [i]: combined }));
+          })
+          .catch(() => { if (!cancelled) setProductsByTab((prev) => ({ ...prev, [i]: [] })); });
+      });
     });
     return () => { cancelled = true; };
   }, []);
@@ -813,7 +842,7 @@ function PromoCarousel() {
   useEffect(() => {
     const timer = window.setInterval(() => {
       setActive((i) => (i + 1) % CAROUSEL_TABS.length);
-    }, 6000);
+    }, CAROUSEL_INTERVAL_MS);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -836,17 +865,38 @@ function PromoCarousel() {
   if (allEmpty) return null;
 
   const tab = CAROUSEL_TABS[active];
+  const TabIcon = tab.icon;
   const products = productsByTab[active] ?? [];
   const showcase = products.slice(0, 4);
+  const backdropImage = showcase.find((p) => p.primaryImageUrl)?.primaryImageUrl;
 
   return (
     <section className="bg-cream">
       <div className="mx-auto max-w-7xl px-5 py-6 lg:px-8">
-        {/* Elegant promotional module: themed dark panel with bold copy on
-            one side and several elevated product cards showcased on the
-            other — reads as a proper "deal of the day" promo, not a single
-            billboard image or a cramped row of thumbnails. */}
+        {/* Promotional module: a real product photo as a moody, blurred backdrop (not a flat
+            color panel) with bold copy on one side and elevated product cards on the other —
+            reads as a proper "deal of the day" promo, refreshed with whichever tab is showcasing. */}
         <div className="relative overflow-hidden rounded-2xl" style={{ background: tab.bg }}>
+          {backdropImage && (
+            <div
+              key={backdropImage}
+              aria-hidden
+              className="absolute inset-0 animate-in fade-in duration-700"
+              style={{
+                backgroundImage: `url(${backdropImage})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                filter: "blur(18px) saturate(1.1)",
+                transform: "scale(1.15)",
+                opacity: 0.55,
+              }}
+            />
+          )}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "linear-gradient(115deg, rgba(0,0,0,0.55) 20%, rgba(0,0,0,0.15) 75%)" }}
+          />
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 opacity-[0.06]"
@@ -858,7 +908,10 @@ function PromoCarousel() {
           <div className="relative grid gap-8 p-6 sm:p-10 lg:grid-cols-[300px_1fr] lg:items-center lg:gap-12">
             {/* Copy */}
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-white/90">{tab.eyebrow}</p>
+              <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.25em] text-white/90">
+                <TabIcon className="h-3.5 w-3.5" style={{ color: "#e8c878" }} />
+                {tab.eyebrow}
+              </p>
               <h2 className="mt-2 font-display text-4xl font-medium text-white sm:text-5xl">{tab.title}</h2>
               <p className="mt-3 max-w-xs text-sm text-white/80">
                 A handful of picks worth a look, refreshed regularly.
@@ -877,11 +930,25 @@ function PromoCarousel() {
                     type="button"
                     aria-label={`Show ${t.title}`}
                     onClick={() => setActive(i)}
-                    className="h-1.5 rounded-full transition-all"
-                    style={{ width: i === active ? "20px" : "6px", background: i === active ? "#e8c878" : "rgba(255,255,255,0.35)" }}
-                  />
+                    className="relative h-1.5 overflow-hidden rounded-full transition-all"
+                    style={{ width: i === active ? "28px" : "6px", background: "rgba(255,255,255,0.3)" }}
+                  >
+                    {i === active && (
+                      <span
+                        key={active}
+                        className="absolute inset-y-0 left-0 block rounded-full"
+                        style={{
+                          background: "#e8c878",
+                          animation: `mpk-promo-dot ${CAROUSEL_INTERVAL_MS}ms linear forwards`,
+                        }}
+                      />
+                    )}
+                  </button>
                 ))}
               </div>
+              <style>{`
+                @keyframes mpk-promo-dot { from { width: 0%; } to { width: 100%; } }
+              `}</style>
             </div>
 
             {/* Product showcase — flex, not a 4-column grid, so a tab with fewer
@@ -890,7 +957,7 @@ function PromoCarousel() {
             <div className="-mx-6 flex flex-wrap gap-4 overflow-x-auto px-6 pb-1 sm:mx-0 sm:gap-5 sm:overflow-visible sm:px-0">
               {showcase.length === 0
                 ? Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="w-36 shrink-0 overflow-hidden rounded-xl bg-white/95 shadow-lg sm:w-40">
+                    <div key={i} className="w-40 shrink-0 overflow-hidden rounded-xl bg-white/95 shadow-lg sm:w-48">
                       <div className="shimmer aspect-square w-full" />
                       <div className="p-3">
                         <div className="shimmer h-3 w-4/5 rounded" />
@@ -902,9 +969,9 @@ function PromoCarousel() {
                     <Link
                       key={p.id}
                       to={`/products/${p.slug}`}
-                      className="group w-36 shrink-0 overflow-hidden rounded-xl bg-white shadow-lg transition-transform hover:-translate-y-1 sm:w-40"
+                      className="group relative w-40 shrink-0 overflow-hidden rounded-xl bg-white shadow-lg transition-transform hover:-translate-y-1 sm:w-48"
                     >
-                      <div className="aspect-square w-full overflow-hidden bg-secondary">
+                      <div className="relative aspect-square w-full overflow-hidden bg-secondary">
                         {p.primaryImageUrl && (
                           <img
                             src={p.primaryImageUrl}
@@ -912,6 +979,22 @@ function PromoCarousel() {
                             loading="lazy"
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
+                        )}
+                        {tab.key === "deals" && p.isDiscount && (
+                          <span
+                            className="absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white"
+                            style={{ background: "#b91c1c" }}
+                          >
+                            -{p.discountPercent ?? 10}%
+                          </span>
+                        )}
+                        {tab.key === "new" && p.isNewArrival && (
+                          <span
+                            className="absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
+                            style={{ background: "#e8c878", color: "#0d3320" }}
+                          >
+                            NEW
+                          </span>
                         )}
                       </div>
                       <div className="p-3">
