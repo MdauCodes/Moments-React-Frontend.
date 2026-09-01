@@ -282,13 +282,24 @@ export const api = {
     );
     return data.map((entry) => {
       const product = normalizeProduct(entry.product);
-      if (entry.dealType !== "COSMETIC" || !entry.cosmeticDiscountPercent || !product.basePrice) return product;
+      if (entry.dealType !== "COSMETIC" || !entry.cosmeticDiscountPercent) return product;
       const percent = entry.cosmeticDiscountPercent;
+      const multiplier = 1 + percent / 100;
+      // Most of the catalogue is tier/collection-priced, not basePrice-direct — ProductCard reads
+      // originalCollectionPrice per tier for that path (originalBasePrice only ever renders for
+      // individually-sold, non-tiered items), so both need the same synthetic "was" markup or the
+      // -X% badge shows with no struck-through price behind it for most products.
+      const pricingTiers = (product.pricingTiers ?? []).map((t: any) =>
+        t.collectionPrice
+          ? { ...t, originalCollectionPrice: Math.round(t.collectionPrice * multiplier) }
+          : t,
+      );
       return {
         ...product,
         isDiscount: true,
         discountPercent: percent,
-        originalBasePrice: Math.round(product.basePrice * (1 + percent / 100)),
+        originalBasePrice: product.basePrice ? Math.round(product.basePrice * multiplier) : product.originalBasePrice,
+        pricingTiers,
       };
     });
   },
