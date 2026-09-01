@@ -9,6 +9,8 @@ import { WelcomeStarterModal } from "@/components/WelcomeStarterModal";
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
+import { SearchCommand } from "@/components/SearchCommand";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
@@ -106,6 +108,8 @@ function FirstVisitSplash() {
 // the hero's old transparent-over-image treatment. ──
 function HomeNav() {
   const { openLogin } = useAuthModal();
+  const { itemCount } = useCart();
+  const [searchOpen, setSearchOpen] = useState(false);
   return (
     <nav
       className="sticky top-0 z-40 border-b border-white/10 backdrop-blur-md"
@@ -137,27 +141,44 @@ function HomeNav() {
           <Link to="/orders/track" className="hover:opacity-80">
             Track Order
           </Link>
-          <Link to="/products?deals=true" style={{ color: "#e8c878" }} className="hover:opacity-80">
+          <Link to="/deals" style={{ color: "#e8c878" }} className="hover:opacity-80">
             Deals
           </Link>
         </div>
-        <div className="flex items-center gap-4 text-white">
-          <Link to="/products" aria-label="Search products" className="hover:opacity-80">
+        <div className="flex items-center gap-1 text-white">
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search products"
+            className="grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-white/10"
+          >
             <Search className="h-5 w-5" />
-          </Link>
-          <Link to="/cart" aria-label="Cart" className="relative hover:opacity-80">
+          </button>
+          <Link
+            to="/cart"
+            aria-label="Cart"
+            className="relative grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-white/10"
+          >
             <ShoppingBag className="h-5 w-5" />
-            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full" style={{ background: "#e8c878" }} />
+            {itemCount > 0 && (
+              <span
+                className="absolute right-0.5 top-0.5 grid min-w-[16px] h-[16px] place-items-center rounded-full px-1 text-[9px] font-semibold text-forest"
+                style={{ background: "#e8c878" }}
+              >
+                {itemCount > 99 ? "99+" : itemCount}
+              </span>
+            )}
           </Link>
           <button
             type="button"
             onClick={() => openLogin()}
-            className="hidden md:inline text-sm hover:opacity-80"
+            className="ml-2 hidden md:inline text-sm hover:opacity-80"
           >
             Sign in
           </button>
         </div>
       </div>
+      <SearchCommand open={searchOpen} onClose={() => setSearchOpen(false)} />
     </nav>
   );
 }
