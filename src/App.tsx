@@ -109,6 +109,7 @@ const AdminEnquiriesNewPage = lazy(() => import("@/routes/_adminAuth.admin.enqui
 const AdminEnquiryDetailPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries.$id"));
 const AdminInventoryPage = lazy(() => import("@/routes/_adminAuth.admin.inventory"));
 const AdminOrdersPage = lazy(() => import("@/routes/_adminAuth.admin.orders"));
+const AdminOrderNewPage = lazy(() => import("@/routes/_adminAuth.admin.orders_.new"));
 const AdminOrderDetailPage = lazy(() => import("@/routes/_adminAuth.admin.orders.$id"));
 const AdminTumaBodaSettlementsPage = lazy(() => import("@/routes/_adminAuth.admin.tumaboda-settlements"));
 const AdminPromoCodesPage = lazy(() => import("@/routes/_adminAuth.admin.promo-codes"));
@@ -259,6 +260,7 @@ export default function App() {
                       <Route path="/admin/enquiries/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiryDetailPage /></Suspense>} />
                       <Route path="/admin/inventory" element={<Suspense fallback={<AdminRouteFallback />}><AdminInventoryPage /></Suspense>} />
                       <Route path="/admin/orders" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrdersPage /></Suspense>} />
+                      <Route path="/admin/orders/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrderNewPage /></Suspense>} />
                       <Route path="/admin/orders/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrderDetailPage /></Suspense>} />
                       <Route path="/admin/tumaboda-settlements" element={<Suspense fallback={<AdminRouteFallback />}><AdminTumaBodaSettlementsPage /></Suspense>} />
                       <Route path="/admin/promo-codes" element={<Suspense fallback={<AdminRouteFallback />}><AdminPromoCodesPage /></Suspense>} />

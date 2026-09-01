@@ -1,6 +1,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
 import { AssignSelect } from "@/components/admin/AssignSelect";
 import { toast } from "sonner";
@@ -457,6 +457,7 @@ function AdminOrdersPage() {
                   </div>
                 )}
               </div>
+              <Link to="/admin/orders/new" className="admin-btn">New order</Link>
               {!isAssignedOnly && (
                 <>
                   <button
