@@ -1039,9 +1039,12 @@ function CheckoutModal() {
             name: name.trim(),
             email: email.trim(),
             phone: phoneNormalized,
+            // Pickup has no delivery address to speak of, but the customer may have optionally
+            // shared their own area/county (supply-chain/procurement insight only — never used
+            // for fulfillment, since they still collect in person regardless).
             address: fulfillment === "PICKUP" ? "" : deliveryLocationText,
-            city: fulfillment === "PICKUP" ? "" : city.trim(),
-            county: fulfillment === "PICKUP" ? "" : county.trim(),
+            city: city.trim(),
+            county: county.trim(),
             postalCode: postalCode.trim() || undefined,
           },
           shippingFee,
@@ -2113,6 +2116,29 @@ function CheckoutModal() {
                       </span>
                     </span>
                   </label>
+
+                  {/* Purely for supply-chain/procurement insight — never used for fulfillment,
+                      since a pickup order is collected in person regardless of where the
+                      customer lives. Deliberately optional and skippable, not framed as a
+                      requirement, same weight as choosing to enter it or not. */}
+                  <div className="mt-3 rounded-xl border border-dashed border-border bg-background/50 p-3">
+                    <p className="text-xs font-medium text-foreground">
+                      Optional: where are you located?
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Helps us stock what your area needs — doesn't affect your pickup, and you're
+                      welcome to skip it.
+                    </p>
+                    <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
+                      <input
+                        className={inputCls}
+                        placeholder="Area / town (e.g. Kilimani)"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                      />
+                      <CountySelect value={county} onChange={setCounty} placeholder="County (optional)" />
+                    </div>
+                  </div>
                 </div>
               )}
 
