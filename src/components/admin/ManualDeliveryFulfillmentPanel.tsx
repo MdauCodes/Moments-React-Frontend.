@@ -1,12 +1,15 @@
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { Section, Row } from "@/components/admin/AdminSectionUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
 import { ItemChecklist } from "@/components/admin/ItemChecklist";
 import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
-import { DeliveryFeeStatusBadge, formatDate } from "@/components/admin/commerceUi";
+import { DeliveryFeeStatusBadge, HandDeliveryFeeBadge, formatDate } from "@/components/admin/commerceUi";
 import { useOrderStatusAction } from "@/lib/useOrderStatusAction";
+import { triggerDeliveryFeeStk, recordDeliveryFeePaid } from "@/services/commerceApi";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 
 /**
@@ -28,6 +31,60 @@ export function ManualDeliveryFulfillmentPanel({
   const [allTicked, setAllTicked] = useState(false);
   const readyForHandoff = order.statusV2 === "READY_FOR_COURIER_HANDOFF";
   const dispatchedOrLater = order.status === "DISPATCHED" || order.status === "DELIVERED";
+  // Hand Delivery's fee is charged upfront as part of the order total at checkout (see
+  // HandDeliveryFeeBadge in the Orders list) — deliveryFeeAmount/Status/Method are never set for
+  // it (checkout only populates them via the separate phone-negotiated-courier flow), so the
+  // STK/record-paid actions below would just create confusing, meaningless data for this mode.
+  const isHandDelivery = o.courierType === "HAND_DELIVERY";
+
+  const [feeAmount, setFeeAmount] = useState("");
+  const [feePhone, setFeePhone] = useState("");
+  const [feeMethod, setFeeMethod] = useState<"SELF_PAID" | "ADMIN_STK" | "MANUAL_RECORD">("SELF_PAID");
+  const [feeBusy, setFeeBusy] = useState(false);
+
+  const handleTriggerFeeStk = async () => {
+    const amount = Number(feeAmount);
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    if (!feePhone.trim()) {
+      toast.error("Enter the customer's phone number");
+      return;
+    }
+    setFeeBusy(true);
+    try {
+      const res = await triggerDeliveryFeeStk(order.id, amount, feePhone.trim());
+      if (res.order) {
+        onOrderUpdated(res.order);
+        toast.success("STK prompt sent — confirm once the customer enters their PIN");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to send STK prompt");
+    } finally {
+      setFeeBusy(false);
+    }
+  };
+
+  const handleRecordFeePaid = async () => {
+    const amount = Number(feeAmount || o.deliveryFeeAmount || 0);
+    if (!amount || amount <= 0) {
+      toast.error("Enter a valid amount");
+      return;
+    }
+    setFeeBusy(true);
+    try {
+      const res = await recordDeliveryFeePaid(order.id, amount, feeMethod);
+      if (res.order) {
+        onOrderUpdated(res.order);
+        toast.success("Delivery fee recorded as paid");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to record delivery fee");
+    } finally {
+      setFeeBusy(false);
+    }
+  };
 
   return (
     <>
@@ -52,16 +109,74 @@ export function ManualDeliveryFulfillmentPanel({
         <Row
           label="Delivery fee"
           value={
-            <span className="inline-flex items-center gap-2">
-              {o.deliveryFeeAmount != null ? `KES ${o.deliveryFeeAmount}` : "Not yet arranged"}
-              <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
-            </span>
+            isHandDelivery ? (
+              <span className="inline-flex items-center gap-2">
+                <HandDeliveryFeeBadge shippingFee={order.shippingFee} />
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                {o.deliveryFeeAmount != null ? `KES ${o.deliveryFeeAmount}` : "Not yet arranged"}
+                <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
+              </span>
+            )
           }
         />
-        <div className="mt-2 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-          Transport cost is paid by the customer directly to the sacco / courier on collection
-          (or at dispatch, confirmed by phone). Not included in the order total.
-        </div>
+        {isHandDelivery ? (
+          <div className="mt-2 rounded-md border border-dashed bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:bg-blue-950/30 dark:text-blue-200">
+            Hand Delivery's fee is charged upfront with the rest of the order — nothing to
+            collect or record separately here.
+          </div>
+        ) : (
+          <>
+            <div className="mt-2 rounded-md border border-dashed bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              Transport cost is paid by the customer directly to the sacco / courier on collection
+              (or at dispatch, confirmed by phone). Not included in the order total.
+            </div>
+
+            {o.deliveryFeeStatus !== "PAID" && (
+              <div className="mt-2.5 space-y-2">
+                <input
+                  type="number"
+                  placeholder="Agreed fee amount (KES)"
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                  className="admin-input w-full text-sm"
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="tel"
+                    placeholder="Customer phone (for STK)"
+                    value={feePhone}
+                    onChange={(e) => setFeePhone(e.target.value)}
+                    className="admin-input flex-1 text-sm"
+                  />
+                  <button type="button" className="admin-btn" disabled={feeBusy} onClick={() => void handleTriggerFeeStk()}>
+                    Send STK prompt
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={feeMethod}
+                    onChange={(e) => setFeeMethod(e.target.value as typeof feeMethod)}
+                    className="admin-input text-sm"
+                  >
+                    <option value="SELF_PAID">Customer paid directly (e.g. paybill)</option>
+                    <option value="ADMIN_STK">STK prompt confirmed paid</option>
+                    <option value="MANUAL_RECORD">Cash / other — just record it</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="admin-btn admin-btn-primary"
+                    disabled={feeBusy}
+                    onClick={() => void handleRecordFeePaid()}
+                  >
+                    Mark fee as paid
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {dispatchedOrLater ? (
           <div className="mt-3 flex items-center gap-2 text-sm font-medium text-green-700">
