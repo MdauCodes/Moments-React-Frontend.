@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProductDetailSkeleton } from "@/components/ProductDetailSkeleton";
+import { ProductGallery } from "@/components/ProductGallery";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
 import { ProductReviews } from "@/components/ProductReviews";
@@ -28,7 +29,6 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true);
 
   // ── product-dependent UI state (safe defaults) ──────────────────────────
-  const [activeImage, setActiveImage] = useState<string | undefined>(undefined);
   const [variantId, setVariantId] = useState<string | undefined>(undefined);
   const [size, setSize] = useState("");
   const [material, setMaterial] = useState("");
@@ -52,9 +52,7 @@ export default function ProductDetail() {
       const collTiers = (tiers as any[])
         .filter((t) => t && t.enabled !== false && t.collectionName && t.quantity)
         .sort((a, b) => (a.sortOrder ?? a.quantity) - (b.sortOrder ?? b.quantity));
-      const imgs = [p.primaryImageUrl, ...(p.imageUrls ?? [])].filter(Boolean) as string[];
       setProduct(p);
-      setActiveImage(imgs[0]);
       setVariantId(variants[0]?.id ?? variants[0]?.label);
       setSize(p.sizes?.[0] ?? "");
       setMaterial((p as any).materials?.[0] ?? p.material ?? "");
@@ -229,33 +227,17 @@ export default function ProductDetail() {
       <section className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:gap-8 sm:py-8 lg:grid-cols-5 lg:gap-10 lg:px-8 lg:py-10">
         {/* LEFT — gallery */}
         <div className="lg:col-span-3">
-          <div className="relative aspect-square max-h-[380px] overflow-hidden rounded-2xl border border-border bg-secondary sm:max-h-[440px]">
-            {activeImage ? (
-              <img src={activeImage} alt={product.name} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-secondary px-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-muted-foreground/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                <span className="text-center text-xs text-muted-foreground/40">{product.name}</span>
-              </div>
-            )}
-            <div className="absolute left-3 top-3 flex flex-col gap-1.5">
-              {product.isNewArrival && <span className="rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">New</span>}
-              {product.isDiscount && <span className="rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-accent-foreground">-{product.discountPercent ?? 10}%</span>}
-              {product.isFastMoving && <span className="rounded-full bg-kraft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-kraft-foreground">Hot</span>}
-            </div>
-          </div>
-          {allImages.length > 1 && (
-            <div className="scrollbar-hide mt-3 flex gap-2 overflow-x-auto">
-              {allImages.map((img) => (
-                <button key={img} type="button" onClick={() => setActiveImage(img)}
-                  className={`h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${activeImage === img ? "border-primary" : "border-transparent"}`}>
-                  <img src={img} alt="" className="h-full w-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
+          <ProductGallery
+            images={allImages}
+            productName={product.name}
+            badges={
+              <>
+                {product.isNewArrival && <span className="rounded-full bg-primary px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">New</span>}
+                {product.isDiscount && <span className="rounded-full bg-accent px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-accent-foreground">-{product.discountPercent ?? 10}%</span>}
+                {product.isFastMoving && <span className="rounded-full bg-kraft px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-kraft-foreground">Hot</span>}
+              </>
+            }
+          />
         </div>
 
         {/* RIGHT — info + configurator */}

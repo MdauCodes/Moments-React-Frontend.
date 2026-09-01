@@ -175,6 +175,10 @@ export type AuditLogEntry = {
   /** JSON string from backend describing field changes. */
   changes?: string;
   ipAddress?: string;
+  /** Best-effort "City, Country" resolved from ipAddress. */
+  locationLabel?: string;
+  /** Which admin page/section the action was performed from (frontend route pathname). */
+  sourcePage?: string;
   createdAt?: string;
 };
 
@@ -244,6 +248,7 @@ export type UserDto = {
   updatedAt?: string;
 };
 export type SettingDto = { id?: string; key: string; value: string; description?: string };
+export type LiveTestUnlockStatusDto = { active: boolean; until: string | null };
 export type AdminNotificationDto = {
   id: string;
   type: string;
@@ -302,6 +307,37 @@ export type BirthdayJobRunResult = {
   rewardedCount: number;
   matches: BirthdayJobMatchResult[];
 };
+export type ProductImageGenerationTriggerType = "SCHEDULED" | "MANUAL";
+export type ProductImageGenerationStatus =
+  | "IN_PROGRESS" | "COMPLETED" | "COMPLETED_WITH_ERRORS" | "STOPPED_BUDGET_LIMIT" | "DELETED" | "INTERRUPTED";
+export type ImageGenerationMode = "GENERATE" | "CLEANUP";
+export type ProductImageGenerationBatchDto = {
+  id: string;
+  triggerType: ProductImageGenerationTriggerType;
+  mode: ImageGenerationMode;
+  status: ProductImageGenerationStatus;
+  requestedCount: number;
+  succeededCount: number;
+  failedCount: number;
+  createdAt: string;
+  deletedAt: string | null;
+};
+export type ProductImageGenerationBudgetDto = {
+  spentUsd: number;
+  ceilingUsd: number;
+  remainingUsd: number;
+  costPerImageUsd: number;
+  candidateCount: number;
+};
+export type GeneratedProductImageDto = {
+  id: string;
+  productId: string;
+  productName: string;
+  imageUrl: string;
+  isPrimary: boolean;
+  createdAt: string;
+};
+
 export type LeadPreviewDto = {
   id: string;
   email: string;
@@ -434,6 +470,40 @@ export const adminResources = {
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/preview"),
     sendLogDigestNow: () =>
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/run", { method: "POST" }),
+  },
+  productImageGeneration: {
+    getCandidateCount: () =>
+      adminJson<number>("/api/v1/admin/products/image-generation/candidates"),
+    getBudget: () =>
+      adminJson<ProductImageGenerationBudgetDto>("/api/v1/admin/products/image-generation/budget"),
+    runBatch: (limit: number) =>
+      adminJson<ProductImageGenerationBatchDto>("/api/v1/admin/products/image-generation/run", {
+        method: "POST",
+        body: JSON.stringify({ limit }),
+      }),
+    listBatches: () =>
+      adminJson<ProductImageGenerationBatchDto[]>("/api/v1/admin/products/image-generation/batches"),
+    getBatch: (id: string) =>
+      adminJson<ProductImageGenerationBatchDto>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`),
+    getBatchImages: (id: string) =>
+      adminJson<GeneratedProductImageDto[]>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}/images`),
+    deleteBatch: (id: string) =>
+      adminJson<void>(`/api/v1/admin/products/image-generation/batches/${encodeURIComponent(id)}`, { method: "DELETE" }),
+    getCleanupCandidateCount: () =>
+      adminJson<number>("/api/v1/admin/products/image-generation/cleanup/candidates"),
+    getCleanupBudget: () =>
+      adminJson<ProductImageGenerationBudgetDto>("/api/v1/admin/products/image-generation/cleanup/budget"),
+    runCleanupBatch: (limit: number) =>
+      adminJson<ProductImageGenerationBatchDto>("/api/v1/admin/products/image-generation/cleanup/run", {
+        method: "POST",
+        body: JSON.stringify({ limit }),
+      }),
+    runCleanupForProduct: (productId: string) =>
+      adminJson<ProductImageGenerationBatchDto>(`/api/v1/admin/products/image-generation/cleanup/run/${encodeURIComponent(productId)}`, {
+        method: "POST",
+      }),
+    resetAllCleanups: () =>
+      adminJson<number>("/api/v1/admin/products/image-generation/cleanup/reset-all", { method: "POST" }),
   },
   devLogs: {
     list: async (params: Record<string, string | number | boolean | undefined> = {}) =>
@@ -598,6 +668,17 @@ export const adminResources = {
   settings: {
     list: () => adminJson<SettingDto[]>("/api/v1/admin/settings"),
     upsert: (body: SettingDto) => adminJson<SettingDto>("/api/v1/admin/settings", { method: "PUT", body: JSON.stringify(body) }),
+  },
+  // Super-admin-only, real-payment unlock for supervised live testing — see
+  // LiveTestUnlockService's backend class Javadoc for exactly what this does.
+  liveTestUnlock: {
+    status: () => adminJson<LiveTestUnlockStatusDto>("/api/v1/admin/live-test-unlock"),
+    open: (durationMinutes: number) =>
+      adminJson<LiveTestUnlockStatusDto>("/api/v1/admin/live-test-unlock/open", {
+        method: "POST",
+        body: JSON.stringify({ durationMinutes }),
+      }),
+    close: () => adminJson<void>("/api/v1/admin/live-test-unlock/close", { method: "POST" }),
   },
   notifications: {
     list: () => adminJson<{ content: AdminNotificationDto[] }>("/api/v1/admin/notifications?size=20"),

@@ -24,7 +24,7 @@ const navBeforeShop: readonly SimpleNav[] = [
 ];
 const navAfterShop: readonly SimpleNav[] = [
   { to: "/orders/track", label: "Track Order" },
-  { to: "/products?deals=true", label: "Deals" },
+  { to: "/deals", label: "Deals" },
 ];
 
 export function SiteHeader() {

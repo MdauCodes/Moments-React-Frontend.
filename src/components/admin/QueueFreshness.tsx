@@ -16,8 +16,8 @@ export function QueueFreshness({ onRefresh }: Props) {
         display: "flex",
         alignItems: "center",
         gap: 10,
-        padding: "10px 14px",
-        fontSize: 12,
+        padding: "6px 14px",
+        fontSize: 11,
         color: "var(--admin-muted)",
       }}
     >

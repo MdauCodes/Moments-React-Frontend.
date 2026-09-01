@@ -132,6 +132,7 @@ function normalizeOrder(raw: any): OrderRecord {
     paymentMethod: raw?.paymentMethod,
     fulfillmentType: raw?.fulfillmentType,
     isTestOrder: raw?.isTestOrder ?? false,
+    liveTestOrder: raw?.liveTestOrder ?? false,
     courierType: raw?.courierType,
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
@@ -988,6 +989,29 @@ export interface DeliveryAnalytics {
 export async function getDeliveryAnalytics(from: Date, to: Date): Promise<DeliveryAnalytics> {
   const params = new URLSearchParams({ from: from.toISOString(), to: to.toISOString() });
   return getJson<DeliveryAnalytics>(`/api/v1/admin/analytics/delivery?${params.toString()}`);
+}
+
+// ---------- Analytics: checkout funnel drop-off, by delivery mode ----------
+// Backend GET /api/v1/admin/checkout-funnel/summary-by-mode?days= — super-admin only (same gate
+// as the rest of the checkout-funnel data, which carries session emails/phones). A 403 here means
+// the signed-in admin isn't a super admin; callers should treat that as "section not available",
+// not an error toast.
+
+export interface CheckoutFunnelStepSummary {
+  step: "OPENED" | "CONTACT_COMPLETED" | "DELIVERY_CONFIRMED" | "ORDER_PLACED";
+  sessions: number;
+  pctOfOpened: number;
+  pctOfPrevious: number | null;
+}
+
+export interface CheckoutFunnelModeSummary {
+  fulfillmentType: string;
+  sessions: number;
+  steps: CheckoutFunnelStepSummary[];
+}
+
+export async function getCheckoutFunnelByMode(days: number): Promise<CheckoutFunnelModeSummary[]> {
+  return getJson<CheckoutFunnelModeSummary[]>(`/api/v1/admin/checkout-funnel/summary-by-mode?days=${days}`);
 }
 
 // ---------- Analytics: signups & demographics (Sales tab) ----------

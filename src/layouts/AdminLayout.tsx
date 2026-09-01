@@ -43,7 +43,9 @@ import {
   AlertTriangle,
   Layers,
   Undo2,
+  Image,
   Building2,
+  Unlock,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -195,6 +197,7 @@ const navSections: NavSection[] = [
       { label: "Audit Logs", to: "/admin/audit-logs", icon: FileText, requiresAny: [PERM.AUDIT_VIEW] },
       { label: "Changelog", to: "/admin/changelog", icon: BookOpen, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Settings", to: "/admin/settings", icon: Settings, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Live Payment Unlock", to: "/admin/live-test-unlock", icon: Unlock, superAdminOnly: true },
     ],
   },
   {
@@ -208,6 +211,7 @@ const navSections: NavSection[] = [
     label: "Developer",
     items: [
       { label: "Developer", to: "/admin/developer", icon: Wrench, superAdminOnly: true },
+      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, superAdminOnly: true },
     ],
   },
 ];
@@ -492,6 +496,26 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifItems, setNotifItems] = useState<AdminNotificationDto[]>([]);
   const [notifLoading, setNotifLoading] = useState(false);
+
+  // Real payments can be temporarily live for supervised testing (see /admin/live-test-unlock) -
+  // surfaced as a hard-to-miss banner on every admin page while active, not just on that one
+  // settings page, given the stakes of forgetting it's open. Super-admin only, matching the
+  // backend gate; polled rather than fetched once since it auto-expires server-side and staff
+  // should see it flip back to closed without needing to reload.
+  const [liveTestUntil, setLiveTestUntil] = useState<string | null>(null);
+  useEffect(() => {
+    if (staffRole !== "SUPER_ADMIN") return;
+    let cancelled = false;
+    function poll() {
+      adminResources.liveTestUnlock.status()
+        .then((res) => { if (!cancelled) setLiveTestUntil(res.active ? res.until : null); })
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffRole]);
 
   useEffect(() => {
     let cancelled = false;
@@ -794,6 +818,26 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           </div>
         </div>
 
+        {liveTestUntil && (
+          <Link
+            to="/admin/live-test-unlock"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              padding: "8px 16px",
+              background: "#b91c1c",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            <Unlock size={14} />
+            Real payments are LIVE for testing until {new Date(liveTestUntil).toLocaleString("en-KE", { dateStyle: "medium", timeStyle: "short" })} — click to manage
+          </Link>
+        )}
         <main style={styles.content}>{children}</main>
       </div>
       {user?.id && staffRole && (

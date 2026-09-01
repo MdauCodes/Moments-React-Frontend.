@@ -50,7 +50,8 @@ function AdminProductsPage() {
     void load();
   }, [page, filters.industryId, filters.category, filters.isDiscount, filters.isNewArrival, filters.isFastMoving, debouncedQ]);
 
-  // Client-side guard: ensure filters/search visibly apply even if backend ignores them.
+  // Search/filters now run server-side (GET /api/v1/admin/products); this is a light client-side
+  // pass over the already-filtered page as a redundant safety net, not the primary filter.
   const visibleProducts = useMemo(() => {
     let rows = products;
     if (debouncedQ) {

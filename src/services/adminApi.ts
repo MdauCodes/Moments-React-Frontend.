@@ -358,11 +358,17 @@ export async function adminFetch(path: string, init?: RequestInit): Promise<Resp
 
   const makeRequest = (token: string) => {
     const isFormData = init?.body instanceof FormData;
+    // Every admin action carries which admin page/section it was triggered from, so the audit
+    // log can record "where they went" alongside who did what — read on the backend via
+    // AuditLogService.extractSourcePage(). Single choke point (adminFetch), so no per-page
+    // instrumentation is needed anywhere else.
+    const sourcePage = isBrowser() ? window.location.pathname : undefined;
     return fetch(apiUrl(path), {
       ...init,
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         Authorization: `Bearer ${token}`,
+        ...(sourcePage ? { "X-Admin-Page": sourcePage } : {}),
         ...init?.headers,
       },
     });

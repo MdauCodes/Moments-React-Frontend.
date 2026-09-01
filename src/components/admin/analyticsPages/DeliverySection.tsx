@@ -7,6 +7,7 @@ import type { DeliveryAnalytics } from "@/services/commerceApi";
 export function fulfillmentLabel(type: string): string {
   const labels: Record<string, string> = {
     PICKUP: "Pickup", MANUAL_DELIVERY: "Manual delivery", TUMABODA_DELIVERY: "Courier delivery",
+    HAND_DELIVERY: "CBD / Hand delivery",
   };
   return labels[type] ?? type;
 }

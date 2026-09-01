@@ -46,6 +46,7 @@ import PaymentMethodsPage from "@/routes/payment-methods";
 import CareersPage from "@/routes/careers";
 import BecomeAPartnerPage from "@/routes/become-a-partner";
 import ProductsIndexPage from "@/routes/products.index";
+import DealsPage from "@/routes/deals";
 import ProductSlugPage from "@/routes/products.$slug";
 import BusinessAccountInfoPage from "@/routes/business-account";
 import IndividualShopperAccountInfoPage from "@/routes/individual-shopper-account";
@@ -124,6 +125,7 @@ const AdminChangelogPage = lazy(() => import("@/routes/_adminAuth.admin.changelo
 const AdminChangeRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.change-requests"));
 const AdminArchitecturePage = lazy(() => import("@/routes/_adminAuth.admin.architecture"));
 const AdminDeveloperPage = lazy(() => import("@/routes/_adminAuth.admin.developer"));
+const AdminProductImagesPage = lazy(() => import("@/routes/_adminAuth.admin.product-images"));
 const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"));
 const AdminDeliverySettingsPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-settings"));
 const AdminRefundRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.refund-requests"));
@@ -134,6 +136,7 @@ const AdminFulfillmentBoardPage = lazy(() => import("@/routes/_adminAuth.admin.b
 const AdminReviewsPage = lazy(() => import("@/routes/_adminAuth.admin.reviews"));
 const AdminRolesPage = lazy(() => import("@/routes/_adminAuth.admin.roles"));
 const AdminSettingsPage = lazy(() => import("@/routes/_adminAuth.admin.settings"));
+const AdminLiveTestUnlockPage = lazy(() => import("@/routes/_adminAuth.admin.live-test-unlock"));
 const AdminStaffPage = lazy(() => import("@/routes/_adminAuth.admin.staff"));
 const AdminUsersPage = lazy(() => import("@/routes/_adminAuth.admin.users"));
 
@@ -191,6 +194,7 @@ export default function App() {
                     <Route path="/careers" element={<CareersPage />} />
                     <Route path="/become-a-partner" element={<BecomeAPartnerPage />} />
                     <Route path="/products" element={<ProductsIndexPage />} />
+                    <Route path="/deals" element={<DealsPage />} />
                     <Route path="/products/:slug" element={<ProductSlugPage />} />
                     <Route path="/business-account" element={<BusinessAccountInfoPage />} />
                     <Route path="/individual-shopper-account" element={<IndividualShopperAccountInfoPage />} />
@@ -265,6 +269,7 @@ export default function App() {
                       <Route path="/admin/tax-documents" element={<Suspense fallback={<AdminRouteFallback />}><AdminTaxDocumentsPage /></Suspense>} />
                       <Route path="/admin/document-bundles" element={<Suspense fallback={<AdminRouteFallback />}><AdminDocumentBundlesPage /></Suspense>} />
                       <Route path="/admin/developer" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeveloperPage /></Suspense>} />
+                      <Route path="/admin/product-images" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductImagesPage /></Suspense>} />
                       <Route path="/admin/rewards-tiers" element={<Suspense fallback={<AdminRouteFallback />}><AdminRewardsTiersPage /></Suspense>} />
                       <Route path="/admin/referral-tiers" element={<Suspense fallback={<AdminRouteFallback />}><AdminReferralTiersPage /></Suspense>} />
                       <Route path="/admin/rewards-report" element={<Suspense fallback={<AdminRouteFallback />}><AdminRewardsReportPage /></Suspense>} />
@@ -283,6 +288,7 @@ export default function App() {
                       <Route path="/admin/reviews" element={<Suspense fallback={<AdminRouteFallback />}><AdminReviewsPage /></Suspense>} />
                       <Route path="/admin/roles" element={<Suspense fallback={<AdminRouteFallback />}><AdminRolesPage /></Suspense>} />
                       <Route path="/admin/settings" element={<Suspense fallback={<AdminRouteFallback />}><AdminSettingsPage /></Suspense>} />
+                      <Route path="/admin/live-test-unlock" element={<Suspense fallback={<AdminRouteFallback />}><AdminLiveTestUnlockPage /></Suspense>} />
                       <Route path="/admin/staff" element={<Suspense fallback={<AdminRouteFallback />}><AdminStaffPage /></Suspense>} />
                       <Route path="/admin/users" element={<Suspense fallback={<AdminRouteFallback />}><AdminUsersPage /></Suspense>} />
                     </Route>
