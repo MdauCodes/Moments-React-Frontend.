@@ -1,7 +1,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
+import { AdminOrderCreateModal } from "@/components/admin/AdminOrderCreateModal";
 import { AssignSelect } from "@/components/admin/AssignSelect";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -141,6 +142,8 @@ function AdminOrdersPage() {
   const currentUserId = user?.id ?? null;
   const [searchParams] = useSearchParams();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showMoreFilters, setShowMoreFilters] = useState(false);
   // Seeded once from ?status= (e.g. a dashboard queue card deep-linking straight to a filtered
   // view) — deliberately a one-time initial value, not kept in sync with the URL afterward, same
   // as every other filter on this page.
@@ -161,6 +164,11 @@ function AdminOrdersPage() {
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
   const [hideTestOrders, setHideTestOrders] = useState(false);
   const [deliveryTab, setDeliveryTab] = useState<DeliveryTab>("ALL");
+  // Payment-status filter, test-order toggle, and assignment-scope tabs are secondary controls —
+  // collapsed by default so the search/status row and the table below get the space instead. Any
+  // of the three being non-default auto-opens the panel so an active filter is never hidden.
+  const effectiveShowMoreFilters = showMoreFilters
+    || paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL");
 
   // Bulk assign — the only bulk action for now; reuses the same eligibility rules and endpoint
   // AssignSelect already applies per-row (must be PAID, not in a terminal status).
@@ -357,18 +365,18 @@ function AdminOrdersPage() {
         </HelpPanel>
 
         <div className="admin-page-stack">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }} data-admin-stats>
-            <div className="admin-panel" style={{ padding: 16 }}>
-              <div className="admin-label">Total orders</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>{initialLoading || searching ? "—" : totals.orders}</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }} data-admin-stats>
+            <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
+              <div className="admin-label" style={{ marginBottom: 0 }}>Total orders</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : totals.orders}</div>
             </div>
-            <div className="admin-panel" style={{ padding: 16 }}>
-              <div className="admin-label">Revenue (visible)</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>{initialLoading || searching ? "—" : formatKes(totals.revenue)}</div>
+            <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
+              <div className="admin-label" style={{ marginBottom: 0 }}>Revenue</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : formatKes(totals.revenue)}</div>
             </div>
-            <div className="admin-panel" style={{ padding: 16 }}>
-              <div className="admin-label">Filtered status</div>
-              <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>
+            <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
+              <div className="admin-label" style={{ marginBottom: 0 }}>Filtered</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>
                 {ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label}
               </div>
             </div>
@@ -417,6 +425,65 @@ function AdminOrdersPage() {
                 >
                   {ORDER_STATUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  onClick={() => setShowMoreFilters((v) => !v)}
+                  aria-expanded={effectiveShowMoreFilters}
+                  style={{ fontSize: 12 }}
+                >
+                  {effectiveShowMoreFilters ? "Fewer filters" : "More filters"}
+                  {!effectiveShowMoreFilters && (paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL")) ? " •" : ""}
+                </button>
+              </div>
+              <button type="button" className="admin-btn" onClick={() => setShowCreateModal(true)}>New order</button>
+              {!isAssignedOnly && (
+                <>
+                  <button
+                    className="admin-btn admin-btn-ghost"
+                    disabled={exporting}
+                    onClick={async () => {
+                      setExporting(true);
+                      try {
+                        const rows = await fetchExportRows();
+                        downloadCsv(`orders-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((o) => ({
+                          reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
+                          customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
+                          items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,
+                          createdAt: o.createdAt, tracking: o.tumabodaTrackingCode ?? "",
+                        }))));
+                        toast.success(`Exported ${rows.length} orders`);
+                      } catch (err) {
+                        reportAdminError(err, "Export failed");
+                      } finally {
+                        setExporting(false);
+                      }
+                    }}
+                  ><Download size={14} style={{ marginRight: 6 }} />{exporting ? "Preparing…" : "Export CSV"}</button>
+                  <button
+                    className="admin-btn admin-btn-ghost"
+                    disabled={exporting}
+                    onClick={async () => {
+                      setExporting(true);
+                      try {
+                        const rows = await fetchExportRows();
+                        downloadOrdersListPdf(rows, {
+                          filterLabel: ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label,
+                        });
+                        toast.success(`PDF report for ${rows.length} orders`);
+                      } catch (err) {
+                        reportAdminError(err, "Export failed");
+                      } finally {
+                        setExporting(false);
+                      }
+                    }}
+                  ><FileText size={14} style={{ marginRight: 6 }} />{exporting ? "Preparing…" : "Export PDF"}</button>
+                </>
+              )}
+            </div>
+
+            {effectiveShowMoreFilters && (
+              <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", padding: "10px 14px", borderTop: "1px solid var(--admin-border)" }}>
                 <select
                   className="admin-select"
                   value={paymentStatus}
@@ -467,51 +534,7 @@ function AdminOrdersPage() {
                   </div>
                 )}
               </div>
-              <Link to="/admin/orders/new" className="admin-btn">New order</Link>
-              {!isAssignedOnly && (
-                <>
-                  <button
-                    className="admin-btn admin-btn-ghost"
-                    disabled={exporting}
-                    onClick={async () => {
-                      setExporting(true);
-                      try {
-                        const rows = await fetchExportRows();
-                        downloadCsv(`orders-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((o) => ({
-                          reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
-                          customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
-                          items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,
-                          createdAt: o.createdAt, tracking: o.tumabodaTrackingCode ?? "",
-                        }))));
-                        toast.success(`Exported ${rows.length} orders`);
-                      } catch (err) {
-                        reportAdminError(err, "Export failed");
-                      } finally {
-                        setExporting(false);
-                      }
-                    }}
-                  ><Download size={14} style={{ marginRight: 6 }} />{exporting ? "Preparing…" : "Export CSV"}</button>
-                  <button
-                    className="admin-btn admin-btn-ghost"
-                    disabled={exporting}
-                    onClick={async () => {
-                      setExporting(true);
-                      try {
-                        const rows = await fetchExportRows();
-                        downloadOrdersListPdf(rows, {
-                          filterLabel: ORDER_STATUS_OPTIONS.find((o) => o.value === status)?.label,
-                        });
-                        toast.success(`PDF report for ${rows.length} orders`);
-                      } catch (err) {
-                        reportAdminError(err, "Export failed");
-                      } finally {
-                        setExporting(false);
-                      }
-                    }}
-                  ><FileText size={14} style={{ marginRight: 6 }} />{exporting ? "Preparing…" : "Export PDF"}</button>
-                </>
-              )}
-            </div>
+            )}
 
             {canAssign && selectedIds.size > 0 && (
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--admin-accent-soft, rgba(0,0,0,0.03))", borderBottom: "1px solid var(--admin-border)", flexWrap: "wrap" }} data-admin-bulk-bar>
@@ -731,6 +754,11 @@ function AdminOrdersPage() {
         </div>
       </HelpAnchor>
       <OrderDetailModal orderId={openId} onClose={() => setOpenId(null)} onChanged={() => void refresh()} />
+      <AdminOrderCreateModal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onCreated={() => void refresh()}
+      />
     </AdminLayout>
   );
 }
