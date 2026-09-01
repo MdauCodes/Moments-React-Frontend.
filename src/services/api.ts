@@ -261,6 +261,38 @@ export const api = {
     return data.map(normalizeProduct);
   },
 
+  // Signed-in customer's own "recommended for you" products (reorder-due + global reorder
+  // popularity). Auth required, mirrors getRecommendedSubcategories below.
+  getRecommendedProductsPersonalized: async (): Promise<Product[]> => {
+    const res = await apiFetch("/api/v1/customer/orders/recommended-products", { auth: true });
+    if (!res.ok) throw new Error(`API request failed: ${res.status}`);
+    const data = (await res.json()) as ProductApiDto[];
+    return data.map(normalizeProduct);
+  },
+
+  // Deals tab: genuine discounts (Product.isDiscount, real price cut) mixed with cosmetic
+  // slow-mover badges (dealType COSMETIC — no real price change; cosmeticDiscountPercent is
+  // display guidance only, see DealItemDto on the backend). Returns Product objects with the
+  // COSMETIC ones display-augmented (a synthetic originalBasePrice/isDiscount/discountPercent
+  // computed here, purely for ProductCard to render a struck-through "was" price) — the real
+  // basePrice a customer actually pays is never touched.
+  getDeals: async (): Promise<Product[]> => {
+    const data = await getJson<Array<{ product: ProductApiDto; dealType: "GENUINE" | "COSMETIC"; cosmeticDiscountPercent?: number }>>(
+      "/api/v1/public/deals",
+    );
+    return data.map((entry) => {
+      const product = normalizeProduct(entry.product);
+      if (entry.dealType !== "COSMETIC" || !entry.cosmeticDiscountPercent || !product.basePrice) return product;
+      const percent = entry.cosmeticDiscountPercent;
+      return {
+        ...product,
+        isDiscount: true,
+        discountPercent: percent,
+        originalBasePrice: Math.round(product.basePrice * (1 + percent / 100)),
+      };
+    });
+  },
+
   getIndustries: async () => {
     const data = await getJson<Array<Partial<Industry> & { displayId?: number }>>("/api/v1/public/industries");
     return data.map(normalizeIndustry);

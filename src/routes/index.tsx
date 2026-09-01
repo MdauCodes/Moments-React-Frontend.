@@ -8,6 +8,7 @@ import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
 import { WelcomeStarterModal } from "@/components/WelcomeStarterModal";
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
 import { AddToHomeScreenPrompt } from "@/components/AddToHomeScreenPrompt";
@@ -961,6 +962,16 @@ function AccountTypesCallout() {
 
 // ── Page ──
 function HomePage() {
+  const { isAuthenticated } = useAuth();
+
+  // Signed-in customers with usable order history get a personalized mix (reorder-due + global
+  // reorder popularity); everyone else gets the click-popularity feed. Remounting via `key` when
+  // auth state resolves re-triggers ProductRow's own fetch (its internal effect only runs once
+  // per mount) rather than threading isAuthenticated through ProductRow itself.
+  const recommendedFetcher = isAuthenticated
+    ? () => api.getRecommendedProductsPersonalized().catch(() => api.getRecommended())
+    : api.getRecommended;
+
   return (
     <>
       <FirstVisitSplash />
@@ -977,10 +988,19 @@ function HomePage() {
           <GuaranteeBand />
           <AccountTypesCallout />
           <ProductRow
+            key={isAuthenticated ? "recommended-auth" : "recommended-anon"}
             eyebrow="Featured products"
             title="Popular this week"
-            fetcher={api.getRecommended}
+            fetcher={recommendedFetcher}
             bg="background"
+          />
+          <ProductRow
+            eyebrow="Deals"
+            title="Today's deals"
+            desc="A mix of real markdowns and picks we're nudging you toward — every price shown is exactly what you'll pay."
+            seeAllHref="/deals"
+            fetcher={api.getDeals}
+            bg="cream"
           />
           <ProductRow
             eyebrow="Just in"

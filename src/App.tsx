@@ -46,6 +46,7 @@ import PaymentMethodsPage from "@/routes/payment-methods";
 import CareersPage from "@/routes/careers";
 import BecomeAPartnerPage from "@/routes/become-a-partner";
 import ProductsIndexPage from "@/routes/products.index";
+import DealsPage from "@/routes/deals";
 import ProductSlugPage from "@/routes/products.$slug";
 import BusinessAccountInfoPage from "@/routes/business-account";
 import IndividualShopperAccountInfoPage from "@/routes/individual-shopper-account";
@@ -193,6 +194,7 @@ export default function App() {
                     <Route path="/careers" element={<CareersPage />} />
                     <Route path="/become-a-partner" element={<BecomeAPartnerPage />} />
                     <Route path="/products" element={<ProductsIndexPage />} />
+                    <Route path="/deals" element={<DealsPage />} />
                     <Route path="/products/:slug" element={<ProductSlugPage />} />
                     <Route path="/business-account" element={<BusinessAccountInfoPage />} />
                     <Route path="/individual-shopper-account" element={<IndividualShopperAccountInfoPage />} />
