@@ -631,11 +631,13 @@ type ProductRowProps = {
   seeAllHref?: string;
   fetcher: () => Promise<Product[]>;
   bg?: "background" | "cream";
+  /** Deals row only — see ProductCard's own doc comment for why this is opt-in. */
+  emphasizeDeal?: boolean;
 };
 
 /** A horizontally-scannable row of products — the homepage can stack several of these,
  * matching the multi-row catalogue feel of Kilimall/Jumia-style marketplaces. */
-function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, bg = "background" }: ProductRowProps) {
+function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, bg = "background", emphasizeDeal }: ProductRowProps) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [configuring, setConfiguring] = useState<Product | null>(null);
   const [preTier, setPreTier] = useState<string | null>(null);
@@ -687,7 +689,7 @@ function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, b
               ))
             : products.map((p) => (
                 <div key={p.id} className="grid w-[45vw] shrink-0 sm:w-auto">
-                  <ProductCard product={p} onConfigure={handleConfigure} />
+                  <ProductCard product={p} onConfigure={handleConfigure} emphasizeDeal={emphasizeDeal} />
                 </div>
               ))}
         </div>
@@ -1018,10 +1020,11 @@ function HomePage() {
           <ProductRow
             eyebrow="Deals"
             title="Today's deals"
-            desc="A mix of real markdowns and picks we're nudging you toward — every price shown is exactly what you'll pay."
+            desc="A mix of real markdowns and picks we're nudging you toward — every price shown is exactly what you'll pay. Stock-based, not a countdown — once it's gone, it's gone."
             seeAllHref="/deals"
             fetcher={api.getDeals}
             bg="cream"
+            emphasizeDeal
           />
           <ProductRow
             eyebrow="Just in"

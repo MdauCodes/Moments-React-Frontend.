@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { Flame } from "lucide-react";
 
 import type { Product } from "@/data/products";
 import { apiUrl } from "@/config/api";
@@ -10,6 +11,11 @@ interface ProductCardProps {
   product: Product;
   onConfigure: (product: Product, preSelectedTierId?: string) => void;
   variant?: "default" | "compact";
+  /** Deals-page-only emphasis: a bolder low-stock badge and a "Save KES X" callout when a real
+   *  was/now price gap exists. Opt-in and off by default so every other listing (Featured,
+   *  New Arrivals, the full catalogue) keeps its current, calmer look — this was scoped
+   *  specifically to the Deals page/homepage section, not a sitewide change. */
+  emphasizeDeal?: boolean;
 }
 
 function trackClick(id: string) {
@@ -20,7 +26,7 @@ function trackClick(id: string) {
   });
 }
 
-export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
+export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductCardProps) {
   const stock = getStockInfo(p, null, 0);
 
   const image = p.primaryImageUrl;
@@ -231,22 +237,30 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
                 save {tierSavingsPct(cheapestTier)}%
               </p>
             )}
+            {emphasizeDeal && activeTier.originalCollectionPrice > tierPrice(activeTier) && (
+              <SaveBadge amount={activeTier.originalCollectionPrice - tierPrice(activeTier)} />
+            )}
           </div>
         ) : individualEnabled && p.basePrice ? (
-          <p className="mt-1.5 text-[13px] font-semibold text-primary sm:mt-2 sm:text-sm">
-            KES {p.basePrice.toLocaleString()}
-            {p.originalBasePrice && p.originalBasePrice > p.basePrice && (
-              <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through">
-                KES {p.originalBasePrice.toLocaleString()}
-              </span>
+          <div className="mt-1.5 sm:mt-2">
+            <p className="text-[13px] font-semibold text-primary sm:text-sm">
+              KES {p.basePrice.toLocaleString()}
+              {p.originalBasePrice && p.originalBasePrice > p.basePrice && (
+                <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through">
+                  KES {p.originalBasePrice.toLocaleString()}
+                </span>
+              )}
+              <span className="ml-1 font-normal text-muted-foreground">/ unit</span>
+            </p>
+            {emphasizeDeal && p.originalBasePrice && p.originalBasePrice > p.basePrice && (
+              <SaveBadge amount={p.originalBasePrice - p.basePrice} />
             )}
-            <span className="ml-1 font-normal text-muted-foreground">/ unit</span>
-          </p>
+          </div>
         ) : (
           <p className="mt-1.5 text-[11px] text-muted-foreground sm:mt-2 sm:text-sm">Contact for pricing</p>
         )}
 
-        <StockLine state={stock.state} count={stock.available} label={stock.label} />
+        <StockLine state={stock.state} count={stock.available} label={stock.label} emphasize={emphasizeDeal} />
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2 sm:gap-2 sm:pt-3">
           <p className="text-[10px] text-muted-foreground sm:text-xs">
@@ -277,10 +291,32 @@ export function ProductCard({ product: p, onConfigure }: ProductCardProps) {
   );
 }
 
-function StockLine({ state, count, label }: { state: string; count: number; label: string }) {
+function StockLine({
+  state,
+  count,
+  label,
+  emphasize,
+}: {
+  state: string;
+  count: number;
+  label: string;
+  emphasize?: boolean;
+}) {
   if (state === "untracked" || state === "made_to_order" || state === "in_stock") return null;
 
   if (state === "low_stock") {
+    // Deals-page emphasis is still driven by the same real stockCount as everywhere else — this
+    // only ever shows for products genuinely low on stock, never fabricated for effect.
+    if (emphasize) {
+      return (
+        <div className="mt-1 flex items-center gap-1.5 text-[10px] sm:text-[11px]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 font-semibold text-white shadow-sm">
+            <Flame className="h-3 w-3" />
+            {count > 0 ? `Only ${count.toLocaleString()} left — going fast` : label}
+          </span>
+        </div>
+      );
+    }
     return (
       <div className="mt-1 flex items-center gap-1.5 text-[10px] sm:text-[11px]">
         <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px font-medium text-amber-700">
@@ -294,6 +330,15 @@ function StockLine({ state, count, label }: { state: string; count: number; labe
   return (
     <p className="mt-1 text-[10px] text-muted-foreground/70 sm:text-[11px]">
       Out of stock — we can still fulfil your order.
+    </p>
+  );
+}
+
+function SaveBadge({ amount }: { amount: number }) {
+  if (!amount || amount <= 0) return null;
+  return (
+    <p className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-forest/10 px-1.5 py-px text-[11px] font-semibold text-forest">
+      Save KES {Math.round(amount).toLocaleString()}
     </p>
   );
 }

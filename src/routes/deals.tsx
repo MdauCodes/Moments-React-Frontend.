@@ -40,7 +40,8 @@ function DealsPage() {
         <h1 className="mt-2 font-display text-3xl font-medium text-foreground sm:text-4xl">Deals</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
           A mix of real markdowns and picks we're nudging you toward — every price shown is
-          exactly what you'll pay at checkout.
+          exactly what you'll pay at checkout. Stock-based, not a countdown — once it's gone,
+          it's gone.
         </p>
 
         <div className="mt-8 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
@@ -52,7 +53,7 @@ function DealsPage() {
               <p className="mt-2 text-sm text-muted-foreground">Check back soon — this page refreshes regularly.</p>
             </div>
           ) : (
-            products.map((p) => <ProductCard key={p.id} product={p} onConfigure={handleConfigure} />)
+            products.map((p) => <ProductCard key={p.id} product={p} onConfigure={handleConfigure} emphasizeDeal />)
           )}
         </div>
       </div>
