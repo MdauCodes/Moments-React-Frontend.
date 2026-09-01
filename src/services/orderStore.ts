@@ -529,19 +529,22 @@ export const orderStore = {
         // strict superset of the redacted unverified view — take it wholesale rather than
         // cherry-picking fields. A narrower merge here previously caused new fields (fulfillmentType,
         // tumabodaTrackingCode) to silently never propagate into an already-cached record.
+        //
+        // The unverified branch MUST NOT carry forward previously-cached PII/financial fields
+        // (customerEmail, customerPhone, shippingAddress, items, total, etc.) — this is a shared
+        // localStorage cache, not a per-person one. If this browser ever legitimately saw an
+        // order's full detail (this device's own checkout, or a real past OTP verify), a *later,
+        // different* person using the same browser could otherwise pull that same full detail
+        // back out via a bare reference-only lookup — no email, no OTP — completely defeating the
+        // OTP gate on shared/public/family devices. The fresh, correctly-redacted fields from this
+        // response (masked email, empty items, zero total, etc.) must always win; only tracking
+        // history (never sensitive) falls back to the cache if this response happened to omit it.
         all[idx] = order.verified
           ? { ...existing, ...order }
           : {
               ...existing,
-              status: order.status,
-              paymentStatus: order.paymentStatus,
+              ...order,
               trackingEvents: order.trackingEvents?.length ? order.trackingEvents : existing.trackingEvents,
-              customerEmail: existing.customerEmail || order.customerEmail,
-              customerPhone: existing.customerPhone || order.customerPhone,
-              shippingAddress: existing.shippingAddress || order.shippingAddress,
-              city: existing.city || order.city,
-              items: existing.items?.length ? existing.items : order.items,
-              total: order.total || existing.total,
             };
       } else {
         all.unshift(order);
