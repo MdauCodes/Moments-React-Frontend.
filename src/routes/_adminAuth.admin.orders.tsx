@@ -8,6 +8,7 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import {
   AgeBadge,
   DeliveryFeeStatusBadge,
+  HandDeliveryFeeBadge,
   FulfillmentBadge,
   GatewayChip,
   ORDER_STATUS_OPTIONS,
@@ -36,14 +37,19 @@ import { FULFILLMENT_MODE_KEYS, FULFILLMENT_MODES, stageSortIndex } from "@/lib/
 
 const PAGE_SIZE = 20;
 type Scope = "ALL" | "MINE" | "UNASSIGNED";
-type DeliveryTab = "ALL" | "COMPLETED" | "FAILED_DROPPED" | (typeof FULFILLMENT_MODE_KEYS)[number];
+type DeliveryTab = "ALL" | "HAND_DELIVERY" | "COMPLETED" | "FAILED_DROPPED" | (typeof FULFILLMENT_MODE_KEYS)[number];
 
-// "ALL"/"COMPLETED"/"FAILED_DROPPED" are cross-mode views, not fulfillment modes themselves, so
-// they stay hardcoded here; every actual mode tab comes from the registry — adding a future
-// provider there adds its tab here automatically, no edit needed in this file.
+// "ALL"/"HAND_DELIVERY"/"COMPLETED"/"FAILED_DROPPED" are cross-mode or sub-mode views, not
+// fulfillment-type modes themselves, so they stay hardcoded here; every actual mode tab comes
+// from the registry — adding a future provider there adds its tab here automatically, no edit
+// needed in this file. HAND_DELIVERY specifically is a courierType narrowing of MANUAL_DELIVERY
+// (Nairobi CBD, Moments' own team, always has a real checkout-time fee/free-threshold) — distinct
+// enough from every other Manual Delivery courier type (fee negotiated by phone, collected later)
+// that staff asked for it broken out as its own tab rather than buried inside "Manual Delivery."
 const DELIVERY_TABS: { value: DeliveryTab; label: string }[] = [
   { value: "ALL", label: "Active" },
   ...FULFILLMENT_MODE_KEYS.map((key) => ({ value: key, label: FULFILLMENT_MODES[key].label })),
+  { value: "HAND_DELIVERY", label: "CBD / Hand Delivery" },
   { value: "COMPLETED", label: "Completed" },
   { value: "FAILED_DROPPED", label: "Failed / Dropped" },
 ];
@@ -93,7 +99,11 @@ function applyClientFilters(list: OrderRecord[], p: ClientFilterParams): OrderRe
     } else if (p.deliveryTab === "COMPLETED") {
       if (!DONE_STATUSES.has(o.status)) return false;
     } else {
-      if (p.deliveryTab !== "ALL" && o.fulfillmentType !== p.deliveryTab) return false;
+      if (p.deliveryTab === "HAND_DELIVERY") {
+        if (o.fulfillmentType !== "MANUAL_DELIVERY" || o.courierType !== "HAND_DELIVERY") return false;
+      } else if (p.deliveryTab !== "ALL" && o.fulfillmentType !== p.deliveryTab) {
+        return false;
+      }
       // Every tab defaults to active orders only — see NON_SUCCESSFUL_STATUSES/DONE_STATUSES.
       // Skipped once either status filter is explicit: a failed-payment order sits at
       // status PENDING_PAYMENT (a payment failure never advances the order's own status), so
@@ -596,7 +606,12 @@ function AdminOrdersPage() {
                         <td style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "flex-start" }}>
                           <FulfillmentBadge fulfillmentType={o.fulfillmentType} />
                           {o.fulfillmentType === "MANUAL_DELIVERY" && (
-                            <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
+                            o.courierType === "HAND_DELIVERY"
+                              // Hand Delivery's fee is charged upfront with the rest of the order,
+                              // not collected later via STK like every other courier type here —
+                              // DeliveryFeeStatusBadge's "unpaid/STK sent" states don't apply to it.
+                              ? <HandDeliveryFeeBadge shippingFee={o.shippingFee} />
+                              : <DeliveryFeeStatusBadge status={o.deliveryFeeStatus ?? "UNPAID"} />
                           )}
                           {o.fulfillmentType === "TUMABODA_DELIVERY" && o.paymentStatus === "PAID" && !o.tumabodaDeliveryId && (
                             <span
