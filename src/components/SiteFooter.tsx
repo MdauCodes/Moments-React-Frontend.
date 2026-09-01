@@ -51,18 +51,6 @@ export function SiteFooter() {
             <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Contact Us
             </Link>
-            {/* Deliberately quieter than the links above (smaller, muted) — accessible to anyone
-             *  who looks, not a prominent CTA. Guest-only: account holders manage their data from
-             *  their own account settings instead. */}
-            <Link to="/manage-my-data" className="text-xs text-primary-foreground/60 hover:text-accent">
-              View or delete your data
-            </Link>
-            {/* Same quiet treatment — a clear but not bold path to actually START a refund/return
-             *  (find the eligible order in your history and click Request Refund there), distinct
-             *  from the "Refunds & Returns" policy explainer above. */}
-            <Link to="/account/orders" className="text-xs text-primary-foreground/60 hover:text-accent">
-              Request a refund or return
-            </Link>
           </nav>
         </div>
 
