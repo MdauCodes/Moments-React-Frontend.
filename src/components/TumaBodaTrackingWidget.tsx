@@ -7,16 +7,26 @@ import { getDeliveryPartner } from "@/data/deliveryPartners";
 // tracking map the recipient gets on the SMS" (30/07 conversation) — and the SMS itself links to
 // exactly this pattern: https://sandbox.tumaboda.co.ke/track/{code} (see e.g. order
 // ORD-2026-08-0005's "Fuatilia live" SMS). The previous <script>-injected <tumaboda-tracking>
-// web component was never confirmed against real docs and wasn't rendering anything. Swap
-// VITE_TUMABODA_TRACKING_BASE_URL to the production tracking host before go-live.
+// web component was never confirmed against real docs and wasn't rendering anything.
 //
 // Extracted from orders.track.tsx (2026-08-14) so the admin order detail drawer can reuse the
 // exact same widget — staff shouldn't need to ask the customer or guess at delivery progress
 // when the same live map is one click away. This does NOT depend on the still-unconfirmed
 // embed contract (signed/scoped token, required params) — it reuses the same public tracking-
 // code URL already proven working in real SMS messages, not a new/different embed mechanism.
+//
+// INTENTIONALLY DIFFERENT ON EACH BRANCH — do not merge this line between `main` and `staging`.
+// `main` points at TumaBoda's production tracking host, `staging` at their sandbox one. Found
+// 2026-09-01 that this had never actually been swapped for go-live (VITE_TUMABODA_TRACKING_
+// BASE_URL was never set on the production build, so it silently fell back to sandbox) —
+// confirmed the production host by the same sandbox-prefix-drop pattern already proven for the
+// backend's TUMABODA_BASE_URL (sandboxapi.->api.) and TumaBoda's own business portal
+// (sandboxbusiness.->business.), then verified live: https://tumaboda.co.ke/track/{code} is a
+// real tracking page (renders a proper "Delivery Not Found" state for an unknown code, not a
+// generic 404), with no X-Frame-Options/CSP blocking the iframe embed below.
+// The env var below still overrides this if one is ever set on the hosting platform.
 export const TUMABODA_TRACKING_BASE_URL =
-  import.meta.env.VITE_TUMABODA_TRACKING_BASE_URL || "https://sandbox.tumaboda.co.ke/track";
+  import.meta.env.VITE_TUMABODA_TRACKING_BASE_URL || "https://tumaboda.co.ke/track";
 
 // iframe onError only fires for network-level load failures (DNS, connection refused) — a
 // cross-origin page that loads fine but renders its own error content (a 404/500 page, an empty
