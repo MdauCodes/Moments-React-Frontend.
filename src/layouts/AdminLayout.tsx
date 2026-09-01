@@ -45,6 +45,7 @@ import {
   Layers,
   Undo2,
   Image,
+  Building2,
 } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -125,6 +126,7 @@ const navSections: NavSection[] = [
       { label: "All Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Pickup", to: "/admin/board/pickup", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+      { label: "CBD / Hand Delivery", to: "/admin/board/hand-delivery", icon: Building2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
       { label: "Delivery Settings", to: "/admin/delivery-settings", icon: MapPin, requiresAny: [PERM.SETTINGS_MANAGE] },

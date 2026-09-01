@@ -19,6 +19,15 @@ const SLUG_TO_MODE: Record<string, FulfillmentModeKey> = {
   tumaboda: "TUMABODA_DELIVERY",
 };
 
+// "CBD / Hand Delivery" isn't a real FulfillmentType — it's a courierType narrowing of
+// MANUAL_DELIVERY (Nairobi CBD, Moments' own team) — so it deliberately doesn't get its own
+// FulfillmentModeKey/FULFILLMENT_MODES entry (that registry, and everything keyed off it —
+// BOARD_COLUMNS, OrderDetailModal's panel selection — is for real fulfillment types). Hand
+// Delivery orders share the exact same ManualDeliveryOrderStatus lifecycle and admin panel as
+// every other Manual Delivery order, so this board reuses "MANUAL_DELIVERY" mode internally for
+// columns/status logic and only narrows which orders populate it.
+const HAND_DELIVERY_SLUG = "hand-delivery";
+
 const MODE_HELP: Record<FulfillmentModeKey, string> = {
   PICKUP:
     "Orders move left to right as staff act on them: start production once paid, mark ready once packed, mark picked up once the customer collects it. \"Awaiting payment\" orders don't need action — nothing to click until they pay.",
@@ -36,7 +45,8 @@ function FulfillmentBoardPage() {
     PERM.ORDER_MANAGE_ALL,
   ]);
   const { mode: modeSlug } = useParams<{ mode: string }>();
-  const mode = modeSlug ? SLUG_TO_MODE[modeSlug] : undefined;
+  const isHandDeliveryBoard = modeSlug === HAND_DELIVERY_SLUG;
+  const mode = isHandDeliveryBoard ? "MANUAL_DELIVERY" : modeSlug ? SLUG_TO_MODE[modeSlug] : undefined;
   const { orders, initialLoading, refresh, applyOrderPatch } = useAdminOrders();
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -65,6 +75,8 @@ function FulfillmentBoardPage() {
     setSearching(true);
     (async () => {
       try {
+        // Backend can only filter by fulfillmentType, not courierType — modeOrders below
+        // narrows to Hand Delivery specifically for both this and the cache-backed path.
         const res = await listOrders({ fulfillmentType: mode, q: debouncedQ, page: 0, size: 200 });
         if (gen === searchGen.current) setSearchResults(res.rows);
       } catch (err) {
@@ -78,10 +90,13 @@ function FulfillmentBoardPage() {
     })();
   }, [debouncedQ, mode]);
 
-  const modeOrders = useMemo(
-    () => (mode ? (searchResults ?? orders.filter((o) => o.fulfillmentType === mode)) : []),
-    [orders, mode, searchResults],
-  );
+  const modeOrders = useMemo(() => {
+    if (!mode) return [];
+    const base = searchResults ?? orders.filter((o) => o.fulfillmentType === mode);
+    return isHandDeliveryBoard
+      ? base.filter((o) => (o as OrderRecord & Record<string, any>).courierType === "HAND_DELIVERY")
+      : base;
+  }, [orders, mode, searchResults, isHandDeliveryBoard]);
 
   if (!allowed) return null;
   if (!mode) {
@@ -93,17 +108,23 @@ function FulfillmentBoardPage() {
   }
 
   const config = FULFILLMENT_MODES[mode];
+  const pageLabel = isHandDeliveryBoard ? "CBD / Hand Delivery" : config.label;
+  const helpText = isHandDeliveryBoard
+    ? "Same journey as Manual Delivery (start production, mark ready, mark out for delivery, " +
+      "mark completed) — this board just shows Nairobi CBD Hand Delivery orders on their own, " +
+      "since Moments' own team (not a phone-arranged courier) delivers these."
+    : MODE_HELP[mode];
 
   return (
-    <AdminLayout title={config.label} onReload={() => void refresh()}>
+    <AdminLayout title={pageLabel} onReload={() => void refresh()}>
       <div className="admin-page-stack">
         <HelpAnchor>
           <div className="admin-panel">
-            <HelpPanel title={`${config.label} board`}>
-              <p>{MODE_HELP[mode]}</p>
+            <HelpPanel title={`${pageLabel} board`}>
+              <p>{helpText}</p>
             </HelpPanel>
             <div className="admin-section-heading">
-              <span>{config.label}</span>
+              <span>{pageLabel}</span>
               <QueueFreshness />
             </div>
             <div style={{ padding: "0 10px 10px" }}>
