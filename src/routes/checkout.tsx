@@ -1188,16 +1188,26 @@ function CheckoutModal() {
 
   // UPFRONT TumaBoda: real quote gets added to the charge. POD: rider collects at the door, so
   // Moments never charges it here — deliberately zero regardless of quotePreview, matching the
-  // backend's own POD-vs-upfront split (CheckoutService.checkout).
+  // backend's own POD-vs-upfront split (CheckoutService.checkout). Hand Delivery is the one
+  // Manual Delivery courier type with a real, known-at-checkout fee (CheckoutService's own CBD
+  // geofence fee/free-threshold) — everywhere else under Manual Delivery, the fee really is
+  // agreed by phone after placement, so it correctly stays out of this total.
+  const isHandDelivery = fulfillment === "MANUAL_DELIVERY" && courierType === "HAND_DELIVERY";
   const shippingFee =
-    fulfillment === "TUMABODA_DELIVERY" && quotePreview?.mode === "UPFRONT" ? quotePreview.feeKes : 0;
+    fulfillment === "TUMABODA_DELIVERY" && quotePreview?.mode === "UPFRONT"
+      ? quotePreview.feeKes
+      : isHandDelivery && !qualifiesForFreeCbdDelivery
+        ? cbdHandDeliveryFeeKes
+        : 0;
   const total = cartTotal + shippingFee - (appliedPromo?.discount ?? 0) - (appliedRedemption?.discount ?? 0);
   const shippingLabel =
     fulfillment === "PICKUP"
       ? "Pickup at shop"
       : fulfillment === "TUMABODA_DELIVERY"
         ? "Fulfilled by TumaBoda"
-        : "Courier — to be confirmed";
+        : isHandDelivery
+          ? "Hand delivery by our own team"
+          : "Courier — to be confirmed";
   const shippingValue =
     fulfillment === "PICKUP"
       ? "Free"
@@ -1209,7 +1219,11 @@ function CheckoutModal() {
           : quoteChecking
             ? "Calculating…"
             : "Pending"
-        : "To be confirmed";
+        : isHandDelivery
+          ? qualifiesForFreeCbdDelivery
+            ? "Free"
+            : fmt(cbdHandDeliveryFeeKes)
+          : "To be confirmed";
 
   // paddingTop reserves room for LaunchBanner (z-[250], above this modal's z-[100]) — without it,
   // the banner overlapped this modal's own header ("Secure checkout") since a fixed full-screen
