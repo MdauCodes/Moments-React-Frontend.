@@ -302,9 +302,10 @@ export function getPrivacyPolicyContent() {
             <strong>Self-service, no email needed:</strong> if you have an account, you can view
             or delete your data from your account settings once logged in. If you ordered as a
             guest, sent us an enquiry, or joined our newsletter without creating an account, use{" "}
-            <Link to="/manage-my-data">View or delete your data</Link> (also linked in the site
-            footer) — enter your email, confirm a one-time code, and you can see what we hold and
-            request deletion directly, without needing to email us.
+            <Link to="/manage-my-data">View or delete your data</Link> — enter your email, confirm
+            a one-time code, and you can see what we hold and request deletion directly, without
+            needing to email us. To start a refund or return on an eligible order instead, see{" "}
+            <Link to="/account/orders">Request a refund or return</Link>.
           </p>
           <p>
             <strong>If we don&rsquo;t respond in time:</strong> a data deletion request that
@@ -381,6 +382,7 @@ export function getPrivacyPolicyContent() {
       { to: "/refunds", label: "Refund & Returns Policy" },
       { to: "/accessibility-policy", label: "Accessibility Policy" },
       { to: "/manage-my-data", label: "View or Delete Your Data" },
+      { to: "/account/orders", label: "Request a Refund or Return" },
     ],
   };
 }
