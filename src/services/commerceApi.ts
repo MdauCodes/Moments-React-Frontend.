@@ -194,6 +194,48 @@ export async function getOrder(id: string): Promise<{ order: OrderRecord | undef
   return { order: normalizeOrder(raw), source: "live" };
 }
 
+// POST /api/v1/admin/orders — staff placing a phone-in order on a customer's behalf. Routes
+// through the same CheckoutService the public checkout page uses (pricing, stock, fulfillment
+// validation all identical), so this mirrors CheckoutRequest almost field-for-field. The created
+// order lands in PENDING_PAYMENT exactly like a normal order — payment is collected afterward
+// from the order detail page (STK push, or record a manual Till/Cash/bank payment), same as any
+// other order.
+export interface CreateOrderItem {
+  productId: string;
+  quantity: number;
+  size?: string;
+  material?: string;
+  finish?: string;
+}
+
+export interface CreateOrderParams {
+  customerId?: string; // attach to an existing customer's account instead of a guest order
+  contactName: string;
+  email: string;
+  phone: string;
+  deliveryAddress?: string;
+  city?: string;
+  county?: string;
+  notes?: string;
+  paymentMethod: PaymentGateway;
+  fulfillmentType: "PICKUP" | "MANUAL_DELIVERY";
+  courierType?: string;
+  courierServiceName?: string;
+  courierStageOrOffice?: string;
+  collectorName?: string;
+  items: CreateOrderItem[];
+}
+
+export async function createOrder(params: CreateOrderParams): Promise<{ order: OrderRecord; source: Source }> {
+  const res = await adminFetch("/api/v1/admin/orders", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw await res.json().then((data) => new ApiError({ status: res.status, ...data })).catch(() => new ApiError({ status: res.status, message: res.statusText }));
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
 // Backend PATCH /api/v1/admin/orders/{id}/status
 // Body: { status: OrderStatus, staffNotes?: string, receiptReference?: string }
 export async function updateOrderStatus(
