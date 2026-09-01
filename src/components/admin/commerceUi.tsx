@@ -225,6 +225,33 @@ export function DeliveryFeeStatusBadge({ status }: { status: string | null | und
   );
 }
 
+/** Hand Delivery (Nairobi CBD, Manual Delivery's one courier type with a real checkout-time fee)
+ *  is paid upfront as part of the order's own M-Pesa charge, not collected later like every other
+ *  Manual Delivery courier type — DeliveryFeeStatusBadge's "unpaid/STK sent" states don't apply to
+ *  it and would misleadingly suggest a fee still needs collecting. shippingFee is the order's own
+ *  stored, checkout-time-resolved amount (server-computed, not re-derived from the current free-
+ *  delivery threshold setting), so it stays accurate even if that setting changes later. */
+export function HandDeliveryFeeBadge({ shippingFee }: { shippingFee: number }) {
+  const isFree = shippingFee === 0;
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "2px 7px",
+        borderRadius: 6,
+        fontSize: 10,
+        fontWeight: 600,
+        background: isFree ? "rgba(34, 197, 94, 0.15)" : "rgba(59, 130, 246, 0.15)",
+        color: isFree ? "#15803d" : "#1d4ed8",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {isFree ? "Free delivery" : `Paid ${formatKes(shippingFee)}`}
+    </span>
+  );
+}
+
 export function GatewayChip({ gateway }: { gateway: PaymentGateway }) {
   const label = GATEWAY_LABEL[gateway] ?? gateway;
   return (
