@@ -16,12 +16,15 @@ import type { CourierType } from "@/services/orderStore";
 
 type PhoneFulfillment = "PICKUP" | "MANUAL_DELIVERY";
 
+// HAND_DELIVERY deliberately excluded — CheckoutService requires a real dropoffLat/dropoffLng
+// inside the Nairobi CBD geofence for that courier type specifically, which this form (no map
+// pin, same reason TumaBoda is excluded below) never collects. Selecting it would fail every
+// submission with "Hand delivery is only available for addresses inside Nairobi CBD."
 const COURIER_TYPES: { value: CourierType; label: string }[] = [
   { value: "MATATU", label: "Matatu" },
   { value: "PARCEL_SERVICE", label: "Parcel service" },
   { value: "BOLT_SEND", label: "Bolt Send" },
   { value: "RIDER", label: "Rider" },
-  { value: "HAND_DELIVERY", label: "Hand delivery (Nairobi CBD only)" },
   { value: "OTHER", label: "Other" },
 ];
 
