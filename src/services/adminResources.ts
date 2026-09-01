@@ -175,6 +175,10 @@ export type AuditLogEntry = {
   /** JSON string from backend describing field changes. */
   changes?: string;
   ipAddress?: string;
+  /** Best-effort "City, Country" resolved from ipAddress. */
+  locationLabel?: string;
+  /** Which admin page/section the action was performed from (frontend route pathname). */
+  sourcePage?: string;
   createdAt?: string;
 };
 

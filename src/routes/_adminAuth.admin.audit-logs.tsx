@@ -124,12 +124,12 @@ function AdminAuditLogsPage() {
           <table className="admin-table">
             <thead>
               <tr>
-                <th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>IP</th><th>Reason</th><th></th>
+                <th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>From page</th><th>IP / Location</th><th>Reason</th><th></th>
               </tr>
             </thead>
             <tbody>
-              {loading ? <tr><td colSpan={7}>Loading…</td></tr>
-                : rows.length === 0 ? <tr><td colSpan={7}><div className="admin-empty">No audit entries match.</div></td></tr>
+              {loading ? <tr><td colSpan={8}>Loading…</td></tr>
+                : rows.length === 0 ? <tr><td colSpan={8}><div className="admin-empty">No audit entries match.</div></td></tr>
                 : rows.map((e) => (
                   <Fragment key={e.id}>
                     <tr>
@@ -137,7 +137,8 @@ function AdminAuditLogsPage() {
                       <td>{e.actorName ?? e.actorEmail ?? "—"}<div style={{ fontSize: 10, color: "var(--admin-muted)" }}>{e.actorEmail}</div></td>
                       <td><span className="admin-badge admin-badge-muted">{e.action ?? "—"}</span></td>
                       <td>{e.entityType ?? "—"}<div style={{ fontSize: 10, color: "var(--admin-muted)" }}>{e.entityLabel ?? e.entityId}</div></td>
-                      <td style={{ fontSize: 11 }}>{e.ipAddress ?? "—"}</td>
+                      <td style={{ fontSize: 11 }}>{e.sourcePage ?? "—"}</td>
+                      <td style={{ fontSize: 11 }}>{e.ipAddress ?? "—"}<div style={{ fontSize: 10, color: "var(--admin-muted)" }}>{e.locationLabel ?? ""}</div></td>
                       <td style={{ fontSize: 11 }}>{e.reason ?? "—"}</td>
                       <td>
                         <button className="admin-btn admin-btn-ghost" onClick={() => setExpanded(expanded === e.id ? null : e.id)}>
@@ -147,7 +148,7 @@ function AdminAuditLogsPage() {
                     </tr>
                     {expanded === e.id && (
                       <tr>
-                        <td colSpan={7} style={{ background: "var(--admin-bg)" }}>
+                        <td colSpan={8} style={{ background: "var(--admin-bg)" }}>
                           <ChangesDisplay changes={e.changes} />
                         </td>
                       </tr>
