@@ -183,6 +183,98 @@ function HomeNav() {
   );
 }
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  useEffect(() => {
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = () => setReduced(mql.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return reduced;
+}
+
+// ── Rotating hero tagline ──
+// The finishing line fades fully to invisible (clean exit — never a simultaneous crossfade;
+// two overlapping strings mid-transition read as broken/flickery, unlike two overlapping
+// photos), then the next line types in character by character with a blinking cursor, then
+// holds fully readable. Only ever one line on screen, so the typing reveal never collides
+// with anything fading out underneath it.
+const HERO_TAGLINES = [
+  "Quality Packaging that Matters",
+  "Anything Packaging, tafuta sisi",
+  "Quality You'll Love. Utafurahia",
+];
+const HERO_TAGLINE_HOLD_MS = 4200;
+const HERO_TAGLINE_FADE_OUT_MS = 380;
+const HERO_TAGLINE_TYPE_MS = 42;
+
+function RotatingTagline() {
+  const [display, setDisplay] = useState(HERO_TAGLINES[0]);
+  const [opacity, setOpacity] = useState(1);
+  const [typing, setTyping] = useState(false);
+  const reducedMotion = usePrefersReducedMotion();
+
+  useEffect(() => {
+    if (reducedMotion) return; // stays on the first tagline, fully typed, no animation
+
+    let cancelled = false;
+    const timers: number[] = [];
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => {
+        timers.push(window.setTimeout(resolve, ms));
+      });
+
+    async function run() {
+      let taglineIndex = 0;
+      // The first tagline is already shown fully typed (initial state) — hold it, then start
+      // the fade-out/type-in cycle from the second tagline onward.
+      await wait(HERO_TAGLINE_HOLD_MS);
+      while (!cancelled) {
+        taglineIndex = (taglineIndex + 1) % HERO_TAGLINES.length;
+        const text = HERO_TAGLINES[taglineIndex];
+
+        setOpacity(0);
+        await wait(HERO_TAGLINE_FADE_OUT_MS);
+        if (cancelled) return;
+
+        setDisplay("");
+        setOpacity(1);
+        setTyping(true);
+        for (let i = 1; i <= text.length; i++) {
+          if (cancelled) return;
+          setDisplay(text.slice(0, i));
+          await wait(HERO_TAGLINE_TYPE_MS);
+        }
+        setTyping(false);
+
+        await wait(HERO_TAGLINE_HOLD_MS);
+      }
+    }
+
+    void run();
+    return () => {
+      cancelled = true;
+      timers.forEach(window.clearTimeout);
+    };
+  }, [reducedMotion]);
+
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        opacity,
+        transition: reducedMotion ? "none" : `opacity ${HERO_TAGLINE_FADE_OUT_MS}ms ease`,
+      }}
+    >
+      {display}
+      {typing && !reducedMotion && <span className="mpk-hero-cursor">|</span>}
+    </span>
+  );
+}
+
 // ── Hero ──
 function Hero() {
   const { openRegister } = useAuthModal();
@@ -202,6 +294,14 @@ function Hero() {
         .mpk-hero-img-a { animation: mpk-hero-a 21s ease-in-out infinite; }
         .mpk-hero-img-b { animation: mpk-hero-b 21s ease-in-out infinite; }
         .mpk-hero-img-c { animation: mpk-hero-c 21s ease-in-out infinite; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .mpk-hero-img-a, .mpk-hero-img-b, .mpk-hero-img-c { animation: none !important; }
+          .mpk-hero-img-a { opacity: 1 !important; }
+          .mpk-hero-img-b, .mpk-hero-img-c { opacity: 0 !important; }
+        }
+        @keyframes mpk-cursor-blink { 0%, 45% { opacity: 1; } 50%, 100% { opacity: 0; } }
+        .mpk-hero-cursor { animation: mpk-cursor-blink 1s steps(1) infinite; margin-left: 1px; }
         @keyframes mpk-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .mpk-marquee-track { animation: mpk-marquee 18s linear infinite; }
         @media (max-width: 767px) { .mpk-hero-section { min-height: 760px !important; } }
@@ -402,7 +502,7 @@ function Hero() {
               <br />
               Kenyan Businesses —<br />
               <em className="italic" style={{ color: "#e8c878" }}>
-                Quality You'll Love. Utafurahia
+                <RotatingTagline />
               </em>
             </h1>
             <p
