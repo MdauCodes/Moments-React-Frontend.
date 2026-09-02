@@ -12,7 +12,7 @@ import {
   type ProductImageGenerationBudgetDto,
 } from "@/services/adminResources";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
-import { resolveStaffRole } from "@/lib/roles";
+import { resolveStaffRole, STAFF_ROLE_RANK } from "@/lib/roles";
 
 function fmtUsd(n: number) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 }).format(n);
@@ -166,7 +166,10 @@ function ProductPicker({ selected, onSelect }: { selected: ProductDto | null; on
 
 function AdminProductImagesPage() {
   const { user } = useAdminAuth();
-  const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
+  // ADMIN or SUPER_ADMIN — opened up from super-admin-only per explicit request, but still
+  // excludes plain STAFF given this triggers real spend (run) or destroys data (delete).
+  const staffRole = resolveStaffRole(user);
+  const canAccess = !!staffRole && STAFF_ROLE_RANK[staffRole] <= STAFF_ROLE_RANK.ADMIN;
 
   const [candidateCount, setCandidateCount] = useState<number | null>(null);
   const [budget, setBudget] = useState<ProductImageGenerationBudgetDto | null>(null);
@@ -206,19 +209,19 @@ function AdminProductImagesPage() {
   }
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canAccess) return;
     void refresh();
-  }, [isSuperAdmin]);
+  }, [canAccess]);
 
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!canAccess) return;
     const hasRunning = batches.some((b) => RUNNING_STATUSES.has(b.status));
     if (!hasRunning) return;
     const id = setInterval(() => void refresh(), 4000);
     return () => clearInterval(id);
-  }, [isSuperAdmin, batches]);
+  }, [canAccess, batches]);
 
-  if (!isSuperAdmin) return <AdminLayout title="Product Images (AI)"><Forbidden resource="Product Images (AI)" /></AdminLayout>;
+  if (!canAccess) return <AdminLayout title="Product Images (AI)"><Forbidden resource="Product Images (AI)" /></AdminLayout>;
 
   const hasRunning = batches.some((b) => RUNNING_STATUSES.has(b.status));
 

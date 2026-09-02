@@ -51,7 +51,7 @@ import {
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { hasAnyPerm, PERM, type PermissionCode } from "@/lib/permissions";
 import { RoleBadge } from "@/components/admin/RoleBadge";
-import { resolveStaffRole, STAFF_ROLE_DISPLAY } from "@/lib/roles";
+import { resolveStaffRole, STAFF_ROLE_DISPLAY, STAFF_ROLE_RANK } from "@/lib/roles";
 import { OnboardingTour } from "@/components/admin/OnboardingTour";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
@@ -102,6 +102,10 @@ interface NavItem {
   disabledNote?: string;
   /** Item is only ever visible to the Super Admin staff role, regardless of permissions. */
   superAdminOnly?: boolean;
+  /** Item is visible to ADMIN and SUPER_ADMIN, but not lower staff ranks, regardless of
+   *  permissions — for actions with real financial/data-destructive consequences that are still
+   *  meant for more than just the super admin. */
+  adminOnly?: boolean;
 }
 
 interface NavSection {
@@ -211,7 +215,7 @@ const navSections: NavSection[] = [
     label: "Developer",
     items: [
       { label: "Developer", to: "/admin/developer", icon: Wrench, superAdminOnly: true },
-      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, superAdminOnly: true },
+      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, adminOnly: true },
     ],
   },
 ];
@@ -649,6 +653,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           {navSections.map((section, sectionIdx) => {
             const visible = section.items.filter((item) => {
               if (item.superAdminOnly) return staffRole === "SUPER_ADMIN";
+              if (item.adminOnly) return !!staffRole && STAFF_ROLE_RANK[staffRole] <= STAFF_ROLE_RANK.ADMIN;
               if (!item.requiresAny) return true;
               if (hasAnyPerm(permissions, item.requiresAny)) return true;
               // SUPER_ADMIN sees audit logs even without explicit AUDIT_VIEW perm.
