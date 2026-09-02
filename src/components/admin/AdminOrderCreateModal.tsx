@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Smartphone, CheckCircle2, XCircle, X as XIcon } from "lucide-react";
+import { Loader2, Smartphone, CheckCircle2, XCircle, X as XIcon, PackageCheck, Truck } from "lucide-react";
 import { toast } from "sonner";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,6 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatKes } from "@/components/admin/commerceUi";
 import { reportAdminError } from "@/lib/adminErrorToast";
+import { apiUrl } from "@/config/api";
+import { useSiteConfig } from "@/contexts/SiteConfigContext";
+import { isWithinNairobiCbd } from "@/lib/nairobiCbd";
+import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
 import {
   listCustomers,
   createOrder,
@@ -19,10 +23,9 @@ import type { CustomerRecord, OrderRecord } from "@/services/commerceMock";
 import { adminResources, type ProductDto } from "@/services/adminResources";
 import type { CourierType } from "@/services/orderStore";
 
-// HAND_DELIVERY deliberately excluded — CheckoutService requires a real dropoffLat/dropoffLng
-// inside the Nairobi CBD geofence for that courier type specifically, which this form (no map
-// pin, same reason TumaBoda is excluded below) never collects. Selecting it would fail every
-// submission with "Hand delivery is only available for addresses inside Nairobi CBD."
+// HAND_DELIVERY excluded from this list — it's offered as its own "Courier" card once an address
+// resolves inside the Nairobi CBD geofence (see the Courier section below), not as a generic
+// courier-type pick, since it needs the same real map pin TumaBoda does.
 const COURIER_TYPES: { value: CourierType; label: string }[] = [
   { value: "MATATU", label: "Matatu" },
   { value: "PARCEL_SERVICE", label: "Parcel service" },
@@ -31,7 +34,11 @@ const COURIER_TYPES: { value: CourierType; label: string }[] = [
   { value: "OTHER", label: "Other" },
 ];
 
-type PhoneFulfillment = "PICKUP" | "MANUAL_DELIVERY";
+// UI-level choice — "COURIER" resolves to either TUMABODA_DELIVERY or MANUAL_DELIVERY+HAND_DELIVERY
+// at submit time, depending on which the staff member (or geofence) settles on. Neither backend
+// FulfillmentType alone captures "courier, resolution pending", so this stays a separate local type.
+type TopChoice = "PICKUP" | "MANUAL_DELIVERY" | "COURIER";
+type CourierChoice = "TUMABODA" | "HAND_DELIVERY" | null;
 type PayState = "form" | "sending" | "waiting" | "success" | "failed" | "timeout";
 
 // Same cadence as the real customer checkout's STK flow (checkout.tsx) — one proven pattern for
@@ -69,6 +76,11 @@ interface Props {
  * send + poll-for-outcome logic mirrors the real customer checkout's own flow (same constants,
  * same states) rather than being a second implementation: sending → waiting → success, or
  * failed/timeout with a retry that resends STK against the SAME order (never creates a duplicate).
+ *
+ * Delivery covers all three real modes: Pickup, Manual Delivery (any courier), and Courier
+ * (TumaBoda / Hand Delivery) — the last reuses the exact same address-autocomplete, coverage
+ * check, and live-quote flow the real customer checkout uses, so a phone order gets the same real
+ * fee a customer would see, not a guess.
  */
 export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
   const [payState, setPayState] = useState<PayState>("form");
@@ -76,6 +88,7 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showResend, setShowResend] = useState(false);
   const timersRef = useRef<{ poll?: ReturnType<typeof setTimeout>; timeout?: ReturnType<typeof setTimeout>; resend?: ReturnType<typeof setTimeout> }>({});
+  const { cbdHandDeliveryFeeKes, cbdFreeDeliveryThresholdKes } = useSiteConfig();
 
   // ── Customer ──
   const [customerMode, setCustomerMode] = useState<"guest" | "existing">("guest");
@@ -86,8 +99,8 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
 
-  // ── Delivery ──
-  const [fulfillmentType, setFulfillmentType] = useState<PhoneFulfillment>("MANUAL_DELIVERY");
+  // ── Delivery: Pickup / Manual ──
+  const [topChoice, setTopChoice] = useState<TopChoice>("MANUAL_DELIVERY");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [city, setCity] = useState("");
   const [county, setCounty] = useState("");
@@ -95,6 +108,18 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
   const [courierServiceName, setCourierServiceName] = useState("");
   const [courierStageOrOffice, setCourierStageOrOffice] = useState("");
   const [collectorName, setCollectorName] = useState("");
+
+  // ── Delivery: Courier (TumaBoda / Hand Delivery) ──
+  const [courierAddressText, setCourierAddressText] = useState("");
+  const [resolvedAddress, setResolvedAddress] = useState<ResolvedAddress | null>(null);
+  const [landmarkDetail, setLandmarkDetail] = useState("");
+  const [tumabodaContactPhone, setTumabodaContactPhone] = useState("");
+  const [courierChoice, setCourierChoice] = useState<CourierChoice>(null);
+  const [covered, setCovered] = useState<boolean | null>(null);
+  const [coverageChecking, setCoverageChecking] = useState(false);
+  const [quotePreview, setQuotePreview] = useState<{ mode: string; feeKes: number } | null>(null);
+  const [quoteChecking, setQuoteChecking] = useState(false);
+  const [quoteUnavailable, setQuoteUnavailable] = useState(false);
 
   // ── Items ──
   const [productQuery, setProductQuery] = useState("");
@@ -107,6 +132,15 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
     () => items.reduce((sum, it) => sum + (it.basePrice ?? 0) * it.quantity, 0),
     [items],
   );
+
+  const isCbd =
+    resolvedAddress?.latitude != null && resolvedAddress?.longitude != null
+      ? isWithinNairobiCbd(resolvedAddress.latitude, resolvedAddress.longitude)
+      : false;
+  const qualifiesForFreeCbdDelivery = estimatedTotal >= cbdFreeDeliveryThresholdKes;
+  const cbdHandDeliveryLabel = qualifiesForFreeCbdDelivery
+    ? `Free — order already qualifies (${formatKes(cbdFreeDeliveryThresholdKes)}+)`
+    : `${formatKes(cbdHandDeliveryFeeKes)}, or free on orders of ${formatKes(cbdFreeDeliveryThresholdKes)}+`;
 
   function clearAllTimers() {
     Object.values(timersRef.current).forEach((t) => t && clearTimeout(t));
@@ -126,7 +160,7 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
     setContactName("");
     setEmail("");
     setPhone("");
-    setFulfillmentType("MANUAL_DELIVERY");
+    setTopChoice("MANUAL_DELIVERY");
     setDeliveryAddress("");
     setCity("");
     setCounty("");
@@ -134,6 +168,14 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
     setCourierServiceName("");
     setCourierStageOrOffice("");
     setCollectorName("");
+    setCourierAddressText("");
+    setResolvedAddress(null);
+    setLandmarkDetail("");
+    setTumabodaContactPhone("");
+    setCourierChoice(null);
+    setCovered(null);
+    setQuotePreview(null);
+    setQuoteUnavailable(false);
     setProductQuery("");
     setProductResults([]);
     setItems([]);
@@ -145,6 +187,82 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
     return () => clearAllTimers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  // Coverage-by-county check — same endpoint/shape checkout.tsx uses. Resets courierChoice
+  // whenever the resolved address changes so a stale choice from a previous address never
+  // silently carries over to a new one.
+  useEffect(() => {
+    setCourierChoice(null);
+    setQuotePreview(null);
+    setQuoteUnavailable(false);
+    if (topChoice !== "COURIER" || !resolvedAddress?.county) {
+      setCovered(null);
+      return;
+    }
+    let cancelled = false;
+    setCoverageChecking(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl(`/api/v1/public/delivery-coverage?county=${encodeURIComponent(resolvedAddress.county!)}`));
+        if (cancelled) return;
+        const data = await res.json();
+        setCovered(!!data.covered);
+      } catch {
+        if (!cancelled) setCovered(null);
+      } finally {
+        if (!cancelled) setCoverageChecking(false);
+      }
+    }, 300);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topChoice, resolvedAddress]);
+
+  // Live TumaBoda quote — same endpoint/body shape checkout.tsx uses, fired once the staff member
+  // (or, outside the CBD Hand Delivery choice, the coverage check itself) resolves on TumaBoda.
+  useEffect(() => {
+    const wantsTumaboda = courierChoice === "TUMABODA" || (covered === true && !isCbd);
+    if (topChoice !== "COURIER" || !wantsTumaboda || !resolvedAddress || !contactName.trim() || estimatedTotal <= 0) {
+      setQuotePreview(null);
+      return;
+    }
+    let cancelled = false;
+    setQuoteChecking(true);
+    setQuoteUnavailable(false);
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(apiUrl("/api/v1/public/tumaboda/quote"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            lat: resolvedAddress.latitude,
+            lng: resolvedAddress.longitude,
+            subtotal: estimatedTotal,
+            contactName: contactName.trim(),
+            location: resolvedAddress.description ?? "",
+          }),
+        });
+        if (cancelled) return;
+        const data = await res.json();
+        if (data.available) {
+          setQuotePreview({ mode: data.mode, feeKes: Number(data.customerFacingFeeKes) });
+          setQuoteUnavailable(false);
+          if (!isCbd) setCourierChoice("TUMABODA");
+        } else {
+          setQuotePreview(null);
+          setQuoteUnavailable(true);
+          toast.error(data.message || "TumaBoda isn't available for this address right now.");
+        }
+      } catch {
+        if (cancelled) return;
+        setQuotePreview(null);
+        setQuoteUnavailable(true);
+      } finally {
+        if (!cancelled) setQuoteChecking(false);
+      }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topChoice, courierChoice, covered, isCbd, resolvedAddress, estimatedTotal, contactName]);
 
   async function searchCustomers(q: string) {
     setCustomerQuery(q);
@@ -258,7 +376,7 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
       toast.error("Add at least one item");
       return;
     }
-    if (fulfillmentType === "MANUAL_DELIVERY") {
+    if (topChoice === "MANUAL_DELIVERY") {
       if (!courierType && !courierServiceName.trim()) {
         toast.error("Select a courier service for delivery");
         return;
@@ -272,25 +390,55 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
         return;
       }
     }
+    if (topChoice === "COURIER") {
+      if (!resolvedAddress || resolvedAddress.latitude == null || resolvedAddress.longitude == null) {
+        toast.error("Search and select a real address for courier delivery");
+        return;
+      }
+      if (!courierChoice) {
+        toast.error("Choose Hand Delivery or TumaBoda for this address");
+        return;
+      }
+      if (courierChoice === "TUMABODA" && !tumabodaContactPhone.trim()) {
+        toast.error("A phone number for TumaBoda to contact the customer on is required");
+        return;
+      }
+      if (courierChoice === "HAND_DELIVERY" && collectorName.trim().split(/\s+/).filter(Boolean).length < 2) {
+        toast.error("Enter the collector's full name (first and last)");
+        return;
+      }
+    }
 
     setSubmitting(true);
     setPayState("sending");
     try {
+      const isTumaboda = topChoice === "COURIER" && courierChoice === "TUMABODA";
+      const isHandDelivery = topChoice === "COURIER" && courierChoice === "HAND_DELIVERY";
       const params: CreateOrderParams = {
         customerId: customerMode === "existing" ? selectedCustomer?.id : undefined,
         contactName: contactName.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        deliveryAddress: fulfillmentType === "PICKUP" ? undefined : deliveryAddress.trim(),
-        city: fulfillmentType === "PICKUP" ? undefined : city.trim(),
-        county: fulfillmentType === "PICKUP" ? undefined : county.trim(),
         notes: notes.trim() || undefined,
         paymentMethod: "MPESA",
-        fulfillmentType,
-        courierType: fulfillmentType === "MANUAL_DELIVERY" ? courierType || undefined : undefined,
-        courierServiceName: fulfillmentType === "MANUAL_DELIVERY" ? courierServiceName.trim() || undefined : undefined,
-        courierStageOrOffice: fulfillmentType === "MANUAL_DELIVERY" ? courierStageOrOffice.trim() || undefined : undefined,
-        collectorName: fulfillmentType === "MANUAL_DELIVERY" ? collectorName.trim() || undefined : undefined,
+        fulfillmentType: isTumaboda ? "TUMABODA_DELIVERY" : topChoice === "COURIER" ? "MANUAL_DELIVERY" : topChoice,
+        deliveryAddress: topChoice === "PICKUP" ? undefined
+          : topChoice === "COURIER" ? resolvedAddress?.description : deliveryAddress.trim(),
+        city: topChoice === "PICKUP" ? undefined
+          : topChoice === "COURIER" ? resolvedAddress?.description.split(",")[0]?.trim() : city.trim(),
+        county: topChoice === "PICKUP" ? undefined
+          : topChoice === "COURIER" ? resolvedAddress?.county ?? undefined : county.trim(),
+        courierType: topChoice === "MANUAL_DELIVERY" ? courierType || undefined
+          : isHandDelivery ? "HAND_DELIVERY" : undefined,
+        courierServiceName: topChoice === "MANUAL_DELIVERY" ? courierServiceName.trim() || undefined
+          : isHandDelivery ? "Moments Packaging (in-house)" : undefined,
+        courierStageOrOffice: topChoice === "MANUAL_DELIVERY" ? courierStageOrOffice.trim() || undefined : undefined,
+        collectorName: topChoice === "MANUAL_DELIVERY" ? collectorName.trim() || undefined
+          : isHandDelivery ? collectorName.trim() || undefined : undefined,
+        dropoffLat: (isTumaboda || isHandDelivery) ? resolvedAddress?.latitude ?? undefined : undefined,
+        dropoffLng: (isTumaboda || isHandDelivery) ? resolvedAddress?.longitude ?? undefined : undefined,
+        landmarkDetail: (isTumaboda || isHandDelivery) ? landmarkDetail.trim() || undefined : undefined,
+        tumabodaContactPhone: isTumaboda ? tumabodaContactPhone.trim() || undefined : undefined,
         items: items.map(({ productId, quantity, size, material, finish }) => ({
           productId, quantity, size: size || undefined, material: material || undefined, finish: finish || undefined,
         })),
@@ -426,15 +574,17 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
             </Section>
 
             <Section title="Delivery">
-              <div className="flex gap-1.5 pb-2">
-                <Button type="button" size="sm" variant={fulfillmentType === "PICKUP" ? "default" : "outline"} onClick={() => setFulfillmentType("PICKUP")}>Pickup</Button>
-                <Button type="button" size="sm" variant={fulfillmentType === "MANUAL_DELIVERY" ? "default" : "outline"} onClick={() => setFulfillmentType("MANUAL_DELIVERY")}>Manual delivery</Button>
+              <div className="flex gap-1.5 pb-2 flex-wrap">
+                <Button type="button" size="sm" variant={topChoice === "PICKUP" ? "default" : "outline"} onClick={() => setTopChoice("PICKUP")}>Pickup</Button>
+                <Button type="button" size="sm" variant={topChoice === "MANUAL_DELIVERY" ? "default" : "outline"} onClick={() => setTopChoice("MANUAL_DELIVERY")}>Manual delivery</Button>
+                <Button type="button" size="sm" variant={topChoice === "COURIER" ? "default" : "outline"} onClick={() => setTopChoice("COURIER")}>Courier (TumaBoda)</Button>
               </div>
-              {fulfillmentType === "PICKUP" ? (
-                <p className="text-xs text-muted-foreground">
-                  TumaBoda isn't offered here — it needs a live map pin. Use Manual Delivery for a phone order.
-                </p>
-              ) : (
+
+              {topChoice === "PICKUP" && (
+                <p className="text-xs text-muted-foreground">Customer collects in person — no address needed.</p>
+              )}
+
+              {topChoice === "MANUAL_DELIVERY" && (
                 <div className="space-y-2">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Input placeholder="Delivery address" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} />
@@ -452,6 +602,88 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
                     <Input placeholder="County" value={county} onChange={(e) => setCounty(e.target.value)} />
                   </div>
                   <Input placeholder="Collector's full name (checked at destination)" value={collectorName} onChange={(e) => setCollectorName(e.target.value)} />
+                </div>
+              )}
+
+              {topChoice === "COURIER" && (
+                <div className="space-y-2">
+                  <AddressAutocompleteInput
+                    value={courierAddressText}
+                    onChange={setCourierAddressText}
+                    onSelect={(addr) => { setResolvedAddress(addr); setCourierAddressText(addr.description); }}
+                    placeholder="Search the delivery address…"
+                    className="text-sm py-2"
+                  />
+
+                  {resolvedAddress && resolvedAddress.latitude == null && (
+                    <p className="text-xs text-amber-600">
+                      That address didn't resolve to a map pin — pick a different suggestion, or use Manual Delivery instead.
+                    </p>
+                  )}
+
+                  {resolvedAddress?.latitude != null && (
+                    <>
+                      {coverageChecking && <p className="text-xs text-muted-foreground">Checking delivery options for this address…</p>}
+
+                      {isCbd && covered !== false && (
+                        <button
+                          type="button"
+                          onClick={() => setCourierChoice("HAND_DELIVERY")}
+                          className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                            courierChoice === "HAND_DELIVERY" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <PackageCheck className="h-4 w-4 shrink-0 text-primary" />
+                            <span>
+                              <span className="block font-medium">Hand delivery — our own team</span>
+                              <span className="block text-xs text-muted-foreground">{cbdHandDeliveryLabel}</span>
+                            </span>
+                          </span>
+                        </button>
+                      )}
+
+                      {covered === true && (
+                        <button
+                          type="button"
+                          onClick={() => setCourierChoice("TUMABODA")}
+                          className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                            courierChoice === "TUMABODA" ? "border-primary bg-primary/5" : "border-border hover:bg-accent"
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Truck className="h-4 w-4 shrink-0 text-primary" />
+                            <span>
+                              <span className="block font-medium">TumaBoda</span>
+                              <span className="block text-xs text-muted-foreground">
+                                {quoteChecking ? "Getting a quote…"
+                                  : quotePreview ? (quotePreview.mode === "POD" ? `${formatKes(quotePreview.feeKes)} on delivery` : `${formatKes(quotePreview.feeKes)}, charged with the order`)
+                                    : quoteUnavailable ? "Quote unavailable right now" : "Tap to get a quote"}
+                              </span>
+                            </span>
+                          </span>
+                        </button>
+                      )}
+
+                      {covered === false && (
+                        <p className="text-xs text-muted-foreground">
+                          TumaBoda doesn't cover this county. {isCbd ? "Hand Delivery is still available above." : "Use Manual Delivery instead."}
+                        </p>
+                      )}
+
+                      {courierChoice && (
+                        <div className="space-y-2 pt-1">
+                          <Input placeholder="Landmark / building detail (optional)" value={landmarkDetail} onChange={(e) => setLandmarkDetail(e.target.value)} />
+                          {courierChoice === "TUMABODA" && (
+                            <Input placeholder="Phone for TumaBoda to contact (rider SMS)" value={tumabodaContactPhone} onChange={(e) => setTumabodaContactPhone(e.target.value)} />
+                          )}
+                          {courierChoice === "HAND_DELIVERY" && (
+                            <Input placeholder="Collector's full name (checked at the door)" value={collectorName} onChange={(e) => setCollectorName(e.target.value)} />
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </Section>

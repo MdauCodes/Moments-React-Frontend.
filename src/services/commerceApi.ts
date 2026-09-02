@@ -219,11 +219,17 @@ export interface CreateOrderParams {
   county?: string;
   notes?: string;
   paymentMethod: PaymentGateway;
-  fulfillmentType: "PICKUP" | "MANUAL_DELIVERY";
+  fulfillmentType: "PICKUP" | "MANUAL_DELIVERY" | "TUMABODA_DELIVERY";
   courierType?: string;
   courierServiceName?: string;
   courierStageOrOffice?: string;
   collectorName?: string;
+  // TumaBoda / Hand Delivery (courierType=HAND_DELIVERY under MANUAL_DELIVERY) — both need a real
+  // map pin, same fields CheckoutRequest already validates for a live customer checkout.
+  dropoffLat?: number;
+  dropoffLng?: number;
+  landmarkDetail?: string;
+  tumabodaContactPhone?: string;
   items: CreateOrderItem[];
 }
 
