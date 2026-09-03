@@ -1327,10 +1327,23 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                             const mode = priceModes[idx] ?? "perUnit";
                             const qty = Number(row.quantity) || 0;
                             const perUnit = Number(row.pricePerUnit) || 0;
-                            const totalVal = qty * perUnit;
+                            // Rounded to the nearest cent before it ever reaches the controlled
+                            // input's value: qty * perUnit re-derives the total on every render
+                            // (there's no separate stored "total" field), and binary floating
+                            // point can't represent most 2-decimal KES amounts exactly (e.g.
+                            // 100 * 0.55 = 55.00000000000001) - left unrounded, that noise
+                            // overwrites whatever the admin is mid-typing in Total mode, since
+                            // the input has no way to tell "user's next keystroke" from
+                            // "React re-rendering with a slightly-off derived number".
+                            const totalVal = Math.round(qty * perUnit * 100) / 100;
+                            // Same rounding protection in the other direction: a per-unit price
+                            // that arrived here from a Total-mode edit (v / qty) can carry a long
+                            // repeating-decimal tail (e.g. 100 / 3) - round to 4dp, matching the
+                            // precision the derived label below already displays at.
+                            const perUnitDisplay = Math.round(perUnit * 10000) / 10000;
                             const inputValue =
                               mode === "perUnit"
-                                ? perUnit || ""
+                                ? perUnitDisplay || ""
                                 : totalVal || "";
                             const derivedLabel =
                               mode === "perUnit"
