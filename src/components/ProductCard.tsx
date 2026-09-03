@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Flame } from "lucide-react";
 
 import type { Product } from "@/data/products";
+import { whatsappLink } from "@/data/products";
 import { apiUrl } from "@/config/api";
 import { getStockInfo } from "@/lib/stock";
 import { cleanUomLabel } from "@/lib/uomLabel";
@@ -85,7 +86,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
     onConfigure(p, activeTierId ?? undefined);
   };
 
-  const isTracked = stock.state !== "untracked" && (stock.state as string) !== "made_to_order";
+  const isTracked = stock.state !== "untracked";
 
   return (
     // display:contents keeps the grid/flex layout exactly as if <article> were the direct child —
@@ -144,7 +145,9 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                     : "bg-green-600 text-white"
               }`}
             >
-              {stock.state === "out_of_stock" ? "Out of Stock" : stock.state === "low_stock" ? stock.label : "In Stock"}
+              {stock.state === "out_of_stock"
+                ? stock.isMadeToOrder ? "Made to Order" : "Out of Stock"
+                : stock.state === "low_stock" ? stock.label : "In Stock"}
             </span>
           )}
 
@@ -260,7 +263,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           <p className="mt-1.5 text-[11px] text-muted-foreground sm:mt-2 sm:text-sm">Contact for pricing</p>
         )}
 
-        <StockLine state={stock.state} count={stock.available} label={stock.label} emphasize={emphasizeDeal} />
+        <StockLine state={stock.state} count={stock.available} label={stock.label} isMadeToOrder={stock.isMadeToOrder} emphasize={emphasizeDeal} />
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2 sm:gap-2 sm:pt-3">
           <p className="text-[10px] text-muted-foreground sm:text-xs">
@@ -268,22 +271,36 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
               ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${(Number(smallestTier.quantity) || 0).toLocaleString()} pcs)`
               : `Min. ${p.moq.toLocaleString()} units`}
           </p>
-          <button
-            type="button"
-            onClick={handleCTAClick}
-            className="w-full rounded-full bg-primary px-2 py-2 text-[11px] font-semibold leading-tight text-primary-foreground transition-opacity hover:opacity-90 sm:px-3 sm:text-xs"
-          >
-            <span className="sm:hidden">
-              {hasTiers || (individualEnabled && p.basePrice) ? "Add to cart" : "Get a quote"}
-            </span>
-            <span className="hidden sm:inline">
-              {hasTiers && activeTier
-                ? `Add to cart · ${cleanUomLabel(activeTier.uomName ?? activeTier.collectionName, Number(activeTier.quantity))}`
-                : individualEnabled && p.basePrice
-                  ? "Add to cart"
-                  : "Get a quote"}
-            </span>
-          </button>
+          {stock.canOrder ? (
+            <button
+              type="button"
+              onClick={handleCTAClick}
+              className="w-full rounded-full bg-primary px-2 py-2 text-[11px] font-semibold leading-tight text-primary-foreground transition-opacity hover:opacity-90 sm:px-3 sm:text-xs"
+            >
+              <span className="sm:hidden">
+                {hasTiers || (individualEnabled && p.basePrice) ? "Add to cart" : "Get a quote"}
+              </span>
+              <span className="hidden sm:inline">
+                {hasTiers && activeTier
+                  ? `Add to cart · ${cleanUomLabel(activeTier.uomName ?? activeTier.collectionName, Number(activeTier.quantity))}`
+                  : individualEnabled && p.basePrice
+                    ? "Add to cart"
+                    : "Get a quote"}
+              </span>
+            </button>
+          ) : (
+            <a
+              href={whatsappLink(
+                `Hi, I'd like to enquire about ${p.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
+            >
+              Enquire
+            </a>
+          )}
         </div>
       </div>
     </article>
@@ -295,14 +312,16 @@ function StockLine({
   state,
   count,
   label,
+  isMadeToOrder,
   emphasize,
 }: {
   state: string;
   count: number;
   label: string;
+  isMadeToOrder?: boolean;
   emphasize?: boolean;
 }) {
-  if (state === "untracked" || state === "made_to_order" || state === "in_stock") return null;
+  if (state === "untracked" || state === "in_stock") return null;
 
   if (state === "low_stock") {
     // Deals-page emphasis is still driven by the same real stockCount as everywhere else — this
@@ -329,7 +348,7 @@ function StockLine({
 
   return (
     <p className="mt-1 text-[10px] text-muted-foreground/70 sm:text-[11px]">
-      Out of stock — we can still fulfil your order.
+      {isMadeToOrder ? "Made to order — enquire for availability." : "Out of stock — enquire for availability."}
     </p>
   );
 }

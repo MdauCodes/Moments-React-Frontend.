@@ -559,12 +559,27 @@ function ProductsPage() {
     const base = searchResults ?? products;
     // Honour explicit sort choices — only shuffle on the default sort and
     // when the user has not narrowed the catalogue with category filters.
-    if (sort !== "newest" || searchResults) return base;
-    const ranks = shuffleRanks.current;
-    for (const p of base) {
-      if (!ranks.has(p.id)) ranks.set(p.id, Math.random());
-    }
-    return [...base].sort((a, b) => (ranks.get(a.id) ?? 0) - (ranks.get(b.id) ?? 0));
+    const ordered = sort !== "newest" || searchResults
+      ? base
+      : (() => {
+          const ranks = shuffleRanks.current;
+          for (const p of base) {
+            if (!ranks.has(p.id)) ranks.set(p.id, Math.random());
+          }
+          return [...base].sort((a, b) => (ranks.get(a.id) ?? 0) - (ranks.get(b.id) ?? 0));
+        })();
+
+    // Out-of-stock/made-to-order items sink to the end of the general browse listing (lowest
+    // priority, per business decision 2026-09-03 — nobody should have to scroll past what they
+    // can't actually buy right now) — but never when the customer specifically searched, where a
+    // match should still show up as itself, clearly labeled, rather than buried at the bottom of
+    // an already-narrow result set. A stable partition, not a re-sort: within each half, whatever
+    // order shuffle/price-sort already produced is preserved.
+    if (searchResults) return ordered;
+    const canBuyNow = (p: Product) => getStockInfo(p, null, 0).canOrder;
+    const available = ordered.filter(canBuyNow);
+    const unavailable = ordered.filter((p) => !canBuyNow(p));
+    return unavailable.length > 0 ? [...available, ...unavailable] : ordered;
   }, [searchResults, products, sort]);
 
   // JSON-LD ItemList for the visible page

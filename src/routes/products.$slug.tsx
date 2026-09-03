@@ -9,6 +9,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
 import { ProductReviews } from "@/components/ProductReviews";
 import type { Product } from "@/data/products";
+import { whatsappLink } from "@/data/products";
 import { api } from "@/services/api";
 import { apiUrl } from "@/config/api";
 import { useCart } from "@/contexts/CartContext";
@@ -108,7 +109,10 @@ export default function ProductDetail() {
   const lineTotal = selectedTier ? qty * collectionPrice : qty * unitPrice;
 
   const stock = useMemo(
-    () => product ? getStockInfo(product, activeVariant, qty) : { state: "untracked" as const, label: "", available: 0, isBackorder: false },
+    () =>
+      product
+        ? getStockInfo(product, activeVariant, qty)
+        : { state: "untracked" as const, label: "", available: 0, threshold: 0, isBackorder: false, canOrder: true, isMadeToOrder: false },
     [product, activeVariant, qty],
   );
 
@@ -152,6 +156,7 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!product) return;
+    if (!stock.canOrder) return; // UI already hides this control — guard in case that ever changes
     if (enterprise) { navigate("/enterprise-quote"); return; }
     if (qty < minQty) { setQtyError(`Minimum: ${minQty.toLocaleString()}`); return; }
     addItem({
@@ -320,13 +325,23 @@ export default function ProductDetail() {
           {/* Configurator */}
           <div className="mt-5 space-y-4 rounded-2xl border border-kraft/20 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
-              <StockBadge state={stock.state} label={stock.label} />
+              <StockBadge state={stock.state} label={stock.label} isMadeToOrder={stock.isMadeToOrder} />
               {stock.state !== "untracked" && stock.state !== "out_of_stock" && Number.isFinite(stock.available) && stock.available > 0 && (
                 <span className="text-xs text-muted-foreground/70">{stock.available.toLocaleString()} units available</span>
               )}
             </div>
 
-            {variants.length > 0 && (
+            {!stock.canOrder && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+                <p className="text-sm text-foreground/80">
+                  {stock.isMadeToOrder
+                    ? "This item is made to order and isn't available for direct purchase right now. Send us an enquiry and we'll get back to you with availability and lead time."
+                    : "This item is currently out of stock. Send us an enquiry and we'll let you know when it's back, or offer an alternative."}
+                </p>
+              </div>
+            )}
+
+            {stock.canOrder && variants.length > 0 && (
               <ConfigField label="Variant" note="(price & stock per variant)">
                 <div className="flex flex-wrap gap-2">
                   {variants.map((v: any) => {
@@ -340,7 +355,7 @@ export default function ProductDetail() {
                         <span className="mt-0.5 text-[11px] text-muted-foreground">
                           {v.price ? `KES ${v.price.toLocaleString()}` : "—"}{" · "}
                           <span className={vStock.state === "out_of_stock" ? "text-destructive" : vStock.state === "low_stock" ? "text-accent" : "text-foreground/70"}>
-                            {vStock.state === "out_of_stock" ? "Backorder" : vStock.state === "low_stock" ? `${vStock.available} left` : "In stock"}
+                            {vStock.state === "out_of_stock" ? "Out of stock" : vStock.state === "low_stock" ? `${vStock.available} left` : "In stock"}
                           </span>
                         </span>
                       </button>
@@ -350,55 +365,65 @@ export default function ProductDetail() {
               </ConfigField>
             )}
 
-            {product.sizes && product.sizes.length > 0 && (
+            {stock.canOrder && product.sizes && product.sizes.length > 0 && (
               <ConfigField label="Size"><PillGroup options={product.sizes} value={size} onChange={setSize} /></ConfigField>
             )}
-            {((product as any).materials?.length ?? 0) > 0 && (
+            {stock.canOrder && ((product as any).materials?.length ?? 0) > 0 && (
               <ConfigField label="Material"><PillGroup options={(product as any).materials!} value={material} onChange={setMaterial} /></ConfigField>
             )}
-            {finish && (
+            {stock.canOrder && finish && (
               <ConfigField label="Finish"><PillGroup options={[finish]} value={finish} onChange={setFinish} /></ConfigField>
             )}
 
-            <ConfigField
-              label={selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
-              note={selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
-              <input type="number" min={minQty} step={1} value={qty}
-                onChange={(e) => handleQty(e.target.value)}
-                onBlur={() => { if (qty < minQty) setQty(minQty); setQtyError(null); }}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
-              {qtyError && <p className="mt-1.5 text-xs text-accent">{qtyError}</p>}
-            </ConfigField>
+            {stock.canOrder && (
+              <ConfigField
+                label={selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
+                note={selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
+                <input type="number" min={minQty} step={1} value={qty}
+                  onChange={(e) => handleQty(e.target.value)}
+                  onBlur={() => { if (qty < minQty) setQty(minQty); setQtyError(null); }}
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                {qtyError && <p className="mt-1.5 text-xs text-accent">{qtyError}</p>}
+              </ConfigField>
+            )}
 
-            <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
-              {selectedTier ? (
-                <p className="text-sm">
-                  {qty.toLocaleString()} × {selectedTier.uomName ?? selectedTier.collectionName} (× {collectionQty} pieces each) ={" "}
-                  <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
-                  <span className="ml-2 text-xs opacity-80">· {(qty * collectionQty).toLocaleString()} total pieces</span>
-                </p>
-              ) : unitPrice > 0 ? (
-                <p className="text-sm">
-                  {qty.toLocaleString()} × KES {unitPrice.toLocaleString()} ={" "}
-                  <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
-                </p>
-              ) : (
-                <p className="text-sm">Price calculated on order — our team will confirm.</p>
-              )}
-            </div>
-
-            {stock.isBackorder && !enterprise && (
-              <div className="flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3 text-xs text-foreground">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-                {stock.state === "out_of_stock" ? (
-                  <p><strong>Place your order</strong> — we'll fulfil from available or incoming stock. Same day within Nairobi, 2–3 days countrywide.</p>
+            {stock.canOrder && (
+              <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
+                {selectedTier ? (
+                  <p className="text-sm">
+                    {qty.toLocaleString()} × {selectedTier.uomName ?? selectedTier.collectionName} (× {collectionQty} pieces each) ={" "}
+                    <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
+                    <span className="ml-2 text-xs opacity-80">· {(qty * collectionQty).toLocaleString()} total pieces</span>
+                  </p>
+                ) : unitPrice > 0 ? (
+                  <p className="text-sm">
+                    {qty.toLocaleString()} × KES {unitPrice.toLocaleString()} ={" "}
+                    <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
+                  </p>
                 ) : (
-                  <p><strong>Backorder:</strong> requested quantity may exceed current stock. Contact us to confirm availability.</p>
+                  <p className="text-sm">Price calculated on order — our team will confirm.</p>
                 )}
               </div>
             )}
 
-            {enterprise ? (
+            {stock.canOrder && stock.isBackorder && !enterprise && (
+              <div className="flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3 text-xs text-foreground">
+                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
+                <p><strong>Backorder:</strong> requested quantity may exceed current stock. Contact us to confirm availability.</p>
+              </div>
+            )}
+
+            {!stock.canOrder ? (
+              <a
+                href={whatsappLink(
+                  `Hi, I'd like to enquire about ${product.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-[52px] w-full items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">
+                Enquire on WhatsApp
+              </a>
+            ) : enterprise ? (
               <button type="button" onClick={() => navigate("/enterprise-quote")}
                 className="h-[52px] w-full rounded-full border border-primary text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
                 Request enterprise quote →
@@ -515,12 +540,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StockBadge({ state, label }: { state: string; label: string }) {
+function StockBadge({ state, label, isMadeToOrder }: { state: string; label: string; isMadeToOrder?: boolean }) {
   if (state === "untracked") return null;
   const styles = state === "out_of_stock" ? "bg-red-50 text-red-700 border-red-300"
     : state === "low_stock" ? "bg-amber-50 text-amber-700 border-amber-300"
     : "bg-green-50 text-green-700 border-green-300";
-  const displayLabel = state === "out_of_stock" ? "Out of stock" : state === "low_stock" ? "Low stock" : "In stock";
+  const displayLabel = state === "out_of_stock" ? (isMadeToOrder ? "Made to order" : "Out of stock") : state === "low_stock" ? "Low stock" : "In stock";
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${styles}`} title={label}>
       <span className="h-1.5 w-1.5 rounded-full bg-current" /> {displayLabel}
