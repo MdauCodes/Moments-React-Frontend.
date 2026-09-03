@@ -17,6 +17,7 @@ import {
 } from "@/components/admin/commerceUi";
 import { tumaBodaOrderIsReadyOrBeyond } from "@/components/admin/TumaBodaFulfillmentPanel";
 import { FULFILLMENT_MODES, type FulfillmentModeKey } from "@/lib/fulfillmentModes";
+import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import {
   getOrder,
   updateOrderStatus,
@@ -265,8 +266,10 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
           </div>
         ) : (
           <div className="flex flex-col">
-            {/* Header */}
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b bg-background px-6 py-4">
+            {/* Header — sticky, so the status and what-to-do-next hint stay visible even after
+                scrolling down to Payment/Manual override, instead of only living in the
+                fulfillment-mode section further down. */}
+            <div className="sticky top-0 z-10 flex flex-col gap-1.5 border-b bg-background px-6 py-4">
               <div className="flex items-center gap-3">
                 <div>
                   <div className="text-xs text-muted-foreground">Order reference</div>
@@ -279,6 +282,10 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
                   </span>
                 )}
               </div>
+              {(() => {
+                const hint = resolveStatusDisplay(o.fulfillmentType, o.statusV2)?.hint;
+                return hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null;
+              })()}
             </div>
 
             {!canClose && (
