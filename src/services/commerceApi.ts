@@ -496,6 +496,36 @@ export async function groupBookTumaBodaDeliveries(
   return { orders: raw.map(normalizeOrder), source: "live" };
 }
 
+/** Proximity-based grouping suggestions for currently-groupable TumaBoda orders (still
+ *  IN_PRODUCTION, not POD, no van requirement) — read-only, books nothing. Each inner array is
+ *  one suggested cluster (2+ orders TumaBoda's bulk endpoint could plausibly run as one route);
+ *  solo orders with nothing nearby are omitted entirely rather than appearing as a group of one. */
+export async function getSuggestedTumaBodaGroups(): Promise<{ groups: OrderRecord[][]; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/tumaboda/suggested-groups`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw: unknown[][] = await res.json();
+  return { groups: raw.map((group) => group.map(normalizeOrder)), source: "live" };
+}
+
+/** On-demand TumaBoda status check for one order that already has a delivery booked — same
+ *  poll-and-apply logic as the automatic 10-minute reconciliation sweep, just immediate. */
+export async function checkTumaBodaStatusNow(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/check-tumaboda-status`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
 // A stuck TumaBoda order (booking permanently failed, retrying won't help) — switches
 // fulfillmentType to MANUAL_DELIVERY and carries the already-charged delivery fee over as paid.
 export async function rerouteToManualDelivery(

@@ -289,17 +289,28 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
               </span>
             </button>
           ) : (
-            <a
-              href={whatsappLink(
-                `Hi, I'd like to enquire about ${p.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            // A plain <button> here, not an <a> — this card is already wrapped in its own <Link>
+            // (a real <a href> for crawlability, see the component's top-level wrapper), and
+            // nested <a> tags are invalid HTML with genuinely unreliable click behavior across
+            // browsers, not just a lint nitpick. window.open reproduces the same "open WhatsApp
+            // in a new tab" result without nesting an anchor inside one.
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                window.open(
+                  whatsappLink(
+                    `Hi, I'd like to enquire about ${p.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
+                  ),
+                  "_blank",
+                  "noopener,noreferrer",
+                );
+              }}
               className="w-full rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
             >
               Enquire
-            </a>
+            </button>
           )}
         </div>
       </div>
