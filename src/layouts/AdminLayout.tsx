@@ -58,6 +58,9 @@ import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
 import { adminResources, type AdminNotificationDto } from "@/services/adminResources";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
+import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
+import { BellRing } from "lucide-react";
 
 function MockModeBanner() {
   const { enabled, message } = useMockModeState();
@@ -601,6 +604,28 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     }
   }
 
+  // Deliberately opt-in, not auto-prompted on load — an unsolicited browser permission prompt on
+  // every login is an instant-dismiss pattern. Only shown when permission is still "default"
+  // (never asked) — once granted there's nothing more to do, and once denied the browser itself
+  // blocks re-prompting from JS, so there'd be nothing for the button to do at that point either.
+  const [pushState, setPushState] = useState(() => getPushPermissionState());
+  const [enablingPush, setEnablingPush] = useState(false);
+  async function enablePush() {
+    setEnablingPush(true);
+    try {
+      const { publicKey } = await adminResources.push.vapidPublicKey();
+      if (!publicKey) throw new Error("Push isn't configured on this environment yet.");
+      const subscription = await subscribeToPush(publicKey);
+      await adminResources.push.subscribe(subscription);
+      setPushState(getPushPermissionState());
+      toast.success("Push notifications enabled on this device.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't enable push notifications.");
+    } finally {
+      setEnablingPush(false);
+    }
+  }
+
   const handleReload = async () => {
     if (reloading) return;
     setReloading(true);
@@ -779,6 +804,18 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
             >
               <HelpCircle size={15} />
             </button>
+            {pushState === "default" && (
+              <button
+                type="button"
+                style={{ ...styles.bellBtn, opacity: enablingPush ? 0.6 : 1 }}
+                aria-label="Enable push notifications"
+                title="Enable push notifications on this device"
+                onClick={() => void enablePush()}
+                disabled={enablingPush}
+              >
+                <BellRing size={15} />
+              </button>
+            )}
             <div style={{ position: "relative" }}>
               <button type="button" style={styles.bellBtn} aria-label="Notifications" onClick={toggleNotifPanel}>
                 <Bell size={15} />

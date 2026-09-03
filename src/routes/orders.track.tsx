@@ -12,6 +12,9 @@ import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 import { resolveStatusDisplay, isCustomerSelfConfirmMode } from "@/lib/orderStatusV2";
 import { RefundForm } from "@/components/RefundForm";
 import { refundEligibility, type RefundRequest } from "@/services/refundStore";
+import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
+import { getPublicVapidPublicKey, subscribeCustomerPush } from "@/services/pushApi";
+import { Bell } from "lucide-react";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -281,6 +284,7 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
     return (
       <>
         <OrderCard order={order} compact email={email} accessToken={accessToken ?? undefined} />
+        {!TERMINAL_ORDER_STATUSES.has(order.status) && <PushOptInPrompt orderReference={reference} />}
         {accessToken && (
           <ConfirmDeliverySection
             reference={reference}
@@ -633,6 +637,50 @@ function RefundSection({
  * customer where to go and states the one rule worth surfacing up front, so nobody assumes
  * every return is covered.
  */
+/** Opt-in only, shown once per page load rather than remembered as permanently dismissed — a
+ *  customer who declines once but comes back to check a later order shouldn't have to hunt for a
+ *  way to turn it on. Hidden once granted (nothing more to offer) or denied (the browser blocks
+ *  re-prompting from JS at that point, so there's nothing the button could do). */
+function PushOptInPrompt({ orderReference }: { orderReference: string }) {
+  const [state, setState] = useState(() => getPushPermissionState());
+  const [enabling, setEnabling] = useState(false);
+
+  if (state !== "default") return null;
+
+  async function enable() {
+    setEnabling(true);
+    try {
+      const publicKey = await getPublicVapidPublicKey();
+      if (!publicKey) throw new Error("Push notifications aren't set up yet — try again later.");
+      const subscription = await subscribeToPush(publicKey);
+      await subscribeCustomerPush(subscription, orderReference);
+      setState(getPushPermissionState());
+      toast.success("You'll get a notification here when this order's status changes.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't enable notifications.");
+    } finally {
+      setEnabling(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
+      <p className="text-muted-foreground">
+        <Bell className="mr-1 inline h-4 w-4 align-text-bottom" />
+        Get notified here when this order's status changes.
+      </p>
+      <button
+        type="button"
+        onClick={() => void enable()}
+        disabled={enabling}
+        className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+      >
+        {enabling ? "Enabling…" : "Turn on"}
+      </button>
+    </div>
+  );
+}
+
 function RefundPolicyNote() {
   return (
     <div className="mt-3 rounded-xl border border-dashed border-border bg-background/60 p-3 text-sm">
