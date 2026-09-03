@@ -137,6 +137,7 @@ function normalizeOrder(raw: any): OrderRecord {
     courierServiceName: raw?.courierServiceName,
     courierStageOrOffice: raw?.courierStageOrOffice,
     collectorName: raw?.collectorName,
+    manualDeliveryGroupId: raw?.manualDeliveryGroupId ?? null,
     deliveryFeeAmount: raw?.deliveryFeeAmount != null ? num(raw.deliveryFeeAmount) : undefined,
     deliveryFeeStatus: raw?.deliveryFeeStatus,
     deliveryFeeMethod: raw?.deliveryFeeMethod,
@@ -510,6 +511,67 @@ export async function getSuggestedTumaBodaGroups(): Promise<{ groups: OrderRecor
   return { groups: raw.map((group) => group.map(normalizeOrder)), source: "live" };
 }
 
+/** Manual Delivery's own equivalent of TumaBoda grouping above — but purely a record-keeping
+ *  link (no courier API involved), so it's just "which order IDs go in one shared-trip group."
+ *  Also how a later order joins an already-linked pair: pass its id alongside just ONE existing
+ *  member's id, no need to re-select the whole group. */
+export async function linkManualDeliveryOrders(orderIds: string[]): Promise<{ orders: OrderRecord[]; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/manual-delivery/link`, {
+    method: "POST",
+    body: JSON.stringify({ orderIds }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw: unknown[] = await res.json();
+  return { orders: raw.map(normalizeOrder), source: "live" };
+}
+
+export async function unlinkManualDeliveryOrder(id: string): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/manual-delivery/unlink`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
+/** Every order sharing this one's manual delivery group, including itself — empty if it isn't
+ *  linked to anything. */
+export async function getManualDeliveryGroup(id: string): Promise<{ orders: OrderRecord[]; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/manual-delivery/group`);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw: unknown[] = await res.json();
+  return { orders: raw.map(normalizeOrder), source: "live" };
+}
+
+/** Advances every order in a manual delivery group to the same next status together — the actual
+ *  guarantee behind "dispatched/delivered together", not just clicking each order individually
+ *  and hoping they end up consistent. newStatus is a legacy OrderStatus name — only "DISPATCHED"
+ *  and "DELIVERED" are accepted (see the backend's BULK_ADVANCEABLE_STATUSES). */
+export async function advanceManualDeliveryGroup(
+  groupId: string,
+  newStatus: "DISPATCHED" | "DELIVERED",
+): Promise<{ orders: OrderRecord[]; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/manual-delivery/${encodeURIComponent(groupId)}/advance`, {
+    method: "POST",
+    body: JSON.stringify({ newStatus }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw: unknown[] = await res.json();
+  return { orders: raw.map(normalizeOrder), source: "live" };
+}
+
 /** On-demand TumaBoda status check for one order that already has a delivery booked — same
  *  poll-and-apply logic as the automatic 10-minute reconciliation sweep, just immediate. */
 export async function checkTumaBodaStatusNow(
@@ -524,6 +586,19 @@ export async function checkTumaBodaStatusNow(
   }
   const raw = await res.json();
   return { order: normalizeOrder(raw), source: "live" };
+}
+
+/** Bulk counterpart to checkTumaBodaStatusNow — re-derives status for every TumaBoda order
+ *  stuck at "Ready for rider pickup" from whatever TumaBoda status is already on file, no new
+ *  API polling. Fixes orders whose stored status predates a status-derivation bugfix and have
+ *  had no reason to receive a fresh webhook since (see the backend's resyncFromStoredStatus). */
+export async function resyncStuckTumaBodaOrders(): Promise<{ resynced: number }> {
+  const res = await adminFetch(`/api/v1/admin/orders/tumaboda/resync-stuck`, { method: "POST" });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  return res.json();
 }
 
 // A stuck TumaBoda order (booking permanently failed, retrying won't help) — switches

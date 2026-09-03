@@ -78,6 +78,10 @@ export interface OrderRecord {
   courierServiceName?: string;
   courierStageOrOffice?: string;
   collectorName?: string;
+  /** Shared across every order linked into the same manual-delivery trip (staff handed 2+ orders
+   *  to the same rider/courier in one run) — see ManualDeliveryGroupService. Null/undefined for
+   *  the vast majority of orders. */
+  manualDeliveryGroupId?: string | null;
   promoCode?: string;
   paymentMethod?: string;
   fulfillmentType?: string;
