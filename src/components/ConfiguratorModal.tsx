@@ -4,10 +4,12 @@ import { Heart, X } from "lucide-react";
 import { toast } from "sonner";
 
 import type { Product } from "@/data/products";
+import { whatsappLink } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cleanUomLabel } from "@/lib/uomLabel";
+import { getStockInfo } from "@/lib/stock";
 
 interface ConfiguratorModalProps {
   product: Product | null;
@@ -48,6 +50,14 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
   const hasCollections = collectionTiers.length > 0;
   // STRICT — never infer from absence of tiers.
   const individualEnabled = product?.individualSalesEnabled === true;
+
+  const stock = useMemo(
+    () =>
+      product
+        ? getStockInfo(product, null, 0)
+        : { state: "untracked" as const, available: 0, threshold: 0, label: "", isBackorder: false, canOrder: true, isMadeToOrder: false },
+    [product],
+  );
 
   const selectedTier = useMemo(
     () =>
@@ -102,6 +112,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
   };
 
   const handleAdd = () => {
+    if (!stock.canOrder) return; // UI already hides this control — guard in case that ever changes
     if (quantity < minQty) {
       setError(`Minimum: ${minQty.toLocaleString()}`);
       return;
@@ -182,14 +193,18 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                 </span>
                 <span
                   className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${
-                    hasCollections
-                      ? "bg-primary/10 text-primary"
-                      : individualEnabled
-                        ? "bg-forest/10 text-forest"
-                        : "bg-muted text-muted-foreground"
+                    !stock.canOrder
+                      ? "bg-destructive/10 text-destructive"
+                      : hasCollections
+                        ? "bg-primary/10 text-primary"
+                        : individualEnabled
+                          ? "bg-forest/10 text-forest"
+                          : "bg-muted text-muted-foreground"
                   }`}
                 >
-                  {hasCollections ? "Collections" : individualEnabled ? "Per-unit order" : "Quote only"}
+                  {!stock.canOrder
+                    ? stock.isMadeToOrder ? "Made to order" : "Out of stock"
+                    : hasCollections ? "Collections" : individualEnabled ? "Per-unit order" : "Quote only"}
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -200,8 +215,18 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </div>
           </div>
 
-          {/* Collection tier selection — only when collections exist */}
-          {hasCollections && (
+          {!stock.canOrder && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
+              <p className="text-sm text-foreground/80">
+                {stock.isMadeToOrder
+                  ? "This item is made to order and isn't available for direct purchase right now. Send us an enquiry and we'll get back to you with availability and lead time."
+                  : "This item is currently out of stock. Send us an enquiry and we'll let you know when it's back, or offer an alternative."}
+              </p>
+            </div>
+          )}
+
+          {/* Collection tier selection — only when collections exist, and the item can actually be ordered */}
+          {stock.canOrder && hasCollections && (
             <Section label="Choose how to buy" note="Pick a unit of measure">
               <div className="grid gap-2 grid-cols-2">
                 {collectionTiers.map((t: any, i: number) => {
@@ -289,7 +314,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
           )}
 
           {/* Per-unit hint when there are no collections */}
-          {!hasCollections && individualEnabled && (
+          {stock.canOrder && !hasCollections && individualEnabled && (
             <div className="rounded-xl border border-forest/20 bg-forest/5 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-forest">Per-unit ordering</p>
               <p className="mt-1 text-sm text-foreground/80">
@@ -298,7 +323,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
               </p>
             </div>
           )}
-          {!hasCollections && !individualEnabled && (
+          {stock.canOrder && !hasCollections && !individualEnabled && (
             <div className="rounded-xl border border-border bg-secondary px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quote only</p>
               <p className="mt-1 text-sm text-foreground/80">
@@ -307,23 +332,23 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </div>
           )}
 
-          {product.sizes && product.sizes.length > 0 && (
+          {stock.canOrder && product.sizes && product.sizes.length > 0 && (
             <Section label="Size">
               <PillGroup options={product.sizes} value={size} onChange={setSize} />
             </Section>
           )}
-          {(product.materials?.length ?? 0) > 0 && (
+          {stock.canOrder && (product.materials?.length ?? 0) > 0 && (
             <Section label="Material">
               <PillGroup options={product.materials!} value={material} onChange={setMaterial} />
             </Section>
           )}
-          {finish && (
+          {stock.canOrder && finish && (
             <Section label="Finish">
               <PillGroup options={[finish]} value={finish} onChange={setFinish} />
             </Section>
           )}
 
-          {(hasCollections || individualEnabled) && (
+          {stock.canOrder && (hasCollections || individualEnabled) && (
             <Section
               label={
                 selectedTier
@@ -352,7 +377,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </Section>
           )}
 
-          {(hasCollections || individualEnabled) && (
+          {stock.canOrder && (hasCollections || individualEnabled) && (
             <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
               {selectedTier ? (
                 <p className="text-sm">
@@ -371,7 +396,19 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
 
           <p className="text-xs text-muted-foreground"></p>
 
-          {hasCollections || individualEnabled ? (
+          {!stock.canOrder ? (
+            <a
+              href={whatsappLink(
+                `Hi, I'd like to enquire about ${product.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClose}
+              className="block w-full rounded-full bg-accent px-6 py-3.5 text-center text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+            >
+              Enquire on WhatsApp
+            </a>
+          ) : hasCollections || individualEnabled ? (
             <button
               type="button"
               onClick={handleAdd}
