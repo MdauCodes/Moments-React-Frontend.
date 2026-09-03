@@ -7,7 +7,7 @@ import {
   LayoutGrid,
   MessageCircle,
   MoreHorizontal,
-  ShoppingBag,
+  ShoppingCart,
   Truck,
   User,
   Building2,
@@ -104,7 +104,7 @@ export function BottomNav() {
           }`}
         >
           <span className="relative">
-            <ShoppingBag className="h-5 w-5" strokeWidth={isActive("/cart") ? 2.25 : 1.75} />
+            <ShoppingCart className="h-5 w-5" strokeWidth={isActive("/cart") ? 2.25 : 1.75} />
             {itemCount > 0 && (
               <span className="absolute -right-2 -top-1.5 grid min-w-[16px] h-4 place-items-center rounded-full bg-accent px-1 text-[9px] font-semibold text-accent-foreground">
                 {itemCount > 99 ? "99+" : itemCount}

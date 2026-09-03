@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingBag, User, HelpCircle } from "lucide-react";
+import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingCart, User, HelpCircle } from "lucide-react";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
@@ -69,6 +69,22 @@ export function SiteHeader() {
   const { itemCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
   const { openLogin } = useAuthModal();
+
+  // Brief scale-up on the cart icon itself whenever the count goes UP (not on every render, and
+  // not on a decrease from removing an item) — the badge number already updates instantly, but a
+  // number changing in an 18px circle is easy to miss; a short pulse on the icon around it draws
+  // the eye to "yes, that just happened" without a toast/modal interrupting the browse flow.
+  const [cartBump, setCartBump] = useState(false);
+  const prevItemCount = useRef(itemCount);
+  useEffect(() => {
+    if (itemCount > prevItemCount.current) {
+      setCartBump(true);
+      const t = setTimeout(() => setCartBump(false), 450);
+      prevItemCount.current = itemCount;
+      return () => clearTimeout(t);
+    }
+    prevItemCount.current = itemCount;
+  }, [itemCount]);
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -306,11 +322,15 @@ export function SiteHeader() {
               <Link
                 to="/cart"
                 aria-label="Cart"
-                className="relative grid h-10 w-10 place-items-center rounded-full text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground"
+                className={`relative grid h-10 w-10 place-items-center rounded-full transition-all ${
+                  itemCount > 0
+                    ? "bg-primary/10 text-primary hover:bg-primary/15"
+                    : "text-foreground/80 hover:bg-secondary hover:text-foreground"
+                } ${cartBump ? "scale-125" : "scale-100"}`}
               >
-                <ShoppingBag className="h-5 w-5" />
+                <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid min-w-[18px] h-[18px] place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground">
+                  <span className="absolute -right-1 -top-1 grid min-w-[20px] h-[20px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
                     {itemCount > 99 ? "99+" : itemCount}
                   </span>
                 )}
@@ -389,11 +409,13 @@ export function SiteHeader() {
             <Link
               to="/cart"
               aria-label="Cart"
-              className="relative grid h-10 w-10 place-items-center rounded-md text-foreground/80 transition-colors hover:bg-secondary"
+              className={`relative grid h-10 w-10 place-items-center rounded-md transition-all ${
+                itemCount > 0 ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-secondary"
+              } ${cartBump ? "scale-125" : "scale-100"}`}
             >
-              <ShoppingBag className="h-5 w-5" />
+              <ShoppingCart className="h-5 w-5" />
               {itemCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 grid min-w-[18px] h-[18px] place-items-center rounded-full bg-accent px-1 text-[10px] font-semibold text-accent-foreground">
+                <span className="absolute -right-1 -top-1 grid min-w-[20px] h-[20px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
                   {itemCount > 99 ? "99+" : itemCount}
                 </span>
               )}
