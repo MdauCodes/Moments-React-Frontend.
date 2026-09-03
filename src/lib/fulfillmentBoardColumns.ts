@@ -51,7 +51,7 @@ export const BOARD_COLUMNS: Record<FulfillmentModeKey, BoardColumn[]> = {
     {
       key: "out_for_delivery",
       label: "Out for delivery",
-      matches: ["RIDER_VERIFIED_IN_TRANSIT", "DELIVERED_PENDING_CONFIRMATION", "DELIVERY_FAILED"],
+      matches: ["RIDER_IN_TRANSIT", "RIDER_VERIFIED_IN_TRANSIT", "DELIVERED_PENDING_CONFIRMATION", "DELIVERY_FAILED"],
       exceptionMatches: ["DELIVERY_FAILED"],
     },
     { key: "completed", label: "Completed", matches: ["COMPLETED"] },

@@ -4,31 +4,30 @@ import { BOARD_COLUMNS, resolveBoardColumnKey, isExceptionStatus } from "@/lib/f
 import type { FulfillmentModeKey } from "@/lib/fulfillmentModes";
 import type { OrderRecord } from "@/services/commerceMock";
 
-/** Human-readable sub-status for a TumaBoda card sitting in "Ready for rider pickup" — the raw
- *  webhook status (accepted/heading_to_pickup/arrived_at_pickup/etc.) TumaBoda already sends,
- *  previously captured on Order.tumabodaStatus but never shown anywhere. Surfacing it here is
- *  what fixes the repeat-click confusion from live testing: staff see real rider progress
- *  instead of a static button that looks unresponsive while booking/assignment happens.
+/** Human-readable sub-status for a TumaBoda card — the raw webhook status (accepted/
+ *  heading_to_pickup/in_transit/etc.) TumaBoda already sends, previously captured on
+ *  Order.tumabodaStatus but never shown anywhere. Surfacing it here is what fixes the
+ *  repeat-click confusion from live testing: staff see real rider progress instead of a static
+ *  button that looks unresponsive while booking/assignment happens.
  *
- *  This column matches BOTH READY_FOR_RIDER_PICKUP and RIDER_ASSIGNED (see
- *  fulfillmentBoardColumns.ts) — an order stays in RIDER_ASSIGNED, and therefore in THIS column,
- *  until staff scan the rider's QR at pickup (tumabodaRiderVerifiedAt), by design: that scan is
- *  the identity-verification step confirming the right rider actually has the right parcel, not
- *  just a formality. TumaBoda's own raw status can race ahead of that — their webhook reports
- *  "in_transit" the moment the rider's app says so, regardless of whether OUR staff have
- *  physically scanned anything yet. Shown bare, that read as a contradiction ("in transit" text
- *  sitting inside a "ready for pickup" column) — spelling out the actual reason removes the
- *  apparent bug without touching the verification gate itself. */
+ *  Once TumaBoda reports the parcel actually moving (in_transit/picked_up/delivered), the order
+ *  moves itself to the "Out for delivery" column even without a merchant QR scan (see
+ *  PaymentService.handleTumaBodaStatusUpdate's 2026-09-03 promotion note) — the scan is an
+ *  OPTIONAL extra identity check now, not a gate. The "not scanned" note below is purely
+ *  informational (staff can still scan any time via the order detail panel or the Rider
+ *  Verification queue), not a call to action. */
 function tumaBodaSubLabel(order: OrderRecord & Record<string, any>): string | null {
   if (!order.tumabodaDeliveryId) {
     return order.tumabodaBookingFailureReason ? "Booking failed — needs retry" : "Booking rider…";
   }
   if (!order.tumabodaStatus) return null;
   const raw = String(order.tumabodaStatus).toLowerCase();
-  if (!order.tumabodaRiderVerifiedAt && (raw === "in_transit" || raw === "picked_up" || raw === "delivered")) {
-    return "Rider reports " + raw.replace(/_/g, " ") + " — scan QR to confirm pickup";
+  const label = raw.replace(/_/g, " ");
+  const movedOnItsOwn = raw === "in_transit" || raw === "picked_up" || raw === "delivered";
+  if (!order.tumabodaRiderVerifiedAt && movedOnItsOwn) {
+    return label + " — not scanned (optional)";
   }
-  return raw.replace(/_/g, " ");
+  return label;
 }
 
 function OrderCard({
@@ -42,10 +41,11 @@ function OrderCard({
   onOpen: (id: string) => void;
   onOrderUpdated: (order: OrderRecord) => void;
 }) {
+  const columnKey = resolveBoardColumnKey(mode, order);
   const exception = isExceptionStatus(mode, order.statusV2)
     || (mode === "TUMABODA_DELIVERY" && !order.tumabodaDeliveryId && !!order.tumabodaBookingFailureReason);
   const subLabel =
-    mode === "TUMABODA_DELIVERY" && resolveBoardColumnKey(mode, order) === "ready"
+    mode === "TUMABODA_DELIVERY" && (columnKey === "ready" || columnKey === "out_for_delivery")
       ? tumaBodaSubLabel(order)
       : null;
 

@@ -21,9 +21,11 @@ export function tumaBodaOrderIsReadyOrBeyond(order: OrderRecord): boolean {
 }
 
 /**
- * TumaBoda's journey: booking is automatic (a status line, never a button staff click), so the
- * only staff action here is the rider QR scan at pickup — everything before that is either
- * shared early-stage progress (GenericNextActionButton) or a passive status display.
+ * TumaBoda's journey: booking is automatic (a status line, never a button staff click). The only
+ * OPTIONAL staff action here is the rider QR scan at pickup — an extra identity check, not a
+ * requirement TumaBoda's own progress waits on (see PaymentService.handleTumaBodaStatusUpdate's
+ * 2026-09-03 promotion note) — everything else is either shared early-stage progress
+ * (GenericNextActionButton) or a passive status display.
  */
 export function TumaBodaFulfillmentPanel({
   order,
@@ -281,15 +283,20 @@ export function TumaBodaFulfillmentPanel({
             onBeforeAdvance={isMarkReadyTransition ? openPendingTrackingTab : undefined}
           />
         </div>
-      ) : o.tumabodaDeliveryId && !dispatchedOrLater ? (
-        <Section title="Verify rider">
+      ) : o.tumabodaDeliveryId && !o.tumabodaRiderVerifiedAt ? (
+        <Section title="Verify rider (optional)">
+          <p className="mb-2 text-xs text-muted-foreground">
+            {dispatchedOrLater
+              ? "TumaBoda already reports this rider has the parcel and it's moving — scanning isn't required, but you can still confirm their identity below if you want the extra check."
+              : "Confirms the right rider has the right parcel. Not required — TumaBoda's own status updates will move this order along either way."}
+          </p>
           <RiderScanPanel
             orderId={order.id}
             verifiedAt={o.tumabodaRiderVerifiedAt}
             onVerified={(verifiedAt) => onOrderUpdated({ ...o, tumabodaRiderVerifiedAt: verifiedAt, status: "DISPATCHED" })}
           />
         </Section>
-      ) : dispatchedOrLater ? (
+      ) : o.tumabodaRiderVerifiedAt ? (
         <div className="flex items-center gap-2 text-sm font-medium text-green-700">
           <CheckCircle2 size={16} /> Rider verified — in transit
         </div>
