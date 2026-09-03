@@ -716,6 +716,11 @@ export const adminResources = {
     markRead: (id: string) => adminJson<void>(`/api/v1/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),
     markAllRead: () => adminJson<void>("/api/v1/admin/notifications/read-all", { method: "PATCH" }),
   },
+  push: {
+    vapidPublicKey: () => adminJson<{ publicKey: string }>("/api/v1/admin/push/vapid-public-key"),
+    subscribe: (body: { endpoint: string; p256dh: string; auth: string }) =>
+      adminJson<void>("/api/v1/admin/push/subscribe", { method: "POST", body: JSON.stringify(body) }),
+  },
   refundRequests: {
     list: () => adminJson<RefundRequestAdminDto[]>("/api/v1/admin/refund-requests"),
     updateStatus: (id: string, body: { status: RefundRequestStatus; adminNote?: string }) =>
