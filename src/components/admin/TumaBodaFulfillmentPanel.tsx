@@ -8,7 +8,7 @@ import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirma
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
-import { retryTumaBodaDelivery, rerouteToManualDelivery } from "@/services/commerceApi";
+import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 
@@ -40,8 +40,16 @@ export function TumaBodaFulfillmentPanel({
   const o = order as OrderRecord & Record<string, any>;
   const [retryBusy, setRetryBusy] = useState(false);
   const [rerouteBusy, setRerouteBusy] = useState(false);
+  const [restartBusy, setRestartBusy] = useState(false);
   const readyOrBeyond = tumaBodaOrderIsReadyOrBeyond(order);
   const dispatchedOrLater = order.status === "DISPATCHED" || order.status === "DELIVERED";
+  // Mirrors OrderService.TUMABODA_RESTARTABLE_STATUSES exactly — a rider verified at pickup or
+  // later (or any terminal state) is intentionally NOT restartable, to avoid a second rider
+  // converging on an already-moving or already-closed parcel. Checked on statusV2, not
+  // dispatchedOrLater above: DELIVERY_FAILED's legacy Order.status is DISPATCHED, so that flag
+  // alone would wrongly hide this action for exactly the case it exists for.
+  const RESTARTABLE_STATUSES_V2 = ["READY_FOR_RIDER_PICKUP", "RIDER_ASSIGNED", "DELIVERY_FAILED"];
+  const canRestart = RESTARTABLE_STATUSES_V2.includes(o.statusV2 ?? "");
 
   // Holds the blank tab opened synchronously at click time (see openPendingTrackingTab) until
   // the booking response tells us the real tracking URL to navigate it to. Only ever set for
@@ -99,6 +107,26 @@ export function TumaBodaFulfillmentPanel({
       reportAdminError(err, "Failed to create TumaBoda delivery");
     } finally {
       setRetryBusy(false);
+    }
+  }
+
+  async function handleRestart() {
+    if (!window.confirm(
+      `Restart order ${order.reference}'s TumaBoda delivery? This clears the current booking ` +
+      `(tracking link, rider assignment) and books a fresh one from scratch. Only do this if ` +
+      `you've confirmed no rider actually has this parcel.`
+    )) return;
+    setRestartBusy(true);
+    try {
+      const res = await restartTumaBodaDelivery(order.id);
+      if (res.order) {
+        onOrderUpdated(res.order);
+        toast.success("TumaBoda delivery restarted");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to restart TumaBoda delivery");
+    } finally {
+      setRestartBusy(false);
     }
   }
 
@@ -167,6 +195,14 @@ export function TumaBodaFulfillmentPanel({
             {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
             {o.tumabodaTrackingCode && (
               <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
+            )}
+            {canRestart && (
+              <div className="mt-2">
+                <button className="admin-btn admin-btn-ghost" disabled={restartBusy} onClick={handleRestart}>
+                  {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                  Restart TumaBoda delivery
+                </button>
+              </div>
             )}
           </>
         )}

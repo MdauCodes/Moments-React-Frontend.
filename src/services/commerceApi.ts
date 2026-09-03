@@ -459,6 +459,24 @@ export async function retryTumaBodaDelivery(
   return { order: normalizeOrder(raw), source: "live" };
 }
 
+// POST /api/v1/admin/orders/{id}/restart-tumaboda-delivery — distinct from retryTumaBodaDelivery
+// above: that one covers a booking that never succeeded at all, this one covers a booking that
+// DID succeed (rider possibly already assigned) but needs a full restart because TumaBoda
+// reported it cancelled/failed before a rider was ever verified at pickup.
+export async function restartTumaBodaDelivery(
+  id: string,
+): Promise<{ order: OrderRecord | undefined; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/${encodeURIComponent(id)}/restart-tumaboda-delivery`, {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw = await res.json();
+  return { order: normalizeOrder(raw), source: "live" };
+}
+
 // A stuck TumaBoda order (booking permanently failed, retrying won't help) — switches
 // fulfillmentType to MANUAL_DELIVERY and carries the already-charged delivery fee over as paid.
 export async function rerouteToManualDelivery(
