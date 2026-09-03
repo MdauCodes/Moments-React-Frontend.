@@ -8,7 +8,7 @@ import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirma
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
-import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery, getOrder } from "@/services/commerceApi";
+import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery, getOrder, checkTumaBodaStatusNow } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 
@@ -41,6 +41,7 @@ export function TumaBodaFulfillmentPanel({
   const [retryBusy, setRetryBusy] = useState(false);
   const [rerouteBusy, setRerouteBusy] = useState(false);
   const [restartBusy, setRestartBusy] = useState(false);
+  const [checkStatusBusy, setCheckStatusBusy] = useState(false);
   const readyOrBeyond = tumaBodaOrderIsReadyOrBeyond(order);
   const dispatchedOrLater = order.status === "DISPATCHED" || order.status === "DELIVERED";
   // Mirrors OrderService.TUMABODA_RESTARTABLE_STATUSES exactly — a rider verified at pickup or
@@ -149,6 +150,21 @@ export function TumaBodaFulfillmentPanel({
     }
   }
 
+  async function handleCheckStatus() {
+    setCheckStatusBusy(true);
+    try {
+      const res = await checkTumaBodaStatusNow(order.id);
+      if (res.order) {
+        onOrderUpdated(res.order);
+        toast.success("Status checked — up to date with TumaBoda");
+      }
+    } catch (err) {
+      reportAdminError(err, "Failed to check TumaBoda status");
+    } finally {
+      setCheckStatusBusy(false);
+    }
+  }
+
   async function handleReroute() {
     if (!window.confirm(
       `Switch order ${order.reference} to Manual Delivery? The delivery fee already charged at ` +
@@ -210,7 +226,22 @@ export function TumaBodaFulfillmentPanel({
 
         {o.tumabodaDeliveryId && (
           <>
-            <Row label="Status" value={(o.tumabodaStatus ?? "—").toString().replace(/_/g, " ")} />
+            <div className="flex items-center justify-between gap-2">
+              <Row label="Status" value={(o.tumabodaStatus ?? "—").toString().replace(/_/g, " ")} />
+              {/* Webhooks + a 10-minute reconciliation sweep keep this current automatically —
+                  this is only for "I want to know right now", e.g. right after a grouped booking,
+                  rather than waiting up to ~20-30 minutes for the next automatic sweep. */}
+              <button
+                className="admin-btn admin-btn-ghost"
+                style={{ padding: "2px 8px", fontSize: 11 }}
+                disabled={checkStatusBusy}
+                onClick={handleCheckStatus}
+                title="Poll TumaBoda for this delivery's current status right now"
+              >
+                {checkStatusBusy && <Loader2 size={12} className="mr-1 animate-spin inline" />}
+                Check now
+              </button>
+            </div>
             <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
             {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
             {o.tumabodaTrackingCode && (

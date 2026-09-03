@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { reportAdminError, reportTumaBodaBookingFailure } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AdminAuthContext";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
-import { updateOrderStatus, groupBookTumaBodaDeliveries } from "@/services/commerceApi";
+import { updateOrderStatus, groupBookTumaBodaDeliveries, getSuggestedTumaBodaGroups } from "@/services/commerceApi";
 import { AgeBadge, formatDateShort, OrderStatusBadge } from "@/components/admin/commerceUi";
 import { QueueFreshness } from "@/components/admin/QueueFreshness";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
@@ -30,6 +30,29 @@ function PreparationQueuePage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [groupBooking, setGroupBooking] = useState(false);
+  const [suggestions, setSuggestions] = useState<OrderRecord[][]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+
+  const loadSuggestions = async () => {
+    setSuggestionsLoading(true);
+    try {
+      const res = await getSuggestedTumaBodaGroups();
+      setSuggestions(res.groups);
+    } catch (err) {
+      reportAdminError(err, "Failed to load grouping suggestions");
+    } finally {
+      setSuggestionsLoading(false);
+    }
+  };
+
+  // Fetched once on load, then re-fetched after anything that changes which orders are
+  // groupable (a group booking, or an order moving into/out of IN_PRODUCTION) — see the calls
+  // in advance() and handleGroupBook() below. Not tied to useAdminOrders' own poll cycle: that
+  // would mean re-clustering on every tick even when nothing groupable actually changed.
+  useEffect(() => {
+    void loadSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentUserId = user?.id;
   const rows = useMemo(
@@ -55,6 +78,8 @@ function PreparationQueuePage() {
         toast.success(`${label}: ${o.reference}`);
       }
       await refresh();
+      // Started/finished production both change which orders are groupable.
+      if (next === "IN_PRODUCTION" || next === "READY_FOR_DISPATCH") void loadSuggestions();
     } catch (err) {
       reportAdminError(err, "Update failed");
     } finally {
@@ -71,6 +96,10 @@ function PreparationQueuePage() {
     });
   };
 
+  const selectSuggestion = (group: OrderRecord[]) => {
+    setSelectedIds(new Set(group.map((o) => o.id)));
+  };
+
   const handleGroupBook = async () => {
     const ids = [...selectedIds];
     if (ids.length < 2) return;
@@ -85,6 +114,7 @@ function PreparationQueuePage() {
       failed.forEach((o) => reportTumaBodaBookingFailure(o.reference, o.tumabodaBookingFailureReason!));
       setSelectedIds(new Set());
       await refresh();
+      void loadSuggestions();
     } catch (err) {
       reportAdminError(err, "Failed to book grouped delivery");
     } finally {
@@ -101,6 +131,49 @@ function PreparationQueuePage() {
               <p>Verified orders land here. Click <b>Start Production</b> when you begin assembling, then <b>Mark Ready</b> once packed and labelled. Orders then flow to the Dispatch queue.</p>
             </HelpPanel>
             <QueueFreshness />
+
+            {/* Grouping suggestions — orders TumaBoda could plausibly run as one multi-stop route
+                (see TumaBodaGroupBookingService.suggestGroups), so staff don't have to manually
+                cross-reference addresses to spot which ready orders are actually going the same
+                direction. Purely a starting point: "Select these" only populates the checkboxes
+                below — nothing books until Book N as one delivery is clicked. */}
+            {!suggestionsLoading && suggestions.length > 0 && (
+              <div className="admin-panel" style={{ padding: "10px 12px" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--admin-muted)", marginBottom: 6 }}>
+                  Suggested groupings — orders close enough together to run as one delivery
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {suggestions.map((group, i) => {
+                    const counties = [...new Set(group.map((o) => o.county ?? "Unknown area"))];
+                    const alreadySelected = group.every((o) => selectedIds.has(o.id));
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+                          padding: "6px 10px", borderRadius: 8,
+                          background: alreadySelected ? "color-mix(in oklab, var(--admin-accent, #2563eb) 10%, transparent)" : "var(--admin-surface-2, rgba(0,0,0,0.03))",
+                        }}
+                      >
+                        <span style={{ fontSize: 12 }}>
+                          <b>{group.length} orders</b> in {counties.join(" / ")} —{" "}
+                          <span style={{ color: "var(--admin-muted)" }}>{group.map((o) => o.reference).join(", ")}</span>
+                        </span>
+                        <button
+                          type="button"
+                          className="admin-btn admin-btn-ghost"
+                          style={{ whiteSpace: "nowrap" }}
+                          onClick={() => selectSuggestion(group)}
+                          disabled={alreadySelected}
+                        >
+                          {alreadySelected ? "Selected" : "Select these"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Grouping action bar — only relevant once 2+ groupable TumaBoda orders are ticked. */}
             {selectedIds.size >= 2 && (
