@@ -8,13 +8,27 @@ import type { OrderRecord } from "@/services/commerceMock";
  *  webhook status (accepted/heading_to_pickup/arrived_at_pickup/etc.) TumaBoda already sends,
  *  previously captured on Order.tumabodaStatus but never shown anywhere. Surfacing it here is
  *  what fixes the repeat-click confusion from live testing: staff see real rider progress
- *  instead of a static button that looks unresponsive while booking/assignment happens. */
+ *  instead of a static button that looks unresponsive while booking/assignment happens.
+ *
+ *  This column matches BOTH READY_FOR_RIDER_PICKUP and RIDER_ASSIGNED (see
+ *  fulfillmentBoardColumns.ts) — an order stays in RIDER_ASSIGNED, and therefore in THIS column,
+ *  until staff scan the rider's QR at pickup (tumabodaRiderVerifiedAt), by design: that scan is
+ *  the identity-verification step confirming the right rider actually has the right parcel, not
+ *  just a formality. TumaBoda's own raw status can race ahead of that — their webhook reports
+ *  "in_transit" the moment the rider's app says so, regardless of whether OUR staff have
+ *  physically scanned anything yet. Shown bare, that read as a contradiction ("in transit" text
+ *  sitting inside a "ready for pickup" column) — spelling out the actual reason removes the
+ *  apparent bug without touching the verification gate itself. */
 function tumaBodaSubLabel(order: OrderRecord & Record<string, any>): string | null {
   if (!order.tumabodaDeliveryId) {
     return order.tumabodaBookingFailureReason ? "Booking failed — needs retry" : "Booking rider…";
   }
   if (!order.tumabodaStatus) return null;
-  return String(order.tumabodaStatus).replace(/_/g, " ");
+  const raw = String(order.tumabodaStatus).toLowerCase();
+  if (!order.tumabodaRiderVerifiedAt && (raw === "in_transit" || raw === "picked_up" || raw === "delivered")) {
+    return "Rider reports " + raw.replace(/_/g, " ") + " — scan QR to confirm pickup";
+  }
+  return raw.replace(/_/g, " ");
 }
 
 function OrderCard({
