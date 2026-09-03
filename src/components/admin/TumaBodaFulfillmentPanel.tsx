@@ -8,7 +8,7 @@ import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirma
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
-import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery } from "@/services/commerceApi";
+import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery, getOrder } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 
@@ -95,6 +95,23 @@ export function TumaBodaFulfillmentPanel({
     }
   }
 
+  // A failed action (e.g. "TumaBoda delivery already created" — a 409 that fires precisely when
+  // this panel's own local copy of the order is stale, still showing an older state than the
+  // server actually has) previously left the modal showing exactly what it showed before the
+  // click, with no visible sign anything happened beyond a toast that disappears in a few
+  // seconds. Refetching on error re-syncs the displayed state (status, tumabodaDeliveryId, the
+  // restart button's own visibility) to whatever's actually true server-side, instead of leaving
+  // staff staring at a screen that looks unchanged no matter how many times they click.
+  async function refreshAfterError() {
+    try {
+      const res = await getOrder(order.id);
+      if (res.order) onOrderUpdated(res.order);
+    } catch {
+      // Best-effort — the original action's own error toast already told the admin something
+      // went wrong; failing to also refresh isn't worth a second error message.
+    }
+  }
+
   async function handleRetry() {
     setRetryBusy(true);
     try {
@@ -105,6 +122,7 @@ export function TumaBodaFulfillmentPanel({
       }
     } catch (err) {
       reportAdminError(err, "Failed to create TumaBoda delivery");
+      await refreshAfterError();
     } finally {
       setRetryBusy(false);
     }
@@ -125,6 +143,7 @@ export function TumaBodaFulfillmentPanel({
       }
     } catch (err) {
       reportAdminError(err, "Failed to restart TumaBoda delivery");
+      await refreshAfterError();
     } finally {
       setRestartBusy(false);
     }
@@ -144,6 +163,7 @@ export function TumaBodaFulfillmentPanel({
       }
     } catch (err) {
       reportAdminError(err, "Failed to switch order to Manual Delivery");
+      await refreshAfterError();
     } finally {
       setRerouteBusy(false);
     }
