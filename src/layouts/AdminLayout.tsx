@@ -422,6 +422,17 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
+// Maps a nav item's `to` path to the FulfillmentType key AdminNotification.fulfillmentType
+// stores (see AdminNotificationService.countUnreadByFulfillmentType) — used to attach the live
+// per-tab unread badge at render time. Hand Delivery intentionally shares MANUAL_DELIVERY's count
+// with the plain Manual Delivery entry (see the note where this is consumed).
+const NAV_PATH_TO_FULFILLMENT_TYPE: Record<string, string> = {
+  "/admin/board/pickup": "PICKUP",
+  "/admin/board/manual-delivery": "MANUAL_DELIVERY",
+  "/admin/board/hand-delivery": "MANUAL_DELIVERY",
+  "/admin/board/tumaboda": "TUMABODA_DELIVERY",
+};
+
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 0) return "?";
@@ -528,6 +539,24 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     function poll() {
       adminResources.notifications.unreadCount()
         .then((res) => { if (!cancelled) setUnreadCount(res.count); })
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  // Per-tab sidebar badges (new orders only — the only AdminNotificationType that carries a
+  // fulfillmentType). CBD/Hand Delivery orders share FulfillmentType.MANUAL_DELIVERY with regular
+  // Manual Delivery (see board.$mode.tsx's own note on this) — the notification itself can't tell
+  // them apart, so both nav entries show the same combined count rather than one silently
+  // under-counting.
+  const [tabUnreadCounts, setTabUnreadCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    function poll() {
+      adminResources.notifications.unreadCountByTab()
+        .then((res) => { if (!cancelled) setTabUnreadCounts(res); })
         .catch(() => {});
     }
     poll();
@@ -667,9 +696,13 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
               <div key={section.label} style={{ marginBottom: 4 }}>
                 {sectionIdx > 0 && <hr style={styles.sectionDivider} />}
                 <div style={styles.sectionLabel}>{section.label}</div>
-                {visible.map((item) => (
-                  <NavLink key={item.to} item={item} active={isActive(item.to)} />
-                ))}
+                {visible.map((item) => {
+                  const fulfillmentType = NAV_PATH_TO_FULFILLMENT_TYPE[item.to];
+                  const badge = fulfillmentType ? tabUnreadCounts[fulfillmentType] : undefined;
+                  return (
+                    <NavLink key={item.to} item={badge ? { ...item, badge } : item} active={isActive(item.to)} />
+                  );
+                })}
               </div>
             );
           })}

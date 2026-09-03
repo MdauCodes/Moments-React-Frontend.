@@ -682,6 +682,7 @@ export const adminResources = {
   notifications: {
     list: () => adminJson<{ content: AdminNotificationDto[] }>("/api/v1/admin/notifications?size=20"),
     unreadCount: () => adminJson<{ count: number }>("/api/v1/admin/notifications/unread-count"),
+    unreadCountByTab: () => adminJson<Record<string, number>>("/api/v1/admin/notifications/unread-count-by-tab"),
     markRead: (id: string) => adminJson<void>(`/api/v1/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),
     markAllRead: () => adminJson<void>("/api/v1/admin/notifications/read-all", { method: "PATCH" }),
   },
