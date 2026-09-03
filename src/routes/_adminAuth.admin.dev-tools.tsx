@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw } from "lucide-react";
+import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw, Webhook, Copy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
@@ -10,6 +10,8 @@ import {
   type ProductDto,
   type BirthdayJobRunResult,
   type LeadPreviewDto,
+  type TumaBodaWebhookStatusDto,
+  type TumaBodaWebhookListEntry,
 } from "@/services/adminResources";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -624,6 +626,180 @@ function RisellerSyncTestCard() {
   );
 }
 
+// ── TumaBoda webhook registration ────────────────────────────────────────────
+
+function TumaBodaWebhookCard() {
+  const [status, setStatus] = useState<TumaBodaWebhookStatusDto | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+  const [callbackUrl, setCallbackUrl] = useState("");
+  const [sandbox, setSandbox] = useState(true);
+  const [registering, setRegistering] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [tumaWebhooks, setTumaWebhooks] = useState<TumaBodaWebhookListEntry[] | null>(null);
+  const [listing, setListing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function loadStatus() {
+    setLoadingStatus(true);
+    try {
+      setStatus(await adminResources.devTools.tumaBodaWebhookStatus());
+    } catch (err) {
+      reportAdminError(err, "Failed to load webhook status");
+    } finally {
+      setLoadingStatus(false);
+    }
+  }
+
+  useEffect(() => { void loadStatus(); }, []);
+
+  async function register() {
+    if (!window.confirm(
+      `This registers "${callbackUrl}" with TumaBoda's ${sandbox ? "sandbox" : "LIVE"} account right now — a real change on their side, not a preview. Continue?`
+    )) return;
+    setRegistering(true);
+    try {
+      await adminResources.devTools.tumaBodaWebhookRegister({ callbackUrl: callbackUrl.trim(), sandbox });
+      toast.success("Registered — secret stored automatically, verification is live now. No env var paste or redeploy needed.");
+      setRevealed(false);
+      setTumaWebhooks(null);
+      await loadStatus();
+    } catch (err) {
+      reportAdminError(err, "Registration failed");
+    } finally {
+      setRegistering(false);
+    }
+  }
+
+  async function copySecret() {
+    if (!status?.secret) return;
+    try {
+      await navigator.clipboard.writeText(status.secret);
+      toast.success("Secret copied to clipboard.");
+    } catch {
+      toast.error("Couldn't copy — clipboard access was denied.");
+    }
+  }
+
+  async function loadTumaBodaList() {
+    setListing(true);
+    try {
+      const res = await adminResources.devTools.tumaBodaWebhookList(sandbox);
+      setTumaWebhooks(res.webhooks);
+    } catch (err) {
+      reportAdminError(err, "Failed to list TumaBoda's registered webhooks");
+    } finally {
+      setListing(false);
+    }
+  }
+
+  async function deleteWebhook(id: string) {
+    if (!window.confirm(`Delete webhook ${id} at TumaBoda? This can't be undone from here.`)) return;
+    setDeletingId(id);
+    try {
+      await adminResources.devTools.tumaBodaWebhookDelete(id, sandbox);
+      toast.success("Deleted.");
+      setTumaWebhooks((prev) => prev?.filter((w) => w.id !== id) ?? null);
+      await loadStatus();
+    } catch (err) {
+      reportAdminError(err, "Delete failed");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <Webhook size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>TumaBoda webhook registration</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        Registers this environment's callback URL with TumaBoda so delivery-status updates arrive by webhook,
+        alongside the 10-minute reconciliation poll that already covers any status a webhook misses. The signing
+        secret is stored here automatically the moment you register — no manual env var paste, no redeploy.
+        TumaBoda only ever returns it once; re-registering replaces what's stored.
+      </p>
+
+      {loadingStatus ? (
+        <p style={{ fontSize: 12.5, color: "var(--admin-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+          <Loader2 size={13} className="animate-spin" /> Loading status…
+        </p>
+      ) : status?.configured ? (
+        <div style={{ marginBottom: 14, borderBottom: "1px solid var(--admin-border)", paddingBottom: 14 }}>
+          <p style={{ fontSize: 12.5, margin: "0 0 8px" }}>
+            <span style={{ color: "#16a34a", fontWeight: 600 }}>● Configured</span>
+            {" — "}{status.sandbox ? "sandbox" : "LIVE"} — <code>{status.callbackUrl}</code>
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <code
+              style={{
+                background: "var(--admin-hover, rgba(0,0,0,0.05))", padding: "4px 10px", borderRadius: 6,
+                fontSize: 12.5, letterSpacing: revealed ? "normal" : 2,
+              }}
+            >
+              {revealed ? status.secret : "•".repeat(28)}
+            </code>
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => void copySecret()}>
+              <Copy size={13} /> Copy
+            </button>
+            <button type="button" className="admin-btn admin-btn-ghost" onClick={() => setRevealed((r) => !r)}>
+              {revealed ? <EyeOff size={13} /> : <Eye size={13} />} {revealed ? "Hide" : "Reveal"}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>Not configured yet on this environment.</p>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          className="admin-input" style={{ flex: 1, minWidth: 260 }}
+          placeholder="https://api-staging.momentspackaging.com/api/v1/tumaboda/webhook"
+          value={callbackUrl} onChange={(e) => setCallbackUrl(e.target.value)}
+        />
+        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
+          <input type="checkbox" checked={sandbox} onChange={(e) => setSandbox(e.target.checked)} /> Sandbox
+        </label>
+        <button type="button" className="admin-btn admin-btn-primary" disabled={registering || !callbackUrl.trim()} onClick={() => void register()}>
+          {registering && <Loader2 size={14} className="animate-spin" />} Register
+        </button>
+      </div>
+
+      <div style={{ borderTop: "1px solid var(--admin-border)", paddingTop: 12 }}>
+        <button type="button" className="admin-btn admin-btn-ghost" disabled={listing} onClick={() => void loadTumaBodaList()}>
+          {listing && <Loader2 size={14} className="animate-spin" />} List what TumaBoda has registered ({sandbox ? "sandbox" : "live"})
+        </button>
+        {tumaWebhooks && (
+          tumaWebhooks.length === 0 ? (
+            <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginTop: 10 }}>Nothing registered on TumaBoda's side.</p>
+          ) : (
+            <table className="admin-table" style={{ marginTop: 10 }}>
+              <thead><tr><th>URL</th><th>Events</th><th>Active</th><th /></tr></thead>
+              <tbody>
+                {tumaWebhooks.map((w) => (
+                  <tr key={w.id}>
+                    <td style={{ fontSize: 12 }}>{w.url}</td>
+                    <td style={{ fontSize: 11, color: "var(--admin-muted)" }}>{w.events.join(", ")}</td>
+                    <td>{w.isActive ? "Yes" : "No"}</td>
+                    <td>
+                      <button
+                        type="button" className="admin-btn admin-btn-ghost" disabled={deletingId === w.id}
+                        onClick={() => void deleteWebhook(w.id)}
+                      >
+                        {deletingId === w.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Coming soon placeholders ──────────────────────────────────────────────────
 
 const COMING_SOON = [
@@ -666,6 +842,7 @@ function AdminDevToolsPage() {
         <BirthdayJobTestCard />
         <LeadDigestTestCard />
         <RisellerSyncTestCard />
+        <TumaBodaWebhookCard />
         <ComingSoonCard />
       </div>
     </AdminLayout>
