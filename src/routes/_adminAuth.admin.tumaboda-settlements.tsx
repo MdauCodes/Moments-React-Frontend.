@@ -106,7 +106,7 @@ function AdminTumaBodaSettlementsPage() {
     }
   };
 
-  useEffect(() => { void loadBalance(); void loadPayments(); void loadReconciliations(); }, []);
+  useEffect(() => { void loadBalance(); void loadPayments(); void loadReconciliations(); void loadLiveCreditLine(); }, []);
   useEffect(() => { if (ordersOpen && orders.length === 0) void loadOrders(); }, [ordersOpen]);
 
   const submitPayment = async (e: FormEvent) => {
@@ -229,7 +229,7 @@ function AdminTumaBodaSettlementsPage() {
   if (!allowed) return null;
 
   return (
-    <AdminLayout title="TumaBoda Settlements" onReload={() => { void loadBalance(); void loadPayments(); void loadReconciliations(); }}>
+    <AdminLayout title="TumaBoda Settlements" onReload={() => { void loadBalance(); void loadPayments(); void loadReconciliations(); void loadLiveCreditLine(); }}>
       <HelpAnchor>
         <HelpPanel title="TumaBoda settlement ledger">
           <div>
@@ -285,6 +285,27 @@ function AdminTumaBodaSettlementsPage() {
               <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>
                 {loadingBalance ? "—" : balance?.deliveredOrderCount ?? 0}
               </div>
+            </div>
+            <div className="admin-panel" style={{ padding: 16 }}>
+              <div className="admin-label">TumaBoda available credit (live)</div>
+              {(() => {
+                const pct = liveCreditLine && liveCreditLine.creditLimit > 0
+                  ? (liveCreditLine.available / liveCreditLine.creditLimit) * 100
+                  : null;
+                const color = pct == null ? undefined : pct <= 25 ? "#dc2626" : pct <= 50 ? "var(--admin-clay)" : undefined;
+                return (
+                  <>
+                    <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6, color }}>
+                      {loadingLiveCreditLine ? "—" : liveCreditLine ? formatKes(liveCreditLine.available) : "Not checked"}
+                    </div>
+                    {liveCreditLine && (
+                      <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
+                        of {formatKes(liveCreditLine.creditLimit)} limit{pct != null ? ` (${pct.toFixed(0)}%)` : ""}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 
@@ -466,12 +487,12 @@ function AdminTumaBodaSettlementsPage() {
                   disabled={loadingLiveCreditLine}
                   onClick={() => void loadLiveCreditLine()}
                 >
-                  {loadingLiveCreditLine ? "Checking…" : "Check TumaBoda's live credit line"}
+                  {loadingLiveCreditLine ? "Checking…" : "Refresh live credit line"}
                 </button>
                 {liveCreditLine && (
                   <div style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 6 }}>
-                    Status {liveCreditLine.status ?? "—"} · Outstanding {formatKes(liveCreditLine.outstanding)} ·
-                    {" "}Available {formatKes(liveCreditLine.available)} of {formatKes(liveCreditLine.creditLimit)} limit
+                    Status {liveCreditLine.status ?? "—"} · Outstanding {formatKes(liveCreditLine.outstanding)}
+                    {" "}(see the "TumaBoda available credit" card above for the full breakdown)
                   </div>
                 )}
               </div>
