@@ -55,44 +55,48 @@ interface StatusMeta {
   fg: string;
   /** null = legacy value has no manual next-action; the entry itself IS the action's target. */
   legacyEquivalent: OrderStatus;
+  /** One short sentence: what's true right now and, if anything, what staff should do about it.
+   *  Shown next to the status badge so the next action is visible without hunting through the
+   *  order detail sections below. */
+  hint: string;
 }
 
 const TUMABODA_META: Record<TumaBodaOrderStatusV2, StatusMeta> = {
-  PENDING_PAYMENT: { label: "Awaiting payment", bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", legacyEquivalent: "PENDING_PAYMENT" },
-  PAID: { label: "Paid", bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", legacyEquivalent: "PAID" },
-  IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION" },
-  READY_FOR_RIDER_PICKUP: { label: "Ready for rider pickup", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH" },
-  RIDER_ASSIGNED: { label: "Rider assigned", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH" },
-  RIDER_VERIFIED_IN_TRANSIT: { label: "Rider verified — in transit", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED" },
-  DELIVERED_PENDING_CONFIRMATION: { label: "Delivered — awaiting confirmation", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED" },
-  COMPLETED: { label: "Completed", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED" },
-  DELIVERY_FAILED: { label: "Delivery failed", bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c", legacyEquivalent: "DISPATCHED" },
-  CANCELLED: { label: "Cancelled", bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", legacyEquivalent: "CANCELLED" },
-  REFUNDED: { label: "Refunded", bg: "rgba(244, 63, 94, 0.15)", fg: "#be123c", legacyEquivalent: "REFUNDED" },
+  PENDING_PAYMENT: { label: "Awaiting payment", bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", legacyEquivalent: "PENDING_PAYMENT", hint: "Waiting for the customer to complete M-Pesa payment." },
+  PAID: { label: "Paid", bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", legacyEquivalent: "PAID", hint: "Payment confirmed — start production when ready." },
+  IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION", hint: "Being prepared. Mark ready for rider pickup once packed." },
+  READY_FOR_RIDER_PICKUP: { label: "Ready for rider pickup", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH", hint: "Booking a TumaBoda rider now — no action needed unless this stalls." },
+  RIDER_ASSIGNED: { label: "Rider assigned", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH", hint: "A rider is assigned and heading to pickup. No action needed — if it stalls, use \"Restart TumaBoda delivery\" in the section below." },
+  RIDER_VERIFIED_IN_TRANSIT: { label: "Rider verified — in transit", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED", hint: "Rider verified at pickup and en route. No action needed." },
+  DELIVERED_PENDING_CONFIRMATION: { label: "Delivered — awaiting confirmation", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED", hint: "TumaBoda reports it delivered — waiting on the customer's confirmation." },
+  COMPLETED: { label: "Completed", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED", hint: "Delivered and confirmed. Nothing more to do." },
+  DELIVERY_FAILED: { label: "Delivery failed", bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c", legacyEquivalent: "DISPATCHED", hint: "Delivery failed or was cancelled by TumaBoda. Use \"Restart TumaBoda delivery\" in the section below to try again, or contact TumaBoda directly if the parcel needs manual recovery." },
+  CANCELLED: { label: "Cancelled", bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", legacyEquivalent: "CANCELLED", hint: "Order cancelled." },
+  REFUNDED: { label: "Refunded", bg: "rgba(244, 63, 94, 0.15)", fg: "#be123c", legacyEquivalent: "REFUNDED", hint: "Refunded." },
 };
 
 const MANUAL_META: Record<ManualDeliveryOrderStatusV2, StatusMeta> = {
-  PENDING_PAYMENT: { label: "Awaiting payment", bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", legacyEquivalent: "PENDING_PAYMENT" },
-  PAID: { label: "Paid", bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", legacyEquivalent: "PAID" },
-  PAYMENT_VERIFIED: { label: "Payment verified", bg: "rgba(13, 148, 136, 0.18)", fg: "#0f766e", legacyEquivalent: "PAYMENT_VERIFIED" },
-  IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION" },
-  READY_FOR_COURIER_HANDOFF: { label: "Ready for courier handoff", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH" },
-  OUT_FOR_DELIVERY: { label: "Out for delivery", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED" },
-  COMPLETED: { label: "Completed", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED" },
-  DELIVERY_ISSUE: { label: "Delivery issue", bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c", legacyEquivalent: "DISPATCHED" },
-  CANCELLED: { label: "Cancelled", bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", legacyEquivalent: "CANCELLED" },
-  REFUNDED: { label: "Refunded", bg: "rgba(244, 63, 94, 0.15)", fg: "#be123c", legacyEquivalent: "REFUNDED" },
+  PENDING_PAYMENT: { label: "Awaiting payment", bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", legacyEquivalent: "PENDING_PAYMENT", hint: "Waiting for payment." },
+  PAID: { label: "Paid", bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", legacyEquivalent: "PAID", hint: "Payment received — mark payment verified once confirmed." },
+  PAYMENT_VERIFIED: { label: "Payment verified", bg: "rgba(13, 148, 136, 0.18)", fg: "#0f766e", legacyEquivalent: "PAYMENT_VERIFIED", hint: "Payment verified — start production when ready." },
+  IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION", hint: "Being prepared. Mark ready for courier handoff once packed." },
+  READY_FOR_COURIER_HANDOFF: { label: "Ready for courier handoff", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH", hint: "Ready for the customer's courier/sacco. Mark out for delivery once handed off." },
+  OUT_FOR_DELIVERY: { label: "Out for delivery", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED", hint: "Handed to courier. Mark completed once the customer confirms receipt." },
+  COMPLETED: { label: "Completed", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED", hint: "Delivered and confirmed. Nothing more to do." },
+  DELIVERY_ISSUE: { label: "Delivery issue", bg: "rgba(239, 68, 68, 0.15)", fg: "#b91c1c", legacyEquivalent: "DISPATCHED", hint: "Customer reported a delivery problem — follow up with them or the courier directly, then update the status once resolved." },
+  CANCELLED: { label: "Cancelled", bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", legacyEquivalent: "CANCELLED", hint: "Order cancelled." },
+  REFUNDED: { label: "Refunded", bg: "rgba(244, 63, 94, 0.15)", fg: "#be123c", legacyEquivalent: "REFUNDED", hint: "Refunded." },
 };
 
 const PICKUP_META: Record<PickupOrderStatusV2, StatusMeta> = {
-  PENDING_PAYMENT: { label: "Awaiting payment", bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", legacyEquivalent: "PENDING_PAYMENT" },
-  PAID: { label: "Paid", bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", legacyEquivalent: "PAID" },
-  PAYMENT_VERIFIED: { label: "Payment verified", bg: "rgba(13, 148, 136, 0.18)", fg: "#0f766e", legacyEquivalent: "PAYMENT_VERIFIED" },
-  IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION" },
-  READY_FOR_PICKUP: { label: "Ready for pickup", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH" },
-  COMPLETED: { label: "Picked up", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED" },
-  CANCELLED: { label: "Cancelled", bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", legacyEquivalent: "CANCELLED" },
-  REFUNDED: { label: "Refunded", bg: "rgba(244, 63, 94, 0.15)", fg: "#be123c", legacyEquivalent: "REFUNDED" },
+  PENDING_PAYMENT: { label: "Awaiting payment", bg: "rgba(234, 179, 8, 0.15)", fg: "#a16207", legacyEquivalent: "PENDING_PAYMENT", hint: "Waiting for payment." },
+  PAID: { label: "Paid", bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", legacyEquivalent: "PAID", hint: "Payment received — mark payment verified once confirmed." },
+  PAYMENT_VERIFIED: { label: "Payment verified", bg: "rgba(13, 148, 136, 0.18)", fg: "#0f766e", legacyEquivalent: "PAYMENT_VERIFIED", hint: "Payment verified — start production when ready." },
+  IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION", hint: "Being prepared. Mark ready for pickup once packed." },
+  READY_FOR_PICKUP: { label: "Ready for pickup", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH", hint: "Ready for the customer to collect in person. Mark picked up once they arrive." },
+  COMPLETED: { label: "Picked up", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED", hint: "Picked up. Nothing more to do." },
+  CANCELLED: { label: "Cancelled", bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", legacyEquivalent: "CANCELLED", hint: "Order cancelled." },
+  REFUNDED: { label: "Refunded", bg: "rgba(244, 63, 94, 0.15)", fg: "#be123c", legacyEquivalent: "REFUNDED", hint: "Refunded." },
 };
 
 function metaFor(fulfillmentType: string | null | undefined, statusV2: string | null | undefined): StatusMeta | null {
@@ -109,14 +113,15 @@ function metaFor(fulfillmentType: string | null | undefined, statusV2: string | 
   }
 }
 
-/** Resolved {label, bg, fg} for display — prefers statusV2 (mode-specific wording) and falls
- *  back to the caller's legacy-status badge for orders not yet backfilled. */
+/** Resolved {label, bg, fg, hint} for display — prefers statusV2 (mode-specific wording) and
+ *  falls back to the caller's legacy-status badge for orders not yet backfilled. `hint` is a
+ *  short "what's happening / what to do" sentence — see StatusMeta. */
 export function resolveStatusDisplay(
   fulfillmentType: string | null | undefined,
   statusV2: string | null | undefined,
-): { label: string; bg: string; fg: string } | null {
+): { label: string; bg: string; fg: string; hint: string } | null {
   const meta = metaFor(fulfillmentType, statusV2);
-  return meta ? { label: meta.label, bg: meta.bg, fg: meta.fg } : null;
+  return meta ? { label: meta.label, bg: meta.bg, fg: meta.fg, hint: meta.hint } : null;
 }
 
 /** Mode-aware "next action" — replaces commerceUi.tsx's fulfillment-agnostic getNextAction.

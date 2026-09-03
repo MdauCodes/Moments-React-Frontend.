@@ -66,6 +66,10 @@ export function OrderStatusBadge({
   const tone = resolved ?? ORDER_TONE[status] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: status };
   return (
     <span
+      // Hover tooltip in tables/cards, where there's no room for the hint as visible text — the
+      // order detail modal shows the same hint inline instead. Legacy-only badges (no statusV2
+      // yet) have no hint to offer.
+      title={resolved?.hint}
       style={{
         display: "inline-flex",
         alignItems: "center",

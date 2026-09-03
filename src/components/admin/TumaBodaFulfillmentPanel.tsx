@@ -196,13 +196,27 @@ export function TumaBodaFulfillmentPanel({
             {o.tumabodaTrackingCode && (
               <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
             )}
-            {canRestart && (
-              <div className="mt-2">
-                <button className="admin-btn admin-btn-ghost" disabled={restartBusy} onClick={handleRestart}>
+            {/* DELIVERY_FAILED gets the same destructive-callout treatment as the "booking
+                failed" case above — this is the one restart scenario staff are actively looking
+                to resolve, not an edge-case escape hatch, so it shouldn't read as just another
+                ghost button among the info rows. */}
+            {canRestart && o.statusV2 === "DELIVERY_FAILED" ? (
+              <div className="mt-2 rounded-md border border-dashed bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                <p>Delivery failed or was cancelled by TumaBoda. Restart to try again, or contact TumaBoda directly if the parcel needs manual recovery.</p>
+                <button className="admin-btn admin-btn-ghost mt-2" disabled={restartBusy} onClick={handleRestart}>
                   {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
                   Restart TumaBoda delivery
                 </button>
               </div>
+            ) : (
+              canRestart && (
+                <div className="mt-2">
+                  <button className="admin-btn admin-btn-ghost" disabled={restartBusy} onClick={handleRestart}>
+                    {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                    Restart TumaBoda delivery
+                  </button>
+                </div>
+              )
             )}
           </>
         )}
