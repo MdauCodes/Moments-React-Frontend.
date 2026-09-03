@@ -27,6 +27,7 @@ import { apiUrl, apiFetch } from "@/config/api";
 import { trackFunnelStep } from "@/services/checkoutFunnelTracker";
 import { CountySelect } from "@/components/CountySelect";
 import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
+import { isWithinNairobiCbd } from "@/lib/nairobiCbd";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
@@ -41,25 +42,6 @@ const tumaBodaPartner = getDeliveryPartner("tumaboda");
  *  and dispatched the next morning instead of same-day. Checked against Africa/Nairobi time
  *  explicitly (not the browser's local time) so this is correct regardless of where the
  *  customer's device thinks it is. */
-// Mirrors CheckoutService.isWithinNairobiCbd exactly (same centre, same 1.5km radius) — used only
-// to decide which delivery-method UI to show. The backend re-checks this itself before charging
-// anything, so a drift between the two copies would at worst show the wrong UI option, never the
-// wrong charge.
-const CBD_CENTER_LAT = -1.2864;
-const CBD_CENTER_LNG = 36.8172;
-const CBD_RADIUS_KM = 1.5;
-const EARTH_RADIUS_KM = 6371;
-
-function isWithinNairobiCbd(lat: number, lng: number): boolean {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const deltaLat = toRad(lat - CBD_CENTER_LAT);
-  const deltaLng = toRad(lng - CBD_CENTER_LNG);
-  const a =
-    Math.sin(deltaLat / 2) ** 2 +
-    Math.cos(toRad(CBD_CENTER_LAT)) * Math.cos(toRad(lat)) * Math.sin(deltaLng / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return EARTH_RADIUS_KM * c <= CBD_RADIUS_KM;
-}
 
 function isAfterBusinessHours(): boolean {
   const nairobiHour = Number(

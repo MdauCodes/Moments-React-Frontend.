@@ -348,6 +348,27 @@ export type LeadPreviewDto = {
   createdAt: string;
 };
 
+export type TumaBodaWebhookRegistrationResult = {
+  webhookId: string | null;
+  secret: string | null;
+};
+export type TumaBodaWebhookStatusDto = {
+  configured: boolean;
+  webhookId: string | null;
+  callbackUrl: string | null;
+  sandbox: boolean;
+  secret: string | null;
+  registeredAt: string | null;
+};
+export type TumaBodaWebhookListEntry = {
+  id: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TaxDocumentStatus = "PENDING" | "GENERATING" | "SENT" | "FAILED" | "EXPIRED";
 export type TaxDocumentAdminDto = {
   id: string;
@@ -470,6 +491,14 @@ export const adminResources = {
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/preview"),
     sendLogDigestNow: () =>
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/run", { method: "POST" }),
+    tumaBodaWebhookStatus: () =>
+      adminJson<TumaBodaWebhookStatusDto>("/api/v1/admin/dev-tools/tumaboda-webhook/status"),
+    tumaBodaWebhookRegister: (body: { callbackUrl: string; sandbox: boolean }) =>
+      adminJson<TumaBodaWebhookRegistrationResult>("/api/v1/admin/dev-tools/tumaboda-webhook/register", { method: "POST", body: JSON.stringify(body) }),
+    tumaBodaWebhookList: (sandbox: boolean) =>
+      adminJson<{ webhooks: TumaBodaWebhookListEntry[] }>(`/api/v1/admin/dev-tools/tumaboda-webhook/list${qs({ sandbox })}`),
+    tumaBodaWebhookDelete: (webhookId: string, sandbox: boolean) =>
+      adminJson<{ message: string }>(`/api/v1/admin/dev-tools/tumaboda-webhook/${encodeURIComponent(webhookId)}${qs({ sandbox })}`, { method: "DELETE" }),
   },
   productImageGeneration: {
     getCandidateCount: () =>
