@@ -15,6 +15,7 @@ import { refundEligibility, type RefundRequest } from "@/services/refundStore";
 import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
 import { getPublicVapidPublicKey, subscribeCustomerPush } from "@/services/pushApi";
 import { Bell } from "lucide-react";
+import { apiUrl } from "@/config/api";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -234,25 +235,38 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
   // Keeps the verified view current without a manual reload — a status change made from the
   // admin side (e.g. "Mark ready", rider scan) previously only showed up here after the
   // customer refreshed the page themselves. Scoped to just this verified panel, not the
-  // unverified reference-lookup card. Stops polling once the order reaches a terminal state
+  // unverified reference-lookup card. Stops entirely once the order reaches a terminal state
   // (nothing left to change) and pauses while the tab is backgrounded (no point spending a
   // request on a poll nobody's looking at) — resuming with one immediate refetch when it comes
-  // back into view, so a customer who tabs back in isn't staring at stale data for up to 20s.
+  // back into view, so a customer who tabs back in isn't staring at stale data.
+  //
+  // Primary channel is now SSE (PublicOrderController.trackEvents) — a real status push triggers
+  // an immediate refetch instead of waiting for the next tick. The poll below is deliberately
+  // NOT torn down once SSE connects, just widened to a rare safety net (90s instead of 20s): an
+  // SSE connection can go quietly dead (an idle proxy timeout) without ever firing onerror, so a
+  // poll-free design would risk the page going stale with no visible sign of it. Falls back to
+  // the original 20s cadence if SSE errors or never connects at all.
   useEffect(() => {
     if (stage !== "ready" || !order || !accessToken) return;
     if (TERMINAL_ORDER_STATUSES.has(order.status)) return;
 
     let cancelled = false;
     let interval: ReturnType<typeof setInterval> | null = null;
+    let pollMs = 20_000;
 
     async function refetch() {
       try {
         const { order: full } = await orderStore.trackByReference(reference, email, accessToken!);
         if (!cancelled && full?.verified) setOrder(full);
       } catch {
-        // A transient poll failure isn't worth surfacing — the next tick (or the customer's own
-        // manual refresh) will just try again.
+        // A transient poll/SSE-triggered failure isn't worth surfacing — the next tick (or the
+        // customer's own manual refresh) will just try again.
       }
+    }
+
+    function startPolling() {
+      if (interval) clearInterval(interval);
+      interval = setInterval(refetch, pollMs);
     }
 
     function handleVisibilityChange() {
@@ -263,17 +277,35 @@ function VerifiedOrderPanel({ reference, email, fallback }: { reference: string;
         }
       } else if (!interval) {
         void refetch();
-        interval = setInterval(refetch, 20_000);
+        startPolling();
       }
     }
 
-    if (!document.hidden) interval = setInterval(refetch, 20_000);
+    if (!document.hidden) startPolling();
     document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    let eventSource: EventSource | null = null;
+    try {
+      eventSource = new EventSource(apiUrl(`/api/v1/orders/track/${encodeURIComponent(reference)}/events`));
+      eventSource.addEventListener("status", () => { void refetch(); });
+      eventSource.onopen = () => {
+        pollMs = 90_000;
+        if (interval) startPolling();
+      };
+      eventSource.onerror = () => {
+        pollMs = 20_000;
+        if (interval) startPolling();
+      };
+    } catch {
+      // EventSource construction itself failing (very old browser) — the poll above already
+      // covers this at its original 20s cadence.
+    }
 
     return () => {
       cancelled = true;
       if (interval) clearInterval(interval);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      eventSource?.close();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stage, order?.status, accessToken, reference, email]);
