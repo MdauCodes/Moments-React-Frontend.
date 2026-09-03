@@ -20,6 +20,7 @@ export type TumaBodaOrderStatusV2 =
   | "IN_PRODUCTION"
   | "READY_FOR_RIDER_PICKUP"
   | "RIDER_ASSIGNED"
+  | "RIDER_IN_TRANSIT"
   | "RIDER_VERIFIED_IN_TRANSIT"
   | "DELIVERED_PENDING_CONFIRMATION"
   | "COMPLETED"
@@ -67,6 +68,7 @@ const TUMABODA_META: Record<TumaBodaOrderStatusV2, StatusMeta> = {
   IN_PRODUCTION: { label: "In production", bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", legacyEquivalent: "IN_PRODUCTION", hint: "Being prepared. Mark ready for rider pickup once packed." },
   READY_FOR_RIDER_PICKUP: { label: "Ready for rider pickup", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH", hint: "Booking a TumaBoda rider now — no action needed unless this stalls." },
   RIDER_ASSIGNED: { label: "Rider assigned", bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", legacyEquivalent: "READY_FOR_DISPATCH", hint: "A rider is assigned and heading to pickup. No action needed — if it stalls, use \"Restart TumaBoda delivery\" in the section below." },
+  RIDER_IN_TRANSIT: { label: "In transit", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED", hint: "TumaBoda reports the rider has it and it's moving. No QR scan recorded — that's fine, scanning is an optional extra identity check, not a requirement. No action needed." },
   RIDER_VERIFIED_IN_TRANSIT: { label: "Rider verified — in transit", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED", hint: "Rider verified at pickup and en route. No action needed." },
   DELIVERED_PENDING_CONFIRMATION: { label: "Delivered — awaiting confirmation", bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", legacyEquivalent: "DISPATCHED", hint: "TumaBoda reports it delivered — waiting on the customer's confirmation." },
   COMPLETED: { label: "Completed", bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", legacyEquivalent: "DELIVERED", hint: "Delivered and confirmed. Nothing more to do." },
@@ -150,8 +152,9 @@ export function getNextActionV2(
           label: "Mark ready for rider pickup",
           busyLabel: "Booking rider…",
         };
-      // READY_FOR_RIDER_PICKUP / RIDER_ASSIGNED / RIDER_VERIFIED_IN_TRANSIT /
-      // DELIVERED_PENDING_CONFIRMATION: no manual action — the rider scan and the customer's
+      // READY_FOR_RIDER_PICKUP / RIDER_ASSIGNED / RIDER_IN_TRANSIT / RIDER_VERIFIED_IN_TRANSIT /
+      // DELIVERED_PENDING_CONFIRMATION: no manual action — TumaBoda's own status updates (an
+      // optional rider scan, or just their webhook reporting real movement) and the customer's
       // own confirmation drive these, not a staff click.
       default:
         return null;

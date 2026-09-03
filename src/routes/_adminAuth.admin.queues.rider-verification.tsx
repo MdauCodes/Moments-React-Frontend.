@@ -12,8 +12,11 @@ import type { OrderRecord } from "@/services/commerceMock";
  * A focused, mobile-first view for the one job staff actually do standing at the loading area
  * with a phone: scan the rider's QR and move on. Deliberately skips DispatchChecklist's contents
  * checklist entirely — that's a separate concern already handled before an order reaches here.
- * Lists only TumaBoda orders genuinely awaiting a scan; a successful scan dispatches the order
- * automatically (see RiderScanPanel/scanRiderForOrder) so it drops out of this list on its own.
+ * Lists TumaBoda orders that haven't been scanned yet — including ones TumaBoda's own webhook
+ * has already advanced past "ready for dispatch" on its own, since the scan is an OPTIONAL extra
+ * identity check now, not a precondition for the order to move (see
+ * PaymentService.handleTumaBodaStatusUpdate's 2026-09-03 promotion note). A successful scan
+ * always drops the order out of this list, whichever way it got here.
  */
 function RiderVerificationQueuePage() {
   const allowed = useRequirePermission([PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL]);
@@ -23,9 +26,11 @@ function RiderVerificationQueuePage() {
   const awaitingScan = orders.filter(
     (o) =>
       o.fulfillmentType === "TUMABODA_DELIVERY" &&
-      o.status === "READY_FOR_DISPATCH" &&
-      o.paymentStatus === "PAID" &&
-      !o.tumabodaRiderVerifiedAt,
+      !!o.tumabodaDeliveryId &&
+      !o.tumabodaRiderVerifiedAt &&
+      o.status !== "DELIVERED" &&
+      o.status !== "CANCELLED" &&
+      o.status !== "REFUNDED",
   );
 
   if (!allowed) return null;
@@ -80,6 +85,11 @@ function RiderVerificationQueuePage() {
                 their TumaBoda app. A successful scan verifies the rider and dispatches the order in one step —
                 the order drops off this list automatically. Scanning the wrong rider against the wrong order
                 is rejected, so a mix-up never gets marked as dispatched.
+              </p>
+              <p>
+                This step is optional — TumaBoda's own status updates move an order along on their own even
+                without a scan — but scanning gives you an extra identity check before handoff, and some orders
+                here may already show as "in transit" for exactly that reason.
               </p>
             </HelpPanel>
 
