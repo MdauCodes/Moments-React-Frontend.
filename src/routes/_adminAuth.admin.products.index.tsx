@@ -24,6 +24,7 @@ function AdminProductsPage() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [view, setView] = useState<"table" | "cards">("table");
+  const [jumpTo, setJumpTo] = useState("");
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim().toLowerCase()), 250);
@@ -342,6 +343,37 @@ function AdminProductsPage() {
           >
             Next
           </button>
+          {totalPages > 1 && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = Number(jumpTo);
+                if (!Number.isFinite(n)) return;
+                const clamped = Math.min(Math.max(Math.trunc(n), 1), totalPages);
+                setPage(clamped - 1);
+                setJumpTo("");
+              }}
+              style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}
+            >
+              <label htmlFor="products-jump-to-page" className="admin-label">
+                Go to page
+              </label>
+              <input
+                id="products-jump-to-page"
+                type="number"
+                min={1}
+                max={totalPages}
+                placeholder={String(page + 1)}
+                className="admin-input"
+                style={{ width: 64 }}
+                value={jumpTo}
+                onChange={(e) => setJumpTo(e.target.value)}
+              />
+              <button type="submit" className="admin-btn admin-btn-ghost" disabled={!jumpTo}>
+                Go
+              </button>
+            </form>
+          )}
         </div>
       </div>
       
