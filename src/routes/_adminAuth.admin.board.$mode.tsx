@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
 import { FulfillmentBoard } from "@/components/admin/FulfillmentBoard";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
-import { listOrders } from "@/services/commerceApi";
+import { listOrders, resyncStuckTumaBodaOrders } from "@/services/commerceApi";
+import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 import { PERM } from "@/lib/permissions";
 import { useRequirePermission } from "@/lib/useRequirePermission";
@@ -34,8 +36,47 @@ const MODE_HELP: Record<FulfillmentModeKey, string> = {
   MANUAL_DELIVERY:
     "Start production once paid, mark ready once packed, mark out for delivery once handed to the courier, mark completed (or flag a delivery issue) once it's resolved. A red card means it needs attention, not that it failed.",
   TUMABODA_DELIVERY:
-    "Start production once paid, then \"Mark ready for rider pickup\" books the rider automatically. The card shows TumaBoda's live status (accepted, heading to pickup, arrived at pickup) — wait for it to say the rider has arrived before scanning their QR code, which is the one manual step at that stage.",
+    "Start production once paid, then \"Mark ready for rider pickup\" books the rider automatically. From there the card moves itself — TumaBoda's own status updates (arriving live via webhook, or checked periodically) carry it from \"Ready for rider pickup\" to \"Out for delivery\" to \"Completed\" with no staff click needed. Scanning the rider's QR at pickup is an OPTIONAL extra identity check, not a requirement — a card can reach \"Out for delivery\" without one, shown there as \"in transit — not scanned (optional)\" instead of \"Rider verified\". Scan any time (from this card, the order detail panel, or the Rider Verification page) to upgrade that label; skipping it never blocks the order. If a card looks stuck, use \"Check now\" on that order first — it's an immediate poll, not a 10-30 minute wait for the next automatic sweep.",
 };
+
+/** How out-of-date data (a status recorded before a status-derivation bugfix shipped, that's had
+ *  no reason to receive a fresh webhook since) gets caught up — see the backend's
+ *  TumaBodaReconciliationService.resyncFromStoredStatus. Re-derives from what's already stored,
+ *  no TumaBoda API calls, so it's safe to run any time and a no-op for anything already correct. */
+function ResyncStuckOrdersButton({ onDone }: { onDone: () => void }) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleClick() {
+    setBusy(true);
+    try {
+      const { resynced } = await resyncStuckTumaBodaOrders();
+      toast.success(
+        resynced > 0
+          ? `Resynced ${resynced} order${resynced === 1 ? "" : "s"} — moved to reflect TumaBoda's already-known status.`
+          : "Nothing to resync — every order already matches its known TumaBoda status.",
+      );
+      onDone();
+    } catch (err) {
+      reportAdminError(err, "Failed to resync stuck orders");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="admin-btn admin-btn-ghost"
+      style={{ fontSize: 11.5, padding: "4px 10px" }}
+      disabled={busy}
+      onClick={handleClick}
+      title="Re-check every order still showing 'Ready for rider pickup' against what TumaBoda already told us — fixes cards stuck from before a status fix, no waiting for the next automatic sweep"
+    >
+      {busy && <Loader2 size={12} className="mr-1 animate-spin inline" />}
+      Resync stuck orders
+    </button>
+  );
+}
 
 function FulfillmentBoardPage() {
   const allowed = useRequirePermission([
@@ -125,7 +166,10 @@ function FulfillmentBoardPage() {
             </HelpPanel>
             <div className="admin-section-heading">
               <span>{pageLabel}</span>
-              <QueueFreshness />
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                {mode === "TUMABODA_DELIVERY" && <ResyncStuckOrdersButton onDone={() => void refresh()} />}
+                <QueueFreshness />
+              </div>
             </div>
             <div style={{ padding: "0 10px 10px" }}>
               <input
