@@ -477,6 +477,25 @@ export async function restartTumaBodaDelivery(
   return { order: normalizeOrder(raw), source: "live" };
 }
 
+/** Groups several in-production TumaBoda orders into one multi-stop delivery. Every selected
+ *  order comes back in the response array (not just the successful ones) — a partial failure
+ *  shows up as that order's tumabodaBookingFailureReason being set, not as a thrown error, same
+ *  as the single-order retry/restart calls above. */
+export async function groupBookTumaBodaDeliveries(
+  orderIds: string[],
+): Promise<{ orders: OrderRecord[]; source: Source }> {
+  const res = await adminFetch(`/api/v1/admin/orders/tumaboda/group-book`, {
+    method: "POST",
+    body: JSON.stringify({ orderIds }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new ApiError({ status: res.status, message: body?.message, code: body?.code });
+  }
+  const raw: unknown[] = await res.json();
+  return { orders: raw.map(normalizeOrder), source: "live" };
+}
+
 // A stuck TumaBoda order (booking permanently failed, retrying won't help) — switches
 // fulfillmentType to MANUAL_DELIVERY and carries the already-charged delivery fee over as paid.
 export async function rerouteToManualDelivery(
