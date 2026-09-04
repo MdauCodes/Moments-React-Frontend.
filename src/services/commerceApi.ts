@@ -1299,3 +1299,79 @@ export async function exportCustomers(
   const res = await listCustomers({ ...params, size: 1000 });
   return { rows: res.rows, source: res.source };
 }
+
+// ---------- Live order events (replaces polling for "a new order just landed") ----------
+
+/**
+ * Pushes new-order events from AdminOrderEventStreamService the instant a customer checks out —
+ * AdminOrdersContext's own 120s poll stays in place as a general staleness safety net (it still
+ * covers other admins' status changes this stream doesn't), but a brand new order no longer waits
+ * up to two minutes to appear.
+ *
+ * A plain `EventSource` can't be used here — it has no way to attach the admin's Bearer token,
+ * and this codebase has already deliberately moved sensitive tokens OUT of query strings once
+ * before (see the 2026-08 access-token/upload-token header migration) rather than pass them that
+ * way. So this reads the stream manually via adminFetch's own authenticated fetch() + a
+ * ReadableStream reader, parsing the minimal `data: <reference>\n\n` SSE framing by hand.
+ *
+ * Reconnects on its own (fetch-based streams don't auto-reconnect like EventSource does) with a
+ * short fixed backoff, and stops cleanly when the returned unsubscribe function is called (e.g.
+ * on logout or provider unmount) — checked via the AbortController rather than a boolean flag, so
+ * an in-flight reconnect timer started just before unsubscribe can still see it should stop.
+ */
+export function subscribeToAdminOrderEvents(onNewOrder: (reference: string) => void): () => void {
+  const controller = new AbortController();
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function connectOnce(): Promise<void> {
+    let res: Response;
+    try {
+      res = await adminFetch("/api/v1/admin/orders/events", {
+        headers: { Accept: "text/event-stream" },
+        signal: controller.signal,
+      });
+    } catch {
+      return; // aborted, or adminFetch itself threw (e.g. session expired) - the reconnect loop below decides what happens next
+    }
+    if (!res.ok || !res.body) return;
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    try {
+      while (!controller.signal.aborted) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE messages are separated by a blank line; each one here is just `event: new-order\ndata: <reference>`.
+        let sep;
+        while ((sep = buffer.indexOf("\n\n")) !== -1) {
+          const raw = buffer.slice(0, sep);
+          buffer = buffer.slice(sep + 2);
+          const dataLine = raw.split("\n").find((l) => l.startsWith("data:"));
+          if (dataLine) onNewOrder(dataLine.slice(5).trim());
+        }
+      }
+    } catch {
+      // Connection dropped (network blip, server restart, 30-min emitter timeout) - fall through
+      // to the reconnect loop below instead of surfacing anything to the caller.
+    }
+  }
+
+  async function loop(): Promise<void> {
+    while (!controller.signal.aborted) {
+      await connectOnce();
+      if (controller.signal.aborted) break;
+      await new Promise<void>((resolve) => {
+        reconnectTimer = setTimeout(resolve, 5000);
+      });
+    }
+  }
+
+  void loop();
+
+  return () => {
+    controller.abort();
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+  };
+}
