@@ -497,8 +497,10 @@ function ProductsPage() {
       .getDiversifiedProducts({ size: 20 })
       .then((data) => {
         if (!cancelled) {
+          // This is supplementary browsing, not itself a search result — same in-stock-only rule
+          // as the general grid above, not the more permissive search-results one.
           setMoreProducts(
-            data.filter((p) => !shownIds.has(p.id) && !getStockInfo(p, null, 0).isMadeToOrder),
+            data.filter((p) => !shownIds.has(p.id) && getStockInfo(p, null, 0).canOrder),
           );
         }
       })
@@ -576,17 +578,17 @@ function ProductsPage() {
           return [...base].sort((a, b) => (ranks.get(a.id) ?? 0) - (ranks.get(b.id) ?? 0));
         })();
 
-    // Made-to-order items don't appear in the general browse listing at all (business decision
-    // 2026-09-04 — tightened from the earlier "deprioritize to the back" rule) — but never when
-    // the customer specifically searched, where a match should still show up as itself, clearly
-    // labeled, rather than vanish from a result set the customer typed the words for. Plain
-    // out-of-stock (not made-to-order) still just sinks to the back, unchanged.
-    if (searchResults) return ordered;
-    const visible = ordered.filter((p) => !getStockInfo(p, null, 0).isMadeToOrder);
-    const canBuyNow = (p: Product) => getStockInfo(p, null, 0).canOrder;
-    const available = visible.filter(canBuyNow);
-    const unavailable = visible.filter((p) => !canBuyNow(p));
-    return unavailable.length > 0 ? [...available, ...unavailable] : visible;
+    // General browse listing: in-stock (incl. low-stock) only — out-of-stock and made-to-order
+    // are both reserved for search now (business decision 2026-09-04, tightened from the earlier
+    // "deprioritize to the back" rule — nobody browsing should see what they can't buy at all).
+    // Search is different: a customer who typed the words for an out-of-stock item should still
+    // see it as itself, clearly labeled, rather than have it vanish from a result set they asked
+    // for by name — but made-to-order stays hidden even there, since it needs a WhatsApp enquiry
+    // either way and showing it in a search result implies it's a normal add-to-cart match.
+    if (searchResults) {
+      return ordered.filter((p) => !getStockInfo(p, null, 0).isMadeToOrder);
+    }
+    return ordered.filter((p) => getStockInfo(p, null, 0).canOrder);
   }, [searchResults, products, sort]);
 
   // JSON-LD ItemList for the visible page
