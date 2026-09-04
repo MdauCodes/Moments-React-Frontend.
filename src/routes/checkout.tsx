@@ -38,18 +38,6 @@ import { getDeliveryPartner } from "@/data/deliveryPartners";
 
 const tumaBodaPartner = getDeliveryPartner("tumaboda");
 
-/** Business-hours cutoff, hardcoded per the current rule: orders placed past 5pm are prepared
- *  and dispatched the next morning instead of same-day. Checked against Africa/Nairobi time
- *  explicitly (not the browser's local time) so this is correct regardless of where the
- *  customer's device thinks it is. */
-
-function isAfterBusinessHours(): boolean {
-  const nairobiHour = Number(
-    new Intl.DateTimeFormat("en-KE", { hour: "numeric", hour12: false, timeZone: "Africa/Nairobi" }).format(new Date()),
-  );
-  return nairobiHour >= 17;
-}
-
 /**
  * Generates the tax invoice PDF client-side (same renderer as the self-serve download on the
  * track-orders page) and uploads it straight to Cloudinary while the customer's browser is still
@@ -1063,6 +1051,16 @@ function CheckoutModal() {
         setOrderId(id);
         setOrderRef(ref);
         trackFunnelStep("ORDER_PLACED", { orderReference: ref });
+        // Server-computed (BusinessHoursConfig, Africa/Nairobi) — see OrderDto.outsideHoursMessage
+        // on the backend. Shown right at order creation, not after payment succeeds: the customer
+        // is about to wait on an M-Pesa prompt either way, so they may as well know now that
+        // preparation itself won't start until the shop reopens, regardless of when payment lands.
+        if (order.outsideHoursMessage) {
+          toast.info("We're closed right now", {
+            description: order.outsideHoursMessage,
+            duration: 15000,
+          });
+        }
         if (etrRequested) {
           toast.success(`Your receipt, tax invoice and ETR will be emailed to ${documentsEmail.trim()} once we've uploaded your ETR.`);
           if (order.taxInvoiceUploadToken) {
@@ -1126,13 +1124,6 @@ function CheckoutModal() {
           } catch {
             // Storage full/blocked — losing this prefill-for-next-time is harmless, order already succeeded.
           }
-        }
-        if (isAfterBusinessHours()) {
-          toast.info("We're closed for the night", {
-            description:
-              "Your order will be prepared first thing tomorrow morning — you'll get an email and SMS the moment it's dispatched.",
-            duration: 15000,
-          });
         }
         setTimeout(() => {
           navigate(`/order-confirmation?ref=${ref}`);

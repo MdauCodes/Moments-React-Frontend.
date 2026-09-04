@@ -1,5 +1,6 @@
 import { AgeBadge, formatKes } from "@/components/admin/commerceUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
+import { TumaBodaOtpChip } from "@/components/admin/TumaBodaOtpCard";
 import { BOARD_COLUMNS, resolveBoardColumnKey, isExceptionStatus } from "@/lib/fulfillmentBoardColumns";
 import type { FulfillmentModeKey } from "@/lib/fulfillmentModes";
 import type { OrderRecord } from "@/services/commerceMock";
@@ -68,6 +69,13 @@ function OrderCard({
         <div style={{ fontSize: 11, color: exception ? "#b91c1c" : "var(--admin-accent)", fontWeight: 600 }}>
           {subLabel}
         </div>
+      )}
+      {mode === "TUMABODA_DELIVERY" && (
+        <TumaBodaOtpChip
+          code={order.tumabodaPickupOtpCode}
+          expiresAt={order.tumabodaPickupOtpExpiresAt}
+          verifiedAt={order.tumabodaPickupOtpVerifiedAt}
+        />
       )}
       {/* Quick one-tap advance for the generic pre-fulfillment stages (start production, mark
        *  ready) — renders nothing once the mode's own fulfillment-specific flow takes over (QR
