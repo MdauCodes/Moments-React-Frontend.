@@ -31,8 +31,9 @@ import { QueueFreshness } from "@/components/admin/QueueFreshness";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { downloadOrdersListPdf } from "@/lib/pdf";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, LayoutGrid, Rows3 } from "lucide-react";
 import { FULFILLMENT_MODE_KEYS, FULFILLMENT_MODES, stageSortIndex } from "@/lib/fulfillmentModes";
+import { AllOrdersBoard } from "@/components/admin/AllOrdersBoard";
 
 
 
@@ -164,6 +165,11 @@ function AdminOrdersPage() {
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
   const [hideTestOrders, setHideTestOrders] = useState(false);
   const [deliveryTab, setDeliveryTab] = useState<DeliveryTab>("ALL");
+  // Board (the same card/column design every per-mode tab already uses — see AllOrdersBoard) is
+  // now the default view here too, per explicit request. Table stays available as a toggle for
+  // the bulk-assign/export workflow, which is genuinely easier as a dense list with checkboxes
+  // than scattered across board columns.
+  const [view, setView] = useState<"board" | "table">("board");
   // Payment-status filter, test-order toggle, and assignment-scope tabs are secondary controls —
   // collapsed by default so the search/status row and the table below get the space instead. Any
   // of the three being non-default auto-opens the panel so an active filter is never hidden.
@@ -436,6 +442,26 @@ function AdminOrdersPage() {
                   {!effectiveShowMoreFilters && (paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL")) ? " •" : ""}
                 </button>
               </div>
+              <div style={{ display: "flex", gap: 4 }}>
+                <button
+                  type="button"
+                  className={`admin-btn ${view === "board" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+                  onClick={() => setView("board")}
+                  aria-label="Board view"
+                  title="Board view"
+                >
+                  <LayoutGrid size={14} />
+                </button>
+                <button
+                  type="button"
+                  className={`admin-btn ${view === "table" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+                  onClick={() => setView("table")}
+                  aria-label="Table view"
+                  title="Table view — bulk assign & export"
+                >
+                  <Rows3 size={14} />
+                </button>
+              </div>
               <button type="button" className="admin-btn" onClick={() => setShowCreateModal(true)}>New order</button>
               {!isAssignedOnly && (
                 <>
@@ -566,6 +592,33 @@ function AdminOrdersPage() {
               </div>
             )}
 
+            {view === "board" ? (
+              initialLoading || searching ? (
+                <div className="admin-empty" style={{ padding: 24 }}>{searching ? "Searching…" : "Loading orders…"}</div>
+              ) : sortedRows.length === 0 ? (
+                <div className="admin-empty" style={{ padding: 24 }}>
+                  {isAssignedOnly
+                    ? "No orders assigned to you yet. Your supervisor will assign orders when ready."
+                    : "No orders match your filters."}
+                </div>
+              ) : (
+                <div style={{ padding: 12 }}>
+                  <AllOrdersBoard
+                    orders={sortedRows as (OrderRecord & Record<string, any>)[]}
+                    onOpenOrder={setOpenId}
+                    onOrderUpdated={(o) => applyOrderPatch(o.id, o)}
+                    canAssign={canAssign}
+                    selectedIds={selectedIds}
+                    onToggleSelect={(id) => setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(id)) next.delete(id); else next.add(id);
+                      return next;
+                    })}
+                  />
+                </div>
+              )
+            ) : (
+            <>
             <div data-admin-table-scroll>
               <table className="admin-table">
                 <thead>
@@ -700,6 +753,8 @@ function AdminOrdersPage() {
                   <button className="admin-btn admin-btn-ghost" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)}>Next</button>
                 </div>
               </div>
+            )}
+            </>
             )}
           </div>
         </div>
