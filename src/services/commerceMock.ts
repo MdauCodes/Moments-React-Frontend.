@@ -184,4 +184,19 @@ export interface CustomerRecord {
   /** Sandbox/test-mode system — a Super-Admin-designated internal account. Any order this
    *  customer places routes to sandbox gateways and is excluded from all reporting. */
   isTestAccount?: boolean;
+  /** Count of accounts that signed up using this customer's referral code — strategic data
+   *  (who's driving word-of-mouth growth), separate from rewardsPoints (their own balance). */
+  referralCount?: number | null;
+}
+
+export interface ReferredCustomer {
+  id: string;
+  referralCode: string;
+  refereeEmail: string;
+  refereeFirstName: string;
+  status: "PENDING" | "CONFIRMED" | "EXPIRED";
+  qualifyingAmount?: number | null;
+  referrerCreditsAwarded?: number | null;
+  refereeCreditsAwarded?: number | null;
+  createdAt: string;
 }

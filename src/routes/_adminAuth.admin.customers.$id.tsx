@@ -13,7 +13,7 @@ import {
   formatDateShort,
 } from "@/components/admin/commerceUi";
 import { getCustomer, impersonateCustomer, setCustomerTestAccount } from "@/services/commerceApi";
-import type { CustomerRecord, OrderRecord } from "@/services/commerceMock";
+import type { CustomerRecord, OrderRecord, ReferredCustomer } from "@/services/commerceMock";
 import { downloadCustomerStatementPdf } from "@/lib/pdf";
 import { FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AdminAuthContext";
@@ -27,6 +27,7 @@ function AdminCustomerDetailPage() {
   const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
   const [customer, setCustomer] = useState<CustomerRecord | undefined>();
   const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [referrals, setReferrals] = useState<ReferredCustomer[]>([]);
   const [source, setSource] = useState<"live" | "mock">("mock");
   const [loading, setLoading] = useState(true);
   const [previewing, setPreviewing] = useState(false);
@@ -88,6 +89,7 @@ function AdminCustomerDetailPage() {
         if (cancelled) return;
         setCustomer(res.customer);
         setOrders(res.orders);
+        setReferrals(res.referrals);
         setSource(res.source);
       })
       .catch((err) => reportAdminError(err, "Failed to load customer"))
@@ -172,6 +174,45 @@ function AdminCustomerDetailPage() {
               <div style={{ color: "var(--admin-muted)", fontSize: 12, marginTop: 4 }}>
                 {customer.ordersCount} order{customer.ordersCount === 1 ? "" : "s"} · AOV {formatKes(customer.averageOrderValue ?? 0)}
               </div>
+            </div>
+
+            <div className="admin-panel" style={{ padding: 18 }}>
+              <div className="admin-label">Referrals</div>
+              <div style={{ fontFamily: "var(--font-display)", fontSize: 30, marginTop: 4 }}>
+                {customer.referralCount ?? 0}
+              </div>
+              <div style={{ color: "var(--admin-muted)", fontSize: 12, marginTop: 4 }}>
+                customer{customer.referralCount === 1 ? "" : "s"} referred
+                {referrals.some((r) => r.status === "CONFIRMED") &&
+                  ` · ${referrals.filter((r) => r.status === "CONFIRMED").length} confirmed purchase${referrals.filter((r) => r.status === "CONFIRMED").length === 1 ? "" : "s"}`}
+              </div>
+              {referrals.length > 0 && (
+                <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {referrals.map((r) => (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        fontSize: 12, padding: "8px 0", borderTop: "1px solid var(--admin-border, rgba(0,0,0,0.08))",
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{r.refereeFirstName || r.refereeEmail}</div>
+                        <div style={{ color: "var(--admin-muted)" }}>{formatDateShort(r.createdAt)}</div>
+                      </div>
+                      <span
+                        style={{
+                          display: "inline-flex", padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 700,
+                          background: r.status === "CONFIRMED" ? "rgba(34, 197, 94, 0.15)" : r.status === "EXPIRED" ? "rgba(107, 114, 128, 0.18)" : "rgba(234, 179, 8, 0.18)",
+                          color: r.status === "CONFIRMED" ? "#15803d" : r.status === "EXPIRED" ? "#374151" : "#a16207",
+                        }}
+                      >
+                        {r.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="admin-panel" style={{ padding: 18 }}>

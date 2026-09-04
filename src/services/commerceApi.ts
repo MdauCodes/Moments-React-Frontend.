@@ -12,6 +12,7 @@ import type {
   OrderStatus,
   PaymentGateway,
   PaymentRecord,
+  ReferredCustomer,
 } from "@/services/commerceMock";
 
 type Source = "live";
@@ -694,11 +695,16 @@ export async function listCustomers(params: ListCustomersParams = {}): Promise<L
 
 export async function getCustomer(
   id: string,
-): Promise<{ customer: CustomerRecord | undefined; orders: OrderRecord[]; source: Source }> {
-  const data = await getJson<{ customer: CustomerRecord; orders?: any[] }>(
+): Promise<{ customer: CustomerRecord | undefined; orders: OrderRecord[]; referrals: ReferredCustomer[]; source: Source }> {
+  const data = await getJson<{ customer: CustomerRecord; orders?: any[]; referrals?: ReferredCustomer[] }>(
     `/api/v1/admin/customers/${encodeURIComponent(id)}`,
   );
-  return { customer: data.customer, orders: (data.orders ?? []).map(normalizeOrder), source: "live" };
+  return {
+    customer: data.customer,
+    orders: (data.orders ?? []).map(normalizeOrder),
+    referrals: data.referrals ?? [],
+    source: "live",
+  };
 }
 
 export interface ImpersonationSession {

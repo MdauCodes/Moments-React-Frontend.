@@ -113,6 +113,7 @@ function AdminCustomersPage() {
               downloadCsv(`customers-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((c) => ({
                 name: c.name, email: c.email, phone: c.phone, city: c.city, segment: c.segment, status: c.status,
                 orders: c.ordersCount, lifetimeValue: c.lifetimeValue, aov: c.averageOrderValue,
+                referrals: c.referralCount ?? 0,
                 firstOrder: c.firstOrderAt ?? "", lastOrder: c.lastOrderAt ?? "",
               }))));
               toast.success(`Exported ${rows.length} customers`);
@@ -129,6 +130,7 @@ function AdminCustomersPage() {
                   <th>Orders</th>
                   <th>Lifetime value</th>
                   <th>AOV</th>
+                  <th>Referrals</th>
                   <th>Last order</th>
                   <th>Status</th>
                   <th />
@@ -136,9 +138,9 @@ function AdminCustomersPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={9}><div className="admin-empty">Loading customers…</div></td></tr>
+                  <tr><td colSpan={10}><div className="admin-empty">Loading customers…</div></td></tr>
                 ) : !data || data.rows.length === 0 ? (
-                  <tr><td colSpan={9}><div className="admin-empty">No customers match your filters.</div></td></tr>
+                  <tr><td colSpan={10}><div className="admin-empty">No customers match your filters.</div></td></tr>
                 ) : (
                   data.rows.map((c) => (
                     <tr key={c.id}>
@@ -156,6 +158,7 @@ function AdminCustomersPage() {
                       <td>{c.ordersCount}</td>
                       <td><b>{formatKes(c.lifetimeValue)}</b></td>
                       <td>{formatKes(c.averageOrderValue ?? 0)}</td>
+                      <td>{c.referralCount ? <b>{c.referralCount}</b> : <span style={{ color: "var(--admin-muted)" }}>—</span>}</td>
                       <td>{formatDateShort(c.lastOrderAt ?? undefined)}</td>
                       <td><StatusBadge status={c.status} /></td>
                       <td>
