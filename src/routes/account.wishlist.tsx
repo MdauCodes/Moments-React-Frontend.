@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 
 import { Heart, X, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import { SiteLayout } from "@/components/SiteLayout";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
@@ -21,7 +21,8 @@ function WishlistPage() {
   const items = products.filter((p) => ids.has(p.id));
 
   return (
-    <SiteLayout>
+    <ProtectedRoute>
+    <DashboardPageShell>
       <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
         <h1 className="font-display text-3xl sm:text-4xl">Wishlist</h1>
         <p className="mt-2 text-sm text-muted-foreground">Saved products. Add to cart anytime.</p>
@@ -100,7 +101,8 @@ function WishlistPage() {
           </ul>
         )}
       </section>
-    </SiteLayout>
+    </DashboardPageShell>
+    </ProtectedRoute>
   );
 }
 

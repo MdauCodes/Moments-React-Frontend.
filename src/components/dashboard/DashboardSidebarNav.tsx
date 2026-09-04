@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { X } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { useDashboardSidebar } from "@/components/DashboardLayout";
 
 export interface DashboardNavItem<T extends string> {
@@ -7,6 +8,11 @@ export interface DashboardNavItem<T extends string> {
   label: string;
   icon: ComponentType<{ className?: string }>;
   soon?: boolean;
+  /** When set, this item navigates to a real route (via NavLink, active state driven by the URL)
+   *  instead of switching an in-page tab — for a dashboard whose sections are separate pages
+   *  (account.dashboard.tsx) rather than tabs within one page (account.merchant.tsx). `active`/
+   *  `onChange` are ignored for items that set this. */
+  to?: string;
 }
 
 /**
@@ -58,6 +64,31 @@ export function DashboardSidebarNav<T extends string>({
         </div>
         <div className="flex flex-col gap-0.5">
           {items.map((item) => {
+            if (item.to) {
+              return (
+                <NavLink
+                  key={item.key}
+                  to={item.to}
+                  end
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) =>
+                    `flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                      isActive
+                        ? "bg-[var(--forest-bright)]/25 font-medium text-cream"
+                        : "text-cream/65 hover:bg-cream/10 hover:text-cream"
+                    }`
+                  }
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                  {item.soon && (
+                    <span className="ml-auto text-[9px] font-semibold uppercase tracking-wide text-cream/50">
+                      Soon
+                    </span>
+                  )}
+                </NavLink>
+              );
+            }
             const isActive = active === item.key;
             return (
               <button
