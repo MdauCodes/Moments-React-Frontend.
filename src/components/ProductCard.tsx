@@ -216,20 +216,37 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           </div>
         )}
 
+        {/* Thin divider ahead of the price block — matches the clean, price-forward card layout
+            the client asked for (see the admin product-card reference this was modeled on), a
+            simple visual break rather than another labeled row. */}
+        <div className="mt-2 border-t border-border/60 pt-1.5 sm:mt-2.5 sm:pt-2" />
+
         {hasTiers && activeTier ? (
-          <div className="mt-1.5 sm:mt-2">
-            <p className="text-[13px] sm:text-sm">
-              <span className="font-semibold text-primary">KES {tierPrice(activeTier).toLocaleString()}</span>
-              {activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > tierPrice(activeTier) && (
-                <span className="ml-1.5 text-[11px] text-muted-foreground line-through">
-                  KES {Number(activeTier.originalCollectionPrice).toLocaleString()}
-                </span>
-              )}
-              <span className="ml-1 text-[11px] text-muted-foreground sm:text-xs">
-                / {cleanUomLabel(activeTier.uomName ?? activeTier.collectionName, Number(activeTier.quantity))} (
-                {(Number(activeTier.quantity) || 0).toLocaleString()} pcs)
-              </span>
-            </p>
+          <div>
+            {(() => {
+              // The smallest unit of measurement — a single piece — is deliberately the bold,
+              // attention-grabbing figure (client decision 2026-09-04): "KES 5.50" reads far more
+              // attractively at a glance than "KES 5,500", even though they describe the exact
+              // same Carton-of-1000 tier. The pack total/label moves to a smaller secondary line
+              // right underneath, so nothing that was on the card before is actually lost.
+              const qty = Number(activeTier.quantity) || 1;
+              const unitPrice = tierPrice(activeTier) / qty;
+              const packLabel = cleanUomLabel(activeTier.uomName ?? activeTier.collectionName, qty);
+              return (
+                <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
+                  KES {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ pc</span>
+                  <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
+                    KES {tierPrice(activeTier).toLocaleString()} for {packLabel} ({qty.toLocaleString()} pcs)
+                    {activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > tierPrice(activeTier) && (
+                      <span className="ml-1.5 line-through">
+                        KES {Number(activeTier.originalCollectionPrice).toLocaleString()}
+                      </span>
+                    )}
+                  </span>
+                </p>
+              );
+            })()}
             {activeTier.uomDescription && (
               <p className="mt-0.5 text-[11px] italic text-muted-foreground">{activeTier.uomDescription}</p>
             )}
@@ -245,22 +262,24 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
             )}
           </div>
         ) : individualEnabled && p.basePrice ? (
-          <div className="mt-1.5 sm:mt-2">
-            <p className="text-[13px] font-semibold text-primary sm:text-sm">
+          <div>
+            {/* Already the smallest-unit (per-piece) price — no pack tiers to divide down —
+                so this only needed the same bold sizing bump as the tiered case above. */}
+            <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
               KES {p.basePrice.toLocaleString()}
               {p.originalBasePrice && p.originalBasePrice > p.basePrice && (
-                <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through">
+                <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through sm:text-xs">
                   KES {p.originalBasePrice.toLocaleString()}
                 </span>
               )}
-              <span className="ml-1 font-normal text-muted-foreground">/ unit</span>
+              <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ unit</span>
             </p>
             {emphasizeDeal && p.originalBasePrice && p.originalBasePrice > p.basePrice && (
               <SaveBadge amount={p.originalBasePrice - p.basePrice} />
             )}
           </div>
         ) : (
-          <p className="mt-1.5 text-[11px] text-muted-foreground sm:mt-2 sm:text-sm">Contact for pricing</p>
+          <p className="text-[11px] text-muted-foreground sm:text-sm">Contact for pricing</p>
         )}
 
         <StockLine state={stock.state} count={stock.available} label={stock.label} isMadeToOrder={stock.isMadeToOrder} emphasize={emphasizeDeal} />
