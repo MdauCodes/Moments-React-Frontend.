@@ -20,6 +20,7 @@ import { ReferralCapture } from "@/components/ReferralCapture";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 import HomePage from "@/routes/index";
+import LaunchCountdownPage from "@/routes/launch";
 import AboutPage from "@/routes/about";
 import ContactPage from "@/routes/contact";
 import CartPage from "@/routes/cart";
@@ -170,6 +171,7 @@ export default function App() {
                   <Routes>
                     {/* Public */}
                     <Route path="/" element={<HomePage />} />
+                    <Route path="/launch" element={<LaunchCountdownPage />} />
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/cart" element={<CartPage />} />

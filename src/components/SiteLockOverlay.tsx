@@ -12,12 +12,13 @@ import { LaunchBanner } from "@/components/LaunchBanner";
  * every single page, every time — actively working against indexing, not just a one-time human
  * annoyance. Checkout stays fully explorable regardless; payments are blocked server-side (see
  * SiteLockConfig.SITE_LOCK_ENABLED on the backend), not by anything in this component.
- * Exempts /admin/* routes so staff never see it.
+ * Exempts /admin/* routes so staff never see it, and /launch — the dedicated full-screen TikTok
+ * -live countdown page already shows its own countdown and would double up with this banner.
  */
 export function SiteLockOverlay() {
   const location = useLocation();
 
-  if (location.pathname.startsWith("/admin")) {
+  if (location.pathname.startsWith("/admin") || location.pathname === "/launch") {
     return null;
   }
 
