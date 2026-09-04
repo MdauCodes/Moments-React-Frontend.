@@ -17,6 +17,8 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { getStockInfo } from "@/lib/stock";
 import { reviewStore } from "@/services/reviewStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { sanitizeProductDescription } from "@/lib/utils";
+import { individualUnitLabel } from "@/lib/uomLabel";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -83,7 +85,10 @@ export default function ProductDetail() {
     [tiers],
   );
   const hasCollections = collectionTiers.length > 0;
-  const individualEnabled = product?.individualSalesEnabled === true;
+  // Also requires a real positive basePrice — individualSalesEnabled alone isn't enough:
+  // a Riseller-created product can have the flag on with no price yet (Riseller reported
+  // 0/blank), and "KES 0/piece" must never be offered as a buyable option.
+  const individualEnabled = product?.individualSalesEnabled === true && Number(product?.basePrice) > 0;
 
   const activeVariant = useMemo(
     () => variants.find((v: any) => (v.id ?? v.label) === variantId) ?? (variants.length > 0 ? variants[0] : undefined),
@@ -258,7 +263,7 @@ export default function ProductDetail() {
           )}
           <h1 className="font-display text-2xl font-medium text-foreground sm:text-3xl lg:text-[2rem]">{product.name}</h1>
           <div className="mt-3">
-            <p className={`text-sm text-muted-foreground sm:text-base ${descExpanded ? "" : "line-clamp-3"}`}>{product.description}</p>
+            <p className={`text-sm text-muted-foreground sm:text-base ${descExpanded ? "" : "line-clamp-3"}`}>{sanitizeProductDescription(product.description)}</p>
             {product.description && product.description.length > 160 && (
               <button type="button" onClick={() => setDescExpanded((v) => !v)} className="mt-1 text-xs font-medium text-accent hover:underline">
                 {descExpanded ? "Show less" : "Read more"}
@@ -290,9 +295,9 @@ export default function ProductDetail() {
                   {individualEnabled && (
                     <button type="button" onClick={() => handleSelectTier(null)}
                       className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${selectedTierId === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
-                      <span className="font-display text-base text-foreground">Individual pieces</span>
+                      <span className="font-display text-base text-foreground">Individual {individualUnitLabel(product.risellerUomName)}s</span>
                       <span className="mt-0.5 text-xs text-muted-foreground">Buy any quantity</span>
-                      <span className="mt-2 text-sm font-semibold text-foreground">KES {(product.basePrice ?? 0).toLocaleString()}/piece</span>
+                      <span className="mt-2 text-sm font-semibold text-foreground">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                     </button>
                   )}
                 </div>
@@ -315,7 +320,7 @@ export default function ProductDetail() {
             ) : product.basePrice ? (
               <p className="font-display text-2xl text-foreground">
                 KES {product.basePrice.toLocaleString()}
-                <span className="ml-2 text-sm font-normal text-muted-foreground">per unit</span>
+                <span className="ml-2 text-sm font-normal text-muted-foreground">per {individualUnitLabel(product.risellerUomName)}</span>
               </p>
             ) : (
               <p className="font-display text-2xl text-foreground">Price on request</p>

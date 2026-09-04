@@ -626,6 +626,88 @@ function RisellerSyncTestCard() {
   );
 }
 
+// ── Made-to-order → Riseller replacement ────────────────────────────────────
+
+function MadeToOrderReplacementCard() {
+  const [previewing, setPreviewing] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [previewResult, setPreviewResult] = useState<string | null>(null);
+  const [hasPreviewed, setHasPreviewed] = useState(false);
+
+  async function runPreview() {
+    setPreviewing(true);
+    try {
+      const res = await adminResources.devTools.previewMadeToOrderReplacement();
+      setPreviewResult(res.message);
+      setHasPreviewed(true);
+      toast.success("Preview complete — nothing was written. Review the plan below.");
+    } catch (err) {
+      reportAdminError(err, "Preview failed");
+    } finally {
+      setPreviewing(false);
+    }
+  }
+
+  async function runNow() {
+    if (!window.confirm(
+      "This converts every MADE_TO_ORDER product with a confident Riseller name match to a " +
+      "real Riseller-linked product (same row/slug/image, refreshed name/price/category/" +
+      "description), and PERMANENTLY DELETES any made-to-order product with no confident match. " +
+      "Pre-change values are saved to the audit log (riseller-mto-replacement) so a wrong match " +
+      "can be manually reversed, but there is no one-click undo. Have you reviewed the preview " +
+      "output above? Continue?"
+    )) return;
+    setRunning(true);
+    try {
+      const res = await adminResources.devTools.runMadeToOrderReplacementNow();
+      toast.success("Replacement run complete — see result below.");
+      setPreviewResult(res.message);
+    } catch (err) {
+      reportAdminError(err, "Made-to-order replacement failed");
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <RefreshCw size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Made-to-order → Riseller replacement</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        Fuzzy-matches every MADE_TO_ORDER product by name against unclaimed Riseller catalog items.
+        A confident match converts the product in place (image and URL preserved). No match, or an
+        ambiguous one, <b>permanently deletes the product</b> (pre-change values are saved to the
+        audit log for manual recovery — there is no one-click undo). <b>Always run Preview first</b> —
+        it computes the exact same plan without writing anything.
+      </p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+        <button type="button" className="admin-btn" disabled={previewing || running} onClick={() => void runPreview()}>
+          {previewing && <Loader2 size={14} className="animate-spin" />} Preview (no changes)
+        </button>
+        <button
+          type="button"
+          className="admin-btn admin-btn-primary"
+          disabled={running || previewing || !hasPreviewed}
+          title={!hasPreviewed ? "Run Preview first" : undefined}
+          onClick={() => void runNow()}
+        >
+          {running && <Loader2 size={14} className="animate-spin" />} Run replacement for real
+        </button>
+      </div>
+      {previewResult && (
+        <pre style={{
+          marginTop: 14, padding: 12, fontSize: 11.5, whiteSpace: "pre-wrap",
+          background: "var(--admin-bg-subtle, #f5f5f5)", borderRadius: 8, maxHeight: 340, overflow: "auto",
+        }}>
+          {previewResult}
+        </pre>
+      )}
+    </div>
+  );
+}
+
 // ── TumaBoda webhook registration ────────────────────────────────────────────
 
 function TumaBodaWebhookCard() {
@@ -842,6 +924,7 @@ function AdminDevToolsPage() {
         <BirthdayJobTestCard />
         <LeadDigestTestCard />
         <RisellerSyncTestCard />
+        <MadeToOrderReplacementCard />
         <TumaBodaWebhookCard />
         <ComingSoonCard />
       </div>

@@ -8,7 +8,7 @@ import { whatsappLink } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { cleanUomLabel } from "@/lib/uomLabel";
+import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
 import { getStockInfo } from "@/lib/stock";
 
 interface ConfiguratorModalProps {
@@ -48,8 +48,10 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
   }, [product]);
 
   const hasCollections = collectionTiers.length > 0;
-  // STRICT — never infer from absence of tiers.
-  const individualEnabled = product?.individualSalesEnabled === true;
+  // STRICT — never infer from absence of tiers. Also requires a real positive basePrice:
+  // a Riseller-created product can have the flag on with no price yet (Riseller reported
+  // 0/blank), and "KES 0/piece" must never be offered as a buyable option.
+  const individualEnabled = product?.individualSalesEnabled === true && Number(product?.basePrice) > 0;
 
   const stock = useMemo(
     () =>
@@ -265,12 +267,12 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                         : "border-border bg-card hover:border-foreground/40"
                     }`}
                   >
-                    <span className="font-display text-sm text-foreground">Individual pieces</span>
+                    <span className="font-display text-sm text-foreground">Individual {individualUnitLabel(product.risellerUomName)}s</span>
                     <span className="mt-0.5 text-[11px] text-muted-foreground">Buy any quantity</span>
                     <span className="mt-1.5 text-sm font-semibold text-foreground">
                       KES {(product.basePrice ?? 0).toLocaleString()}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">per piece</span>
+                    <span className="text-[10px] text-muted-foreground">per {individualUnitLabel(product.risellerUomName)}</span>
                   </button>
                 )}
               </div>
@@ -298,7 +300,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
               <p className="text-xs font-semibold uppercase tracking-wider text-forest">Per-unit ordering</p>
               <p className="mt-1 text-sm text-foreground/80">
                 Order any quantity from {product.moq.toLocaleString()} units upward at{" "}
-                <span className="font-semibold">KES {(product.basePrice ?? 0).toLocaleString()}/unit</span>.
+                <span className="font-semibold">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>.
               </p>
             </div>
           )}

@@ -112,6 +112,7 @@ function normalizeProduct(p: ProductApiDto): Product {
     totalEnquiries: p.totalEnquiries ?? 0,
     monthlyEnquiries: p.monthlyEnquiries ?? 0,
     individualSalesEnabled: (p as any).individualSalesEnabled ?? true,
+    risellerUomName: (p as any).risellerUomName ?? undefined,
     pricingTiers: normalizePricingTiers((p as any).pricingTiers),
     stock: (p as any).stockCount ?? (p as any).stock ?? 0,
     lowStockThreshold: (p as any).lowStockThreshold ?? 50,

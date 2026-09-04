@@ -463,6 +463,10 @@ export const adminResources = {
       adminJson<LeadPreviewDto[]>("/api/v1/admin/dev-tools/lead-digest/run", { method: "POST" }),
     runRisellerSyncNow: () =>
       adminJson<{ message: string }>("/api/v1/admin/dev-tools/riseller-sync/run", { method: "POST" }),
+    previewMadeToOrderReplacement: () =>
+      adminJson<{ message: string }>("/api/v1/admin/dev-tools/riseller-mto-replacement/preview", { method: "POST" }),
+    runMadeToOrderReplacementNow: () =>
+      adminJson<{ message: string }>("/api/v1/admin/dev-tools/riseller-mto-replacement/run", { method: "POST" }),
     previewLogDigest: () =>
       adminJson<LogDigestSummary>("/api/v1/admin/dev-tools/log-digest/preview"),
     sendLogDigestNow: () =>

@@ -224,6 +224,12 @@ export type Product = {
   pricingTiers?: ProductPricingTierLike[];
   /** Whether the product can be purchased as individual units (default true if undefined). */
   individualSalesEnabled?: boolean;
+  /**
+   * Riseller's own flat unit label (e.g. "PCS", "KGS"), present only on Riseller-linked
+   * products. Additive to pricingTiers, not a replacement — prefer this for the single-unit
+   * buy option's label when present, admin-defined tiers stay available either way.
+   */
+  risellerUomName?: string | null;
 };
 
 /** Strict pricing tier shape returned by the backend (and used by all UI). */
