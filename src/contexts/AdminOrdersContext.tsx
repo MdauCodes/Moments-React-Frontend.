@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { listOrders } from "@/services/commerceApi";
+import { listOrders, subscribeToAdminOrderEvents } from "@/services/commerceApi";
 import type { OrderRecord } from "@/services/commerceMock";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
@@ -93,10 +93,30 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, refresh]);
 
   // Background polling — pauses entirely while the tab is hidden instead of wastefully
-  // refetching a backgrounded panel every 20s.
+  // refetching a backgrounded panel every 20s. Now mostly a safety net (catches other admins'
+  // status changes, and covers for a dropped live-events connection) — a brand new order no
+  // longer waits on this; see the live-events subscription below.
   useVisibilityInterval(() => {
     if (isAuthenticated) void refresh();
   }, POLL_INTERVAL_MS);
+
+  // Live push the instant a new order is placed (AdminOrderEventStreamService on the backend) —
+  // replaces waiting on the poll above for exactly this one case, the most time-sensitive one:
+  // staff seeing a fresh order land, not catching up to it up to two minutes later. A short
+  // debounce coalesces a burst of near-simultaneous checkouts into one refetch instead of one
+  // per order.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const unsubscribe = subscribeToAdminOrderEvents(() => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => void refresh(), 300);
+    });
+    return () => {
+      unsubscribe();
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, [isAuthenticated, refresh]);
 
   // Refetch on tab focus
   useEffect(() => {
