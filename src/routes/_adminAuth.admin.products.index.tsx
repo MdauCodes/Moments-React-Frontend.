@@ -1,13 +1,14 @@
 import { useNavigate } from "react-router-dom";
 
 import { useEffect, useMemo, useState } from "react";
-import { LayoutGrid, Pencil, Rows3, Search, Trash2, X } from "lucide-react";
+import { LayoutGrid, Pencil, Rows3, Search, Trash2, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources, type IndustryDto, type ProductDto } from "@/services/adminResources";
 import { CATEGORY_OPTIONS } from "@/data/categoryOptions";
+import { QuickEditProductModal } from "@/components/admin/QuickEditProductModal";
 
 
 
@@ -25,6 +26,7 @@ function AdminProductsPage() {
   const [debouncedQ, setDebouncedQ] = useState("");
   const [view, setView] = useState<"table" | "cards">("table");
   const [jumpTo, setJumpTo] = useState("");
+  const [quickEditId, setQuickEditId] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q.trim().toLowerCase()), 250);
@@ -261,6 +263,14 @@ function AdminProductsPage() {
                           .join(" · ") || "—"}
                       </td>
                       <td>
+                        <button
+                          className="admin-btn admin-btn-ghost"
+                          onClick={() => setQuickEditId(p.id)}
+                          title="Edit price, UOM, and photo without leaving this page"
+                        >
+                          <Zap size={14} />
+                          Quick edit
+                        </button>
                         <button className="admin-btn admin-btn-ghost" onClick={() => beginEdit(p)}>
                           <Pencil size={14} />
                           Edit
@@ -310,6 +320,14 @@ function AdminProductsPage() {
                     </div>
                   )}
                   <div style={{ display: "flex", gap: 6, marginTop: "auto" }}>
+                    <button
+                      className="admin-btn admin-btn-ghost"
+                      style={{ flex: 1 }}
+                      onClick={() => setQuickEditId(p.id)}
+                      title="Edit price, UOM, and photo without leaving this page"
+                    >
+                      <Zap size={14} />
+                    </button>
                     <button className="admin-btn admin-btn-ghost" style={{ flex: 1 }} onClick={() => beginEdit(p)}>
                       <Pencil size={14} />
                       Edit
@@ -376,7 +394,13 @@ function AdminProductsPage() {
           )}
         </div>
       </div>
-      
+      {quickEditId && (
+        <QuickEditProductModal
+          productId={quickEditId}
+          onClose={() => setQuickEditId(null)}
+          onSaved={() => void load()}
+        />
+      )}
     </AdminLayout>
   );
 }
