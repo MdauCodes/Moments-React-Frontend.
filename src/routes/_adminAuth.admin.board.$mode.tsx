@@ -7,6 +7,7 @@ import { OrderDetailModal } from "@/components/admin/OrderDetailModal";
 import { FulfillmentBoard } from "@/components/admin/FulfillmentBoard";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { listOrders, resyncStuckTumaBodaOrders } from "@/services/commerceApi";
+import { adminResources } from "@/services/adminResources";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import type { OrderRecord } from "@/services/commerceMock";
 import { PERM } from "@/lib/permissions";
@@ -90,6 +91,16 @@ function FulfillmentBoardPage() {
   const mode = isHandDeliveryBoard ? "MANUAL_DELIVERY" : modeSlug ? SLUG_TO_MODE[modeSlug] : undefined;
   const { orders, initialLoading, refresh, applyOrderPatch } = useAdminOrders();
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // Clears this tab's own sidebar badge the moment it's actually visited — see
+  // AdminNotificationService.markReadForFulfillmentType's Javadoc. `mode` is already the exact
+  // FulfillmentType enum name the endpoint expects (PICKUP/MANUAL_DELIVERY/TUMABODA_DELIVERY).
+  // Best-effort: a failure here shouldn't block the board from rendering, and the sidebar's own
+  // poll will just show a stale (not wrong-forever) count until the next successful attempt.
+  useEffect(() => {
+    if (!mode) return;
+    void adminResources.notifications.markReadByFulfillmentType(mode).catch(() => {});
+  }, [mode]);
 
   // The board otherwise only ever shows what's in the shared 500-most-recent cache, with no way
   // to reach an older order in this mode — mirrors the Orders page's own search-bypass pattern:

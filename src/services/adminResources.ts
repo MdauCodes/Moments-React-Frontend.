@@ -715,6 +715,10 @@ export const adminResources = {
     unreadCountByTab: () => adminJson<Record<string, number>>("/api/v1/admin/notifications/unread-count-by-tab"),
     markRead: (id: string) => adminJson<void>(`/api/v1/admin/notifications/${encodeURIComponent(id)}/read`, { method: "PATCH" }),
     markAllRead: () => adminJson<void>("/api/v1/admin/notifications/read-all", { method: "PATCH" }),
+    /** Clears one sidebar tab's badge — call the instant an admin actually navigates to that
+     *  fulfillment-mode board (see board.$mode.tsx). */
+    markReadByFulfillmentType: (type: string) =>
+      adminJson<void>(`/api/v1/admin/notifications/read-by-fulfillment-type/${encodeURIComponent(type)}`, { method: "PATCH" }),
   },
   push: {
     vapidPublicKey: () => adminJson<{ publicKey: string }>("/api/v1/admin/push/vapid-public-key"),
