@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DeliveryPartnerBadge } from "@/components/DeliveryPartnerBadge";
 import { getDeliveryPartner } from "@/data/deliveryPartners";
 
@@ -48,11 +48,19 @@ export function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode:
   const [iframeFailed, setIframeFailed] = useState(false);
   const trackingUrl = buildTumaBodaTrackingUrl(trackingCode);
   const tumaBodaPartner = getDeliveryPartner("tumaboda");
+  // Bug fixed 2026-09-05: onLoad used to just flip iframeFailed back to false without cancelling
+  // this timer, so a slow-but-successful load (Leaflet + OSM tiles routinely takes >8s) would
+  // still get overwritten by the timeout firing afterwards — the map would render, then get
+  // silently replaced by the "couldn't be embedded" message a moment later. The timer is now
+  // held in a ref so onLoad can actually clear it, same as the unmount/URL-change cleanup below.
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setIframeFailed(false);
-    const timer = setTimeout(() => setIframeFailed(true), TUMABODA_TRACKING_LOAD_TIMEOUT_MS);
-    return () => clearTimeout(timer);
+    timerRef.current = setTimeout(() => setIframeFailed(true), TUMABODA_TRACKING_LOAD_TIMEOUT_MS);
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
   }, [trackingUrl]);
 
   return (
@@ -74,8 +82,14 @@ export function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode:
           // doesn't apply — allow-same-origin only lets the map use its own cookies/storage,
           // which it likely needs to function, and never grants it access to our own origin's data.
           sandbox="allow-scripts allow-same-origin allow-popups"
-          onLoad={() => setIframeFailed(false)}
-          onError={() => setIframeFailed(true)}
+          onLoad={() => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+            setIframeFailed(false);
+          }}
+          onError={() => {
+            if (timerRef.current) clearTimeout(timerRef.current);
+            setIframeFailed(true);
+          }}
         />
       )}
       {iframeFailed && (

@@ -206,12 +206,15 @@ export function TumaBodaFulfillmentPanel({
               {o.tumabodaBookingFailureReason
                 ? `Booking failed: ${o.tumabodaBookingFailureReason}`
                 : "Payment succeeded but the TumaBoda delivery hasn't been created yet."}{" "}
-              No rider has been summoned for this order.
+              No rider has been summoned for this order.{" "}
+              {o.tumabodaAutoRetryExhausted
+                ? "Automatic retry has given up after repeated failures — this now needs a manual retry."
+                : "This retries automatically on a backoff schedule — this panel updates on its own if that succeeds, no need to keep clicking Retry."}
             </div>
             <div className="flex flex-wrap gap-2">
               <button className="admin-btn admin-btn-ghost" disabled={retryBusy} onClick={handleRetry}>
                 {retryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                Retry TumaBoda delivery
+                Retry TumaBoda delivery now
               </button>
               {/* Only for a genuine recorded failure, not "hasn't been booked yet" — retrying is
                   always the first thing to try; this is the escape hatch once retrying is known

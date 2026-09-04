@@ -106,6 +106,12 @@ export interface OrderRecord {
   /** Non-null immediately after a TumaBoda booking attempt fails — check this right after a
    *  "mark ready"/"dispatch confirm" response and surface it as an immediate error. */
   tumabodaBookingFailureReason?: string | null;
+  /** How many straight delivery-creation attempts have failed since the last success — see
+   *  TumaBodaDeliveryCreationRetryService on the backend. */
+  tumabodaDeliveryAttempts?: number | null;
+  /** True once the backend's automatic retry job has given up on this order — only then does it
+   *  need a manual "Retry TumaBoda delivery" click; otherwise it retries itself on a backoff. */
+  tumabodaAutoRetryExhausted?: boolean | null;
   /** Number the customer manually typed at checkout specifically for TumaBoda to contact them
    *  on — distinct from the order's main `phone` (M-Pesa number), which may legitimately differ. */
   tumabodaContactPhone?: string | null;
