@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw, Webhook, Copy, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
@@ -652,10 +653,9 @@ function MadeToOrderReplacementCard() {
     if (!window.confirm(
       "This converts every MADE_TO_ORDER product with a confident Riseller name match to a " +
       "real Riseller-linked product (same row/slug/image, refreshed name/price/category/" +
-      "description), and PERMANENTLY DELETES any made-to-order product with no confident match. " +
-      "Pre-change values are saved to the audit log (riseller-mto-replacement) so a wrong match " +
-      "can be manually reversed, but there is no one-click undo. Have you reviewed the preview " +
-      "output above? Continue?"
+      "description), and SOFT-DELETES (not permanent) any made-to-order product with no " +
+      "confident match — those can be brought back with one click from Products → Deleted " +
+      "products. Have you reviewed the preview output above? Continue?"
     )) return;
     setRunning(true);
     try {
@@ -677,10 +677,13 @@ function MadeToOrderReplacementCard() {
       </div>
       <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
         Fuzzy-matches every MADE_TO_ORDER product by name against unclaimed Riseller catalog items.
-        A confident match converts the product in place (image and URL preserved). No match, or an
-        ambiguous one, <b>permanently deletes the product</b> (pre-change values are saved to the
-        audit log for manual recovery — there is no one-click undo). <b>Always run Preview first</b> —
-        it computes the exact same plan without writing anything.
+        A confident match converts the product in place (image and URL preserved). A duplicate of
+        an already-existing product is soft-deleted — if that existing product had no image, this
+        product's image is transferred onto it first. No Riseller equivalent at all is also
+        soft-deleted. <b>Nothing here is a permanent (hard) delete</b> — every soft-deleted product
+        can be brought back with one click from{" "}
+        <Link to="/admin/products/deleted" style={{ textDecoration: "underline" }}>Products → Deleted products</Link>.
+        <b> Always run Preview first</b> — it computes the exact same plan without writing anything.
       </p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button type="button" className="admin-btn" disabled={previewing || running} onClick={() => void runPreview()}>

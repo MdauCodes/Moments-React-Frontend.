@@ -96,6 +96,7 @@ export type ProductDto = {
   subcategoryId?: string | null; subcategoryName?: string | null; categoryName?: string | null; segmentName?: string | null;
   curatedTags?: TagDto[]; curatedTagIds?: string[]; tagIds?: string[];
   variants?: Array<{ id?: string; label: string; sku?: string; price?: number; stock?: number }>;
+  updatedAt?: string;
 };
 export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries" | "curatedTags" | "curatedTagIds">;
 export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; clearSubcategory?: boolean; industryIds?: string[]; tagIds?: string[] };
@@ -582,6 +583,10 @@ export const adminResources = {
     remove: (id: string) => adminJson<void>(`/api/v1/admin/products/${encodeURIComponent(id)}`, { method: "DELETE" }),
     bulkClassify: (body: BulkClassifyRequest) =>
       adminJson<BulkClassifyResponse>("/api/v1/admin/products/bulk-classify", { method: "PATCH", body: JSON.stringify(body) }),
+    listDeleted: async (params: Record<string, string | number | boolean | undefined>) =>
+      unwrap(await adminJson<PageResponse<ProductDto> | ProductDto[]>(`/api/v1/admin/products/deleted${qs(params)}`)),
+    restore: (id: string) =>
+      adminJson<ProductDto>(`/api/v1/admin/products/${encodeURIComponent(id)}/restore`, { method: "POST" }),
   },
   inventory: {
     getLowStock: () => adminJson<ProductDto[]>("/api/v1/admin/products/inventory/low-stock"),
