@@ -103,6 +103,15 @@ export interface OrderRecord {
   /** Set when staff scan the rider's QR code at pickup (TumaBoda identity verification) — see
    *  PaymentService.scanRiderForOrder. */
   tumabodaRiderVerifiedAt?: string;
+  /** Short-lived OTP TumaBoda now returns on delivery creation — staff read this ALOUD to the
+   *  rider at pickup so they can key it into TumaBoda's own app, proving they're actually the
+   *  rider assigned to this delivery. Never shown to the customer. Null once cleared by a
+   *  restart, or if this booking predates TumaBoda adding the OTP requirement. */
+  tumabodaPickupOtpCode?: string | null;
+  tumabodaPickupOtpExpiresAt?: string | null;
+  /** Set once TumaBoda reports the rider actually entered the OTP — distinct from
+   *  tumabodaRiderVerifiedAt (this app's own staff QR-scan check). */
+  tumabodaPickupOtpVerifiedAt?: string | null;
   /** Non-null immediately after a TumaBoda booking attempt fails — check this right after a
    *  "mark ready"/"dispatch confirm" response and surface it as an immediate error. */
   tumabodaBookingFailureReason?: string | null;

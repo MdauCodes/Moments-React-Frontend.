@@ -7,6 +7,7 @@ import { RiderScanPanel } from "@/components/admin/RiderScanPanel";
 import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
+import { TumaBodaOtpCard } from "@/components/admin/TumaBodaOtpCard";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery, getOrder, checkTumaBodaStatusNow } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -249,6 +250,11 @@ export function TumaBodaFulfillmentPanel({
             </div>
             <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
             {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
+            <TumaBodaOtpCard
+              code={o.tumabodaPickupOtpCode}
+              expiresAt={o.tumabodaPickupOtpExpiresAt}
+              verifiedAt={o.tumabodaPickupOtpVerifiedAt}
+            />
             {o.tumabodaTrackingCode && (
               <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
             )}
