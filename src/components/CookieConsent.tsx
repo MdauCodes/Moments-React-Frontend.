@@ -4,7 +4,33 @@ import { useEffect, useState } from "react";
 import { Cookie, X } from "lucide-react";
 
 const STORAGE_KEY = "mpk_cookie_consent_v1";
+const FIRST_VISIT_KEY = "mpk_first_visit_at";
 type Choice = "accepted" | "rejected";
+
+// Delay before the banner appears for a first-time visitor — long enough that it doesn't greet
+// someone the instant the page loads, short enough that it still shows up well before anything
+// non-essential would need consent. Doesn't weaken the compliance story: no cookie/analytics
+// call fires until "accepted" either way (see the mpk:cookies-accepted event below), so delaying
+// only when we ASK doesn't delay anything the asking is meant to gate.
+const SHOW_AFTER_MS = 3 * 60 * 1000;
+
+/** This component is mounted separately by SiteLayout, DashboardLayout AND routes/index.tsx —
+ *  three independent instances that unmount/remount as the visitor navigates between
+ *  differently-laid-out pages. A plain per-mount setTimeout would reset every time that happens,
+ *  so "3 minutes on the site" could never actually elapse for anyone who navigates. sessionStorage
+ *  makes the elapsed time survive across those remounts (and tabs closing mid-session correctly
+ *  restarts the clock on the next visit, since it's session-scoped, not persistent). */
+function msUntilShow(): number {
+  if (typeof window === "undefined") return SHOW_AFTER_MS;
+  try {
+    const existing = window.sessionStorage.getItem(FIRST_VISIT_KEY);
+    const firstVisitAt = existing ? Number(existing) : Date.now();
+    if (!existing) window.sessionStorage.setItem(FIRST_VISIT_KEY, String(firstVisitAt));
+    return Math.max(0, SHOW_AFTER_MS - (Date.now() - firstVisitAt));
+  } catch {
+    return SHOW_AFTER_MS;
+  }
+}
 
 /**
  * Lightweight, non-modal cookie consent banner. Stays pinned to the bottom
@@ -19,11 +45,15 @@ export function CookieConsent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    let already: boolean;
     try {
-      if (!window.localStorage.getItem(STORAGE_KEY)) setVisible(true);
+      already = !!window.localStorage.getItem(STORAGE_KEY);
     } catch {
-      setVisible(true);
+      already = false;
     }
+    if (already) return;
+    const timer = window.setTimeout(() => setVisible(true), msUntilShow());
+    return () => window.clearTimeout(timer);
   }, []);
 
   const decide = (choice: Choice) => {
