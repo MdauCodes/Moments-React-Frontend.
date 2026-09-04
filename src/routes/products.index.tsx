@@ -164,6 +164,10 @@ function ProductsPage() {
   const moreFetchStartRef = useRef<number | null>(null);
   const ringTargetMsRef = useRef(4000);
   const wasLoadingMoreRef = useRef(false);
+  // Synchronous lock, checked and set inside the IntersectionObserver callback itself — see that
+  // effect's own comment for the exact race this closes (the state-based guards below it lag one
+  // render behind setPage, which is a real gap a still-intersecting sentinel can slip through).
+  const moreCycleActiveRef = useRef(false);
 
   const MIN_SPINNER_MS = 3000;
   const DEFAULT_SPINNER_MS = 4000;
@@ -175,6 +179,7 @@ function ProductsPage() {
     if (page === 0 && !isLoading) {
       setRevealedCount(products.length);
       setMorePhase("idle");
+      moreCycleActiveRef.current = false;
     }
   }, [page, isLoading, products.length]);
 
@@ -216,6 +221,9 @@ function ProductsPage() {
       const t = setTimeout(() => {
         setRevealedCount(products.length);
         setMorePhase("idle");
+        // Only NOW is the lock released — the full reveal cycle (spinner + skeleton) for this
+        // page has genuinely finished, so the sentinel is safe to trigger another one.
+        moreCycleActiveRef.current = false;
       }, SKELETON_MS);
       return t;
     };
@@ -238,10 +246,10 @@ function ProductsPage() {
   }, [isLoadingMore, morePhase, page, products.length]);
 
   // Infinite scroll: load the next page well before the user actually reaches the bottom.
-  // rootMargin: "800px" fires the fetch nearly a full extra screen early on most viewports, so
-  // the real data is usually already sitting there ready well before the deliberate 3s/2s reveal
-  // sequence above finishes — the pacing above is what the visitor actually sees, this just makes
-  // sure it's never waiting on the network on top of that. Also blocked while a previous page's
+  // rootMargin: "1200px" (client decision 2026-09-04 — bumped from 800px) fires the fetch — and
+  // so the spinner — well over a screen early on most viewports, before the visitor is anywhere
+  // near the current bottom, so the pacing sequence is already visibly underway rather than only
+  // starting once they've scrolled all the way down. Also blocked while a previous page's
   // reveal sequence is still mid-flight (morePhase !== "idle"), not just while the raw fetch is
   // in flight — otherwise reaching the bottom again during the skeleton phase would kick off a
   // second fetch stacking behind the first.
@@ -250,15 +258,31 @@ function ProductsPage() {
     if (!el || !hasMore || isLoadingMore || morePhase !== "idle" || searchResults) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
+        // Real race found live: setPage doesn't make isLoadingMore/morePhase true until a LATER
+        // render (they're set inside a different effect), so a sentinel that's still intersecting
+        // right after the first trigger could fire this callback again — via a fresh observer
+        // instance recreated by this effect's own dependency changes — before those state guards
+        // above have caught up, incrementing page multiple times in a burst (confirmed live: 4
+        // pages fired within ~2s of the very first scroll). moreCycleActiveRef is a plain ref, set
+        // synchronously right here, so this check is immune to that render-lag entirely.
+        if (entries[0]?.isIntersecting && !moreCycleActiveRef.current) {
+          moreCycleActiveRef.current = true;
           setPage((p) => p + 1);
         }
       },
-      { rootMargin: "800px" },
+      { rootMargin: "1200px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, morePhase, searchResults]);
+    // revealedCount is the fix for a real bug found live: on the very first load, hasMore/
+    // products/isLoading all settle in ONE render, but revealedCount (which gates whether the
+    // sentinel div even renders — see the empty-state branch below) only catches up a render
+    // LATER, via its own separate effect. This effect ran on that first render, found no sentinel
+    // in the DOM yet, and gave up — and since none of ITS OWN dependencies changed afterward, it
+    // never tried again. The observer was silently never created at all; scrolling to the bottom
+    // did nothing, permanently, for that session. revealedCount catching up is exactly the signal
+    // this effect needs to retry once the sentinel actually exists.
+  }, [hasMore, isLoadingMore, morePhase, searchResults, revealedCount]);
 
   const selectedIndustry = useMemo(
     () => industries.find((i) => i.slug === industrySlug) ?? null,
@@ -1254,11 +1278,14 @@ function ProductsPage() {
             </div>
 
             {!searchResults && (
-              <div className="mt-8 flex flex-col items-center justify-center gap-2">
+              // py-8 (not just mt-8) so this reads as its own clearly visible stop on a phone
+              // screen, not a thin sliver easy to scroll straight past — mobile is the primary
+              // case here (client decision 2026-09-04), sizing scales back down on larger screens.
+              <div className="mt-8 flex flex-col items-center justify-center gap-2.5 py-8 sm:py-4">
                 {morePhase === "spinner" && (
                   <>
-                    <LoadMoreRing pct={ringPct} />
-                    <p className="text-xs text-muted-foreground" aria-live="polite">
+                    <LoadMoreRing pct={ringPct} className="h-12 w-12 sm:h-10 sm:w-10" />
+                    <p className="text-sm font-medium text-foreground sm:text-xs sm:font-normal sm:text-muted-foreground" aria-live="polite">
                       Loading more products…
                     </p>
                   </>
@@ -1308,16 +1335,14 @@ function ProductsPage() {
  *  so the parent stays the single source of truth for timing (default pace, floor, retargeting
  *  on early completion). A real progressbar role, not just decorative, since it's genuinely
  *  communicating "still working" the way any loading indicator would. */
-function LoadMoreRing({ pct }: { pct: number }) {
+function LoadMoreRing({ pct, className }: { pct: number; className?: string }) {
   const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.max(0, Math.min(100, pct)) / 100) * circumference;
   return (
     <svg
-      width={40}
-      height={40}
       viewBox="0 0 40 40"
-      className="-rotate-90"
+      className={`-rotate-90 ${className ?? "h-10 w-10"}`}
       role="progressbar"
       aria-label="Loading more products"
       aria-valuenow={Math.round(pct)}
