@@ -147,7 +147,10 @@ function ProductsPage() {
   const [retryTick, setRetryTick] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  // Infinite scroll: load next page when user scrolls near bottom
+  // Infinite scroll: load the next page well before the user actually reaches the bottom.
+  // rootMargin: "800px" (up from 400px) fires the fetch nearly a full extra screen early on most
+  // viewports, so the next page has usually finished loading by the time it would otherwise come
+  // into view — turning "scroll, hit bottom, wait for a spinner" into "scroll, it's just there."
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || !hasMore || isLoadingMore || searchResults) return;
@@ -157,7 +160,7 @@ function ProductsPage() {
           setPage((p) => p + 1);
         }
       },
-      { rootMargin: "400px" },
+      { rootMargin: "800px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -493,7 +496,11 @@ function ProductsPage() {
     void api
       .getDiversifiedProducts({ size: 20 })
       .then((data) => {
-        if (!cancelled) setMoreProducts(data.filter((p) => !shownIds.has(p.id)));
+        if (!cancelled) {
+          setMoreProducts(
+            data.filter((p) => !shownIds.has(p.id) && !getStockInfo(p, null, 0).isMadeToOrder),
+          );
+        }
       })
       .catch(() => {
         if (!cancelled) setMoreProducts([]);
@@ -569,17 +576,17 @@ function ProductsPage() {
           return [...base].sort((a, b) => (ranks.get(a.id) ?? 0) - (ranks.get(b.id) ?? 0));
         })();
 
-    // Out-of-stock/made-to-order items sink to the end of the general browse listing (lowest
-    // priority, per business decision 2026-09-03 — nobody should have to scroll past what they
-    // can't actually buy right now) — but never when the customer specifically searched, where a
-    // match should still show up as itself, clearly labeled, rather than buried at the bottom of
-    // an already-narrow result set. A stable partition, not a re-sort: within each half, whatever
-    // order shuffle/price-sort already produced is preserved.
+    // Made-to-order items don't appear in the general browse listing at all (business decision
+    // 2026-09-04 — tightened from the earlier "deprioritize to the back" rule) — but never when
+    // the customer specifically searched, where a match should still show up as itself, clearly
+    // labeled, rather than vanish from a result set the customer typed the words for. Plain
+    // out-of-stock (not made-to-order) still just sinks to the back, unchanged.
     if (searchResults) return ordered;
+    const visible = ordered.filter((p) => !getStockInfo(p, null, 0).isMadeToOrder);
     const canBuyNow = (p: Product) => getStockInfo(p, null, 0).canOrder;
-    const available = ordered.filter(canBuyNow);
-    const unavailable = ordered.filter((p) => !canBuyNow(p));
-    return unavailable.length > 0 ? [...available, ...unavailable] : ordered;
+    const available = visible.filter(canBuyNow);
+    const unavailable = visible.filter((p) => !canBuyNow(p));
+    return unavailable.length > 0 ? [...available, ...unavailable] : visible;
   }, [searchResults, products, sort]);
 
   // JSON-LD ItemList for the visible page
@@ -1132,21 +1139,23 @@ function ProductsPage() {
               }`}
             >
               {grid.map((p) => (
-                <ProductCard key={p.id} product={p} onConfigure={handleConfigure} />
+                // animate-in only plays once, at mount — an already-rendered card keeps its DOM
+                // node across a "load more" append (same key), so only the newly-appended ones
+                // actually fade in; nothing replays for cards already on screen.
+                <div key={p.id} className="animate-in fade-in duration-500">
+                  <ProductCard product={p} onConfigure={handleConfigure} />
+                </div>
               ))}
+              {/* Skeletons for the next page, laid out in the SAME grid as the real cards (not a
+                  separate spinner row below) — the grid visually "grows" while the next page is
+                  in flight instead of the scroll hitting a dead stop at a spinner. Paired with the
+                  800px rootMargin above, this fetch is usually already resolving by the time these
+                  become visible, so they're typically on screen only briefly. */}
+              {isLoadingMore &&
+                Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={`more-${i}`} />)}
             </div>
 
-            {!searchResults && (
-              <div className="mt-10 flex flex-col items-center justify-center gap-2">
-                {isLoadingMore && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    Loading more products…
-                  </div>
-                )}
-                <div ref={sentinelRef} className="h-1 w-full" />
-              </div>
-            )}
+            {!searchResults && <div ref={sentinelRef} className="mt-6 h-1 w-full" />}
 
             {/* Keep browsing / You might also like — search results are capped
                 with no pagination, so without this a customer who used
