@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { z } from "zod";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -168,6 +168,14 @@ function ProductsPage() {
   // effect's own comment for the exact race this closes (the state-based guards below it lag one
   // render behind setPage, which is a real gap a still-intersecting sentinel can slip through).
   const moreCycleActiveRef = useRef(false);
+  // Set right before any state change that swaps skeletons for real cards (or vice versa) — those
+  // are React removing N grid children and mounting M different ones, and depending on the exact
+  // reconciliation order that can transiently shrink the document height, which the browser then
+  // "corrects" by clamping window.scrollY down — visible to the visitor as an unwanted jump toward
+  // the bottom right as new content lands, exactly what was reported live. The layout effect below
+  // restores whatever scrollY was right before that swap, synchronously before the next paint, so
+  // it's never actually visible — the visitor stays exactly where they were browsing.
+  const preserveScrollRef = useRef<number | null>(null);
 
   const MIN_SPINNER_MS = 3000;
   const DEFAULT_SPINNER_MS = 4000;
@@ -217,8 +225,10 @@ function ProductsPage() {
     if (page === 0 || isLoadingMore || morePhase !== "spinner") return;
     const elapsed = Date.now() - (moreFetchStartRef.current ?? Date.now());
     const toSkeleton = () => {
+      preserveScrollRef.current = window.scrollY;
       setMorePhase("skeleton");
       const t = setTimeout(() => {
+        preserveScrollRef.current = window.scrollY;
         setRevealedCount(products.length);
         setMorePhase("idle");
         // Only NOW is the lock released — the full reveal cycle (spinner + skeleton) for this
@@ -244,6 +254,17 @@ function ProductsPage() {
     }, MIN_SPINNER_MS - elapsed);
     return () => clearTimeout(t1);
   }, [isLoadingMore, morePhase, page, products.length]);
+
+  // Runs synchronously after the DOM commit but before the browser paints — restores whatever
+  // scrollY preserveScrollRef captured right before a skeletons<->real-cards swap, so the visitor
+  // never actually sees the jump the swap would otherwise cause. See preserveScrollRef's own
+  // comment above for why the swap can shift scrollY at all.
+  useLayoutEffect(() => {
+    if (preserveScrollRef.current !== null) {
+      window.scrollTo(0, preserveScrollRef.current);
+      preserveScrollRef.current = null;
+    }
+  }, [morePhase, revealedCount]);
 
   // Infinite scroll: load the next page well before the user actually reaches the bottom.
   // rootMargin: "1200px" (client decision 2026-09-04 — bumped from 800px) fires the fetch — and
@@ -1275,6 +1296,20 @@ function ProductsPage() {
                   loading row. */}
               {morePhase === "skeleton" &&
                 Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={`more-${i}`} />)}
+              {/* A second, small "more is coming" indicator placed AS A GRID ITEM — client
+                  concern: an odd product count leaves the last row's final column(s) empty (e.g.
+                  one lone card on the left in a 2-col mobile grid), and the big ring further below
+                  the whole grid isn't obviously connected to that specific empty gap, reading as
+                  "that's it" rather than "more is loading." CSS grid auto-flow places this in
+                  whatever cell is actually next — the empty one beside an odd last item, or a
+                  fresh row if the count was already even — with zero column-count math needed
+                  here. Only during "spinner": once "skeleton" starts, the 4 real skeleton cards
+                  above already fill that same role more fully. */}
+              {morePhase === "spinner" && (
+                <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border/60 bg-secondary/20 sm:aspect-[4/3] sm:rounded-2xl lg:aspect-[16/10]">
+                  <LoadMoreRing pct={ringPct} className="h-7 w-7 opacity-70" />
+                </div>
+              )}
             </div>
 
             {!searchResults && (
