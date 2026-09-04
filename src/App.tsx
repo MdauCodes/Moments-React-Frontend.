@@ -16,6 +16,7 @@ import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SITE_LOCK_ENABLED } from "@/config/siteLock";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { ReferralCapture } from "@/components/ReferralCapture";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 import HomePage from "@/routes/index";
@@ -156,6 +157,7 @@ export default function App() {
     <ErrorBoundary>
     <BrowserRouter>
       <ScrollToTop />
+      <ReferralCapture />
       <SiteConfigProvider>
         <AccessibilityProvider>
         <AuthProvider>

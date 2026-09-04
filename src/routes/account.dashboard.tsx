@@ -1,13 +1,14 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase, Gift } from "lucide-react";
+import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase, Gift, Award, Sparkles } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { profileStore, type CustomerProfile } from "@/services/profileStore";
+import { referralStore, type ReferralWallet } from "@/services/referralStore";
 
 
 
@@ -18,8 +19,14 @@ function fmt(n: number) {
 function DashboardPage() {
   const { user, logout } = useAuth();
   const { count: wishlistCount } = useWishlist();
+  const location = useLocation();
   const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
+  const [wallet, setWallet] = useState<ReferralWallet | null>(null);
+  // Set once, from router state left by account.register.tsx's redirect — a real navigation
+  // (refresh, back button, revisiting later) never carries that state again, so this stays true
+  // only for the one page view right after signup, not "every time you happen to land here."
+  const [justRegistered] = useState(() => Boolean((location.state as { justRegistered?: boolean } | null)?.justRegistered));
 
   useEffect(() => {
     orderStore.listMine().then((res) => setOrders((res.rows ?? []).slice(0, 3)));
@@ -28,6 +35,7 @@ function DashboardPage() {
       if (p) p.addresses = p.addresses ?? [];
       setProfile(p);
     });
+    referralStore.getWallet().then(setWallet).catch(() => undefined);
   }, []);
 
   const defaultAddress = (profile?.addresses ?? []).find((a) => a.isDefault) ?? profile?.addresses?.[0];
@@ -35,10 +43,25 @@ function DashboardPage() {
     <ProtectedRoute>
     <SiteLayout>
       <section className="mx-auto max-w-6xl px-5 py-12 lg:px-8 lg:py-16">
+        {justRegistered && (
+          <div className="mb-8 flex items-start gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-5">
+            <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+            <div>
+              <p className="font-display text-lg">Welcome to Moments, {user?.firstName ?? "there"}!</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your account is ready and 1,000 Reward Coupons are already in your wallet
+                {wallet ? ` (worth KES ${wallet.balanceValueKes.toLocaleString()})` : ""} — use them at checkout on your
+                first order, or refer a friend to earn even more.
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
-            <h1 className="mt-1 font-display text-3xl sm:text-4xl">Welcome back, {user?.firstName ?? "there"}</h1>
+            <h1 className="mt-1 font-display text-3xl sm:text-4xl">
+              {justRegistered ? `Welcome, ${user?.firstName ?? "there"}` : `Welcome back, ${user?.firstName ?? "there"}`}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">{user?.email}</p>
           </div>
           <button
@@ -49,8 +72,11 @@ function DashboardPage() {
           </button>
         </div>
 
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {/* 6 tiles now (Reward Coupons added) — lg:grid-cols-3 gives two clean rows of 3 instead
+            of 5+1 orphaned on its own row; xl opens up to one row on wide screens. */}
+        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           <Tile to="/account/orders" icon={Receipt} label="Orders" value={orders?.length ?? "—"} />
+          <Tile to="/account/merchant" icon={Award} label="Reward Coupons" value={wallet?.balance ?? "—"} />
           <Tile to="/account/wishlist" icon={Heart} label="Wishlist" value={wishlistCount} />
           <Tile to="/cart" icon={ShoppingBag} label="Cart" value="View" />
           <Tile to="/account/profile" icon={MapPin} label="Addresses" value={profile?.addresses?.length ?? 0} />
