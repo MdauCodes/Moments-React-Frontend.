@@ -566,7 +566,7 @@ function AdminOrdersPage() {
               </div>
             )}
 
-            <div data-admin-table-scroll className="admin-hide-on-mobile-table">
+            <div data-admin-table-scroll>
               <table className="admin-table">
                 <thead>
                   <tr>
@@ -688,55 +688,6 @@ function AdminOrdersPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="admin-show-mobile admin-card-list" style={{ padding: 12 }}>
-              {initialLoading || searching ? (
-                <div className="admin-empty">{searching ? "Searching…" : "Loading orders…"}</div>
-              ) : pageRows.length === 0 ? (
-                <div className="admin-empty">
-                  {isAssignedOnly ? "No orders assigned to you yet." : "No orders match your filters."}
-                </div>
-              ) : pageRows.map((o) => (
-                <div key={o.id} className="admin-card">
-                  <div className="admin-card-row">
-                    <span><b>{o.reference}</b>{o.isTestOrder && <TestBadge />}{o.liveTestOrder && <LiveTestBadge />}</span>
-                    <b>{formatKes(o.total)}</b>
-                  </div>
-                  <div className="admin-card-row">
-                    <span>{o.customerName}</span>
-                    <span style={{ color: "var(--admin-muted)", fontSize: 11 }}>{o.city}</span>
-                  </div>
-                  <div className="admin-card-row" style={{ flexWrap: "wrap", gap: 6 }}>
-                    <OrderStatusBadge status={o.status} fulfillmentType={o.fulfillmentType} statusV2={o.statusV2} />
-                    <PaymentStatusBadge status={o.paymentStatus} />
-                    <GatewayChip gateway={o.paymentGateway} />
-                  </div>
-                  <div className="admin-card-row" style={{ fontSize: 11, color: "var(--admin-muted)" }}>
-                    <span>{o.items.reduce((s, it) => s + Number(it.qty ?? 0), 0)} units · {o.items.length} SKU{o.items.length === 1 ? "" : "s"}</span>
-                    <span>{formatDateShort(o.createdAt)}</span>
-                    {!TERMINAL_STATUSES.has(o.status) && <AgeBadge since={o.createdAt} />}
-                  </div>
-                  {canAssign && (
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <AssignSelect
-                        orderId={o.id}
-                        assignedTo={o.assignedTo}
-                        assignedToId={o.assignedToId}
-                        paymentStatus={o.paymentStatus}
-                        orderStatus={o.status}
-                        compact
-                        onAssigned={(patch) => applyOrderPatch(o.id, patch)}
-                      />
-
-                    </div>
-                  )}
-                  <div className="admin-card-actions">
-                    <button className="admin-btn admin-btn-ghost" onClick={() => setOpenId(o.id)} style={{ flex: 1 }}>View order</button>
-                  </div>
-                </div>
-              ))}
             </div>
 
             {totalPages > 1 && (
