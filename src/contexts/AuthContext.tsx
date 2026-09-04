@@ -29,6 +29,12 @@ interface AuthContextValue {
   /** True when this tab is an admin previewing a customer's dashboard (see impersonateCustomer). */
   isImpersonating: boolean;
   exitImpersonation: () => void;
+  /** False until the initial GET /auth/me (or impersonation bootstrap) has resolved. A consumer
+   *  that needs to gate on "definitely logged out" (ProtectedRoute) must wait for this instead of
+   *  reading isAuthenticated alone — isAuthenticated starts false on every fresh mount regardless
+   *  of whether a valid session cookie exists, so acting on it before this flips true means acting
+   *  on "haven't checked yet," not "checked, and there's no session." */
+  authChecked: boolean;
   /**
    * A fresh random value minted on every login()/setSession() call and cleared on logout() —
    * NOT the same as "is a session active." login()/logout() here mutate token state in place
@@ -170,6 +176,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => bootstrapImpersonationFromUrl() ?? getImpersonationToken(),
   );
   const [loginSessionId, setLoginSessionId] = useState<string | null>(() => readLoginSessionNonce());
+  // Impersonation is resolved synchronously (from sessionStorage/URL, via the impersonationToken
+  // initializer above, which runs first) — nothing async to wait for in that case. Only the
+  // cookie-session path below has a real network round-trip to wait on.
+  const [authChecked, setAuthChecked] = useState(() => !!getImpersonationToken());
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const impersonatedUser = impersonationToken ? decodeImpersonationJwt(impersonationToken) : null;
@@ -218,6 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSessionActive(false);
         setUser(null);
       }
+      setAuthChecked(true);
     })();
     return () => {
       cancelled = true;
@@ -307,6 +318,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isImpersonating: !!impersonationToken,
     exitImpersonation,
     loginSessionId,
+    authChecked,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
