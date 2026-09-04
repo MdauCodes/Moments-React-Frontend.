@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-
-// Launch target: September 4, 2026, 2:30 PM East Africa Time (UTC+3, no DST) —
-// written with an explicit offset so it doesn't depend on the visitor's or the
-// server's local timezone.
-const LAUNCH_AT = new Date("2026-09-04T14:30:00+03:00").getTime();
+import { LAUNCH_AT } from "@/config/siteLock";
 
 // Warm, kraft-paper-adjacent orange — distinct from the site's forest-green body copy so the
 // countdown reads as an accent, not just more text.

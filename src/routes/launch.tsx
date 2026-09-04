@@ -2,9 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
-
-// Same source of truth as the site-wide LaunchBanner countdown — see LaunchCountdown.tsx.
-const LAUNCH_AT = new Date("2026-09-04T14:30:00+03:00").getTime();
+import { LAUNCH_AT } from "@/config/siteLock";
 
 // How long to hold the "WE'RE LIVE" celebration + confetti before the ribbon-cut reveal starts.
 const CELEBRATE_MS = 3200;

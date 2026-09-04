@@ -13,7 +13,6 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { PersonaProvider } from "@/contexts/PersonaContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
-import { SITE_LOCK_ENABLED } from "@/config/siteLock";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ReferralCapture } from "@/components/ReferralCapture";
@@ -312,7 +311,7 @@ export default function App() {
                     } />
                   </Routes>
                   <Toaster />
-                  {SITE_LOCK_ENABLED && <SiteLockOverlay />}
+                  <SiteLockOverlay />
                   <AuthModal />
                   <AccessibilityToolbar />
                 </PersonaProvider>
