@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { getStoredReferralCode } from "@/lib/referralAttribution";
 
 export type AuthModalMode = null | "login" | "register";
 export type ModalAccountType = "INDIVIDUAL_SHOPPER" | "BUSINESS";
@@ -42,7 +43,11 @@ export function AuthModalProvider({ children }: { children: ReactNode }) {
       mode: "register",
       returnUrl: opts?.returnUrl,
       preselectAccountType: opts?.accountType,
-      referralCode: opts?.referralCode,
+      // No caller today ever passes an explicit referralCode when opening the modal (unlike the
+      // standalone /account/register?ref= page) — falling back to whatever ReferralCapture
+      // stored from an earlier page means a referred visitor who signs up via the header "Sign
+      // up" button (the modal, not that dedicated page) still gets correctly attributed.
+      referralCode: opts?.referralCode ?? getStoredReferralCode(),
     });
   }, []);
 

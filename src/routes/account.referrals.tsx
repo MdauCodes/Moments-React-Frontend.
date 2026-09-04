@@ -106,12 +106,6 @@ function ReferralsPage() {
     toast.success("Referral link copied");
   };
 
-  const copyCode = async () => {
-    if (!code) return;
-    await navigator.clipboard.writeText(code);
-    toast.success("Code copied");
-  };
-
   const shareLink = async () => {
     if (!shareUrl) return;
     if (navigator.share) {
@@ -135,7 +129,7 @@ function ReferralsPage() {
         <p className="text-xs uppercase tracking-[0.25em] text-accent">Account</p>
         <h1 className="mt-1 font-display text-3xl sm:text-4xl">Refer & earn</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Share your code. Earn credit when friends place their first order.
+          Share your link. Earn credit when friends place their first order.
         </p>
 
         <div className="mt-8 grid gap-5 lg:grid-cols-3">
@@ -146,8 +140,10 @@ function ReferralsPage() {
             <p className="mt-1 text-xs text-muted-foreground">
               Send this to a friend — it signs them up with your code automatically, no typing needed.
             </p>
-            {/* Link leads, code is secondary — a new customer is far more likely to tap a
-                link than to notice and manually enter a bare referral code at registration. */}
+            {/* The link IS the referral now — no raw code shown alongside it (client decision
+                2026-09-04: "instead of a referral code, provide a referral link"). The code
+                still exists under the hood (?ref= in the URL below), but nothing here asks a
+                customer to notice, copy, or type it separately. */}
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <input
                 readOnly
@@ -170,18 +166,9 @@ function ReferralsPage() {
                 <Share2 className="h-4 w-4" /> Share
               </button>
             </div>
-            <div className="mt-4 flex items-center gap-2 border-t border-border pt-3">
-              <p className="text-xs text-muted-foreground">
-                Or share the code directly: <code className="font-mono font-semibold text-foreground">{code || "—"}</code>
-              </p>
-              <button
-                type="button"
-                onClick={copyCode}
-                className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline"
-              >
-                <Copy className="h-3 w-3" /> Copy code
-              </button>
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Works even if they browse a while before signing up or buying — we remember your link for 30 days.
+            </p>
           </div>
 
           <div className="rounded-2xl border border-border bg-gradient-to-br from-primary to-primary/80 p-6 text-primary-foreground">

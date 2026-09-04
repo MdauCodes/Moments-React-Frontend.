@@ -8,6 +8,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { useAuth, type AuthUser } from "@/contexts/AuthContext";
 import { RegistrationDetailsWizard } from "@/components/RegistrationDetailsWizard";
 import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
+import { getStoredReferralCode, clearStoredReferralCode } from "@/lib/referralAttribution";
 
 // Matches the welcome modal's cream/forest-green identity, per the brand-alignment request.
 const FOREST_DEEP = "#08231a";
@@ -43,7 +44,11 @@ function RegisterPage() {
   const { setSession } = useAuth();
   const [searchParams] = useSearchParams();
   const returnUrl = (location.state as { returnUrl?: string } | null)?.returnUrl;
-  const referralCode = searchParams.get("ref") ?? undefined;
+  // The URL's own ?ref= wins if present (a visitor who clicked a fresh referral link right
+  // before registering); otherwise fall back to whatever ReferralCapture stashed from an
+  // earlier page during this browsing session — see referralAttribution.ts for why that
+  // fallback exists at all.
+  const referralCode = searchParams.get("ref") ?? getStoredReferralCode();
   const preselect = searchParams.get("type");
 
   const [accountType, setAccountType] = useState<AccountType | null>(
@@ -52,15 +57,20 @@ function RegisterPage() {
 
   function handleSuccess(result: { user: AuthUser | null }) {
     if (result.user) setSession(result.user);
+    if (referralCode) clearStoredReferralCode();
+    // justRegistered rides in router state (not a query param) so it survives exactly one
+    // navigation and is gone on any refresh/back-button — the dashboard uses it to show a
+    // proper first-visit welcome (not just this toast, which is gone in a few seconds) without
+    // permanently changing what "Welcome back" means on every later visit.
     if (returnUrl) {
-      toast.success("Account created — you're in.");
-      navigate(returnUrl);
+      toast.success("Account created — 1,000 Reward Coupons added to your wallet.");
+      navigate(returnUrl, { state: { justRegistered: true } });
     } else if (accountType === "BUSINESS") {
-      toast.success("Account created — let's set up your business profile.");
-      navigate("/account/business");
+      toast.success("Account created — 1,000 Reward Coupons added. Let's set up your business profile.");
+      navigate("/account/business", { state: { justRegistered: true } });
     } else {
-      toast.success("Account created — you're in.");
-      navigate("/account/dashboard");
+      toast.success("Account created — 1,000 Reward Coupons added to your wallet.");
+      navigate("/account/dashboard", { state: { justRegistered: true } });
     }
   }
 

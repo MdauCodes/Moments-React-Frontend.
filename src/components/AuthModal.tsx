@@ -10,6 +10,7 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { RegistrationDetailsWizard } from "@/components/RegistrationDetailsWizard";
+import { clearStoredReferralCode } from "@/lib/referralAttribution";
 
 const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
@@ -176,19 +177,27 @@ function RegisterStep() {
 
   function handleSuccess(result: { user: AuthUser | null; firstName: string }) {
     if (result.user) setSession(result.user);
+    if (referralCode) clearStoredReferralCode();
     setWelcome({ firstName: result.firstName, accountType: accountType as ModalAccountType });
   }
 
+  // Previously this branch (no returnUrl, not a business account — the common case for anyone
+  // who signed up via the modal rather than the dedicated /account/register page) just closed
+  // the modal and left the visitor on whatever page they'd been browsing, never actually taking
+  // them to their account dashboard — same gap account.register.tsx's own redirect already
+  // didn't have. Now matches it: always ends up on a real account dashboard, with the same
+  // justRegistered router state so that page's own first-visit welcome banner fires too.
   function finishAndContinue() {
     close();
     if (returnUrl) {
-      toast.success("Account created — you're in.");
-      navigate(returnUrl);
+      toast.success("Account created — 1,000 Reward Coupons added to your wallet.");
+      navigate(returnUrl, { state: { justRegistered: true } });
     } else if (welcome?.accountType === "BUSINESS") {
-      toast.success("Account created — let's set up your business profile.");
-      navigate("/account/business");
+      toast.success("Account created — 1,000 Reward Coupons added. Let's set up your business profile.");
+      navigate("/account/business", { state: { justRegistered: true } });
     } else {
-      toast.success("Account created — you're in.");
+      toast.success("Account created — 1,000 Reward Coupons added to your wallet.");
+      navigate("/account/dashboard", { state: { justRegistered: true } });
     }
   }
 
