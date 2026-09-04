@@ -57,6 +57,7 @@ import { OnboardingTour } from "@/components/admin/OnboardingTour";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
 import { adminResources, type AdminNotificationDto } from "@/services/adminResources";
+import { subscribeToAdminOrderEvents } from "@/services/commerceApi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
@@ -544,10 +545,15 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
         .then((res) => { if (!cancelled) setUnreadCount(res.count); })
         .catch(() => {});
     }
+    // Also re-polls on every route change (location.pathname dep below) — visiting a board page
+    // clears that tab's own notifications server-side almost immediately (see board.$mode.tsx),
+    // so re-checking right on navigation picks that up within a moment instead of leaving the
+    // count visibly stale until the next 30s tick.
     poll();
     const interval = setInterval(poll, 30_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   // Per-tab sidebar badges (new orders only — the only AdminNotificationType that carries a
   // fulfillmentType). CBD/Hand Delivery orders share FulfillmentType.MANUAL_DELIVERY with regular
@@ -562,9 +568,31 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
         .then((res) => { if (!cancelled) setTabUnreadCounts(res); })
         .catch(() => {});
     }
-    poll();
+    // Small delay (not an immediate poll()) specifically so a route change into a board page
+    // gives that page's own mark-read-for-this-tab call (fired from the same navigation) a
+    // moment to land server-side first — otherwise this can race it and still show the
+    // about-to-be-cleared count for one extra tick.
+    const t = setTimeout(poll, 400);
     const interval = setInterval(poll, 30_000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => { cancelled = true; clearTimeout(t); clearInterval(interval); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
+
+  // Live push (AdminOrderEventStreamService) the instant a new order is placed — both badge
+  // counts above otherwise only catch up on their own 30s tick or the next route change. This is
+  // what makes "the numbers are real and really updating" actually true rather than "eventually
+  // true, within half a minute" — a new order shows up in the bell/sidebar the moment it lands,
+  // same event AdminOrdersContext already uses to refresh the order list itself.
+  useEffect(() => {
+    const unsubscribe = subscribeToAdminOrderEvents(() => {
+      adminResources.notifications.unreadCount()
+        .then((res) => setUnreadCount(res.count))
+        .catch(() => {});
+      adminResources.notifications.unreadCountByTab()
+        .then((res) => setTabUnreadCounts(res))
+        .catch(() => {});
+    });
+    return unsubscribe;
   }, []);
 
   async function toggleNotifPanel() {
