@@ -1,7 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase, Gift, Award, Sparkles } from "lucide-react";
+import { ShoppingBag, Heart, MapPin, Receipt, ArrowRight, LogOut, Briefcase, Gift, Award, Sparkles, Copy, Check, Share2 } from "lucide-react";
+import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +24,7 @@ function DashboardPage() {
   const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [wallet, setWallet] = useState<ReferralWallet | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   // Set once, from router state left by account.register.tsx's redirect — a real navigation
   // (refresh, back button, revisiting later) never carries that state again, so this stays true
   // only for the one page view right after signup, not "every time you happen to land here."
@@ -39,6 +41,33 @@ function DashboardPage() {
   }, []);
 
   const defaultAddress = (profile?.addresses ?? []).find((a) => a.isDefault) ?? profile?.addresses?.[0];
+  const referralCode = wallet?.referralCode ?? "";
+  const referralShareUrl =
+    typeof window !== "undefined" && referralCode
+      ? `${window.location.origin}/account/register?ref=${encodeURIComponent(referralCode)}`
+      : "";
+
+  async function copyReferralLink() {
+    if (!referralShareUrl) return;
+    await navigator.clipboard.writeText(referralShareUrl);
+    setLinkCopied(true);
+    toast.success("Referral link copied");
+    setTimeout(() => setLinkCopied(false), 1500);
+  }
+
+  async function shareReferralLink() {
+    if (!referralShareUrl) return;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Moments Packaging", text: "Use my link for a discount", url: referralShareUrl });
+      } catch {
+        /* cancelled */
+      }
+    } else {
+      await copyReferralLink();
+    }
+  }
+
   return (
     <ProtectedRoute>
     <SiteLayout>
@@ -154,13 +183,46 @@ function DashboardPage() {
                 <p className="text-muted-foreground">{defaultAddress.phone}</p>
               </div>
             )}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-xl">Refer & earn Reward Coupons</h2>
             <Link
               to={user?.accountType === "BUSINESS" ? "/account/referrals" : "/account/merchant"}
-              className="mt-5 inline-flex w-full items-center justify-between rounded-xl border border-border bg-secondary/30 px-4 py-3 text-sm hover:bg-secondary"
+              className="text-xs text-accent hover:underline"
             >
-              <span className="font-semibold">Refer & earn Reward Coupons</span>
-              <ArrowRight className="h-4 w-4 text-accent" />
+              View details →
             </Link>
+          </div>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Share your link — when someone buys using it, you both earn Reward Coupons.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <input
+              readOnly
+              value={referralShareUrl || "Loading your referral link…"}
+              onFocus={(e) => e.currentTarget.select()}
+              className="min-w-0 flex-1 rounded-lg border border-border bg-secondary px-3.5 py-2.5 font-mono text-xs text-foreground sm:text-sm"
+            />
+            <button
+              type="button"
+              onClick={copyReferralLink}
+              disabled={!referralShareUrl}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {linkCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {linkCopied ? "Copied" : "Copy link"}
+            </button>
+            <button
+              type="button"
+              onClick={shareReferralLink}
+              disabled={!referralShareUrl}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-50"
+            >
+              <Share2 className="h-3.5 w-3.5" /> Share
+            </button>
           </div>
         </div>
       </section>
