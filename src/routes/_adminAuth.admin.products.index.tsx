@@ -114,6 +114,11 @@ function AdminProductsPage() {
   return (
     <AdminLayout title="Products" actionLabel="New product" onAction={beginCreate} onReload={load}>
       <div className="admin-page-stack">
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button type="button" className="admin-btn admin-btn-ghost" onClick={() => navigate("/admin/products/deleted")}>
+            Deleted products
+          </button>
+        </div>
         <div className="admin-panel admin-toolbar" data-admin-toolbar>
           <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 320 }}>
             <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--admin-muted)" }} />

@@ -13,13 +13,13 @@ import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { PersonaProvider } from "@/contexts/PersonaContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
-import { SITE_LOCK_ENABLED } from "@/config/siteLock";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { ReferralCapture } from "@/components/ReferralCapture";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 import HomePage from "@/routes/index";
+import LaunchCountdownPage, { LAUNCH_PAGE_ENABLED } from "@/routes/launch";
 import AboutPage from "@/routes/about";
 import ContactPage from "@/routes/contact";
 import CartPage from "@/routes/cart";
@@ -131,6 +131,7 @@ const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"
 const AdminDeliverySettingsPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-settings"));
 const AdminRefundRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.refund-requests"));
 const AdminProductsIndexPage = lazy(() => import("@/routes/_adminAuth.admin.products.index"));
+const AdminDeletedProductsPage = lazy(() => import("@/routes/_adminAuth.admin.products.deleted"));
 const AdminProductEditPage = lazy(() => import("@/routes/_adminAuth.admin.products.$id"));
 const AdminProductNewPage = lazy(() => import("@/routes/_adminAuth.admin.products_.new"));
 const AdminFulfillmentBoardPage = lazy(() => import("@/routes/_adminAuth.admin.board.$mode"));
@@ -169,6 +170,7 @@ export default function App() {
                   <Routes>
                     {/* Public */}
                     <Route path="/" element={<HomePage />} />
+                    {LAUNCH_PAGE_ENABLED && <Route path="/launch" element={<LaunchCountdownPage />} />}
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />
                     <Route path="/cart" element={<CartPage />} />
@@ -285,6 +287,7 @@ export default function App() {
                       <Route path="/admin/refund-requests" element={<Suspense fallback={<AdminRouteFallback />}><AdminRefundRequestsPage /></Suspense>} />
                       <Route path="/admin/products" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductsIndexPage /></Suspense>} />
                       <Route path="/admin/products/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductNewPage /></Suspense>} />
+                      <Route path="/admin/products/deleted" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeletedProductsPage /></Suspense>} />
                       <Route path="/admin/products/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductEditPage /></Suspense>} />
                       <Route path="/admin/board/:mode" element={<Suspense fallback={<AdminRouteFallback />}><AdminFulfillmentBoardPage /></Suspense>} />
                       <Route path="/admin/reviews" element={<Suspense fallback={<AdminRouteFallback />}><AdminReviewsPage /></Suspense>} />
@@ -308,7 +311,7 @@ export default function App() {
                     } />
                   </Routes>
                   <Toaster />
-                  {SITE_LOCK_ENABLED && <SiteLockOverlay />}
+                  <SiteLockOverlay />
                   <AuthModal />
                   <AccessibilityToolbar />
                 </PersonaProvider>

@@ -6,11 +6,17 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { SiteLayout } from "@/components/SiteLayout";
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, authChecked } = useAuth();
   const { openLogin } = useAuthModal();
   const triggered = useRef(false);
 
   useEffect(() => {
+    // Wait for the initial session check — isAuthenticated starts false on every fresh mount
+    // regardless of whether a valid session cookie exists, so acting on it before authChecked
+    // flips true pops the sign-in modal on top of a page that's actually about to render as
+    // logged in a moment later (confirmed live: reloading /account/dashboard while genuinely
+    // signed in briefly showed "Sign in" before the real, authenticated dashboard appeared).
+    if (!authChecked) return;
     if (!isAuthenticated && !triggered.current) {
       triggered.current = true;
       openLogin();
@@ -19,7 +25,13 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
       triggered.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authChecked]);
+
+  if (!authChecked) {
+    // Neutral hold — neither the login modal nor the "sign in to continue" fallback should
+    // flash while the session check is still in flight.
+    return <SiteLayout>{null}</SiteLayout>;
+  }
 
   if (!isAuthenticated) {
     // Stays on the same URL — the login modal opens on top. This fallback

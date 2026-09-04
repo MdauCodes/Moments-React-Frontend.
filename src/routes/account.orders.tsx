@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { useEffect, useState } from "react";
-import { SiteLayout } from "@/components/SiteLayout";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 
@@ -35,7 +35,8 @@ function MyOrdersPage() {
   }, [page]);
 
   return (
-    <SiteLayout>
+    <ProtectedRoute>
+    <DashboardPageShell>
       <section className="mx-auto max-w-5xl px-5 py-12 lg:px-8 lg:py-16">
         <h1 className="font-display text-3xl sm:text-4xl">My orders</h1>
         <p className="mt-2 text-sm text-muted-foreground">Recent orders and their payment status.</p>
@@ -119,7 +120,8 @@ function MyOrdersPage() {
           </>
         )}
       </section>
-    </SiteLayout>
+    </DashboardPageShell>
+    </ProtectedRoute>
   );
 }
 

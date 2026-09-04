@@ -4,14 +4,12 @@
 // `main` always points at the production Railway backend; `staging` always points at staging.
 // When merging one branch into the other, keep the target branch's own URL below.
 //
-// NOTE (carried over from staging, worth revisiting here): staging uses a custom domain
-// (api-staging.momentspackaging.com) sharing a registrable domain with its frontend, specifically
-// so the httpOnly auth cookie (see AuthCookieService) is first-party — Safari's Intelligent
-// Tracking Prevention blocks third-party cookies unconditionally. Production still points at the
-// raw *.up.railway.app URL below, cross-domain from momentspackaging.com — matches this
-// codebase's own documented architecture (_adminAuth.admin.architecture.tsx) and hasn't been a
-// reported problem, but if Safari login issues ever surface on production, this domain mismatch
-// is the first thing to check.
+// staging uses a custom domain (api-staging.momentspackaging.com) sharing a registrable domain
+// with its frontend, specifically so the httpOnly auth cookie (see AuthCookieService) is
+// first-party — SameSite=Lax cookies are never attached to a genuinely cross-site fetch/XHR, only
+// to top-level navigations. Production is mid-migration to the equivalent setup
+// (api.momentspackaging.com) — see that branch's own copy of this file for the current status;
+// don't copy production's URL here regardless of what it says.
 export const API_BASE = "https://api-staging.momentspackaging.com";
 
 // Backwards-compatible aliases — existing modules import these.

@@ -103,9 +103,24 @@ export interface OrderRecord {
   /** Set when staff scan the rider's QR code at pickup (TumaBoda identity verification) — see
    *  PaymentService.scanRiderForOrder. */
   tumabodaRiderVerifiedAt?: string;
+  /** Short-lived OTP TumaBoda now returns on delivery creation — staff read this ALOUD to the
+   *  rider at pickup so they can key it into TumaBoda's own app, proving they're actually the
+   *  rider assigned to this delivery. Never shown to the customer. Null once cleared by a
+   *  restart, or if this booking predates TumaBoda adding the OTP requirement. */
+  tumabodaPickupOtpCode?: string | null;
+  tumabodaPickupOtpExpiresAt?: string | null;
+  /** Set once TumaBoda reports the rider actually entered the OTP — distinct from
+   *  tumabodaRiderVerifiedAt (this app's own staff QR-scan check). */
+  tumabodaPickupOtpVerifiedAt?: string | null;
   /** Non-null immediately after a TumaBoda booking attempt fails — check this right after a
    *  "mark ready"/"dispatch confirm" response and surface it as an immediate error. */
   tumabodaBookingFailureReason?: string | null;
+  /** How many straight delivery-creation attempts have failed since the last success — see
+   *  TumaBodaDeliveryCreationRetryService on the backend. */
+  tumabodaDeliveryAttempts?: number | null;
+  /** True once the backend's automatic retry job has given up on this order — only then does it
+   *  need a manual "Retry TumaBoda delivery" click; otherwise it retries itself on a backoff. */
+  tumabodaAutoRetryExhausted?: boolean | null;
   /** Number the customer manually typed at checkout specifically for TumaBoda to contact them
    *  on — distinct from the order's main `phone` (M-Pesa number), which may legitimately differ. */
   tumabodaContactPhone?: string | null;
@@ -184,4 +199,19 @@ export interface CustomerRecord {
   /** Sandbox/test-mode system — a Super-Admin-designated internal account. Any order this
    *  customer places routes to sandbox gateways and is excluded from all reporting. */
   isTestAccount?: boolean;
+  /** Count of accounts that signed up using this customer's referral code — strategic data
+   *  (who's driving word-of-mouth growth), separate from rewardsPoints (their own balance). */
+  referralCount?: number | null;
+}
+
+export interface ReferredCustomer {
+  id: string;
+  referralCode: string;
+  refereeEmail: string;
+  refereeFirstName: string;
+  status: "PENDING" | "CONFIRMED" | "EXPIRED";
+  qualifyingAmount?: number | null;
+  referrerCreditsAwarded?: number | null;
+  refereeCreditsAwarded?: number | null;
+  createdAt: string;
 }

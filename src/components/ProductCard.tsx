@@ -6,7 +6,8 @@ import type { Product } from "@/data/products";
 import { whatsappLink } from "@/data/products";
 import { apiUrl } from "@/config/api";
 import { getStockInfo } from "@/lib/stock";
-import { cleanUomLabel } from "@/lib/uomLabel";
+import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
+import { sanitizeProductDescription } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -171,7 +172,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
         </h3>
         {p.description && (
           <p className="mt-1 hidden text-[11px] leading-snug text-muted-foreground line-clamp-2 sm:line-clamp-2 sm:block sm:text-xs">
-            {p.description}
+            {sanitizeProductDescription(p.description)}
           </p>
         )}
 
@@ -266,7 +267,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                   KES {p.originalBasePrice.toLocaleString()}
                 </span>
               )}
-              <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ unit</span>
+              <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ {individualUnitLabel(p.risellerUomName)}</span>
             </p>
             {emphasizeDeal && p.originalBasePrice && p.originalBasePrice > p.basePrice && (
               <SaveBadge amount={p.originalBasePrice - p.basePrice} />

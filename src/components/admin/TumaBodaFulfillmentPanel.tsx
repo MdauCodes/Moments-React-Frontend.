@@ -7,6 +7,8 @@ import { RiderScanPanel } from "@/components/admin/RiderScanPanel";
 import { DeliveryConfirmationSection } from "@/components/admin/DeliveryConfirmationSection";
 import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
+import { TumaBodaOtpCard } from "@/components/admin/TumaBodaOtpCard";
+import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery, getOrder, checkTumaBodaStatusNow } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -52,7 +54,22 @@ export function TumaBodaFulfillmentPanel({
   // dispatchedOrLater above: DELIVERY_FAILED's legacy Order.status is DISPATCHED, so that flag
   // alone would wrongly hide this action for exactly the case it exists for.
   const RESTARTABLE_STATUSES_V2 = ["READY_FOR_RIDER_PICKUP", "RIDER_ASSIGNED", "DELIVERY_FAILED"];
-  const canRestart = RESTARTABLE_STATUSES_V2.includes(o.statusV2 ?? "");
+  // RIDER_ASSIGNED is restartable above because the webhook-driven status can lag reality — but
+  // the pickup OTP being verified is TumaBoda's own real-time confirmation the rider is AT
+  // pickup right now, a stronger and lower-latency signal than the status field. Mirrors the
+  // identical override in OrderService.restartTumaBodaDelivery (server-enforced regardless of
+  // what this button shows — this is purely so staff don't see an active button that's about to
+  // 400 on them).
+  const canRestart = RESTARTABLE_STATUSES_V2.includes(o.statusV2 ?? "") && !o.tumabodaPickupOtpVerifiedAt;
+  // Explains a disabled/faded restart button rather than leaving staff to guess why it's greyed
+  // out — the button itself stays visible whenever a booking exists (see the render below)
+  // instead of disappearing outright, so the reason it's currently unavailable is always
+  // one glance away.
+  const restartDisabledReason = canRestart
+    ? undefined
+    : o.tumabodaPickupOtpVerifiedAt
+      ? "The rider already verified the pickup OTP, so they're confirmed at pickup — restarting now risks a second rider converging on the same parcel."
+      : `Not available at "${resolveStatusDisplay(order.fulfillmentType, o.statusV2)?.label ?? o.statusV2 ?? "this status"}" — too far along (or already closed) to safely re-book.`;
 
   // Holds the blank tab opened synchronously at click time (see openPendingTrackingTab) until
   // the booking response tells us the real tracking URL to navigate it to. Only ever set for
@@ -206,12 +223,15 @@ export function TumaBodaFulfillmentPanel({
               {o.tumabodaBookingFailureReason
                 ? `Booking failed: ${o.tumabodaBookingFailureReason}`
                 : "Payment succeeded but the TumaBoda delivery hasn't been created yet."}{" "}
-              No rider has been summoned for this order.
+              No rider has been summoned for this order.{" "}
+              {o.tumabodaAutoRetryExhausted
+                ? "Automatic retry has given up after repeated failures — this now needs a manual retry."
+                : "This retries automatically on a backoff schedule — this panel updates on its own if that succeeds, no need to keep clicking Retry."}
             </div>
             <div className="flex flex-wrap gap-2">
               <button className="admin-btn admin-btn-ghost" disabled={retryBusy} onClick={handleRetry}>
                 {retryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                Retry TumaBoda delivery
+                Retry TumaBoda delivery now
               </button>
               {/* Only for a genuine recorded failure, not "hasn't been booked yet" — retrying is
                   always the first thing to try; this is the escape hatch once retrying is known
@@ -246,6 +266,11 @@ export function TumaBodaFulfillmentPanel({
             </div>
             <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
             {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
+            <TumaBodaOtpCard
+              code={o.tumabodaPickupOtpCode}
+              expiresAt={o.tumabodaPickupOtpExpiresAt}
+              verifiedAt={o.tumabodaPickupOtpVerifiedAt}
+            />
             {o.tumabodaTrackingCode && (
               <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
             )}
@@ -262,14 +287,24 @@ export function TumaBodaFulfillmentPanel({
                 </button>
               </div>
             ) : (
-              canRestart && (
-                <div className="mt-2">
-                  <button className="admin-btn admin-btn-ghost" disabled={restartBusy} onClick={handleRestart}>
-                    {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                    Restart TumaBoda delivery
-                  </button>
-                </div>
-              )
+              // Always rendered (not just when canRestart) — disabled + faded (native .admin-btn
+              // :disabled styling) with a tooltip explaining why, rather than disappearing
+              // outright while the delivery is genuinely in progress. Staff can see the action
+              // exists and why it's currently off, instead of wondering if it's missing/broken.
+              <div className="mt-2">
+                <button
+                  className="admin-btn admin-btn-ghost"
+                  disabled={restartBusy || !canRestart}
+                  onClick={handleRestart}
+                  title={restartDisabledReason}
+                >
+                  {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
+                  Restart TumaBoda delivery
+                </button>
+                {!canRestart && (
+                  <p className="mt-1 text-[11px] text-muted-foreground">{restartDisabledReason}</p>
+                )}
+              </div>
             )}
           </>
         )}

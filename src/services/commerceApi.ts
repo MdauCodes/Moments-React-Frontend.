@@ -12,6 +12,7 @@ import type {
   OrderStatus,
   PaymentGateway,
   PaymentRecord,
+  ReferredCustomer,
 } from "@/services/commerceMock";
 
 type Source = "live";
@@ -146,6 +147,9 @@ function normalizeOrder(raw: any): OrderRecord {
     tumabodaDeliveryNumber: raw?.tumabodaDeliveryNumber,
     tumabodaCost: raw?.tumabodaCost != null ? num(raw.tumabodaCost) : undefined,
     tumabodaRiderVerifiedAt: raw?.tumabodaRiderVerifiedAt,
+    tumabodaPickupOtpCode: raw?.tumabodaPickupOtpCode ?? null,
+    tumabodaPickupOtpExpiresAt: raw?.tumabodaPickupOtpExpiresAt ?? null,
+    tumabodaPickupOtpVerifiedAt: raw?.tumabodaPickupOtpVerifiedAt ?? null,
     tumabodaBookingFailureReason: raw?.tumabodaBookingFailureReason ?? null,
     tumabodaContactPhone: raw?.tumabodaContactPhone ?? null,
     customerConfirmedDeliveredAt: raw?.customerConfirmedDeliveredAt,
@@ -695,11 +699,16 @@ export async function listCustomers(params: ListCustomersParams = {}): Promise<L
 
 export async function getCustomer(
   id: string,
-): Promise<{ customer: CustomerRecord | undefined; orders: OrderRecord[]; source: Source }> {
-  const data = await getJson<{ customer: CustomerRecord; orders?: any[] }>(
+): Promise<{ customer: CustomerRecord | undefined; orders: OrderRecord[]; referrals: ReferredCustomer[]; source: Source }> {
+  const data = await getJson<{ customer: CustomerRecord; orders?: any[]; referrals?: ReferredCustomer[] }>(
     `/api/v1/admin/customers/${encodeURIComponent(id)}`,
   );
-  return { customer: data.customer, orders: (data.orders ?? []).map(normalizeOrder), source: "live" };
+  return {
+    customer: data.customer,
+    orders: (data.orders ?? []).map(normalizeOrder),
+    referrals: data.referrals ?? [],
+    source: "live",
+  };
 }
 
 export interface ImpersonationSession {

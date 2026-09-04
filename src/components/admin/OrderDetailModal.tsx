@@ -106,6 +106,30 @@ export function OrderDetailModal({ orderId, onClose, onChanged }: Props) {
     };
   }, [orderId]);
 
+  // Silent background refresh while the modal stays open — closes the gap where a TumaBoda
+  // delivery gets auto-retried/booked or its status changes (webhook, reconciliation sweep,
+  // TumaBodaDeliveryCreationRetryJob) in the background while a staff member is just sitting on
+  // this modal: previously they'd only see it after closing and reopening, or clicking a manual
+  // action button themselves. Deliberately only touches `order` (drives the TumaBoda panel's own
+  // display) — never staffNotes/selectedStatus, so it can't clobber an in-progress edit. Paused
+  // while the tab is hidden, same reasoning as AdminOrdersContext's own background poll.
+  useEffect(() => {
+    if (!orderId) return;
+    const POLL_MS = 20_000;
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      getOrder(orderId)
+        .then((res) => {
+          if (res.order) setOrder(res.order);
+        })
+        .catch(() => {
+          // Silent — this is a background convenience refresh, not a user-initiated action;
+          // the next tick (or the initial-load effect's own error toast) covers a real problem.
+        });
+    }, POLL_MS);
+    return () => window.clearInterval(id);
+  }, [orderId]);
+
   const o = order as (OrderRecord & Record<string, any>) | null;
 
   const canClose = !o || o.fulfillmentType !== "TUMABODA_DELIVERY" || tumaBodaOrderIsReadyOrBeyond(o);

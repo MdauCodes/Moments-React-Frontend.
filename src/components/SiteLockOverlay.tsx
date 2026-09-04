@@ -1,5 +1,6 @@
 import { useLocation } from "react-router-dom";
 import { LaunchBanner } from "@/components/LaunchBanner";
+import { useLaunchCountdown } from "@/components/LaunchCountdown";
 
 /**
  * Pre-launch indicator — a persistent countdown banner, not a blocking modal. Used to be a
@@ -11,13 +12,18 @@ import { LaunchBanner } from "@/components/LaunchBanner";
  * Googlebot never carries a persisted session between crawls, it would see the full block on
  * every single page, every time — actively working against indexing, not just a one-time human
  * annoyance. Checkout stays fully explorable regardless; payments are blocked server-side (see
- * SiteLockConfig.SITE_LOCK_ENABLED on the backend), not by anything in this component.
- * Exempts /admin/* routes so staff never see it.
+ * SiteLockConfig.isLocked() on the backend), not by anything in this component.
+ * Exempts /admin/* routes so staff never see it, and /launch — the dedicated full-screen TikTok
+ * -live countdown page already shows its own countdown and would double up with this banner.
+ * Ticks its own countdown (useLaunchCountdown) so the banner also disappears live, on its own,
+ * the instant LAUNCH_AT passes — a visitor who has the tab open across go-live never needs to
+ * reload to see it go away, matching the backend unlocking itself at the same instant.
  */
 export function SiteLockOverlay() {
   const location = useLocation();
+  const remaining = useLaunchCountdown();
 
-  if (location.pathname.startsWith("/admin")) {
+  if (location.pathname.startsWith("/admin") || location.pathname === "/launch" || !remaining) {
     return null;
   }
 

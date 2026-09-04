@@ -787,6 +787,18 @@ export const orderStore = {
     return { rows: all, total: all.length, page: 0, totalPages: 1, source: "mock" };
   },
 
+  /** Lifetime spend (paid orders only) for the dashboard's own stat tile — matches what the
+   *  admin customer view shows about this same customer, since both read the same backend query. */
+  async getSummary(): Promise<{ ordersCount: number; lifetimeValue: number } | null> {
+    if (!getAccessToken()) return null;
+    const live = await tryLiveJson<{ ordersCount: number; lifetimeValue: number }>(
+      "/api/v1/customer/orders/summary",
+      undefined,
+      true,
+    );
+    return live;
+  },
+
   async getMine(reference: string): Promise<{ order: CustomerOrder | null; source: "live" | "mock" }> {
     if (getAccessToken()) {
       const live = await tryLiveJson<CustomerOrder>(

@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Package, MapPin, Phone, Mail, RotateCcw, ShoppingBag, CheckCircle2, Clock, Truck, AlertCircle, Undo2 } from "lucide-react";
 import { toast } from "sonner";
-import { SiteLayout } from "@/components/SiteLayout";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PrintReceipt } from "@/components/PrintReceipt";
 import { RefundForm } from "@/components/RefundForm";
 import { OrderReviewForm } from "@/components/OrderReviewForm";
@@ -54,9 +54,9 @@ function OrderDetailPage() {
 
   if (order === undefined) {
     return (
-      <SiteLayout>
+      <DashboardPageShell>
         <section className="mx-auto max-w-4xl px-5 py-16 text-center text-sm text-muted-foreground">Loading…</section>
-      </SiteLayout>
+      </DashboardPageShell>
     );
   }
 
@@ -92,7 +92,7 @@ function OrderDetailPage() {
   }
 
   return (
-    <SiteLayout>
+    <DashboardPageShell>
       <section className="mx-auto max-w-5xl px-5 py-12 lg:px-8 lg:py-16">
         <Link to="/account/orders" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3 w-3" /> All orders
@@ -309,7 +309,7 @@ function OrderDetailPage() {
           </aside>
         </div>
       </section>
-    </SiteLayout>
+    </DashboardPageShell>
   );
 }
 

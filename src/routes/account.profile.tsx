@@ -3,7 +3,7 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { useEffect, useState, type FormEvent } from "react";
 import { Plus, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
-import { SiteLayout } from "@/components/SiteLayout";
+import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { profileStore, type CustomerProfile, type CustomerAddress } from "@/services/profileStore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,9 +38,11 @@ function ProfilePage() {
 
   if (!profile) {
     return (
-      <SiteLayout>
+      <ProtectedRoute>
+      <DashboardPageShell>
         <section className="mx-auto max-w-3xl px-5 py-16 text-center text-sm text-muted-foreground">Loading…</section>
-      </SiteLayout>
+      </DashboardPageShell>
+      </ProtectedRoute>
     );
   }
 
@@ -73,7 +75,8 @@ function ProfilePage() {
   }
 
   return (
-    <SiteLayout>
+    <ProtectedRoute>
+    <DashboardPageShell>
       <section className="mx-auto max-w-4xl px-5 py-12 lg:px-8 lg:py-16">
         <h1 className="font-display text-3xl sm:text-4xl">Profile</h1>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -165,7 +168,8 @@ function ProfilePage() {
           <PrivacyDataSection />
         </div>
       </section>
-    </SiteLayout>
+    </DashboardPageShell>
+    </ProtectedRoute>
   );
 }
 
