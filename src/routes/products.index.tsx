@@ -147,13 +147,107 @@ function ProductsPage() {
   const [retryTick, setRetryTick] = useState(0);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  // ── Deliberate "load more" reveal sequence (client decision 2026-09-04) ───────────────────
+  // Product #(page*PAGE_SIZE+1) onward is fetched well before the visitor reaches the bottom
+  // (rootMargin below), but is deliberately NOT shown the instant it arrives — revealedCount
+  // gates how much of `products` the grid is allowed to render, and morePhase paces exactly when
+  // that gate opens: a filled progress ring for a minimum of 3s (nominally paced toward 4s, but
+  // cut short right at 3s the moment real data is ready, or held at 100% and waiting if the
+  // fetch is slower than 4s), then skeleton cards for 2s, then the real cards. The aim, per the
+  // client's own framing: a consistent, legible "something is happening, please wait" beat every
+  // time, rather than pagination that's sometimes instant and sometimes not depending on network
+  // conditions. Deliberately scoped to "load more" only — the very first page (or a fresh filter/
+  // search) still reveals the moment it's ready, no artificial delay.
+  const [revealedCount, setRevealedCount] = useState(0);
+  const [morePhase, setMorePhase] = useState<"idle" | "spinner" | "skeleton">("idle");
+  const [ringPct, setRingPct] = useState(0);
+  const moreFetchStartRef = useRef<number | null>(null);
+  const ringTargetMsRef = useRef(4000);
+  const wasLoadingMoreRef = useRef(false);
+
+  const MIN_SPINNER_MS = 3000;
+  const DEFAULT_SPINNER_MS = 4000;
+  const SKELETON_MS = 2000;
+
+  // Page 0 (initial load, or any filter/search/sort change resetting the grid) reveals the
+  // instant it's ready — the paced sequence below is specifically for pagination while scrolling.
+  useEffect(() => {
+    if (page === 0 && !isLoading) {
+      setRevealedCount(products.length);
+      setMorePhase("idle");
+    }
+  }, [page, isLoading, products.length]);
+
+  // Fetch for page > 0 just started — begin the ring.
+  useEffect(() => {
+    if (page > 0 && isLoadingMore && !wasLoadingMoreRef.current) {
+      moreFetchStartRef.current = Date.now();
+      ringTargetMsRef.current = DEFAULT_SPINNER_MS;
+      setRingPct(0);
+      setMorePhase("spinner");
+    }
+    wasLoadingMoreRef.current = isLoadingMore;
+  }, [isLoadingMore, page]);
+
+  // Drives the ring's own fill toward whatever ringTargetMsRef currently says — retargeted by the
+  // effect below the instant real completion time is known, so the visible fill always finishes
+  // exactly when the phase is about to move on, never mid-fill.
+  useEffect(() => {
+    if (morePhase !== "spinner") return;
+    let raf: number;
+    const tick = () => {
+      const start = moreFetchStartRef.current ?? Date.now();
+      const elapsed = Date.now() - start;
+      const target = ringTargetMsRef.current;
+      setRingPct(Math.min(100, (elapsed / target) * 100));
+      if (elapsed < target) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [morePhase]);
+
+  // The real fetch just finished (products state already has the new items — just not revealed
+  // yet). Enforce the 3s floor, then hand off to skeletons for 2s, then actually reveal.
+  useEffect(() => {
+    if (page === 0 || isLoadingMore || morePhase !== "spinner") return;
+    const elapsed = Date.now() - (moreFetchStartRef.current ?? Date.now());
+    const toSkeleton = () => {
+      setMorePhase("skeleton");
+      const t = setTimeout(() => {
+        setRevealedCount(products.length);
+        setMorePhase("idle");
+      }, SKELETON_MS);
+      return t;
+    };
+    if (elapsed >= MIN_SPINNER_MS) {
+      // Already past the floor (a slow fetch, or one that took 3-4s) — finish the ring right now
+      // instead of waiting further, and move straight on.
+      ringTargetMsRef.current = elapsed;
+      setRingPct(100);
+      const t = toSkeleton();
+      return () => clearTimeout(t);
+    }
+    // Not at the floor yet — retarget the ring to finish exactly at 3s (not the default 4s),
+    // then transition right on that mark.
+    ringTargetMsRef.current = MIN_SPINNER_MS;
+    const t1 = setTimeout(() => {
+      const t2 = toSkeleton();
+      return () => clearTimeout(t2);
+    }, MIN_SPINNER_MS - elapsed);
+    return () => clearTimeout(t1);
+  }, [isLoadingMore, morePhase, page, products.length]);
+
   // Infinite scroll: load the next page well before the user actually reaches the bottom.
-  // rootMargin: "800px" (up from 400px) fires the fetch nearly a full extra screen early on most
-  // viewports, so the next page has usually finished loading by the time it would otherwise come
-  // into view — turning "scroll, hit bottom, wait for a spinner" into "scroll, it's just there."
+  // rootMargin: "800px" fires the fetch nearly a full extra screen early on most viewports, so
+  // the real data is usually already sitting there ready well before the deliberate 3s/2s reveal
+  // sequence above finishes — the pacing above is what the visitor actually sees, this just makes
+  // sure it's never waiting on the network on top of that. Also blocked while a previous page's
+  // reveal sequence is still mid-flight (morePhase !== "idle"), not just while the raw fetch is
+  // in flight — otherwise reaching the bottom again during the skeleton phase would kick off a
+  // second fetch stacking behind the first.
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el || !hasMore || isLoadingMore || searchResults) return;
+    if (!el || !hasMore || isLoadingMore || morePhase !== "idle" || searchResults) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
@@ -164,7 +258,7 @@ function ProductsPage() {
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [hasMore, isLoadingMore, searchResults]);
+  }, [hasMore, isLoadingMore, morePhase, searchResults]);
 
   const selectedIndustry = useMemo(
     () => industries.find((i) => i.slug === industrySlug) ?? null,
@@ -565,7 +659,10 @@ function ProductsPage() {
   // it, so paginating ("Load more") doesn't reshuffle already-rendered cards.
   const shuffleRanks = useRef<Map<string, number>>(new Map());
   const grid = useMemo(() => {
-    const base = searchResults ?? products;
+    // .slice(0, revealedCount) is the actual gate behind the deliberate load-more pacing above —
+    // `products` itself already has the next page's items the instant the fetch resolves, this is
+    // what withholds them from actually rendering until the spinner/skeleton sequence finishes.
+    const base = searchResults ?? products.slice(0, revealedCount);
     // Honour explicit sort choices — only shuffle on the default sort and
     // when the user has not narrowed the catalogue with category filters.
     const ordered = sort !== "newest" || searchResults
@@ -589,7 +686,7 @@ function ProductsPage() {
       return ordered.filter((p) => !getStockInfo(p, null, 0).isMadeToOrder);
     }
     return ordered.filter((p) => getStockInfo(p, null, 0).canOrder);
-  }, [searchResults, products, sort]);
+  }, [searchResults, products, revealedCount, sort]);
 
   // JSON-LD ItemList for the visible page
   const itemListLd = useMemo(() => {
@@ -1148,16 +1245,27 @@ function ProductsPage() {
                   <ProductCard product={p} onConfigure={handleConfigure} />
                 </div>
               ))}
-              {/* Skeletons for the next page, laid out in the SAME grid as the real cards (not a
-                  separate spinner row below) — the grid visually "grows" while the next page is
-                  in flight instead of the scroll hitting a dead stop at a spinner. Paired with the
-                  800px rootMargin above, this fetch is usually already resolving by the time these
-                  become visible, so they're typically on screen only briefly. */}
-              {isLoadingMore &&
+              {/* The second half of the deliberate load-more sequence — appears once the ring
+                  below finishes (see morePhase's own effects above), laid out in the SAME grid as
+                  the real cards so it visually reads as the grid filling in, not a separate
+                  loading row. */}
+              {morePhase === "skeleton" &&
                 Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={`more-${i}`} />)}
             </div>
 
-            {!searchResults && <div ref={sentinelRef} className="mt-6 h-1 w-full" />}
+            {!searchResults && (
+              <div className="mt-8 flex flex-col items-center justify-center gap-2">
+                {morePhase === "spinner" && (
+                  <>
+                    <LoadMoreRing pct={ringPct} />
+                    <p className="text-xs text-muted-foreground" aria-live="polite">
+                      Loading more products…
+                    </p>
+                  </>
+                )}
+                <div ref={sentinelRef} className="h-1 w-full" />
+              </div>
+            )}
 
             {/* Keep browsing / You might also like — search results are capped
                 with no pagination, so without this a customer who used
@@ -1192,6 +1300,43 @@ function ProductsPage() {
 
       <ConfiguratorModal product={configuring} preSelectedTierId={preTier} onClose={() => setConfiguring(null)} />
     </SiteLayout>
+  );
+}
+
+/** The "circle that fills with color as it loads" from the load-more sequence above — `pct`
+ *  (0-100) is driven entirely by the parent's own rAF loop, this just renders whatever it's told
+ *  so the parent stays the single source of truth for timing (default pace, floor, retargeting
+ *  on early completion). A real progressbar role, not just decorative, since it's genuinely
+ *  communicating "still working" the way any loading indicator would. */
+function LoadMoreRing({ pct }: { pct: number }) {
+  const radius = 16;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.max(0, Math.min(100, pct)) / 100) * circumference;
+  return (
+    <svg
+      width={40}
+      height={40}
+      viewBox="0 0 40 40"
+      className="-rotate-90"
+      role="progressbar"
+      aria-label="Loading more products"
+      aria-valuenow={Math.round(pct)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+    >
+      <circle cx={20} cy={20} r={radius} fill="none" stroke="var(--border)" strokeWidth={4} />
+      <circle
+        cx={20}
+        cy={20}
+        r={radius}
+        fill="none"
+        stroke="var(--primary)"
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+      />
+    </svg>
   );
 }
 

@@ -127,12 +127,6 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           </div>
         )}
 
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-10 sm:h-14"
-          style={{ background: "linear-gradient(to bottom, transparent 0%, var(--card) 95%)" }}
-        />
-
         {/* Badges */}
         <div className="absolute left-2 top-2 flex flex-wrap gap-1 sm:left-3 sm:top-3">
           {isTracked && (
