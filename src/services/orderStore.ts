@@ -125,6 +125,13 @@ export interface CustomerOrder {
   taxInvoiceAvailable?: boolean;
   taxInvoiceAvailableUntil?: string | null;
   etrAvailable?: boolean;
+  /** Whether this order was placed while the shop was closed (8am–4pm, Africa/Nairobi) — see
+   *  the backend's BusinessHoursConfig. Payment still works 24/7; this only affects when staff
+   *  actually start on it. */
+  placedOutsideBusinessHours?: boolean;
+  /** Pre-formatted, ready-to-toast message — null unless placedOutsideBusinessHours is true.
+   *  Formatted server-side so the frontend never needs its own copy of the day-of-week logic. */
+  outsideHoursMessage?: string | null;
 }
 
 export interface PlaceOrderInput {

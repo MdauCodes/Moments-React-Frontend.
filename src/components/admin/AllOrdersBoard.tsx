@@ -1,5 +1,6 @@
 import { AgeBadge, formatKes } from "@/components/admin/commerceUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
+import { TumaBodaOtpChip } from "@/components/admin/TumaBodaOtpCard";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import {
   ALL_ORDERS_BOARD_COLUMNS,
@@ -78,6 +79,13 @@ function AllOrdersCard({
           </span>
         )}
       </div>
+      {order.fulfillmentType === "TUMABODA_DELIVERY" && (
+        <TumaBodaOtpChip
+          code={order.tumabodaPickupOtpCode}
+          expiresAt={order.tumabodaPickupOtpExpiresAt}
+          verifiedAt={order.tumabodaPickupOtpVerifiedAt}
+        />
+      )}
       {/* Same quick one-tap advance the per-mode boards use — renders nothing once a mode's own
           fulfillment-specific flow (QR scan, delivery confirmation, etc.) takes over. */}
       <div onClick={(e) => e.stopPropagation()} className="admin-board-card-action">
