@@ -189,7 +189,7 @@ export function WelcomeStarterModal() {
                   <p className="mt-1.5 text-[13px] leading-snug sm:mt-2 sm:text-sm sm:leading-normal" style={{ color: `${FOREST_DEEP}bf` }}>
                     Every account comes with 1,000 free Coupon Points (worth KES 100) when you join. Earn even more
                     with every order through exclusive discounts, referral rewards, and VIP perks. Open a Business
-                    Account to unlock a one-time 5% promo code once your trade profile has been approved.
+                    Account to also unlock a one-time 5% promo code, issued as soon as your business profile is set up.
                   </p>
                   <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}b3` }}>
                     See our{" "}

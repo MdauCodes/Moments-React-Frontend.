@@ -1,6 +1,13 @@
 import { Link } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { useDashboardSidebar } from "@/components/DashboardLayout";
+import { useAuth } from "@/contexts/AuthContext";
+
+function timeOfDayGreeting(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 /**
  * Minimal app-shell header for authenticated dashboard pages — deliberately
@@ -15,6 +22,8 @@ import { useDashboardSidebar } from "@/components/DashboardLayout";
  */
 export function DashboardHeader() {
   const { setOpen } = useDashboardSidebar();
+  const { user } = useAuth();
+  const greeting = timeOfDayGreeting(new Date().getHours());
   return (
     <header className="sticky top-0 z-30 bg-[var(--forest-deep)]">
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
@@ -31,12 +40,18 @@ export function DashboardHeader() {
             moments
           </Link>
         </div>
-        <Link
-          to="/products"
-          className="rounded-full border border-cream/25 px-4 py-1.5 text-sm font-medium text-cream hover:bg-cream/10"
-        >
-          Shop
-        </Link>
+        <div className="flex items-center gap-3">
+          <span className="truncate text-xs font-medium text-cream/80 sm:text-sm">
+            {greeting}
+            {user?.firstName && <span className="hidden min-[380px]:inline">{`, ${user.firstName}`}</span>}
+          </span>
+          <Link
+            to="/products"
+            className="shrink-0 rounded-full border border-cream/25 px-4 py-1.5 text-sm font-medium text-cream hover:bg-cream/10"
+          >
+            Shop
+          </Link>
+        </div>
       </div>
     </header>
   );

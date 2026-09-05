@@ -41,6 +41,10 @@ export interface OrderRecord {
   /** Per-fulfillment-mode status (see src/lib/orderStatusV2.ts) — null for orders not yet
    *  backfilled; callers fall back to `status`. */
   statusV2?: string | null;
+  /** When statusV2 first became a "completed" value — see the backend's Order.completedAt
+   *  Javadoc. Null for an order that hasn't finished yet. Use this (not updatedAt, which
+   *  unrelated background jobs can also bump) for anything filtering/sorting by completion time. */
+  completedAt?: string | null;
   paymentStatus: PaymentStatus;
   paymentGateway: PaymentGateway;
   customerName: string;
