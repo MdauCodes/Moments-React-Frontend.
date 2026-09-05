@@ -51,10 +51,18 @@ export const BOARD_COLUMNS: Record<FulfillmentModeKey, BoardColumn[]> = {
     {
       key: "out_for_delivery",
       label: "Out for delivery",
-      matches: ["RIDER_IN_TRANSIT", "RIDER_VERIFIED_IN_TRANSIT", "DELIVERED_PENDING_CONFIRMATION", "DELIVERY_FAILED"],
+      matches: ["RIDER_IN_TRANSIT", "RIDER_VERIFIED_IN_TRANSIT", "DELIVERY_FAILED"],
       exceptionMatches: ["DELIVERY_FAILED"],
     },
-    { key: "completed", label: "Completed", matches: ["COMPLETED"] },
+    // DELIVERED_PENDING_CONFIRMATION moved here from "out_for_delivery" 2026-09-06 — TumaBoda's
+    // own webhook already reported the parcel delivered; the only thing left pending is the
+    // CUSTOMER's own OTP confirmation on the track-order page, which they may never do. Staff
+    // have nothing left to act on for a delivered parcel, so leaving it in "Out for delivery"
+    // made a genuinely finished order look like it was still stuck mid-route, with no way for it
+    // to ever move on its own if the customer simply doesn't visit that page. Customer
+    // confirmation remains a real, separate signal (see customerConfirmedDeliveredAt) — it's just
+    // not something staff should have to babysit an order over.
+    { key: "completed", label: "Completed", matches: ["COMPLETED", "DELIVERED_PENDING_CONFIRMATION"] },
     { key: "closed", label: "Closed", matches: ["CANCELLED", "REFUNDED"] },
   ],
 };
@@ -80,4 +88,16 @@ export function resolveBoardColumnKey(
 export function isExceptionStatus(mode: FulfillmentModeKey, statusV2: string | null | undefined): boolean {
   if (!statusV2) return false;
   return BOARD_COLUMNS[mode].some((col) => col.exceptionMatches?.includes(statusV2));
+}
+
+/** Whether TumaBoda's raw tumabodaStatus indicates the rider has already collected the parcel —
+ *  shared by FulfillmentBoard (the sub-label/OTP-collapse logic) and TumaBodaFulfillmentPanel
+ *  (the order modal's own OTP card), so both agree on the exact same cutoff rather than each
+ *  keeping its own copy of this list. Once true, the pickup OTP is no longer actionable — it was
+ *  either already keyed into TumaBoda's app or never will be, so it should collapse rather than
+ *  keep occupying space with a ticking countdown. */
+export function tumaBodaHasMovedPastPickup(rawStatus?: string | null): boolean {
+  if (!rawStatus) return false;
+  const s = rawStatus.toLowerCase();
+  return s === "in_transit" || s === "picked_up" || s === "delivered";
 }

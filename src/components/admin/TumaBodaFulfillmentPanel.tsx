@@ -9,6 +9,7 @@ import { DeliveryNoteButton } from "@/components/admin/DeliveryNoteButton";
 import { TumaBodaTrackingWidget, buildTumaBodaTrackingUrl } from "@/components/TumaBodaTrackingWidget";
 import { TumaBodaOtpCard } from "@/components/admin/TumaBodaOtpCard";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
+import { tumaBodaHasMovedPastPickup } from "@/lib/fulfillmentBoardColumns";
 import { formatKes, formatDate } from "@/components/admin/commerceUi";
 import { retryTumaBodaDelivery, restartTumaBodaDelivery, rerouteToManualDelivery, getOrder, checkTumaBodaStatusNow } from "@/services/commerceApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -46,6 +47,9 @@ export function TumaBodaFulfillmentPanel({
   const [rerouteBusy, setRerouteBusy] = useState(false);
   const [restartBusy, setRestartBusy] = useState(false);
   const [checkStatusBusy, setCheckStatusBusy] = useState(false);
+  const [otpExpanded, setOtpExpanded] = useState(false);
+  const pastPickup = tumaBodaHasMovedPastPickup(o.tumabodaStatus);
+  const hasLivePickupOtp = !!o.tumabodaPickupOtpCode && !o.tumabodaPickupOtpVerifiedAt;
   const readyOrBeyond = tumaBodaOrderIsReadyOrBeyond(order);
   const dispatchedOrLater = order.status === "DISPATCHED" || order.status === "DELIVERED";
   // Mirrors OrderService.TUMABODA_RESTARTABLE_STATUSES exactly — a rider verified at pickup or
@@ -266,11 +270,36 @@ export function TumaBodaFulfillmentPanel({
             </div>
             <Row label="Delivery #" value={o.tumabodaDeliveryNumber || "—"} />
             {o.tumabodaCost != null && <Row label="Cost" value={formatKes(o.tumabodaCost)} />}
-            <TumaBodaOtpCard
-              code={o.tumabodaPickupOtpCode}
-              expiresAt={o.tumabodaPickupOtpExpiresAt}
-              verifiedAt={o.tumabodaPickupOtpVerifiedAt}
-            />
+            {!pastPickup && (
+              <TumaBodaOtpCard
+                code={o.tumabodaPickupOtpCode}
+                expiresAt={o.tumabodaPickupOtpExpiresAt}
+                verifiedAt={o.tumabodaPickupOtpVerifiedAt}
+              />
+            )}
+            {/* Once the rider has already collected the parcel, the pickup OTP is no longer
+                actionable — either it was keyed into TumaBoda's app already, or it never will be.
+                Collapsed here (not hidden outright) so staff can still confirm what code was
+                given, without a stale ticking countdown competing for attention on an order
+                that's already moving or done. */}
+            {pastPickup && hasLivePickupOtp && (
+              otpExpanded ? (
+                <TumaBodaOtpCard
+                  code={o.tumabodaPickupOtpCode}
+                  expiresAt={o.tumabodaPickupOtpExpiresAt}
+                  verifiedAt={o.tumabodaPickupOtpVerifiedAt}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  style={{ fontSize: 11, padding: "2px 8px" }}
+                  onClick={() => setOtpExpanded(true)}
+                >
+                  Show pickup OTP (already collected)
+                </button>
+              )
+            )}
             {o.tumabodaTrackingCode && (
               <TumaBodaTrackingWidget
                 trackingCode={o.tumabodaTrackingCode}

@@ -132,6 +132,7 @@ export function TumaBodaOtpChip({
       title="TumaBoda pickup OTP — read this to the rider"
     >
       <KeyRound size={11} />
+      <span className="uppercase tracking-wide">OTP</span>
       {code}
       {msRemaining != null && <span>· {expired ? "expired" : formatCountdown(msRemaining)}</span>}
     </div>
