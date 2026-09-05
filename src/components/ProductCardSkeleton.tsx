@@ -1,7 +1,7 @@
 export function ProductCardSkeleton() {
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="shimmer aspect-[16/10] w-full" />
+      <div className="shimmer aspect-[16/9] w-full" />
       <div className="flex flex-1 flex-col p-6">
         <div className="shimmer h-5 w-3/4 rounded-md" />
         <div className="shimmer mt-2 h-3 w-full rounded-md" />
