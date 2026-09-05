@@ -47,7 +47,7 @@ export function DashboardHeader() {
           </span>
           <Link
             to="/products"
-            className="shrink-0 rounded-full border border-cream/25 px-4 py-1.5 text-sm font-medium text-cream hover:bg-cream/10"
+            className="shrink-0 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground hover:bg-accent/90"
           >
             Shop
           </Link>
