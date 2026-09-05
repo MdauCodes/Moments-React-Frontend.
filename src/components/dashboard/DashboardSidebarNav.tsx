@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import { X } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useDashboardSidebar } from "@/components/DashboardLayout";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface DashboardNavItem<T extends string> {
   key: T;
@@ -32,6 +33,8 @@ export function DashboardSidebarNav<T extends string>({
   onChange: (key: T) => void;
 }) {
   const { open, setOpen } = useDashboardSidebar();
+  const { user } = useAuth();
+  const displayName = user ? `${user.firstName} ${user.lastName}`.trim() : "Menu";
   const handleChange = (key: T) => {
     onChange(key);
     setOpen(false);
@@ -52,7 +55,7 @@ export function DashboardSidebarNav<T extends string>({
         }`}
       >
         <div className="mb-3 flex items-center justify-between lg:hidden">
-          <p className="text-sm font-semibold text-cream">Menu</p>
+          <p className="truncate pr-2 text-sm font-semibold text-cream">{displayName}</p>
           <button
             type="button"
             onClick={() => setOpen(false)}
