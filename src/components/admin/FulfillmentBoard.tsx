@@ -67,11 +67,13 @@ function OrderCard({
     >
       <div className="admin-card-row" style={{ fontSize: 12.5 }}>
         <b>{order.reference}</b>
-        {/* Completed cards badge time-SINCE-COMPLETION, not time-since-creation — otherwise an
-         *  order that took days to fulfil but completed minutes ago reads as a stale "3d ago"
-         *  card needing attention, when it's actually done and current. Also suppresses the
-         *  warn/urgent red-amber coloring there (meaningless once an order is finished). */}
-        {columnKey === "completed" ? (
+        {/* Completed/Closed cards badge time-SINCE-COMPLETION, not time-since-creation —
+         *  otherwise an order that took days to fulfil but completed minutes ago reads as a stale
+         *  "3d ago" card needing attention, when it's actually done and current. Also suppresses
+         *  the warn/urgent red-amber coloring there (meaningless once an order is finished).
+         *  order.completedAt is only set for orders that actually completed (not a plain
+         *  cancel/refund), so this falls back to createdAt for those, unaffected. */}
+        {columnKey === "completed" || columnKey === "closed" ? (
           <AgeBadge since={order.completedAt ?? order.createdAt} warnAfterHours={Infinity} urgentAfterHours={Infinity} />
         ) : (
           <AgeBadge since={order.createdAt} />
@@ -141,39 +143,18 @@ export function FulfillmentBoard({
   const columns = BOARD_COLUMNS[mode];
   const awaitingPaymentCount = orders.filter((o) => (o.statusV2 ?? o.status) === "PENDING_PAYMENT").length;
 
-  // Same fix across every mode's board (PICKUP/MANUAL_DELIVERY/TUMABODA_DELIVERY all define a
-  // "completed" column — see fulfillmentBoardColumns.ts): previously this column just accumulated
-  // EVERY completed order ever seen in the shared cache with no time bound, so a board left open
-  // across days turned into an ever-growing list of stale cards nobody needs to act on. Defaults
-  // to the last 24h; the "Show all" toggle in the column header brings the rest back into view
-  // (still on this board, no need to hunt for them on a separate Orders/search page) rather than
-  // dropping them anywhere.
-  //
-  // Filters/sorts on completedAt specifically (the backend's Order.completedAt, stamped exactly
-  // once when it actually finished), NOT updatedAt. Bug fixed 2026-09-06: updatedAt turned out to
-  // be an unreliable proxy — TumaBodaReconciliationJob and TumaBodaDeliveryCreationRetryJob (and
-  // plenty else) can re-save an order for reasons that have nothing to do with completion, and any
-  // of those touches made an order that actually finished days ago look freshly updated, so it
-  // never got hidden despite being genuinely stale. Falls back to createdAt only for the rare
-  // pre-migration order that finished before completedAt existed and never got backfilled.
-  const RECENT_COMPLETED_WINDOW_MS = 24 * 60 * 60 * 1000;
-  const [showAllCompleted, setShowAllCompleted] = useState(false);
-  const completedTimestamp = (o: OrderRecord & Record<string, any>) => o.completedAt ?? o.createdAt;
-
+  // The "Completed" column used to just accumulate every completed order ever seen with no time
+  // bound (a board left open across days turned into an ever-growing stale list) — fixed 2026-09-06
+  // with a 24h client-side filter, then superseded the same day by resolveBoardColumnKey's own
+  // auto-close: any order completed over an hour ago now reclassifies straight into "Closed" (see
+  // fulfillmentBoardColumns.ts's AUTO_CLOSE_COMPLETED_AFTER_MS), so nothing can sit in "Completed"
+  // long enough for a 24h filter to ever matter any more. Removed the now-dead filter/toggle here
+  // rather than leaving unreachable code behind.
   const byColumn = new Map<string, (OrderRecord & Record<string, any>)[]>();
   for (const col of columns) byColumn.set(col.key, []);
   for (const order of orders) {
     const key = resolveBoardColumnKey(mode, order);
     if (key && byColumn.has(key)) byColumn.get(key)!.push(order);
-  }
-
-  const allCompleted = byColumn.get("completed") ?? [];
-  let hiddenCompletedCount = 0;
-  if (!showAllCompleted && byColumn.has("completed")) {
-    const cutoff = Date.now() - RECENT_COMPLETED_WINDOW_MS;
-    const recentOnly = allCompleted.filter((o) => new Date(completedTimestamp(o)).getTime() >= cutoff);
-    hiddenCompletedCount = allCompleted.length - recentOnly.length;
-    byColumn.set("completed", recentOnly);
   }
 
   return (
@@ -193,27 +174,6 @@ export function FulfillmentBoard({
                 <span>{col.label}</span>
                 <span className="admin-badge admin-badge-muted">{items.length}</span>
               </div>
-              {col.key === "completed" && hiddenCompletedCount > 0 && (
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost"
-                  style={{ fontSize: 11, padding: "2px 8px", margin: "0 2px 6px" }}
-                  onClick={() => setShowAllCompleted(true)}
-                  title="Completed orders older than 24h are hidden by default to keep this column short — click to bring them back"
-                >
-                  +{hiddenCompletedCount} older — Show all
-                </button>
-              )}
-              {col.key === "completed" && showAllCompleted && (
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost"
-                  style={{ fontSize: 11, padding: "2px 8px", margin: "0 2px 6px" }}
-                  onClick={() => setShowAllCompleted(false)}
-                >
-                  Show last 24h only
-                </button>
-              )}
               <div className="admin-board-column-body">
                 {items.length === 0 ? (
                   <div style={{ fontSize: 12, color: "var(--admin-muted)", padding: "8px 2px" }}>Empty</div>
