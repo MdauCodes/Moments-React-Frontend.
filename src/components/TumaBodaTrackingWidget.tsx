@@ -44,7 +44,84 @@ export function buildTumaBodaTrackingUrl(trackingCode: string): string {
   return `${TUMABODA_TRACKING_BASE_URL.replace(/\/$/, "")}/${encodeURIComponent(trackingCode)}`;
 }
 
-export function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode: string; status?: string | null }) {
+interface TumaBodaTrackingWidgetProps {
+  trackingCode: string;
+  status?: string | null;
+  /** Side-by-side smaller map + an info panel, instead of a full-width map — for the admin order
+   *  modal, where this widget sits inside an already-crowded panel and doesn't need to be the
+   *  biggest thing on screen. The customer-facing track-order page keeps the full-width layout
+   *  (compact omitted/false there), since it IS the main thing on that page. */
+  compact?: boolean;
+  /** Set when staff have scanned the rider's QR code at pickup — see PaymentService.
+   *  scanRiderForOrder. Shown as a badge in the info panel when true; omitted entirely (not shown
+   *  as "not verified") when false/undefined, since scanning is optional, not a problem. */
+  riderVerified?: boolean;
+  /** TumaBoda's own delivery reference number, shown alongside our tracking code so staff can
+   *  quote either one to TumaBoda support without hunting through the raw order record. */
+  deliveryNumber?: string | null;
+}
+
+/** Everything we actually know about this delivery, shown next to (not inside) the map — rider
+ *  name/phone are NOT available here: TumaBoda's tracking page renders them from what appears to
+ *  be a live WebSocket feed, not a discoverable REST call or anything present in the page's own
+ *  server-rendered HTML, so there's nothing reliable for our backend to scrape. Investigated
+ *  2026-09-05: no XHR/fetch call carries it, and a plain HTTP GET of the tracking URL doesn't
+ *  contain it either — reverse-engineering an undocumented private channel isn't worth the
+ *  fragility. If TumaBoda ever exposes rider name/phone via their partner REST API, wire it in
+ *  here instead of attempting to scrape their tracking page. */
+function TrackingInfoPanel({
+  status,
+  trackingCode,
+  deliveryNumber,
+  riderVerified,
+  trackingUrl,
+  tumaBodaPartner,
+}: {
+  status?: string | null;
+  trackingCode: string;
+  deliveryNumber?: string | null;
+  riderVerified?: boolean;
+  trackingUrl: string;
+  tumaBodaPartner: ReturnType<typeof getDeliveryPartner>;
+}) {
+  return (
+    <div className="flex min-w-0 flex-1 flex-col gap-2">
+      {tumaBodaPartner && <DeliveryPartnerBadge partner={tumaBodaPartner} />}
+      {status && (
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Status</p>
+          <p className="text-sm font-medium text-foreground">{status.replace(/_/g, " ")}</p>
+        </div>
+      )}
+      {riderVerified && (
+        <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
+          ✓ Rider verified at pickup
+        </span>
+      )}
+      <div>
+        <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Tracking code</p>
+        <p className="font-mono text-sm text-foreground">{trackingCode}</p>
+      </div>
+      {deliveryNumber && (
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground">TumaBoda delivery #</p>
+          <p className="font-mono text-sm text-foreground">{deliveryNumber}</p>
+        </div>
+      )}
+      <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="mt-auto text-sm text-primary underline">
+        Open tracking in a new tab
+      </a>
+    </div>
+  );
+}
+
+export function TumaBodaTrackingWidget({
+  trackingCode,
+  status,
+  compact = false,
+  riderVerified,
+  deliveryNumber,
+}: TumaBodaTrackingWidgetProps) {
   const [iframeFailed, setIframeFailed] = useState(false);
   const trackingUrl = buildTumaBodaTrackingUrl(trackingCode);
   const tumaBodaPartner = getDeliveryPartner("tumaboda");
@@ -63,17 +140,16 @@ export function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode:
     };
   }, [trackingUrl]);
 
-  return (
-    <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
-      <p className="text-xs uppercase tracking-widest text-muted-foreground">Live delivery tracking</p>
-      {status && <p className="mt-1 text-sm text-foreground">{status.replace(/_/g, " ")}</p>}
-      {tumaBodaPartner && <DeliveryPartnerBadge partner={tumaBodaPartner} className="mt-2" />}
+  const mapHeight = compact ? 200 : 360;
+
+  const map = (
+    <div className={compact ? "w-full sm:w-[220px] sm:shrink-0" : "w-full"}>
       {!iframeFailed && (
         <iframe
           src={trackingUrl}
           title="Live delivery tracking"
-          className="mt-2 w-full rounded-lg border border-border"
-          style={{ height: 360 }}
+          className="w-full rounded-lg border border-border"
+          style={{ height: mapHeight }}
           loading="lazy"
           // allow-same-origin here is safe despite the usual allow-scripts+allow-same-origin
           // sandbox-escape warning: that escape requires the iframe's origin to match the
@@ -93,8 +169,41 @@ export function TumaBodaTrackingWidget({ trackingCode, status }: { trackingCode:
         />
       )}
       {iframeFailed && (
-        <p className="mt-2 text-sm text-muted-foreground">Live map couldn't be embedded here.</p>
+        <div
+          className="flex items-center justify-center rounded-lg border border-dashed border-border p-3 text-center text-sm text-muted-foreground"
+          style={{ height: mapHeight }}
+        >
+          Live map couldn't be embedded here.
+        </div>
       )}
+    </div>
+  );
+
+  if (compact) {
+    return (
+      <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+        <p className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">Live delivery tracking</p>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          {map}
+          <TrackingInfoPanel
+            status={status}
+            trackingCode={trackingCode}
+            deliveryNumber={deliveryNumber}
+            riderVerified={riderVerified}
+            trackingUrl={trackingUrl}
+            tumaBodaPartner={tumaBodaPartner}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">
+      <p className="text-xs uppercase tracking-widest text-muted-foreground">Live delivery tracking</p>
+      {status && <p className="mt-1 text-sm text-foreground">{status.replace(/_/g, " ")}</p>}
+      {tumaBodaPartner && <DeliveryPartnerBadge partner={tumaBodaPartner} className="mt-2" />}
+      <div className="mt-2">{map}</div>
       <p className="mt-2 text-sm text-muted-foreground">
         <a href={trackingUrl} target="_blank" rel="noopener noreferrer" className="underline">
           Open tracking in a new tab

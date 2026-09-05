@@ -272,7 +272,12 @@ export function TumaBodaFulfillmentPanel({
               verifiedAt={o.tumabodaPickupOtpVerifiedAt}
             />
             {o.tumabodaTrackingCode && (
-              <TumaBodaTrackingWidget trackingCode={o.tumabodaTrackingCode} status={o.tumabodaStatus} />
+              <TumaBodaTrackingWidget
+                trackingCode={o.tumabodaTrackingCode}
+                status={o.tumabodaStatus}
+                compact
+                riderVerified={!!o.tumabodaRiderVerifiedAt}
+              />
             )}
             {/* DELIVERY_FAILED gets the same destructive-callout treatment as the "booking
                 failed" case above — this is the one restart scenario staff are actively looking

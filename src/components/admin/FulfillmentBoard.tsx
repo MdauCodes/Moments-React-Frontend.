@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { AgeBadge, formatKes } from "@/components/admin/commerceUi";
 import { GenericNextActionButton } from "@/components/admin/GenericNextActionButton";
 import { TumaBodaOtpChip } from "@/components/admin/TumaBodaOtpCard";
@@ -105,11 +106,30 @@ export function FulfillmentBoard({
   const columns = BOARD_COLUMNS[mode];
   const awaitingPaymentCount = orders.filter((o) => (o.statusV2 ?? o.status) === "PENDING_PAYMENT").length;
 
+  // Same fix across every mode's board (PICKUP/MANUAL_DELIVERY/TUMABODA_DELIVERY all define a
+  // "completed" column — see fulfillmentBoardColumns.ts): previously this column just accumulated
+  // EVERY completed order ever seen in the shared cache with no time bound, so a board left open
+  // across days turned into an ever-growing list of stale cards nobody needs to act on. Defaults
+  // to the last 24h; the "Show all" toggle in the column header brings the rest back into view
+  // (still on this board, no need to hunt for them on a separate Orders/search page) rather than
+  // dropping them anywhere.
+  const RECENT_COMPLETED_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const [showAllCompleted, setShowAllCompleted] = useState(false);
+
   const byColumn = new Map<string, (OrderRecord & Record<string, any>)[]>();
   for (const col of columns) byColumn.set(col.key, []);
   for (const order of orders) {
     const key = resolveBoardColumnKey(mode, order);
     if (key && byColumn.has(key)) byColumn.get(key)!.push(order);
+  }
+
+  const allCompleted = byColumn.get("completed") ?? [];
+  let hiddenCompletedCount = 0;
+  if (!showAllCompleted && byColumn.has("completed")) {
+    const cutoff = Date.now() - RECENT_COMPLETED_WINDOW_MS;
+    const recentOnly = allCompleted.filter((o) => new Date(o.updatedAt ?? o.createdAt).getTime() >= cutoff);
+    hiddenCompletedCount = allCompleted.length - recentOnly.length;
+    byColumn.set("completed", recentOnly);
   }
 
   return (
@@ -129,6 +149,27 @@ export function FulfillmentBoard({
                 <span>{col.label}</span>
                 <span className="admin-badge admin-badge-muted">{items.length}</span>
               </div>
+              {col.key === "completed" && hiddenCompletedCount > 0 && (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  style={{ fontSize: 11, padding: "2px 8px", margin: "0 2px 6px" }}
+                  onClick={() => setShowAllCompleted(true)}
+                  title="Completed orders older than 24h are hidden by default to keep this column short — click to bring them back"
+                >
+                  +{hiddenCompletedCount} older — Show all
+                </button>
+              )}
+              {col.key === "completed" && showAllCompleted && (
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  style={{ fontSize: 11, padding: "2px 8px", margin: "0 2px 6px" }}
+                  onClick={() => setShowAllCompleted(false)}
+                >
+                  Show last 24h only
+                </button>
+              )}
               <div className="admin-board-column-body">
                 {items.length === 0 ? (
                   <div style={{ fontSize: 12, color: "var(--admin-muted)", padding: "8px 2px" }}>Empty</div>
