@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { useEffect, useState, type FormEvent } from "react";
 import {
@@ -17,6 +17,7 @@ import {
   Settings as SettingsIcon,
   Lock,
   Award,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -26,6 +27,8 @@ import { HowItWorksCard } from "@/components/HowItWorksCard";
 import { InlineProgress } from "@/components/InlineProgress";
 import { RewardsReferralsSection } from "@/components/RewardsReferralsSection";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
+import { AccountSecuritySection } from "@/components/AccountSecuritySection";
+import { PrivacyDataSection } from "@/components/PrivacyDataSection";
 import { StatCard, StatCardGrid } from "@/components/dashboard/StatCard";
 import { type DashboardNavItem } from "@/components/dashboard/DashboardSidebarNav";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -35,6 +38,7 @@ import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { profileStore } from "@/services/profileStore";
+import { referralStore, type ReferralWallet } from "@/services/referralStore";
 import {
   businessAccountApi,
   BUSINESS_TYPE_LABELS,
@@ -74,6 +78,12 @@ function AccountBusinessPage() {
 function BusinessAccountBody() {
   const [account, setAccount] = useState<BusinessAccount | null | undefined>(undefined);
   const [industries, setIndustries] = useState<Industry[]>([]);
+  const location = useLocation();
+  // Set once, from router state left by account.register.tsx's / AuthModal's redirect — a real
+  // navigation (refresh, back button, revisiting later) never carries that state again. Business
+  // accounts land here (not /account/dashboard) straight after registering, so this page is
+  // where their first-visit welcome confirmation has to live.
+  const [justRegistered] = useState(() => Boolean((location.state as { justRegistered?: boolean } | null)?.justRegistered));
 
   useEffect(() => {
     businessAccountApi.getMine().then(setAccount).catch(() => setAccount(null));
@@ -96,6 +106,18 @@ function BusinessAccountBody() {
         A free, self-service profile for businesses ordering from Moments Packaging — track your order history and
         be first in line when trade credit accounts launch.
       </p>
+      {justRegistered && (
+        <div className="mt-6 flex items-start gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-5">
+          <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+          <div>
+            <p className="font-display text-lg">Welcome to Moments!</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Your account is ready and 1,000 Reward Coupons are already in your wallet — use them at checkout on
+              your first order. Finish your business profile below to also unlock a one-time 5% welcome code.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="mt-8">
         <BusinessAccountForm industries={industries} onCreated={setAccount} />
       </div>
@@ -135,9 +157,19 @@ function BusinessDashboard({
 }) {
   const [tab, setTab] = useState<TabKey>("overview");
   const [orders, setOrders] = useState<CustomerOrder[] | null>(null);
+  const [walletLive, setWalletLive] = useState(false);
+  const [wallet, setWallet] = useState<ReferralWallet | null>(null);
 
   useEffect(() => {
     orderStore.listMine(0, 20).then((r) => setOrders(r.rows));
+    referralStore
+      .getStatus()
+      .then((s) => {
+        const live = s.featureUnlocked && s.programEnabled;
+        setWalletLive(live);
+        if (live) referralStore.getWallet().then(setWallet).catch(() => undefined);
+      })
+      .catch(() => undefined);
   }, []);
 
   return (
@@ -168,6 +200,7 @@ function BusinessDashboard({
         <StatCardGrid>
           <StatCard icon={Package} label="Orders" value={orders !== undefined && orders !== null ? String(orders.length) : "—"} />
           <StatCard icon={Landmark} label="Lifetime spend" value={fmtKes(account.totalSpend ?? 0)} />
+          {walletLive && <StatCard icon={Award} label="Reward Coupons" value={String(wallet?.balance ?? 0)} tone="accent" />}
         </StatCardGrid>
       }
     >
@@ -455,31 +488,37 @@ function SettingsTab({
   }
 
   return (
-    <Section
-      icon={User}
-      title="Business profile"
-      action={
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
-        >
-          Edit
-        </button>
-      }
-    >
-      <dl className="grid gap-3.5 text-sm sm:grid-cols-2">
-        <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
-        {account.kraPin && <Row label="KRA PIN" value={account.kraPin} />}
-        <Row label="Industry" value={account.industryName ?? "—"} />
-        <Row label="Location" value={account.location} />
-        <Row label="Road" value={account.road} />
-        <Row label="Building / address" value={account.buildingAddress} />
-        <Row label="Phone" value={account.phone} />
-        <Row label="Contact person" value={account.contactPersonName} />
-        <Row label="Designation" value={account.contactPersonRole ?? "—"} />
-      </dl>
-    </Section>
+    <div className="space-y-5">
+      <Section
+        icon={User}
+        title="Business profile"
+        action={
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary"
+          >
+            Edit
+          </button>
+        }
+      >
+        <dl className="grid gap-3.5 text-sm sm:grid-cols-2">
+          <Row label="Business type" value={account.businessType ? BUSINESS_TYPE_LABELS[account.businessType] : "—"} />
+          {account.kraPin && <Row label="KRA PIN" value={account.kraPin} />}
+          <Row label="Industry" value={account.industryName ?? "—"} />
+          <Row label="Location" value={account.location} />
+          <Row label="Road" value={account.road} />
+          <Row label="Building / address" value={account.buildingAddress} />
+          <Row label="Phone" value={account.phone} />
+          <Row label="Contact person" value={account.contactPersonName} />
+          <Row label="Designation" value={account.contactPersonRole ?? "—"} />
+        </dl>
+      </Section>
+
+      <AccountSecuritySection />
+
+      <PrivacyDataSection />
+    </div>
   );
 }
 
