@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw, Webhook, Copy, Eye, EyeOff } from "lucide-react";
+import { Loader2, Plus, Trash2, Smartphone, FileText, ShoppingCart, Construction, Search, X, Cake, Mail, RefreshCw, Webhook, Copy, Eye, EyeOff, UserCog, Briefcase, Gift } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
@@ -14,6 +14,8 @@ import {
   type TumaBodaWebhookStatusDto,
   type TumaBodaWebhookListEntry,
 } from "@/services/adminResources";
+import { listCustomers, impersonateCustomer } from "@/services/commerceApi";
+import type { CustomerRecord } from "@/services/commerceMock";
 import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { resolveStaffRole } from "@/lib/roles";
@@ -96,6 +98,106 @@ function ProductPicker({ selected, onSelect }: { selected: ProductDto | null; on
               </button>
             ))
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Test account preview ─────────────────────────────────────────────────────
+
+function TestAccountPreviewCard() {
+  const [accounts, setAccounts] = useState<CustomerRecord[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  // Same popup-blocker workaround as the customer-detail page's own "Preview dashboard" button:
+  // the tab has to open synchronously in the click handler, before the (async) impersonate call.
+  const pendingWindow = useRef<Window | null>(null);
+
+  async function load() {
+    setError(null);
+    try {
+      const res = await listCustomers({ size: 100 });
+      setAccounts(res.rows.filter((c) => c.isTestAccount));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load test accounts");
+    }
+  }
+
+  useEffect(() => { void load(); }, []);
+
+  async function preview(account: CustomerRecord) {
+    pendingWindow.current?.close();
+    pendingWindow.current = window.open("", "_blank");
+    setPreviewingId(account.id);
+    try {
+      const session = await impersonateCustomer(account.id);
+      const dashboardPath = session.accountType === "BUSINESS" ? "/account/business" : "/account/merchant";
+      const url = `${window.location.origin}${dashboardPath}?impersonate=${encodeURIComponent(session.accessToken)}`;
+      if (pendingWindow.current) {
+        pendingWindow.current.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener");
+      }
+    } catch (err) {
+      pendingWindow.current?.close();
+      reportAdminError(err, "Couldn't start preview");
+    } finally {
+      setPreviewingId(null);
+      pendingWindow.current = null;
+    }
+  }
+
+  return (
+    <div className="admin-panel" style={{ padding: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <UserCog size={16} />
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600 }}>Preview a test account</h3>
+      </div>
+      <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginBottom: 14 }}>
+        Every account flagged as a test account (Customers → mark as test account) shows up here — one click opens
+        their real dashboard in a new tab via the same impersonation session the customer-detail page's "Preview
+        dashboard" button uses. Nothing here creates or changes an account; flag one from its customer page first.
+      </p>
+
+      {error && <p style={{ fontSize: 12.5, color: "#b91c1c", marginBottom: 10 }}>{error}</p>}
+
+      {accounts === null && !error ? (
+        <p style={{ fontSize: 12.5, color: "var(--admin-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+          <Loader2 size={13} className="animate-spin" /> Loading test accounts…
+        </p>
+      ) : accounts && accounts.length === 0 ? (
+        <p style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>
+          No accounts are flagged as test accounts yet.
+        </p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {accounts?.map((a) => (
+            <div
+              key={a.id}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10,
+                padding: "8px 10px", borderRadius: 8, border: "1px solid var(--admin-border)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                {a.accountType === "BUSINESS" ? <Briefcase size={14} style={{ flexShrink: 0, opacity: 0.6 }} /> : <Gift size={14} style={{ flexShrink: 0, opacity: 0.6 }} />}
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</p>
+                  <p style={{ margin: 0, fontSize: 11.5, color: "var(--admin-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {a.email} · {a.accountType === "BUSINESS" ? "Business" : "Individual Shopper"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button" className="admin-btn admin-btn-ghost" style={{ flexShrink: 0 }}
+                disabled={previewingId === a.id}
+                onClick={() => void preview(a)}
+              >
+                {previewingId === a.id && <Loader2 size={14} className="animate-spin" />} Preview
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -920,6 +1022,7 @@ function AdminDevToolsPage() {
             no Order, Payment or Cart row is ever created by these tools.
           </p>
         </div>
+        <TestAccountPreviewCard />
         <CheckoutDryRunCard />
         <StkPushTestCard />
         <PdfPreviewCard />
