@@ -235,7 +235,7 @@ export function TumaBodaFulfillmentPanel({
             <div className="flex flex-wrap gap-2">
               <button className="admin-btn admin-btn-ghost" disabled={retryBusy} onClick={handleRetry}>
                 {retryBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                Retry TumaBoda delivery now
+                Create TumaBoda delivery now
               </button>
               {/* Only for a genuine recorded failure, not "hasn't been booked yet" — retrying is
                   always the first thing to try; this is the escape hatch once retrying is known
@@ -317,7 +317,7 @@ export function TumaBodaFulfillmentPanel({
                 <p>Delivery failed or was cancelled by TumaBoda. Restart to try again, or contact TumaBoda directly if the parcel needs manual recovery.</p>
                 <button className="admin-btn admin-btn-ghost mt-2" disabled={restartBusy} onClick={handleRestart}>
                   {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                  Restart TumaBoda delivery
+                  Cancel & rebook TumaBoda delivery
                 </button>
               </div>
             ) : (
@@ -333,7 +333,7 @@ export function TumaBodaFulfillmentPanel({
                   title={restartDisabledReason}
                 >
                   {restartBusy && <Loader2 size={14} className="mr-1 animate-spin inline" />}
-                  Restart TumaBoda delivery
+                  Cancel & rebook TumaBoda delivery
                 </button>
                 {!canRestart && (
                   <p className="mt-1 text-[11px] text-muted-foreground">{restartDisabledReason}</p>
