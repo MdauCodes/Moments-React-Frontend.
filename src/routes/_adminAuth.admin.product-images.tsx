@@ -25,6 +25,7 @@ function statusColor(status: ProductImageGenerationBatchDto["status"]) {
     case "COMPLETED": return "#15803d";
     case "COMPLETED_WITH_ERRORS": return "#b45309";
     case "STOPPED_BUDGET_LIMIT": return "#b91c1c";
+    case "STOPPED_GEMINI_QUOTA": return "#b91c1c";
     case "INTERRUPTED": return "#b91c1c";
     case "DELETED": return "var(--admin-muted)";
     default: return "var(--admin-muted)";
@@ -313,7 +314,9 @@ function AdminProductImagesPage() {
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p style={{ margin: 0 }}>
             <b>Super Admin only.</b> Two ways to get product images via Gemini, both admin-triggered only (no
-            scheduled/automatic run), both stopping early if the next image would exceed the shared budget ceiling.
+            scheduled/automatic run), both stopping early if the next image would exceed the shared budget ceiling
+            (<b>Stopped budget limit</b> — our own estimate, before the call is even made) or if Gemini itself
+            refuses a call for real quota/rate-limit reasons (<b>Stopped Gemini quota</b> — Google's own limit, not ours).
             <b> Generate</b> invents a plausible image from the product's name/description (no reference photo, so
             results only approximate the real product). <b>Clean up</b> edits a real admin-uploaded photo into 3
             polished catalog images — more accurate, since it's grounded in what the product actually looks like.
