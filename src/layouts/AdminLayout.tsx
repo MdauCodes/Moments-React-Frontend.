@@ -555,6 +555,23 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
+  // "Not yet handled" tax invoices (PENDING = requested, not yet generated/uploaded/emailed —
+  // see TaxDocumentStatus) — reuses the existing list endpoint rather than a new count-only one:
+  // size=1 still returns the real totalElements for the full PENDING count. Less time-sensitive
+  // than order/refund activity, so a slower 60s poll (vs. 30s above) is enough.
+  const [pendingTaxDocCount, setPendingTaxDocCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    function poll() {
+      adminResources.taxDocuments.list({ status: "PENDING", size: 1 })
+        .then((res) => { if (!cancelled) setPendingTaxDocCount(res.totalElements ?? 0); })
+        .catch(() => {});
+    }
+    poll();
+    const interval = setInterval(poll, 60_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
   // Live push (AdminOrderEventStreamService) the instant a new order is placed — both badge
   // counts above otherwise only catch up on their own 30s tick or the next route change. This is
   // what makes "the numbers are real and really updating" actually true rather than "eventually
@@ -728,7 +745,11 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
                 <div style={styles.sectionLabel}>{section.label}</div>
                 {visible.map((item) => {
                   const fulfillmentType = NAV_PATH_TO_FULFILLMENT_TYPE[item.to];
-                  const badge = fulfillmentType ? tabUnreadCounts[fulfillmentType] : undefined;
+                  const badge = fulfillmentType
+                    ? tabUnreadCounts[fulfillmentType]
+                    : item.to === "/admin/tax-documents"
+                      ? pendingTaxDocCount
+                      : undefined;
                   return (
                     <NavLink key={item.to} item={badge ? { ...item, badge } : item} active={isActive(item.to)} />
                   );
