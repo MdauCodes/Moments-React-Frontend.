@@ -21,6 +21,7 @@ export function AlertsPanel({ alerts }: { alerts: Alerts }) {
     { label: "Out of stock products", count: alerts.outOfStockCount, tone: "critical", href: "/admin/inventory" },
     { label: "Low stock products", count: alerts.lowStockCount, tone: "warning", href: "/admin/inventory" },
     { label: "Unresolved refund requests", count: alerts.unresolvedRefunds, tone: "critical", href: "/admin/orders" },
+    { label: "Daraja callback failures (last 7 days)", count: alerts.darajaCallbackFailuresRecent, tone: "critical", href: "/admin/audit-logs?entityType=PAYMENT&action=DARAJA_CALLBACK_FAILED" },
   ];
   const items = allItems.filter((i) => i.count > 0);
 
