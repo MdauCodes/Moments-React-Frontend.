@@ -66,12 +66,17 @@ function AdminAuditLogsPage() {
   const staffRole = resolveStaffRole(user);
   const allowed = hasPermission(PERM.AUDIT_VIEW) || staffRole === "SUPER_ADMIN";
 
+  // Allows deep-linking a pre-filtered view, e.g. from AlertsPanel's Daraja-callback-failures
+  // count (?entityType=PAYMENT&action=DARAJA_CALLBACK_FAILED) — read once on mount only, the
+  // filter inputs below take over from there.
+  const initialParams = useMemo(() => new URLSearchParams(window.location.search), []);
+
   const [rows, setRows] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(0);
-  const [entityType, setEntityType] = useState("");
-  const [action, setAction] = useState("");
+  const [entityType, setEntityType] = useState(() => initialParams.get("entityType") ?? "");
+  const [action, setAction] = useState(() => initialParams.get("action") ?? "");
   const [actorId, setActorId] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");

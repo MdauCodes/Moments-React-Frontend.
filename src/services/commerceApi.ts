@@ -1258,6 +1258,10 @@ export interface Alerts {
   lowStockCount: number;
   outOfStockCount: number;
   unresolvedRefunds: number;
+  /** Daraja callbacks that threw while processing (last 7 days) — see AuditLogService
+   *  entries with entityType PAYMENT / action DARAJA_CALLBACK_FAILED for detail. Added after
+   *  the 2026-09-07 incident where one of these went unnoticed until a customer complained. */
+  darajaCallbackFailuresRecent: number;
 }
 
 export async function getAlerts(): Promise<Alerts> {
