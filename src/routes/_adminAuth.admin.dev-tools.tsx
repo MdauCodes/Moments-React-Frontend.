@@ -782,6 +782,10 @@ function MadeToOrderReplacementCard() {
         can be brought back with one click from{" "}
         <Link to="/admin/products/deleted" style={{ textDecoration: "underline" }}>Products → Deleted products</Link>.
         <b> Always run Preview first</b> — it computes the exact same plan without writing anything.
+        A converted product is immediately visible for browsing (MADE_TO_ORDER is the one status
+        the storefront always hides) — <b>Run replacement for real</b> also chains an immediate
+        stock sync straight after, so it shows its actual Riseller stock count right away instead
+        of sitting at "out of stock" for up to 2 hours until the next scheduled sync.
       </p>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <button type="button" className="admin-btn" disabled={previewing || running} onClick={() => void runPreview()}>
