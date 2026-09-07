@@ -12,7 +12,15 @@ import { apiUrl } from "@/config/api";
  *   2. Scroll depth: user scrolls past 50% of page
  *   3. Idle: 30 seconds with no interaction
  *
- * Dismiss: × button only. No "No thanks" text link.
+ * Centered overlay (not a bottom-right corner card) — that corner is SignUpFab's permanent home
+ * now (see SiteLayout.tsx), and this prompt firing at the same time as that FAB (a guest idling
+ * or scrolling is exactly SignUpFab's audience too) used to mean the two fighting for the same
+ * few square inches. A centered modal can't collide with a fixed-position FAB anywhere on screen.
+ *
+ * Dismiss: × button, Escape, or the backdrop. No "No thanks" text link — the difference from
+ * WelcomeStarterModal (no close affordance at all) is deliberate: that one gates a first-visit
+ * welcome offer worth actually reading, this one is a lower-stakes newsletter ask that shouldn't
+ * trap anyone who just wants back to what they were doing.
  */
 
 const STORAGE_KEY = "moments_insider_prompt";
@@ -97,6 +105,28 @@ export function EmailInsiderPrompt() {
     return () => clearTimeout(t);
   }, [submitted]);
 
+  const handleDismiss = () => {
+    try {
+      window.sessionStorage.setItem(STORAGE_KEY, "dismissed");
+    } catch {
+      // ignore
+    }
+    setOpen(false);
+  };
+
+  // Escape closes it, same as any other centered dialog on this site (WelcomeStarterModal
+  // excepted, deliberately, per its own comment) — expected now that this is true modal chrome
+  // with a backdrop, not a dismissible corner card.
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleDismiss();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   if (!emailCaptureEnabled) return null;
   if (!open) return null;
 
@@ -129,26 +159,22 @@ export function EmailInsiderPrompt() {
     }
   };
 
-  const handleDismiss = () => {
-    try {
-      window.sessionStorage.setItem(STORAGE_KEY, "dismissed");
-    } catch {
-      // ignore
-    }
-    setOpen(false);
-  };
-
   return (
     <div
       role="dialog"
+      aria-modal="true"
       aria-labelledby="insider-prompt-title"
       aria-describedby="insider-prompt-desc"
-      className="fixed bottom-20 right-4 z-50 w-[calc(100vw-2rem)] max-w-sm animate-in slide-in-from-bottom-4 fade-in duration-300 sm:bottom-6 sm:right-6"
+      onClick={handleDismiss}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300"
     >
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl">
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-sm animate-in zoom-in-95 duration-300 overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+      >
         {/* Decorative gradient header */}
         <div className="relative bg-gradient-to-br from-primary/15 via-primary/5 to-transparent px-5 pb-3 pt-5">
-          {/* × close button — only dismiss mechanism */}
+          {/* Explicit close button, in addition to Escape and the backdrop click above */}
           <button
             type="button"
             onClick={handleDismiss}
