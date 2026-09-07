@@ -241,6 +241,10 @@ export type PageJourneySummary = {
   topEntryPages: PathCount[];
   topExitPages: PathCount[];
   topPages: PathCount[];
+  /** PathCount's "path" field holds a traffic-source bucket label here (Direct / Search /
+   *  AI Search/Assistant / Social / Referral), not a page path — see backend
+   *  PageJourneySummaryDto.topTrafficSources's Javadoc. */
+  topTrafficSources: PathCount[];
 };
 
 export type PageJourneySession = {

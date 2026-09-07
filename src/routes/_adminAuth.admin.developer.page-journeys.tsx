@@ -50,9 +50,12 @@ export function PageJourneysPanel() {
     <div className="admin-page-stack">
       <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
         <p style={{ margin: 0 }}>
-          Where visitors land, which pages they move between, and where they leave — tracked
-          anonymously by browser (the same session id used for the cart and the checkout funnel)
-          across the whole storefront, not just checkout. Raw events are kept for 90 days.
+          Where visitors come from, where they land, which pages they move between, and where
+          they leave — tracked anonymously by browser (the same session id used for the cart and
+          the checkout funnel) across the whole storefront, not just checkout. Raw events are
+          kept for 90 days. Traffic-source detection is hostname-based (from the browser's own
+          referrer), so it can't perfectly separate every case — e.g. an AI tool that strips its
+          referrer for privacy will show up as Direct.
         </p>
       </div>
 
@@ -95,7 +98,20 @@ export function PageJourneysPanel() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              <div>
+                <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Traffic sources</h4>
+                <table className="admin-table">
+                  <thead><tr><th>Source</th><th>Sessions</th></tr></thead>
+                  <tbody>
+                    {/* Defensive fallback: frontend and backend deploy independently, so there's
+                        a real window where this build is live before its backend counterpart is. */}
+                    {(summary!.topTrafficSources ?? []).map((s) => (
+                      <tr key={s.path}><td>{s.path}</td><td>{s.count}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <div>
                 <h4 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>Top entry pages</h4>
                 <table className="admin-table">
