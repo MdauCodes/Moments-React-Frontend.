@@ -313,10 +313,13 @@ function AdminProductImagesPage() {
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p style={{ margin: 0 }}>
             <b>Super Admin only.</b> Two ways to get product images via Gemini, both admin-triggered only (no
-            scheduled/automatic run), both stopping early if the next image would exceed the shared budget ceiling.
-            <b> Generate</b> invents a plausible image from the product's name/description (no reference photo, so
-            results only approximate the real product). <b>Clean up</b> edits a real admin-uploaded photo into 3
-            polished catalog images — more accurate, since it's grounded in what the product actually looks like.
+            scheduled/automatic run). <b>Generate</b> invents a plausible image from the product's name/description
+            (no reference photo, so results only approximate the real product) — it stops early if the next image
+            would exceed the shared budget ceiling below. <b>Clean up</b> edits a real admin-uploaded photo into 3
+            polished catalog images — more accurate, since it's grounded in what the product actually looks like —
+            and deliberately has <b>no self-imposed cap</b>: it runs every selected product against Gemini directly
+            and stops only when Gemini itself does (rate limit, quota, safety block, etc.), reporting exactly what
+            Gemini said per product rather than guessing.
           </p>
         </div>
 
@@ -407,6 +410,11 @@ function AdminProductImagesPage() {
                   <p style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{cleanupBudget ? fmtUsd(cleanupBudget.costPerImageUsd) : "—"}</p>
                 </div>
               </div>
+              <p style={{ marginTop: -8, marginBottom: 14, fontSize: 11.5, color: "var(--admin-muted)" }}>
+                These figures are tracked for visibility only — Clean up does not stop itself when they're
+                exceeded. It runs the full list of selected products regardless, relying on Gemini's own
+                rate limits/quota to be the actual ceiling.
+              </p>
 
               <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 14 }}>
                 <label style={{ fontSize: 12.5, color: "var(--admin-muted)" }}>Number of products</label>
