@@ -77,7 +77,12 @@ export function AccessibilityToolbar() {
   return (
     <>
       <ReadingMask />
-      <div className="fixed bottom-20 right-4 z-50 md:bottom-6 md:right-6">
+      {/* Moved from bottom-right to bottom-left to make room for SignUpFab (guests only), which
+       *  now takes over bottom-right. Desktop uses bottom-28 (not WhatsAppFloat's bottom-6) to
+       *  stack above WhatsAppFloat, which already occupies bottom-left there — both bottom-left
+       *  FABs would otherwise overlap; mobile has no such conflict since WhatsAppFloat hides
+       *  below md:. */}
+      <div className="fixed bottom-20 left-4 z-50 md:bottom-28 md:left-6">
       <button
         ref={triggerRef}
         type="button"
@@ -96,7 +101,7 @@ export function AccessibilityToolbar() {
           role="dialog"
           aria-modal="false"
           aria-label="Accessibility settings"
-          className="absolute bottom-full right-0 mb-3 max-h-[80vh] w-80 overflow-y-auto rounded-2xl border border-border bg-background p-5 shadow-xl sm:w-96"
+          className="absolute bottom-full left-0 mb-3 max-h-[80vh] w-80 overflow-y-auto rounded-2xl border border-border bg-background p-5 shadow-xl sm:w-96"
         >
           <div className="flex items-center justify-between">
             <p className="font-display text-lg font-bold text-foreground">Accessibility</p>

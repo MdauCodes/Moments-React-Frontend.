@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
 import { z } from "zod";
 import { SiteLayout } from "@/components/SiteLayout";
+import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
@@ -799,6 +800,13 @@ function ProductsPage() {
           dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListLd) }}
         />
       )}
+
+      {/* Same banner as the cart page, mounted here too so the free-delivery/rewards gap is
+          visible while browsing — right under the header, alongside the cart icon — and ticks
+          down live (via useRewardDeliveryGap -> cartTotal -> useCountUp) the moment a product
+          is added from this page, without navigating to the cart first. */}
+      <RewardDeliveryBanners />
+      <div className={REWARD_BANNER_SPACER_CLASS} aria-hidden="true" />
 
       <section className="bg-cream">
         <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8 lg:py-16">

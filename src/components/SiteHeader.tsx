@@ -1,6 +1,6 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingCart, User, HelpCircle } from "lucide-react";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import { categories } from "@/data/products";
@@ -26,6 +26,14 @@ const navAfterShop: readonly SimpleNav[] = [
   { to: "/orders/track", label: "Track Order" },
   { to: "/deals", label: "Deals" },
 ];
+
+/** Set on <html> so a page-level fixed bar (RewardDeliveryBanners' default position) can sit
+ *  right below the header instead of guessing a fixed pixel offset — that guess broke as soon as
+ *  anything (CelebratoryRewardBanner, the launch banner) added height above the header, since the
+ *  header itself is `sticky` and pushes down naturally but the guess never knew that happened.
+ *  Falls back to a sane default via `var(--site-header-bottom, ...)` wherever it's read, so
+ *  nothing breaks before this effect's first paint. */
+const HEADER_BOTTOM_VAR = "--site-header-bottom";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
@@ -65,6 +73,7 @@ export function SiteHeader() {
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
   const { itemCount } = useCart();
   const { isAuthenticated, user, logout } = useAuth();
@@ -128,6 +137,38 @@ export function SiteHeader() {
     return () => window.removeEventListener("keydown", handler);
   }, [searchOpen]);
 
+  // Publish the header's real, current bottom edge as a CSS var (see HEADER_BOTTOM_VAR's doc
+  // comment). Re-measured on resize and on scroll (rAF-throttled) because the header is `sticky`:
+  // before it locks to the top of the viewport its bottom edge moves with the page (it's still
+  // sitting below whatever's stacked above it — the launch banner, CelebratoryRewardBanner — in
+  // normal flow), and only stabilizes once scrolling has pinned it. A ResizeObserver alone would
+  // miss that transition, since the header's own box size isn't what's changing.
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    let rafId: number | null = null;
+    const sync = () => {
+      rafId = null;
+      document.documentElement.style.setProperty(HEADER_BOTTOM_VAR, `${el.getBoundingClientRect().bottom}px`);
+    };
+    const scheduleSync = () => {
+      if (rafId != null) return;
+      rafId = requestAnimationFrame(sync);
+    };
+    sync();
+    const ro = new ResizeObserver(scheduleSync);
+    ro.observe(el);
+    window.addEventListener("resize", scheduleSync);
+    window.addEventListener("scroll", scheduleSync, { passive: true });
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", scheduleSync);
+      window.removeEventListener("scroll", scheduleSync);
+      if (rafId != null) cancelAnimationFrame(rafId);
+      document.documentElement.style.removeProperty(HEADER_BOTTOM_VAR);
+    };
+  }, []);
+
   const openDropdown = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setShopOpen(true);
@@ -148,6 +189,7 @@ export function SiteHeader() {
           scrolled past it — this keeps it docked below the banner instead, matching the padding
           styles.css already reserves for the banner on initial load. */}
       <header
+        ref={headerRef}
         className="sticky z-40 border-b border-border/60 bg-background/85 backdrop-blur-md"
         style={{ top: "var(--launch-banner-h, 0px)" }}
       >

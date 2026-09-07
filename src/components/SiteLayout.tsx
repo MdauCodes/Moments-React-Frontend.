@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { WhatsAppFloat } from "./WhatsAppFloat";
+import { SignUpFab } from "./SignUpFab";
 import { PageProgressBar } from "./PageProgressBar";
 import { EmailInsiderPrompt } from "./EmailInsiderPrompt";
 import { AppSplash } from "./AppSplash";
@@ -39,6 +40,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <SiteFooter />
         <WhatsAppFloat />
+        <SignUpFab />
         <EmailInsiderPrompt />
         <CookieConsent />
         <BottomNav />

@@ -1,12 +1,18 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useRewardDeliveryGap } from "@/hooks/useRewardDeliveryGap";
 import { useCountUp } from "@/hooks/useCountUp";
 
 function fmtKes(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 }
+
+/** Published on <html> as this bar's real, currently-rendered height (see the measuring effect
+ *  below), so REWARD_BANNER_SPACER_CLASS can reserve exactly that much space — never more than
+ *  the shortest message needs, never less than the longest one wraps to. A static height guess
+ *  (the old "h-14 sm:h-10") was always either wasted space for a one-line message or an overlap
+ *  for a message long enough to wrap further, e.g. the combined guest+gap message below. */
+const BANNER_HEIGHT_VAR = "--reward-banner-h";
 
 function AnimatedKes({ value }: { value: number }) {
   const animated = useCountUp(value);
@@ -34,13 +40,35 @@ function AnimatedNumber({ value }: { value: number }) {
  * Renders nothing when there's nothing to say — callers should reserve layout space for it
  * (see REWARD_BANNER_SPACER_CLASS) so content doesn't jump when it appears.
  *
- * `topOffsetClassName` lets a caller override where the bar sits — the default matches the site
- * header; checkout renders as its own full-screen overlay with different chrome above it, so it
- * passes its own offset instead.
+ * `topOffsetClassName` lets a caller override where the bar sits — checkout renders as its own
+ * full-screen overlay with different chrome above it, so it passes its own fixed offset instead.
+ * Left unset (every other caller, all of them under SiteLayout), it docks to SiteHeader's real,
+ * currently-rendered bottom edge via `--site-header-bottom` (see SiteHeader.tsx) rather than a
+ * guessed pixel offset — a hardcoded guess broke the moment anything else (CelebratoryRewardBanner,
+ * the pre-launch banner) added height above the header, since this bar had no way to know that
+ * height had grown and ended up overlapping the header instead of sitting below it.
  */
-export function RewardDeliveryBanners({ topOffsetClassName = "top-16 sm:top-20" }: { topOffsetClassName?: string }) {
+export function RewardDeliveryBanners({ topOffsetClassName }: { topOffsetClassName?: string }) {
+  // Callback ref (not useRef+useEffect) so it fires exactly when the bar itself mounts, resizes
+  // via content change, or unmounts (including the common case of `content` going from something
+  // to null below and the div disappearing entirely) — a plain ref could go stale across that
+  // transition and leave BANNER_HEIGHT_VAR reporting a bar that's no longer on screen.
+  const roRef = useRef<ResizeObserver | null>(null);
+  const barRef = useCallback((el: HTMLDivElement | null) => {
+    roRef.current?.disconnect();
+    roRef.current = null;
+    if (!el) {
+      document.documentElement.style.setProperty(BANNER_HEIGHT_VAR, "0px");
+      return;
+    }
+    const sync = () => {
+      document.documentElement.style.setProperty(BANNER_HEIGHT_VAR, `${el.getBoundingClientRect().height}px`);
+    };
+    sync();
+    roRef.current = new ResizeObserver(sync);
+    roRef.current.observe(el);
+  }, []);
   const { isAuthenticated } = useAuth();
-  const { openLogin } = useAuthModal();
   const {
     myTier,
     kesToNextTier,
@@ -90,20 +118,15 @@ export function RewardDeliveryBanners({ topOffsetClassName = "top-16 sm:top-20" 
   // line — the actual bug being fixed here (mobile was cutting the message off with "...").
   const bullet = <span className="mr-1.5 inline-block h-1.5 w-1.5 rounded-full bg-current align-middle" />;
 
-  if (!isAuthenticated) {
-    content = (
-      <button type="button" onClick={() => openLogin({})} className="block w-full text-center leading-snug">
-        {bullet}
-        Create a free account or log in — this order could be earning you Reward Coupons toward real discounts.{" "}
-        <span className="underline underline-offset-2">Sign up</span>
-      </button>
-    );
-  } else if (primaryGap) {
+  // The sign-up nudge used to live here as a guest's top (and only, absent a gap) message —
+  // it's now SignUpFab's job instead, so this banner can stay gap-first for every visitor,
+  // guest or not, and never has to squeeze two asks into one line. See SignUpFab.tsx.
+  if (primaryGap) {
     content = (
       <div className="text-center leading-snug">
         {bullet}
         Shop <AnimatedKes value={primaryGap.amount} /> more to {primaryGap.benefit}
-        {bonusCoupons > 0 && (
+        {isAuthenticated && bonusCoupons > 0 && (
           <> — plus earn <AnimatedNumber value={bonusCoupons} /> more coupon{bonusCoupons === 1 ? "" : "s"}</>
         )}
         .
@@ -136,17 +159,20 @@ export function RewardDeliveryBanners({ topOffsetClassName = "top-16 sm:top-20" 
 
   return (
     <div
-      className={`fixed inset-x-0 z-40 px-3 py-2.5 text-xs font-semibold sm:text-sm ${topOffsetClassName} ${
+      ref={barRef}
+      className={`fixed inset-x-0 z-40 px-3 py-2 text-xs font-semibold sm:text-sm ${topOffsetClassName ?? ""} ${
         tone === "success" ? "bg-emerald-600 text-white" : "bg-accent text-accent-foreground"
       }`}
+      style={topOffsetClassName ? undefined : { top: "var(--site-header-bottom, 4.5rem)" }}
     >
       {content}
     </div>
   );
 }
 
-/** Reserve this much vertical space wherever RewardDeliveryBanners is mounted, so the fixed bar
- *  doesn't cover the content immediately below it. Taller on mobile since the full (no longer
- *  truncated) message can wrap to two lines on a narrow screen; a single line comfortably fits
- *  from sm: up. */
-export const REWARD_BANNER_SPACER_CLASS = "h-14 sm:h-10";
+/** Reserve exactly as much vertical space as the bar is actually rendering right now, wherever
+ *  RewardDeliveryBanners is mounted, via the live BANNER_HEIGHT_VAR — a static height (the old
+ *  "h-14 sm:h-10") was either wasted space for a short message or an overlap for a message long
+ *  enough to wrap further. Falls back to 0px if the bar hasn't measured itself yet (first paint)
+ *  or isn't mounted at all, so nothing reserves phantom space on a page that never shows it. */
+export const REWARD_BANNER_SPACER_CLASS = "h-[var(--reward-banner-h,0px)]";
