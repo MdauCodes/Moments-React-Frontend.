@@ -26,7 +26,7 @@ import { getDeliveryPartner } from "@/data/deliveryPartners";
 // generic 404), with no X-Frame-Options/CSP blocking the iframe embed below.
 // The env var below still overrides this if one is ever set on the hosting platform.
 export const TUMABODA_TRACKING_BASE_URL =
-  import.meta.env.VITE_TUMABODA_TRACKING_BASE_URL || "https://tumaboda.co.ke/track";
+  import.meta.env.VITE_TUMABODA_TRACKING_BASE_URL || "https://sandbox.tumaboda.co.ke/track";
 
 // iframe onError only fires for network-level load failures (DNS, connection refused) — a
 // cross-origin page that loads fine but renders its own error content (a 404/500 page, an empty

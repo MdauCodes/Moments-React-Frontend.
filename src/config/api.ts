@@ -4,14 +4,13 @@
 // `main` always points at the production Railway backend; `staging` always points at staging.
 // When merging one branch into the other, keep the target branch's own URL below.
 //
-// Interim state (2026-09-04): api.momentspackaging.com's DNS verification with Railway is still
-// pending, so this is temporarily back on the raw *.up.railway.app host while that propagates.
-// This ONLY works because AuthCookieService's cookie is temporarily SameSite=None (env var
-// app.auth.cookie-samesite=None on the production Railway service) — see that file's comment for
-// why a raw railway.app host otherwise silently breaks every authenticated request. Once
-// api.momentspackaging.com verifies: point this back at it, and flip app.auth.cookie-samesite
-// back to Lax (or just unset it) on production — None is the weaker, temporary setting.
-export const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+// staging uses a custom domain (api-staging.momentspackaging.com) sharing a registrable domain
+// with its frontend, specifically so the httpOnly auth cookie (see AuthCookieService) is
+// first-party — SameSite=Lax cookies are never attached to a genuinely cross-site fetch/XHR, only
+// to top-level navigations. Production is mid-migration to the equivalent setup
+// (api.momentspackaging.com) — see that branch's own copy of this file for the current status;
+// don't copy production's URL here regardless of what it says.
+export const API_BASE = "https://api-staging.momentspackaging.com";
 
 // Backwards-compatible aliases — existing modules import these.
 export const API_BASE_URL = API_BASE;
