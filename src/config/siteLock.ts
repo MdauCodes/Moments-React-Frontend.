@@ -7,15 +7,22 @@
  * real public launch instant, staging carries one already in the past), NOT hardcoded per branch.
  * Same source text on every branch now — a plain `git merge` has nothing left to silently carry
  * across between environments, which a hardcoded-per-branch value + a "don't merge this" comment
- * demonstrably didn't prevent (this exact line regressed four times across one day). Unset or
- * unparseable resolves to a far-future date (permanently locked) — a forgotten env var should
- * fail toward showing the pre-launch banner, not toward silently hiding it. Matches
- * SiteLockConfig.java's own LAUNCH_AT/fail-safe reasoning (the backend's own copy, and the one
- * that actually enforces the payment gate — this value is cosmetic only, see isSiteLocked below).
+ * demonstrably didn't prevent (this exact line regressed four times across one day).
+ *
+ * Unset or unparseable resolves to a date already in the past (no banner) — NOT to a far-future
+ * placeholder. An incident on 2026-09-08 showed exactly why: this value isn't just a boolean gate
+ * like SiteLockConfig.java's copy on the backend (where fail-toward-locked is correctly invisible
+ * — an API call just gets rejected), it's a timestamp that gets rendered as a live countdown. A
+ * 2099 placeholder didn't "fail locked," it rendered as a ~72-year countdown on the live
+ * homepage — which reads as the site being broken/compromised, a worse outcome than the thing the
+ * fallback was trying to prevent. The real payment gate is still enforced server-side regardless
+ * of what this resolves to (see isSiteLocked's own comment below) — this file's only job is
+ * cosmetic, so its fallback should fail toward "looks like a normal, launched site," not toward
+ * whatever direction sounds safer in the abstract.
  */
 function resolveLaunchAt(): number {
   const raw = import.meta.env.VITE_LAUNCH_AT;
-  const fallback = new Date("2099-01-01T00:00:00Z").getTime();
+  const fallback = new Date("2020-01-01T00:00:00Z").getTime();
   if (!raw) return fallback;
   const parsed = new Date(raw).getTime();
   return Number.isFinite(parsed) ? parsed : fallback;
