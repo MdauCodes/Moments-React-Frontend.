@@ -26,7 +26,7 @@ function isGroupable(o: OrderRecord): boolean {
 function PreparationQueuePage() {
   const allowed = useRequirePermission([PERM.ORDER_PREPARE, PERM.ORDER_MANAGE_ALL]);
   const { user } = useAuth();
-  const { orders, initialLoading, refresh } = useAdminOrders();
+  const { orders, initialLoading, refresh, applyOrderPatch } = useAdminOrders();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [groupBooking, setGroupBooking] = useState(false);
@@ -70,17 +70,25 @@ function PreparationQueuePage() {
 
   const advance = async (o: OrderRecord, next: OrderStatus, label: string) => {
     setBusyId(o.id);
+    const previous = o;
+    // Patches the shared order cache immediately — this queue's own `rows` filter recomputes off
+    // that same cache, so the row drops out of view the instant the click registers instead of
+    // waiting on this request's round trip. Reverted in the catch block if the request fails.
+    applyOrderPatch(o.id, { status: next, statusV2: next });
     try {
       const res = await updateOrderStatus(o.id, next);
-      if (res.order?.tumabodaBookingFailureReason) {
-        reportTumaBodaBookingFailure(res.order.reference, res.order.tumabodaBookingFailureReason);
-      } else {
-        toast.success(`${label}: ${o.reference}`);
+      if (res.order) {
+        applyOrderPatch(o.id, res.order);
+        if (res.order.tumabodaBookingFailureReason) {
+          reportTumaBodaBookingFailure(res.order.reference, res.order.tumabodaBookingFailureReason);
+        } else {
+          toast.success(`${label}: ${o.reference}`);
+        }
       }
-      await refresh();
       // Started/finished production both change which orders are groupable.
       if (next === "IN_PRODUCTION" || next === "READY_FOR_DISPATCH") void loadSuggestions();
     } catch (err) {
+      applyOrderPatch(o.id, previous);
       reportAdminError(err, "Update failed");
     } finally {
       setBusyId(null);
