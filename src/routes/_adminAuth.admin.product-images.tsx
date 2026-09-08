@@ -25,6 +25,7 @@ function statusColor(status: ProductImageGenerationBatchDto["status"]) {
     case "COMPLETED": return "#15803d";
     case "COMPLETED_WITH_ERRORS": return "#b45309";
     case "STOPPED_BUDGET_LIMIT": return "#b91c1c";
+    case "STOPPED_GEMINI_QUOTA": return "#b91c1c";
     case "INTERRUPTED": return "#b91c1c";
     case "DELETED": return "var(--admin-muted)";
     default: return "var(--admin-muted)";
@@ -315,11 +316,14 @@ function AdminProductImagesPage() {
             <b>Super Admin only.</b> Two ways to get product images via Gemini, both admin-triggered only (no
             scheduled/automatic run). <b>Generate</b> invents a plausible image from the product's name/description
             (no reference photo, so results only approximate the real product) — it stops early if the next image
-            would exceed the shared budget ceiling below. <b>Clean up</b> edits a real admin-uploaded photo into 3
-            polished catalog images — more accurate, since it's grounded in what the product actually looks like —
-            and deliberately has <b>no self-imposed cap</b>: it runs every selected product against Gemini directly
-            and stops only when Gemini itself does (rate limit, quota, safety block, etc.), reporting exactly what
-            Gemini said per product rather than guessing.
+            would exceed the shared budget ceiling below (<b>Stopped budget limit</b> — our own estimate, before the
+            call is even made) or if Gemini itself refuses a call for real quota/rate-limit reasons
+            (<b>Stopped Gemini quota</b> — Google's own limit, not ours). <b>Clean up</b> edits a real admin-uploaded
+            photo into 3 polished catalog images — more accurate, since it's grounded in what the product actually
+            looks like — and deliberately has <b>no self-imposed cap</b>: it runs every selected product against
+            Gemini directly and stops only when Gemini itself does (a real quota/rate-limit rejection —
+            <b> Stopped Gemini quota</b> — or a per-product rejection like a safety block, reported exactly as
+            Gemini said it, never guessed at).
           </p>
         </div>
 

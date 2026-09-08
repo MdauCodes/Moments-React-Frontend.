@@ -38,7 +38,6 @@ import RewardsTermsPage from "@/routes/rewards-terms";
 import RefundsPage from "@/routes/refunds";
 import AccessibilityPolicyPage from "@/routes/accessibility-policy";
 import ManageMyDataPage from "@/routes/manage-my-data";
-import StaffPage from "@/routes/staff";
 import StyleGuidePage from "@/routes/style-guide";
 import BlogIndexPage from "@/routes/blog.index";
 import BlogSlugPage from "@/routes/blog.$slug";
@@ -190,7 +189,6 @@ export default function App() {
                     <Route path="/refunds" element={<RefundsPage />} />
                     <Route path="/accessibility-policy" element={<AccessibilityPolicyPage />} />
                     <Route path="/manage-my-data" element={<ManageMyDataPage />} />
-                    <Route path="/staff" element={<StaffPage />} />
                     <Route path="/style-guide" element={<StyleGuidePage />} />
                     <Route path="/blog" element={<BlogIndexPage />} />
                     <Route path="/blog/:slug" element={<BlogSlugPage />} />

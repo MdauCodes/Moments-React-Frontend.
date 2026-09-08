@@ -776,6 +776,9 @@ function CheckoutModal() {
     timeout?: ReturnType<typeof setTimeout>;
     resend?: ReturnType<typeof setTimeout>;
   }>({});
+  // Event-driven primary channel for payment confirmation, backed up by the poll loop below in
+  // case the connection never opens, drops, or the event just doesn't arrive — see enterWaiting.
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -861,6 +864,8 @@ function CheckoutModal() {
     if (t.timeout) clearTimeout(t.timeout);
     if (t.resend) clearTimeout(t.resend);
     timersRef.current = {};
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
   }
 
   function close() {
@@ -1147,11 +1152,15 @@ function CheckoutModal() {
       setPayState("timeout");
     }, TIMEOUT_MS);
 
-    let attempts = 0;
-    const poll = async () => {
-      attempts += 1;
+    // Separated from the timed poll below so an SSE-triggered check (see the EventSource setup
+    // at the bottom of this function) can ask "are we done yet?" on demand without also consuming
+    // a slot from the poll's own MAX_POLLS attempts budget or juggling its own reschedule.
+    let settled = false;
+    const checkStatus = async (): Promise<boolean> => {
+      if (settled) return true;
       const res = await orderStore.getPaymentStatus(id);
       if (res.status === "SUCCESS") {
+        settled = true;
         clearAllTimers();
         setPayState("success");
         clearCart();
@@ -1175,14 +1184,23 @@ function CheckoutModal() {
         setTimeout(() => {
           navigate(`/order-confirmation?ref=${ref}`);
         }, 1200);
-        return;
+        return true;
       }
       if (res.status === "FAILED") {
+        settled = true;
         clearAllTimers();
         setErrorMsg(res.message ?? "Payment was not completed.");
         setPayState("failed");
-        return;
+        return true;
       }
+      return false;
+    };
+
+    let attempts = 0;
+    const poll = async () => {
+      attempts += 1;
+      const done = await checkStatus();
+      if (done) return;
       if (attempts >= MAX_POLLS) {
         clearAllTimers();
         setPayState("timeout");
@@ -1191,6 +1209,21 @@ function CheckoutModal() {
       timersRef.current.poll = setTimeout(poll, POLL_MS);
     };
     timersRef.current.poll = setTimeout(poll, POLL_MS);
+
+    // Event-driven primary channel, backed up by the poll above — same per-reference SSE stream
+    // the tracking page uses (PublicOrderController.trackEvents, no accessToken needed: a bare
+    // reference only unlocks coarse status, not full order details). Daraja's callback lands,
+    // PaymentService.applySuccessfulPayment fires, and this pushes within about a second instead
+    // of waiting up to POLL_MS for the next scheduled check. The poll is deliberately left
+    // running unchanged, not widened or torn down — if this connection never opens, drops, or the
+    // event just doesn't arrive for any reason, the poll still gets there on its own regardless.
+    try {
+      const es = new EventSource(apiUrl(`/api/v1/orders/track/${encodeURIComponent(ref)}/events`));
+      eventSourceRef.current = es;
+      es.addEventListener("status", () => { void checkStatus(); });
+    } catch {
+      // EventSource construction itself failing (very old browser) — the poll above already covers this.
+    }
   }
 
   async function resendPrompt() {

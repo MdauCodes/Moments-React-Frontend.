@@ -19,6 +19,15 @@ export function useOrderStatusAction(order: OrderRecord, onOrderUpdated: (order:
     // still in flight.
     if (busy) return;
     setBusy(true);
+    const previous = order;
+    // Move the card immediately — staff shouldn't wait on a network round trip to see their own
+    // click take effect. statusV2 is a best-effort mirror of nextStatus, not a real computation
+    // (the backend resolves the precise value from context, e.g. TumaBoda's finer-grained
+    // sub-states — see getNextActionV2's Javadoc); the real response below corrects it the
+    // instant it arrives, typically well under a second later. Reverted in the catch block below
+    // if the request actually fails, so this never leaves the board showing a move that didn't
+    // happen — only ever wrong for the brief window while a request is genuinely in flight.
+    onOrderUpdated({ ...order, status: nextStatus, statusV2: nextStatus });
     try {
       const res = await updateOrderStatus(order.id, nextStatus, staffNotes);
       if (res.order) {
@@ -30,6 +39,7 @@ export function useOrderStatusAction(order: OrderRecord, onOrderUpdated: (order:
         }
       }
     } catch (err) {
+      onOrderUpdated(previous);
       reportAdminError(err, "Failed to update status");
     } finally {
       setBusy(false);

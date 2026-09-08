@@ -18,7 +18,7 @@ import type { OrderRecord } from "@/services/commerceMock";
 function PaymentQueuePage() {
   const allowed = useRequirePermission([PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_MANAGE_ALL]);
   const { user } = useAuth();
-  const { orders, initialLoading, refresh } = useAdminOrders();
+  const { orders, initialLoading, refresh, applyOrderPatch } = useAdminOrders();
   const [busyId, setBusyId] = useState<string | null>(null);
 
   // Strictly PAID + paymentStatus PAID. Also include orders explicitly assigned
@@ -38,11 +38,16 @@ function PaymentQueuePage() {
   const verify = async (o: OrderRecord) => {
     if (!confirm(`Confirm payment of ${formatKes(o.total)} is correct for order ${o.reference}?`)) return;
     setBusyId(o.id);
+    const previous = o;
+    // Same reasoning as the preparation queue's advance() — patch the shared cache immediately so
+    // the row drops out of this queue's filter right away, reverted below if the request fails.
+    applyOrderPatch(o.id, { status: "PAYMENT_VERIFIED", statusV2: "PAYMENT_VERIFIED" });
     try {
-      await updateOrderStatus(o.id, "PAYMENT_VERIFIED");
+      const res = await updateOrderStatus(o.id, "PAYMENT_VERIFIED");
+      if (res.order) applyOrderPatch(o.id, res.order);
       toast.success(`Payment verified for ${o.reference}`);
-      await refresh();
     } catch (err) {
+      applyOrderPatch(o.id, previous);
       reportAdminError(err, "Verification failed");
     } finally {
       setBusyId(null);
