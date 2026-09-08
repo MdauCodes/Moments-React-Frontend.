@@ -44,6 +44,7 @@ export default function ProductDetail() {
   const [preTier, setPreTier] = useState<string | null>(null);
   const [related, setRelated] = useState<Product[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+  const [tierTouched, setTierTouched] = useState(false);
 
   // ── fetch product ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -64,7 +65,10 @@ export default function ProductDetail() {
       setMaterial((p as any).materials?.[0] ?? p.material ?? "");
       setFinish(p.finish ?? "Standard");
       setQty(p.moq);
-      setSelectedTierId(collTiers.length > 0 ? ((collTiers[0] as any).id ?? "tier-0") : null);
+      // Only auto-select when there's exactly one option — anything more is a real choice the
+      // customer must make explicitly (handleAddToCart blocks on tierMissing below).
+      setSelectedTierId(collTiers.length === 1 ? ((collTiers[0] as any).id ?? "tier-0") : null);
+      setTierTouched(false);
       setLoading(false);
       reviewStore.listForProduct(p.slug).then(({ summary }) => {
         if (summary.count > 0) setReviewSummary({ count: summary.count, average: summary.average });
@@ -158,12 +162,19 @@ export default function ProductDetail() {
 
   const handleSelectTier = (tierKey: string | null) => {
     setSelectedTierId(tierKey);
+    setTierTouched(true);
     setQty(tierKey ? 1 : (product?.moq ?? 1));
     setQtyError(null);
   };
 
   const hasSizeOptions = (product?.sizes?.length ?? 0) > 0;
   const sizeMissing = hasSizeOptions && !size;
+  // "How to buy" is a real choice whenever there's more than one option on the table (multiple
+  // tiers, or a tier plus the individual-unit option) — a single option isn't a choice and is
+  // already auto-selected above. tierTouched, not selectedTierId, is what's checked here: null
+  // is legitimately "Individual" once explicitly chosen (handleSelectTier(null)), not just "unset".
+  const buyOptionsCount = collectionTiers.length + (individualEnabled ? 1 : 0);
+  const tierMissing = buyOptionsCount > 1 && !tierTouched;
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -171,6 +182,7 @@ export default function ProductDetail() {
     if (enterprise) { navigate("/enterprise-quote"); return; }
     if (qty < minQty) { setQtyError(`Minimum: ${minQty.toLocaleString()}`); return; }
     if (sizeMissing) return; // the Size field's own inline prompt (sizeMissing) is already visible
+    if (tierMissing) return; // ditto for the tier prompt near "Choose how to buy"
     addItem({
       productId: product.id,
       productName: product.name,
@@ -350,6 +362,7 @@ export default function ProductDetail() {
                     </button>
                   )}
                 </div>
+                {tierMissing && <p className="text-xs font-medium text-accent">Please choose how you'd like to buy</p>}
               </div>
             ) : tiers.length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-border">
@@ -486,10 +499,10 @@ export default function ProductDetail() {
                 Request enterprise quote →
               </button>
             ) : (
-              <button type="button" onClick={handleAddToCart} disabled={sizeMissing}
-                title={sizeMissing ? "Please choose a size first" : undefined}
+              <button type="button" onClick={handleAddToCart} disabled={sizeMissing || tierMissing}
+                title={sizeMissing ? "Please choose a size first" : tierMissing ? "Please choose how you'd like to buy first" : undefined}
                 className={`h-[52px] w-full rounded-full text-sm font-semibold shadow-sm transition-opacity ${
-                  sizeMissing
+                  sizeMissing || tierMissing
                     ? "cursor-not-allowed bg-accent/40 text-accent-foreground/60"
                     : "bg-accent text-accent-foreground hover:opacity-90"
                 }`}>
