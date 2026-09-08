@@ -4,10 +4,11 @@ import { Flame } from "lucide-react";
 
 import type { Product } from "@/data/products";
 import { whatsappLink } from "@/data/products";
-import { apiUrl } from "@/config/api";
 import { getStockInfo } from "@/lib/stock";
 import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
 import { sanitizeProductDescription } from "@/lib/utils";
+import { getQuickAddTiers, isIndividualBuyable, isQuickAddEligible, trackProductClick } from "@/lib/quickAdd";
+import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
 
 interface ProductCardProps {
   product: Product;
@@ -20,34 +21,19 @@ interface ProductCardProps {
   emphasizeDeal?: boolean;
 }
 
-function trackClick(id: string) {
-  fetch(apiUrl(`/api/v1/public/products/${encodeURIComponent(id)}/click`), {
-    method: "POST",
-  }).catch(() => {
-    /* fire-and-forget */
-  });
-}
-
 export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductCardProps) {
   const stock = getStockInfo(p, null, 0);
 
   const image = p.primaryImageUrl;
 
-  const tiers = ((p.pricingTiers ?? []) as any[])
-    .filter(
-      (t) =>
-        t &&
-        t.enabled !== false &&
-        t.collectionName &&
-        t.collectionName !== "Legacy Tier" &&
-        Number(t.quantity) > 0 &&
-        Number(t.collectionPrice ?? 0) > 0,
-    )
-    .slice()
-    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)) as Array<any>;
+  const tiers = getQuickAddTiers(p) as Array<any>;
 
   const hasTiers = tiers.length > 0;
-  const individualEnabled = p.individualSalesEnabled === true;
+  // Requires a real positive basePrice too — see isIndividualBuyable's own comment.
+  const individualEnabled = isIndividualBuyable(p);
+  // Quick-add is eligible only when UOM/tier is this product's sole choice — see
+  // isQuickAddEligible's own comment for the full reasoning and the 2026-09-08 widening.
+  const eligible = isQuickAddEligible(p, stock);
   const smallestTier = tiers[0];
   const cheapestTier = tiers[tiers.length - 1];
   const tierPrice = (t: any) => Number(t.collectionPrice ?? Number(t.pricePerUnit) * Number(t.quantity)) || 0;
@@ -95,7 +81,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
     // display:contents keeps the grid/flex layout exactly as if <article> were the direct child —
     // the real <a href> this renders is what makes each product discoverable/crawlable by search
     // engines, which the previous onClick-only <article> never was.
-    <Link to={`/products/${p.slug}`} onClick={() => trackClick(p.id)} className="contents">
+    <Link to={`/products/${p.slug}`} onClick={() => trackProductClick(p.id)} className="contents">
     <article
       className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
     >
@@ -178,7 +164,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           </p>
         )}
 
-        {hasTiers && (
+        {!eligible && hasTiers && (
           <div className="mt-1.5 hidden flex-wrap gap-1 sm:mt-2 sm:flex">
             {tiers.map((t: any) => {
               const id = tierKey(t);
@@ -282,12 +268,17 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
         <StockLine state={stock.state} count={stock.available} label={stock.label} isMadeToOrder={stock.isMadeToOrder} emphasize={emphasizeDeal} />
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2 sm:gap-2 sm:pt-3">
-          <p className="text-[10px] text-muted-foreground sm:text-xs">
-            {hasTiers && smallestTier
-              ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${(Number(smallestTier.quantity) || 0).toLocaleString()} pcs)`
-              : `Min. ${p.moq.toLocaleString()} units`}
-          </p>
+          {!eligible && (
+            <p className="text-[10px] text-muted-foreground sm:text-xs">
+              {hasTiers && smallestTier
+                ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${(Number(smallestTier.quantity) || 0).toLocaleString()} pcs)`
+                : `Min. ${p.moq.toLocaleString()} units`}
+            </p>
+          )}
           {stock.canOrder ? (
+            eligible ? (
+              <QuickAddUomButtons product={p} layout="card" onMoreOptions={() => onConfigure(p, undefined)} />
+            ) : (
             <button
               type="button"
               onClick={handleCTAClick}
@@ -304,6 +295,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                     : "Get a quote"}
               </span>
             </button>
+            )
           ) : (
             // A plain <button> here, not an <a> — this card is already wrapped in its own <Link>
             // (a real <a href> for crawlability, see the component's top-level wrapper), and
