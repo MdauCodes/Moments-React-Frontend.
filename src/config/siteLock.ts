@@ -11,7 +11,9 @@
  * into the other, keep the target branch's own value below. Matches SiteLockConfig.java's
  * LAUNCH_AT (the backend's own copy) — keep both in sync when changing this.
  */
-export const LAUNCH_AT = new Date("2026-09-04T14:30:00+03:00").getTime();
+// Staging's own value, per this file's doc comment above: an instant already in the past, so
+// isSiteLocked() is always false here and real testing is never blocked.
+export const LAUNCH_AT = new Date("2020-01-01T00:00:00+03:00").getTime();
 
 /**
  * Whether the pre-launch blur/lock banner should show. Time-based (not a static flag) so it
