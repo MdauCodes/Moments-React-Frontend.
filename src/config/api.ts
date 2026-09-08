@@ -1,16 +1,23 @@
 // Central API configuration. All backend calls flow through here.
 //
-// INTENTIONALLY DIFFERENT ON EACH BRANCH — do not merge this line between `main` and `staging`.
-// `main` always points at the production Railway backend; `staging` always points at staging.
-// When merging one branch into the other, keep the target branch's own URL below.
+// Read from VITE_API_BASE (a Render build-time env var — set per service: production points at
+// the production Railway backend, staging at the staging one), NOT hardcoded per branch. Same
+// source text on every branch now — a plain `git merge` has nothing left to silently carry across
+// between environments, which a hardcoded-per-branch value + a "don't merge this" comment
+// demonstrably didn't prevent (this exact line regressed four times across one day). The fallback
+// below only matters if VITE_API_BASE is ever unset on a real service — staging's own URL, not
+// production's, so a misconfigured build fails toward hitting a harmless test backend rather than
+// silently pointing dev/preview traffic at real production data.
 //
-// staging uses a custom domain (api-staging.momentspackaging.com) sharing a registrable domain
-// with its frontend, specifically so the httpOnly auth cookie (see AuthCookieService) is
-// first-party — SameSite=Lax cookies are never attached to a genuinely cross-site fetch/XHR, only
-// to top-level navigations. Production is mid-migration to the equivalent setup
-// (api.momentspackaging.com) — see that branch's own copy of this file for the current status;
-// don't copy production's URL here regardless of what it says.
-export const API_BASE = "https://api-staging.momentspackaging.com";
+// Interim state (2026-09-04): api.momentspackaging.com's DNS verification with Railway is still
+// pending, so production's own VITE_API_BASE is temporarily set to the raw *.up.railway.app host
+// while that propagates. This ONLY works because AuthCookieService's cookie is temporarily
+// SameSite=None (env var app.auth.cookie-samesite=None on the production Railway service) — see
+// that file's comment for why a raw railway.app host otherwise silently breaks every
+// authenticated request. Once api.momentspackaging.com verifies: point production's VITE_API_BASE
+// back at it, and flip app.auth.cookie-samesite back to Lax (or just unset it) on production —
+// None is the weaker, temporary setting.
+export const API_BASE = import.meta.env.VITE_API_BASE || "https://api-staging.momentspackaging.com";
 
 // Backwards-compatible aliases — existing modules import these.
 export const API_BASE_URL = API_BASE;

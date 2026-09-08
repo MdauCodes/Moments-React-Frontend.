@@ -15,16 +15,21 @@ import { getDeliveryPartner } from "@/data/deliveryPartners";
 // embed contract (signed/scoped token, required params) — it reuses the same public tracking-
 // code URL already proven working in real SMS messages, not a new/different embed mechanism.
 //
-// INTENTIONALLY DIFFERENT ON EACH BRANCH — do not merge this line between `main` and `staging`.
-// `main` points at TumaBoda's production tracking host, `staging` at their sandbox one. Found
-// 2026-09-01 that this had never actually been swapped for go-live (VITE_TUMABODA_TRACKING_
-// BASE_URL was never set on the production build, so it silently fell back to sandbox) —
-// confirmed the production host by the same sandbox-prefix-drop pattern already proven for the
-// backend's TUMABODA_BASE_URL (sandboxapi.->api.) and TumaBoda's own business portal
-// (sandboxbusiness.->business.), then verified live: https://tumaboda.co.ke/track/{code} is a
-// real tracking page (renders a proper "Delivery Not Found" state for an unknown code, not a
-// generic 404), with no X-Frame-Options/CSP blocking the iframe embed below.
-// The env var below still overrides this if one is ever set on the hosting platform.
+// Read from VITE_TUMABODA_TRACKING_BASE_URL (a Render build-time env var — set per service:
+// production points at TumaBoda's production tracking host, staging at their sandbox one), NOT
+// hardcoded per branch. Found 2026-09-01 that this had never actually been set on the production
+// build, so it silently fell back to sandbox at go-live — confirmed the production host by the
+// same sandbox-prefix-drop pattern already proven for the backend's TUMABODA_BASE_URL
+// (sandboxapi.->api.) and TumaBoda's own business portal (sandboxbusiness.->business.), then
+// verified live: https://tumaboda.co.ke/track/{code} is a real tracking page (renders a proper
+// "Delivery Not Found" state for an unknown code, not a generic 404), with no X-Frame-Options/CSP
+// blocking the iframe embed below.
+//
+// The fallback below is deliberately sandbox, not production, and is now the same text on every
+// branch — a plain `git merge` has nothing left to silently carry across between environments,
+// which the previous hardcoded-per-branch value + a "don't merge this" comment demonstrably
+// didn't prevent. A misconfigured build failing toward embedding TumaBoda's sandbox tracking host
+// is harmless; failing toward production is the direction that actually burned us once already.
 export const TUMABODA_TRACKING_BASE_URL =
   import.meta.env.VITE_TUMABODA_TRACKING_BASE_URL || "https://sandbox.tumaboda.co.ke/track";
 
