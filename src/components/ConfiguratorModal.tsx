@@ -29,6 +29,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+  const [tierTouched, setTierTouched] = useState(false);
 
   const collectionTiers = useMemo(() => {
     if (!product) return [];
@@ -77,16 +78,24 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
     setError(null);
     setSaved(false);
     if (hasCollections) {
+      // A pre-selected tier is only honoured when it's a genuine match (e.g. the customer
+      // already tapped a tier pill on the product card) — it must never fall back to
+      // collectionTiers[0] as a silent guess. Auto-select only when there's exactly one real
+      // tier and no individual option, i.e. nothing to actually choose between.
       const match = preSelectedTierId
         ? (collectionTiers as any[]).find((t) => String(t.id) === String(preSelectedTierId))
         : null;
-      setSelectedTierId(match ? match.id : (collectionTiers[0] as any).id);
+      const onlyOption = collectionTiers.length === 1 && !individualEnabled;
+      setSelectedTierId(match ? match.id : onlyOption ? (collectionTiers[0] as any).id : null);
+      setTierTouched(Boolean(match) || onlyOption);
       setQuantity(1);
     } else if (individualEnabled) {
       setSelectedTierId(null);
+      setTierTouched(false);
       setQuantity(product.moq);
     } else {
       setSelectedTierId(null);
+      setTierTouched(false);
       setQuantity(product.moq);
     }
   }, [product, preSelectedTierId]);
@@ -101,6 +110,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
 
   const handleSelectTier = (key: string | null) => {
     setSelectedTierId(key);
+    setTierTouched(true);
     setQuantity(1);
     setError(null);
   };
@@ -117,6 +127,10 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
 
   const hasSizeOptions = (product.sizes?.length ?? 0) > 0;
   const sizeMissing = hasSizeOptions && !size;
+  // Same reasoning as products.$slug.tsx: tierTouched (not selectedTierId) tracks whether a
+  // real choice was made, since null is legitimately "Individual" once explicitly chosen.
+  const buyOptionsCount = collectionTiers.length + (individualEnabled ? 1 : 0);
+  const tierMissing = buyOptionsCount > 1 && !tierTouched;
 
   const handleAdd = () => {
     if (!stock.canOrder) return; // UI already hides this control — guard in case that ever changes
@@ -126,6 +140,10 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
     }
     if (sizeMissing) {
       setError("Please choose a size");
+      return;
+    }
+    if (tierMissing) {
+      setError("Please choose how you'd like to buy");
       return;
     }
     addItem({
@@ -309,6 +327,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                   </button>
                 )}
               </div>
+              {tierMissing && <p className="mt-1.5 text-xs font-medium text-accent">Please choose how you'd like to buy</p>}
               {(() => {
                 if (!selectedTier || collectionTiers.length < 2) return null;
                 const top = collectionTiers[collectionTiers.length - 1] as any;
@@ -429,10 +448,10 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             <button
               type="button"
               onClick={handleAdd}
-              disabled={sizeMissing}
-              title={sizeMissing ? "Please choose a size first" : undefined}
+              disabled={sizeMissing || tierMissing}
+              title={sizeMissing ? "Please choose a size first" : tierMissing ? "Please choose how you'd like to buy first" : undefined}
               className={`w-full rounded-full px-6 py-3.5 text-sm font-semibold shadow-sm transition-opacity ${
-                sizeMissing
+                sizeMissing || tierMissing
                   ? "cursor-not-allowed bg-accent/40 text-accent-foreground/60"
                   : "bg-accent text-accent-foreground hover:opacity-90"
               }`}
