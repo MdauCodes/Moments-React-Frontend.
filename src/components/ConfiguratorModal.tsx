@@ -10,6 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
 import { getStockInfo } from "@/lib/stock";
+import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
+import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
 
 interface ConfiguratorModalProps {
   product: Product | null;
@@ -33,8 +35,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
 
   const collectionTiers = useMemo(() => {
     if (!product) return [];
-    return (product.pricingTiers ?? [])
-      .filter((t: any) => t && t.enabled !== false && t.collectionName && t.quantity)
+    return getQuickAddTiers(product)
       .map((t: any, i: number) => ({
         ...t,
         id: t.id ?? `tier-${i}`,
@@ -61,6 +62,13 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
         : { state: "untracked" as const, available: 0, threshold: 0, label: "", isBackorder: false, canOrder: true, isMadeToOrder: false },
     [product],
   );
+  // Quick-add is eligible only when UOM/tier is this product's sole choice — see
+  // isQuickAddEligible's own comment for the full reasoning and the 2026-09-08 widening.
+  const eligible = product ? isQuickAddEligible(product, stock) : false;
+  // The demoted "order more than one" panel only appears once a real choice has been made on
+  // an eligible product; an ineligible (multi-dimension) product keeps its full picker visible
+  // unconditionally, exactly as before.
+  const showQuantityPanel = !eligible || tierTouched;
 
   const selectedTier = useMemo(
     () =>
@@ -257,8 +265,24 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </div>
           )}
 
-          {/* Collection tier selection — only when collections exist, and the item can actually be ordered */}
-          {stock.canOrder && hasCollections && (
+          {/* Quick-add — eligible products only; see isQuickAddEligible. */}
+          {stock.canOrder && eligible && (
+            <Section label="Choose how to buy" note="Pick a unit of measure">
+              <QuickAddUomButtons
+                product={product}
+                layout="detail"
+                onTierChosen={(tierId) => {
+                  setSelectedTierId(tierId);
+                  setTierTouched(true);
+                  setQuantity(1);
+                }}
+              />
+            </Section>
+          )}
+
+          {/* Collection tier selection — ineligible products only (a second dimension is also
+              in play), or the item can't actually be ordered */}
+          {stock.canOrder && !eligible && hasCollections && (
             <Section label="Choose how to buy" note="Pick a unit of measure">
               <div className="grid gap-2 grid-cols-2">
                 {collectionTiers.map((t: any, i: number) => {
@@ -346,8 +370,8 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </Section>
           )}
 
-          {/* Per-unit hint when there are no collections */}
-          {stock.canOrder && !hasCollections && individualEnabled && (
+          {/* Per-unit hint when there are no collections — ineligible products only */}
+          {stock.canOrder && !eligible && !hasCollections && individualEnabled && (
             <div className="rounded-xl border border-forest/20 bg-forest/5 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-forest">Per-unit ordering</p>
               <p className="mt-1 text-sm text-foreground/80">
@@ -356,7 +380,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
               </p>
             </div>
           )}
-          {stock.canOrder && !hasCollections && !individualEnabled && (
+          {stock.canOrder && !eligible && !hasCollections && !individualEnabled && (
             <div className="rounded-xl border border-border bg-secondary px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quote only</p>
               <p className="mt-1 text-sm text-foreground/80">
@@ -384,7 +408,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </Section>
           )}
 
-          {stock.canOrder && (hasCollections || individualEnabled) && (
+          {stock.canOrder && (hasCollections || individualEnabled) && showQuantityPanel && (
             <Section
               label={
                 selectedTier
@@ -413,7 +437,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             </Section>
           )}
 
-          {stock.canOrder && (hasCollections || individualEnabled) && (
+          {stock.canOrder && (hasCollections || individualEnabled) && showQuantityPanel && (
             <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
               {selectedTier ? (
                 <p className="text-sm">
@@ -444,7 +468,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             >
               Enquire on WhatsApp
             </a>
-          ) : hasCollections || individualEnabled ? (
+          ) : (hasCollections || individualEnabled) && showQuantityPanel ? (
             <button
               type="button"
               onClick={handleAdd}
@@ -456,8 +480,12 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                   : "bg-accent text-accent-foreground hover:opacity-90"
               }`}
             >
-              Add to cart
+              {eligible ? `Add ${quantity.toLocaleString()} more` : "Add to cart"}
             </button>
+          ) : hasCollections || individualEnabled ? (
+            // Eligible but not yet touched — the quick-add buttons above are already the action;
+            // nothing to render here until a choice is made.
+            null
           ) : (
             <button
               type="button"

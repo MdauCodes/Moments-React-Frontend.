@@ -15,6 +15,8 @@ import { apiUrl } from "@/config/api";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { getStockInfo } from "@/lib/stock";
+import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
+import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
 import { reviewStore } from "@/services/reviewStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sanitizeProductDescription } from "@/lib/utils";
@@ -54,9 +56,7 @@ export default function ProductDetail() {
       if (!p) { navigate("/products", { replace: true }); return; }
       const variants = p.variants ?? [];
       const tiers = p.pricingTiers ?? [];
-      const collTiers = (tiers as any[])
-        .filter((t) => t && t.enabled !== false && t.collectionName && t.quantity)
-        .sort((a, b) => (a.sortOrder ?? a.quantity) - (b.sortOrder ?? b.quantity));
+      const collTiers = getQuickAddTiers(p);
       setProduct(p);
       setVariantId(variants[0]?.id ?? variants[0]?.label);
       // Never pre-select a size — a customer who never touches this control must not silently
@@ -85,12 +85,7 @@ export default function ProductDetail() {
     return Array.from(new Set([product.primaryImageUrl, ...(product.imageUrls ?? [])].filter(Boolean) as string[]));
   }, [product]);
 
-  const collectionTiers = useMemo(
-    () => (tiers as any[])
-      .filter((t) => t && t.enabled !== false && t.collectionName && t.quantity)
-      .sort((a, b) => (a.sortOrder ?? a.quantity) - (b.sortOrder ?? b.quantity)),
-    [tiers],
-  );
+  const collectionTiers = useMemo(() => getQuickAddTiers({ pricingTiers: tiers }), [tiers]);
   const hasCollections = collectionTiers.length > 0;
   // Also requires a real positive basePrice — individualSalesEnabled alone isn't enough:
   // a Riseller-created product can have the flag on with no price yet (Riseller reported
@@ -127,6 +122,13 @@ export default function ProductDetail() {
         : { state: "untracked" as const, label: "", available: 0, threshold: 0, isBackorder: false, canOrder: true, isMadeToOrder: false },
     [product, activeVariant, qty],
   );
+  // Quick-add is eligible only when UOM/tier is this product's sole choice — see
+  // isQuickAddEligible's own comment for the full reasoning and the 2026-09-08 widening.
+  const eligible = product ? isQuickAddEligible(product, stock) : false;
+  // The demoted "order more than one" panel only needs to appear once a real choice has been
+  // made on an eligible product; an ineligible (multi-dimension) product keeps showing it
+  // unconditionally, exactly as before.
+  const showQuantityPanel = !eligible || tierTouched;
 
   const enterprise = (product?.moq ?? 0) >= 10000;
   const saved = wishlist.has(product?.id ?? "");
@@ -334,7 +336,21 @@ export default function ProductDetail() {
 
           {/* Pricing */}
           <div className="mt-5">
-            {hasCollections ? (
+            {eligible ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to buy</p>
+                <QuickAddUomButtons
+                  product={product}
+                  layout="detail"
+                  onTierChosen={(tierId) => {
+                    setSelectedTierId(tierId);
+                    setTierTouched(true);
+                    setQty(1);
+                    setQtyError(null);
+                  }}
+                />
+              </div>
+            ) : hasCollections ? (
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to buy</p>
                 <div className="grid gap-2 sm:grid-cols-2">
@@ -441,14 +457,14 @@ export default function ProductDetail() {
             {stock.canOrder && ((product as any).materials?.length ?? 0) > 0 && (
               <ConfigField label="Material"><PillGroup options={(product as any).materials!} value={material} onChange={setMaterial} /></ConfigField>
             )}
-            {stock.canOrder && finish && (
+            {stock.canOrder && finish && product.finish && (
               <ConfigField label="Finish"><PillGroup options={[finish]} value={finish} onChange={setFinish} /></ConfigField>
             )}
 
-            {stock.canOrder && (
+            {stock.canOrder && showQuantityPanel && (
               <ConfigField
-                label={selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
-                note={selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
+                label={eligible ? "Add more?" : selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
+                note={eligible ? undefined : selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
                 <input type="number" min={minQty} step={1} value={qty}
                   onChange={(e) => handleQty(e.target.value)}
                   onBlur={() => { if (qty < minQty) setQty(minQty); setQtyError(null); }}
@@ -457,7 +473,7 @@ export default function ProductDetail() {
               </ConfigField>
             )}
 
-            {stock.canOrder && (
+            {stock.canOrder && showQuantityPanel && (
               <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
                 {selectedTier ? (
                   <p className="text-sm">
@@ -498,7 +514,7 @@ export default function ProductDetail() {
                 className="h-[52px] w-full rounded-full border border-primary text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
                 Request enterprise quote →
               </button>
-            ) : (
+            ) : showQuantityPanel ? (
               <button type="button" onClick={handleAddToCart} disabled={sizeMissing || tierMissing}
                 title={sizeMissing ? "Please choose a size first" : tierMissing ? "Please choose how you'd like to buy first" : undefined}
                 className={`h-[52px] w-full rounded-full text-sm font-semibold shadow-sm transition-opacity ${
@@ -506,9 +522,11 @@ export default function ProductDetail() {
                     ? "cursor-not-allowed bg-accent/40 text-accent-foreground/60"
                     : "bg-accent text-accent-foreground hover:opacity-90"
                 }`}>
-                {stock.isBackorder ? "Add to cart (backorder)" : "Add to cart"}
+                {eligible
+                  ? `Add ${qty.toLocaleString()} more`
+                  : stock.isBackorder ? "Add to cart (backorder)" : "Add to cart"}
               </button>
-            )}
+            ) : null}
 
             <div className="flex items-center justify-center gap-6 pt-1 text-sm text-muted-foreground">
               <button type="button" onClick={handleWishlist} className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
