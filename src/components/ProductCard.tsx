@@ -65,7 +65,9 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
     return Math.round(((baselineUnit - u) / baselineUnit) * 100);
   };
 
-  const [activeTierId, setActiveTierId] = useState<string | null>(hasTiers ? tierKey(tiers[0]) : null);
+  // Auto-select only when there's exactly one tier — anything more must be an explicit tap,
+  // otherwise this default silently rides along into ConfiguratorModal via onConfigure below.
+  const [activeTierId, setActiveTierId] = useState<string | null>(tiers.length === 1 ? tierKey(tiers[0]) : null);
   const activeTier = hasTiers ? (tiers.find((t) => tierKey(t) === activeTierId) ?? tiers[0]) : null;
 
   const handlePillClick = (e: React.MouseEvent, id: string) => {
