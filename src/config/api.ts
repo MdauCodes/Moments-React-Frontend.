@@ -1,23 +1,36 @@
 // Central API configuration. All backend calls flow through here.
 //
-// Read from VITE_API_BASE (a Render build-time env var — set per service: production points at
-// the production Railway backend, staging at the staging one), NOT hardcoded per branch. Same
-// source text on every branch now — a plain `git merge` has nothing left to silently carry across
-// between environments, which a hardcoded-per-branch value + a "don't merge this" comment
-// demonstrably didn't prevent (this exact line regressed four times across one day). The fallback
-// below only matters if VITE_API_BASE is ever unset on a real service — staging's own URL, not
-// production's, so a misconfigured build fails toward hitting a harmless test backend rather than
-// silently pointing dev/preview traffic at real production data.
+// 2026-09-09 incident: VITE_API_BASE (a Render build-time env var meant to be set per service)
+// was never actually set on the production Render service after the previous commit switched to
+// reading it — production silently built with the staging fallback below and served staging's
+// seeded test orders (MP-SEED-0001..0012 etc.) in the live admin dashboard. An env var that can
+// silently go unset is exactly the kind of failure this needs to be immune to, so production no
+// longer depends on Render config being right: if the page's own hostname is a production
+// momentspackaging.com host, the production backend is used unconditionally, full stop — no env
+// var, no per-branch source text, nothing to forget to set. VITE_API_BASE still exists purely as
+// a dev/preview convenience for pointing a local or preview build at a specific backend; it's
+// simply never consulted on the real production host, so it losing its value there can't matter.
 //
 // Interim state (2026-09-04): api.momentspackaging.com's DNS verification with Railway is still
-// pending, so production's own VITE_API_BASE is temporarily set to the raw *.up.railway.app host
-// while that propagates. This ONLY works because AuthCookieService's cookie is temporarily
-// SameSite=None (env var app.auth.cookie-samesite=None on the production Railway service) — see
-// that file's comment for why a raw railway.app host otherwise silently breaks every
-// authenticated request. Once api.momentspackaging.com verifies: point production's VITE_API_BASE
-// back at it, and flip app.auth.cookie-samesite back to Lax (or just unset it) on production —
-// None is the weaker, temporary setting.
-export const API_BASE = import.meta.env.VITE_API_BASE || "https://api-staging.momentspackaging.com";
+// pending, so PROD_API_BASE below is temporarily the raw *.up.railway.app host while that
+// propagates. This ONLY works because AuthCookieService's cookie is temporarily SameSite=None
+// (env var app.auth.cookie-samesite=None on the production Railway service) — see that file's
+// comment for why a raw railway.app host otherwise silently breaks every authenticated request.
+// Once api.momentspackaging.com verifies: point PROD_API_BASE back at it, and flip
+// app.auth.cookie-samesite back to Lax (or just unset it) on production — None is the weaker,
+// temporary setting.
+const PROD_API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+const STAGING_API_BASE = "https://api-staging.momentspackaging.com";
+
+function isProductionHost(): boolean {
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "momentspackaging.com" || host.endsWith(".momentspackaging.com");
+}
+
+export const API_BASE = isProductionHost()
+  ? PROD_API_BASE
+  : import.meta.env.VITE_API_BASE || STAGING_API_BASE;
 
 // Backwards-compatible aliases — existing modules import these.
 export const API_BASE_URL = API_BASE;
