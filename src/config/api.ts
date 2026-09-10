@@ -54,10 +54,20 @@ function uuid(): string {
 
 export function getSessionId(): string {
   if (typeof window === "undefined") return "";
-  let id = window.localStorage.getItem(SESSION_KEY);
+  let id: string | null = null;
+  try {
+    id = window.localStorage.getItem(SESSION_KEY);
+  } catch {
+    /* storage blocked/unavailable */
+  }
   if (!id) {
     id = uuid();
-    window.localStorage.setItem(SESSION_KEY, id);
+    try {
+      window.localStorage.setItem(SESSION_KEY, id);
+    } catch {
+      // QuotaExceededError (e.g. a phone low on storage) — return the fresh id for this call
+      // so callers still get a usable X-Session-Id; it just won't be stable across reloads.
+    }
   }
   return id;
 }

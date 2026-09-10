@@ -279,7 +279,16 @@ export function readAdminSession(): AdminSession | null {
 export function writeAdminSession(session: AdminSession): void {
   accessTokenMemory = session.token;
   if (!isBrowser()) return;
-  window.localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
+  try {
+    window.localStorage.setItem(ADMIN_SESSION_STORAGE_KEY, JSON.stringify(session));
+  } catch (err) {
+    // QuotaExceededError — most often on a phone whose storage is nearly full, where iOS
+    // Safari collapses the site's web-storage quota to almost nothing. This fires on every
+    // token refresh, so an unguarded throw here surfaced mid-work as a "low storage" error.
+    // The session still works for this tab via accessTokenMemory (set above); it just won't
+    // survive a reload until the device frees up space.
+    console.warn("Could not persist admin session to localStorage (storage full?):", err);
+  }
   notifySessionChanged();
 }
 
