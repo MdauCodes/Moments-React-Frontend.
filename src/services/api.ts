@@ -234,10 +234,15 @@ export const api = {
   // adaptBlog() below maps the backend DTO onto the frontend Blog shape and tolerates a null
   // cover image (photography is uploaded from admin after the copy is seeded).
   getBlogs: async (params?: { status?: BlogStatus; template?: BlogTemplate; limit?: number }): Promise<Blog[]> => {
-    const dtos = await getJson<BackendBlogDto[]>(
-      `/api/v1/public/blogs${qs({ template: params?.template, limit: params?.limit })}`,
-    );
-    return dtos.map(adaptBlog);
+    try {
+      const dtos = await getJson<BackendBlogDto[]>(
+        `/api/v1/public/blogs${qs({ template: params?.template, limit: params?.limit })}`,
+      );
+      return dtos.map(adaptBlog);
+    } catch {
+      // A blog API hiccup must never blank out or hang the /blog page — degrade to empty.
+      return [];
+    }
   },
 
   getBlogBySlug: async (slug: string): Promise<Blog | null> => {
@@ -249,8 +254,12 @@ export const api = {
   },
 
   getLatestBlogs: async (limit = 3): Promise<Blog[]> => {
-    const dtos = await getJson<BackendBlogDto[]>(`/api/v1/public/blogs/latest?limit=${limit}`);
-    return dtos.map(adaptBlog);
+    try {
+      const dtos = await getJson<BackendBlogDto[]>(`/api/v1/public/blogs/latest?limit=${limit}`);
+      return dtos.map(adaptBlog);
+    } catch {
+      return [];
+    }
   },
 
   getRelatedBlogs: async (excludeSlug: string, limit = 2): Promise<Blog[]> => {
