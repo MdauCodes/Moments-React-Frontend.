@@ -1,4 +1,4 @@
-import type { Blog, BlogBody } from "@/data/blogs";
+import type { Blog, BlogBody, BlogCta } from "@/data/blogs";
 
 // Single-source-of-truth renderer. Picks the right template at runtime so
 // every public detail page stays consistent with the admin form fields.
@@ -40,6 +40,7 @@ function EducativeView({ data }: { data: Extract<BlogBody, { template: "educativ
       <p className="border-l-2 border-accent pl-4 text-base italic text-foreground/80">
         {data.conclusion}
       </p>
+      <BodyCta cta={data.cta} />
     </div>
   );
 }
@@ -50,6 +51,7 @@ function ExplanatoryView({ data }: { data: Extract<BlogBody, { template: "explan
       <Section label="The problem" body={data.problem} />
       <Section label="How it works" body={data.mechanism} />
       <Section label="The takeaway" body={data.takeaway} accent />
+      <BodyCta cta={data.cta} />
     </div>
   );
 }
@@ -65,6 +67,24 @@ function ScenarioView({ data }: { data: Extract<BlogBody, { template: "scenario"
           “{data.callout}”
         </blockquote>
       )}
+      <BodyCta cta={data.cta} />
+    </div>
+  );
+}
+
+// Shared in-article CTA button — used by the educative / explanatory / scenario templates.
+// Internal links use react-router semantics via a plain <a>; the blog pages are inside
+// SiteLayout so a full navigation is acceptable and keeps this component router-agnostic.
+function BodyCta({ cta }: { cta?: BlogCta }) {
+  if (!cta?.label || !cta?.href) return null;
+  return (
+    <div className="pt-2">
+      <a
+        href={cta.href}
+        className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+      >
+        {cta.label} →
+      </a>
     </div>
   );
 }
@@ -131,12 +151,18 @@ export function BlogCard({ blog }: { blog: Blog }) {
   return (
     <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-xl">
       <div className="aspect-[16/10] overflow-hidden bg-secondary">
-        <img
-          src={blog.coverImage.url}
-          alt={blog.coverImage.alt}
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-        />
+        {blog.coverImage.url ? (
+          <img
+            src={blog.coverImage.url}
+            alt={blog.coverImage.alt}
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-secondary to-accent/10 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+            {blog.template}
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
