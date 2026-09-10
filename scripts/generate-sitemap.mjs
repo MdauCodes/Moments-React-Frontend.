@@ -11,7 +11,20 @@
 // INTENTIONALLY duplicates the API base URL rather than importing src/config/api.ts — matches
 // that file's own "intentionally different per branch" convention, and a plain Node script can't
 // import a .ts file without an extra build step. Keep this in sync with api.ts on this branch.
-const API_BASE = "https://api-staging.momentspackaging.com";
+//
+// Points at the PRODUCTION backend (matches PROD_API_BASE in src/config/api.ts): the sitemap is
+// only ever submitted for momentspackaging.com, so it must reflect what's live there — the
+// staging backend was also cost-paused, which left this fetch failing and the sitemap frozen.
+const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+
+// The four original in-repo blog posts (src/data/blogs.ts) — not in the backend `blogs` table,
+// but they render on /blog (see api.ts mergeStaticBlogs), so they belong in the sitemap too.
+const STATIC_BLOG_SLUGS = [
+  "kraft-vs-coated-which-bag-fits-your-shop",
+  "why-double-wall-cups-stop-burning-fingers",
+  "the-westlands-juice-bar-that-doubled-orders",
+  "new-eco-mailer-range-now-shipping",
+];
 
 // Sitemap URLs are always canonical production URLs regardless of which branch/backend this
 // script pulls product data from — staging is never submitted to Search Console.
@@ -80,7 +93,7 @@ async function fetchAllBlogPosts() {
   const res = await fetch(`${API_BASE}/api/v1/public/blogs`);
   if (!res.ok) throw new Error(`blogs failed: ${res.status}`);
   const posts = await res.json();
-  return (posts ?? [])
+  const backend = (posts ?? [])
     .filter((b) => b.slug)
     .map((b) => ({
       loc: `/blog/${b.slug}`,
@@ -88,6 +101,14 @@ async function fetchAllBlogPosts() {
       changefreq: "monthly",
       priority: "0.6",
     }));
+  // Add the in-repo static posts that aren't in the backend (see api.ts mergeStaticBlogs).
+  const backendSlugs = new Set(backend.map((u) => u.loc));
+  const statics = STATIC_BLOG_SLUGS.filter((s) => !backendSlugs.has(`/blog/${s}`)).map((s) => ({
+    loc: `/blog/${s}`,
+    changefreq: "monthly",
+    priority: "0.6",
+  }));
+  return [...backend, ...statics];
 }
 
 function buildXml(urls) {
