@@ -129,7 +129,14 @@ import cupsImg from "@/assets/cat-cups.jpg";
 import boxesImg from "@/assets/cat-boxes.jpg";
 import mailersImg from "@/assets/cat-mailers.jpg";
 
-const now = new Date().toISOString();
+// Fixed publish dates — these four in-repo posts predate the CMS wiring and aren't in the
+// backend `blogs` table. They still show on /blog alongside the backend-seeded posts (see
+// api.ts mergeStaticBlogs); real fixed dates keep their ordering stable instead of "published
+// just now" on every build, and sit them before the 2026-07 backend seed batch.
+const d1 = "2026-05-14T09:00:00.000Z";
+const d2 = "2026-05-28T09:00:00.000Z";
+const d3 = "2026-06-11T09:00:00.000Z";
+const d4 = "2026-06-25T09:00:00.000Z";
 
 export const seedBlogs: Blog[] = [
   {
@@ -170,9 +177,9 @@ export const seedBlogs: Blog[] = [
     author: "Moments Packaging Director",
     tags: ["bags", "kraft", "buyer-guide"],
     readingTimeMin: 4,
-    publishedAt: now,
-    createdAt: now,
-    updatedAt: now,
+    publishedAt: d1,
+    createdAt: d1,
+    updatedAt: d1,
   },
   {
     id: "b2",
@@ -200,9 +207,9 @@ export const seedBlogs: Blog[] = [
     author: "Moments Packaging Director",
     tags: ["cups", "coffee", "explainer"],
     readingTimeMin: 3,
-    publishedAt: now,
-    createdAt: now,
-    updatedAt: now,
+    publishedAt: d2,
+    createdAt: d2,
+    updatedAt: d2,
   },
   {
     id: "b3",
@@ -232,9 +239,9 @@ export const seedBlogs: Blog[] = [
     author: "Moments Packaging Director",
     tags: ["scenario", "juice-bar", "branding"],
     readingTimeMin: 5,
-    publishedAt: now,
-    createdAt: now,
-    updatedAt: now,
+    publishedAt: d3,
+    createdAt: d3,
+    updatedAt: d3,
   },
   {
     id: "b4",
@@ -260,8 +267,8 @@ export const seedBlogs: Blog[] = [
     author: "Moments Packaging Director",
     tags: ["news", "mailers", "launch"],
     readingTimeMin: 2,
-    publishedAt: now,
-    createdAt: now,
-    updatedAt: now,
+    publishedAt: d4,
+    createdAt: d4,
+    updatedAt: d4,
   },
 ];

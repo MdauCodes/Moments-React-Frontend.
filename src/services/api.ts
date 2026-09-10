@@ -21,6 +21,7 @@ import { industries } from "@/data/products";
 import { apiUrl, apiFetch } from "@/config/api";
 import type { Product, Industry } from "@/data/products";
 import type { Blog, BlogBody, BlogStatus, BlogTemplate } from "@/data/blogs";
+import { seedBlogs } from "@/data/blogs";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
 
 type PageResponse<T> = { content: T[] };
@@ -74,6 +75,17 @@ type BackendBlogDto = {
   createdAt?: string | null;
   updatedAt?: string | null;
 };
+
+// Backend posts + the four original in-repo posts not already present by slug, newest first.
+function mergeStaticBlogs(backend: Blog[]): Blog[] {
+  const seen = new Set(backend.map((b) => b.slug));
+  const statics = seedBlogs.filter((b) => b.status === "published" && !seen.has(b.slug));
+  return [...backend, ...statics].sort((a, b) => {
+    const ad = a.publishedAt ?? a.createdAt ?? "";
+    const bd = b.publishedAt ?? b.createdAt ?? "";
+    return bd.localeCompare(ad);
+  });
+}
 
 function adaptBlog(dto: BackendBlogDto): Blog {
   const hasStructuredBody =
@@ -230,47 +242,59 @@ export const api = {
     emailCaptureEnabled: true,
   }),
 
-  // Blog — real backend (/api/v1/public/blogs), which only ever returns PUBLISHED posts.
-  // adaptBlog() below maps the backend DTO onto the frontend Blog shape and tolerates a null
-  // cover image (photography is uploaded from admin after the copy is seeded).
+  // Blog — real backend (/api/v1/public/blogs, PUBLISHED only) merged with the four original
+  // in-repo posts that predate the CMS and aren't in the DB. adaptBlog() maps the backend DTO
+  // and tolerates a null cover image (uploaded from admin later). Backend wins on slug collision.
   getBlogs: async (params?: { status?: BlogStatus; template?: BlogTemplate; limit?: number }): Promise<Blog[]> => {
+    let backend: Blog[] = [];
     try {
       const dtos = await getJson<BackendBlogDto[]>(
-        `/api/v1/public/blogs${qs({ template: params?.template, limit: params?.limit })}`,
+        `/api/v1/public/blogs${qs({ template: params?.template })}`,
       );
-      return dtos.map(adaptBlog);
+      backend = dtos.map(adaptBlog);
     } catch {
-      // A blog API hiccup must never blank out or hang the /blog page — degrade to empty.
-      return [];
+      // A blog API hiccup must never blank out or hang the /blog page — fall back to statics only.
     }
+    let all = mergeStaticBlogs(backend);
+    if (params?.template) all = all.filter((b) => b.template === params.template);
+    if (params?.limit) all = all.slice(0, params.limit);
+    return all;
   },
 
   getBlogBySlug: async (slug: string): Promise<Blog | null> => {
     try {
       return adaptBlog(await getJson<BackendBlogDto>(`/api/v1/public/blogs/${encodeURIComponent(slug)}`));
     } catch {
-      return null;
+      return seedBlogs.find((b) => b.slug === slug && b.status === "published") ?? null;
     }
   },
 
   getLatestBlogs: async (limit = 3): Promise<Blog[]> => {
+    let backend: Blog[] = [];
     try {
-      const dtos = await getJson<BackendBlogDto[]>(`/api/v1/public/blogs/latest?limit=${limit}`);
-      return dtos.map(adaptBlog);
+      const dtos = await getJson<BackendBlogDto[]>(`/api/v1/public/blogs/latest?limit=${Math.max(limit, 10)}`);
+      backend = dtos.map(adaptBlog);
     } catch {
-      return [];
+      /* fall back to statics only */
     }
+    return mergeStaticBlogs(backend).slice(0, limit);
   },
 
   getRelatedBlogs: async (excludeSlug: string, limit = 2): Promise<Blog[]> => {
+    let backend: Blog[] = [];
     try {
       const dtos = await getJson<BackendBlogDto[]>(
         `/api/v1/public/blogs/${encodeURIComponent(excludeSlug)}/related`,
       );
-      return dtos.map(adaptBlog).slice(0, limit);
+      backend = dtos.map(adaptBlog);
     } catch {
-      return [];
+      /* fall back to statics only */
     }
+    // Backend's own related picks first, then top up from statics if short of `limit`.
+    const staticExtra = seedBlogs.filter(
+      (b) => b.status === "published" && b.slug !== excludeSlug && !backend.some((x) => x.slug === b.slug),
+    );
+    return [...backend, ...staticExtra].filter((b) => b.slug !== excludeSlug).slice(0, limit);
   },
 
   getProducts: async (params?: {
