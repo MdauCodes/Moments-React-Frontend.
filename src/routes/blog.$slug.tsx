@@ -36,14 +36,14 @@ export default function BlogDetailPage() {
     title: blog ? `${blog.seoTitle || blog.title} — Moments Packaging Kenya` : "Loading… — Moments Packaging Kenya",
     description: blog ? (blog.seoDescription || blog.excerpt) : "Loading article…",
     path: `/blog/${slug ?? ""}`,
-    image: blog?.coverImage?.url,
+    image: blog?.coverImage?.url || undefined,
     jsonLd: blog
       ? {
           "@context": "https://schema.org",
           "@type": "BlogPosting",
           headline: blog.seoTitle || blog.title,
           description: blog.seoDescription || blog.excerpt,
-          image: blog.coverImage?.url,
+          image: blog.coverImage?.url || undefined,
           author: { "@type": "Organization", name: blog.author || "Moments Packaging Kenya" },
           datePublished: blog.publishedAt ?? undefined,
           dateModified: blog.updatedAt ?? undefined,
@@ -90,14 +90,16 @@ export default function BlogDetailPage() {
           <p className="mt-4 text-xs uppercase tracking-[0.18em] text-muted-foreground">By {blog.author}</p>
         </header>
 
-        <div className="mx-auto max-w-4xl px-5 lg:px-8">
-          <div className="overflow-hidden rounded-3xl bg-secondary">
-            <img src={blog.coverImage.url} alt={blog.coverImage.alt} className="aspect-[16/9] w-full object-cover" />
+        {blog.coverImage.url && (
+          <div className="mx-auto max-w-4xl px-5 lg:px-8">
+            <div className="overflow-hidden rounded-3xl bg-secondary">
+              <img src={blog.coverImage.url} alt={blog.coverImage.alt} className="aspect-[16/9] w-full object-cover" />
+            </div>
+            {blog.coverImage.caption && (
+              <p className="mt-2 text-center text-xs italic text-muted-foreground">{blog.coverImage.caption}</p>
+            )}
           </div>
-          {blog.coverImage.caption && (
-            <p className="mt-2 text-center text-xs italic text-muted-foreground">{blog.coverImage.caption}</p>
-          )}
-        </div>
+        )}
 
         <div className="mx-auto max-w-3xl px-5 py-10 lg:px-8 lg:py-14">
           <BlogBodyRenderer body={blog.body} />

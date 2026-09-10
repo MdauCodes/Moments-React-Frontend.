@@ -22,16 +22,27 @@ export interface BlogImage {
 
 // Template-specific body shapes -----------------------------------------------
 
+// One optional in-article call-to-action, rendered as a button at the end of the body. This is
+// the crawlable internal link an SEO post exists to pass around the site (e.g. into a product
+// category or the quote flow) — the prose fields above render as plain text, so a woven URL in
+// them would not be a real link.
+export interface BlogCta {
+  label: string;
+  href: string;
+}
+
 export interface EducativeBody {
   intro: string;
   keyPoints: { heading: string; body: string }[];
   conclusion: string;
+  cta?: BlogCta;
 }
 
 export interface ExplanatoryBody {
   problem: string;
   mechanism: string; // how / why it works
   takeaway: string;
+  cta?: BlogCta;
 }
 
 export interface ScenarioBody {
@@ -39,6 +50,7 @@ export interface ScenarioBody {
   challenge: string; // the packaging problem they hit
   resolution: string; // what they did, what to learn
   callout?: string; // optional pull quote / tip
+  cta?: BlogCta;
 }
 
 export interface StorylineBody {

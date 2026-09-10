@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { BlogEditor, emptyFormValues } from "@/components/admin/BlogEditor";
-import { blogStore } from "@/services/blogStore";
-
-
+import { reportAdminError } from "@/lib/adminErrorToast";
+import { BlogEditor, blogRequestFromForm, emptyFormValues } from "@/components/admin/BlogEditor";
+import { adminResources } from "@/services/adminResources";
 
 function NewBlogPage() {
   const navigate = useNavigate();
@@ -15,11 +15,16 @@ function NewBlogPage() {
         submitLabel="Publish"
         onCancel={() => navigate("/admin/blogs")}
         onSubmit={async (values) => {
-          await blogStore.create({
-            ...values,
-            publishedAt: values.status === "published" ? new Date().toISOString() : null,
-          });
-          navigate("/admin/blogs");
+          try {
+            const created = await adminResources.blogs.create(blogRequestFromForm(values));
+            if (values.status === "published") {
+              await adminResources.blogs.publish(created.id);
+            }
+            toast.success(values.status === "published" ? "Blog published" : "Draft saved");
+            navigate("/admin/blogs");
+          } catch (err) {
+            reportAdminError(err, "Failed to save blog");
+          }
         }}
       />
     </AdminLayout>

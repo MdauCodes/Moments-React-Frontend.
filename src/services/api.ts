@@ -18,10 +18,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { industries } from "@/data/products";
-import { blogStore } from "@/services/blogStore";
 import { apiUrl, apiFetch } from "@/config/api";
 import type { Product, Industry } from "@/data/products";
-import type { Blog, BlogStatus, BlogTemplate } from "@/data/blogs";
+import type { Blog, BlogBody, BlogStatus, BlogTemplate } from "@/data/blogs";
 import { MOCK_PRODUCTS } from "@/data/mockProducts";
 
 type PageResponse<T> = { content: T[] };
@@ -53,6 +52,59 @@ async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(apiUrl(path));
   if (!res.ok) throw new Error(`API request failed: ${res.status}`);
   return res.json() as Promise<T>;
+}
+
+// Backend blog DTO (com...blog.dto.BlogDto): flat cover fields are already nested as
+// coverImage:{url,alt,caption} server-side; secondaryImage is a bare URL string or null;
+// body is the raw stored jsonb (the structured {template,data} shape BlogBodyRenderer expects).
+type BackendBlogDto = {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt?: string | null;
+  template?: string | null;
+  status?: string | null;
+  coverImage?: { url?: string | null; alt?: string | null; caption?: string | null } | null;
+  secondaryImage?: string | null;
+  body?: unknown;
+  author?: string | null;
+  tags?: string[] | null;
+  readingTimeMin?: number | null;
+  publishedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+function adaptBlog(dto: BackendBlogDto): Blog {
+  const hasStructuredBody =
+    !!dto.body && typeof dto.body === "object" && "template" in (dto.body as Record<string, unknown>);
+  // Legacy rows (or a post saved with the old TipTap editor) have no {template,data} body —
+  // fall back to a minimal renderable body rather than crashing BlogBodyRenderer's switch.
+  const body: BlogBody = hasStructuredBody
+    ? (dto.body as BlogBody)
+    : ({ template: "explanatory", data: { problem: "", mechanism: "", takeaway: dto.excerpt ?? "" } } as BlogBody);
+
+  return {
+    id: dto.id,
+    slug: dto.slug,
+    title: dto.title,
+    excerpt: dto.excerpt ?? "",
+    template: (dto.template || body.template || "educative") as BlogTemplate,
+    status: dto.status === "PUBLISHED" ? "published" : "draft",
+    coverImage: {
+      url: dto.coverImage?.url ?? "",
+      alt: dto.coverImage?.alt ?? dto.title,
+      caption: dto.coverImage?.caption ?? undefined,
+    },
+    secondaryImage: dto.secondaryImage ? { url: dto.secondaryImage, alt: "" } : undefined,
+    body,
+    author: dto.author ?? "Moments Packaging Kenya",
+    tags: dto.tags ?? [],
+    readingTimeMin: dto.readingTimeMin ?? 3,
+    publishedAt: dto.publishedAt ?? null,
+    createdAt: dto.createdAt ?? dto.publishedAt ?? new Date().toISOString(),
+    updatedAt: dto.updatedAt ?? dto.createdAt ?? new Date().toISOString(),
+  };
 }
 
 function normalizeIndustryIds(p: ProductApiDto): string[] {
@@ -178,21 +230,38 @@ export const api = {
     emailCaptureEnabled: true,
   }),
 
-  getBlogs: async (params?: { status?: BlogStatus; template?: BlogTemplate; limit?: number }): Promise<Blog[]> =>
-    blogStore.list(params),
+  // Blog — real backend (/api/v1/public/blogs), which only ever returns PUBLISHED posts.
+  // adaptBlog() below maps the backend DTO onto the frontend Blog shape and tolerates a null
+  // cover image (photography is uploaded from admin after the copy is seeded).
+  getBlogs: async (params?: { status?: BlogStatus; template?: BlogTemplate; limit?: number }): Promise<Blog[]> => {
+    const dtos = await getJson<BackendBlogDto[]>(
+      `/api/v1/public/blogs${qs({ template: params?.template, limit: params?.limit })}`,
+    );
+    return dtos.map(adaptBlog);
+  },
 
-  getBlogBySlug: async (slug: string): Promise<Blog | null> => blogStore.getBySlug(slug),
+  getBlogBySlug: async (slug: string): Promise<Blog | null> => {
+    try {
+      return adaptBlog(await getJson<BackendBlogDto>(`/api/v1/public/blogs/${encodeURIComponent(slug)}`));
+    } catch {
+      return null;
+    }
+  },
 
-  getLatestBlogs: async (limit = 3): Promise<Blog[]> => blogStore.list({ status: "published", limit }),
+  getLatestBlogs: async (limit = 3): Promise<Blog[]> => {
+    const dtos = await getJson<BackendBlogDto[]>(`/api/v1/public/blogs/latest?limit=${limit}`);
+    return dtos.map(adaptBlog);
+  },
 
   getRelatedBlogs: async (excludeSlug: string, limit = 2): Promise<Blog[]> => {
-    const all = await blogStore.list({ status: "published" });
-    const others = all.filter((b) => b.slug !== excludeSlug);
-    for (let i = others.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [others[i], others[j]] = [others[j], others[i]];
+    try {
+      const dtos = await getJson<BackendBlogDto[]>(
+        `/api/v1/public/blogs/${encodeURIComponent(excludeSlug)}/related`,
+      );
+      return dtos.map(adaptBlog).slice(0, limit);
+    } catch {
+      return [];
     }
-    return others.slice(0, limit);
   },
 
   getProducts: async (params?: {

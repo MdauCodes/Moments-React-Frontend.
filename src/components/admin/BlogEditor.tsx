@@ -13,6 +13,7 @@ import type {
 } from "@/data/blogs";
 import { TEMPLATE_META } from "@/data/blogs";
 import { blogSlugify } from "@/services/blogStore";
+import type { BlogDto, BlogRequest } from "@/services/adminResources";
 
 // Admin-side editor styled to match AdminLayout's dark surface.
 // Renders a different field set per template — these are the same fields the
@@ -254,6 +255,51 @@ export function blogToFormValues(blog: Blog): BlogFormValues {
     body: blog.body,
     author: blog.author,
     tags: blog.tags,
+  };
+}
+
+// ── Backend <-> form mapping ────────────────────────────────────────────────
+// The Spring backend stores flat cover fields, a bare secondaryImage URL, and an opaque jsonb
+// body; it has no slug-on-input (generated), no status field (separate publish/unpublish
+// endpoints), and no seoTitle/seoDescription/scheduledAt. Those form fields are kept for the
+// editor UX but simply aren't persisted.
+
+export function blogRequestFromForm(v: BlogFormValues): BlogRequest {
+  return {
+    title: v.title,
+    excerpt: v.excerpt || undefined,
+    template: v.template,
+    coverImageUrl: v.coverImage.url || undefined,
+    coverImageAlt: v.coverImage.alt || undefined,
+    coverImageCaption: v.coverImage.caption || undefined,
+    secondaryImageUrl: v.secondaryImage?.url || undefined,
+    body: v.body,
+    author: v.author || undefined,
+    tags: v.tags,
+  };
+}
+
+export function formValuesFromDto(dto: BlogDto): BlogFormValues {
+  const structured =
+    !!dto.body && typeof dto.body === "object" && "template" in (dto.body as Record<string, unknown>);
+  return {
+    title: dto.title,
+    slug: dto.slug ?? "",
+    excerpt: dto.excerpt ?? "",
+    seoTitle: "",
+    seoDescription: "",
+    scheduledAt: null,
+    template: (dto.template as BlogTemplate) || "educative",
+    status: dto.status === "PUBLISHED" ? "published" : "draft",
+    coverImage: {
+      url: dto.coverImageUrl ?? "",
+      alt: dto.coverImageAlt ?? "",
+      caption: dto.coverImageCaption ?? undefined,
+    },
+    secondaryImage: dto.secondaryImageUrl ? { url: dto.secondaryImageUrl, alt: "" } : undefined,
+    body: structured ? (dto.body as BlogBody) : emptyBody((dto.template as BlogTemplate) || "educative"),
+    author: dto.author ?? "Moments Packaging Kenya",
+    tags: dto.tags ?? [],
   };
 }
 
