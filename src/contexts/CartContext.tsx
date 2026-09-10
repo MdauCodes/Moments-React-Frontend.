@@ -102,10 +102,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    let id = window.localStorage.getItem(CART_ID_KEY);
+    let id: string | null = null;
+    try {
+      id = window.localStorage.getItem(CART_ID_KEY);
+    } catch {
+      /* storage unavailable */
+    }
     if (!id) {
       id = genId();
-      window.localStorage.setItem(CART_ID_KEY, id);
+      try {
+        window.localStorage.setItem(CART_ID_KEY, id);
+      } catch {
+        // QuotaExceededError (phone low on storage) — the cart still works this session; the
+        // id just isn't persisted, same graceful-degradation as the CART_ITEMS_KEY write below.
+      }
     }
     setCartId(id);
 
