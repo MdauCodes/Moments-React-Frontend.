@@ -4,7 +4,7 @@ import { ShoppingBag } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useRewardDeliveryGap } from "@/hooks/useRewardDeliveryGap";
 
-const AUTO_DISMISS_MS = 5000;
+const AUTO_DISMISS_MS = 3000;
 
 function fmtKes(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
