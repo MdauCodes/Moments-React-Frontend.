@@ -93,6 +93,10 @@ const searchSchema = z.object({
 
 const PAGE_SIZE = 20;
 const ALL_PRICE_MAX = 500;
+// Below this many results, the primary filtered grid feels like a dead end on its own — the
+// "you might also like" section switches from "suppressed" to "shown, but scoped to the same
+// category/segment" once the grid is this sparse or sparser.
+const SPARSE_RESULT_MAX = 2;
 
 
 
@@ -129,6 +133,7 @@ function ProductsPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchResults, setSearchResults] = useState<Product[] | null>(null);
   const [moreProducts, setMoreProducts] = useState<Product[] | null>(null);
+  const [moreProductsReason, setMoreProductsReason] = useState<"search" | "same-category" | "diversified" | null>(null);
   const [query, setQuery] = useState(q ?? "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Local, uncommitted price input text — only pushed into the URL params (and
@@ -325,6 +330,11 @@ function ProductsPage() {
     inStock || minPrice !== undefined || maxPrice !== undefined ||
     (q && q.length > 1)
   );
+  // Specifically a category/subcategory (taxonomy) filter, as opposed to industry, tags, search,
+  // or the newArrivals/deals/fastMoving/price/stock toggles — drives whether "you might also
+  // like" gets suppressed/scoped instead of showing the generic diversified feed (see the effect
+  // below).
+  const taxonomyFilterActive = !!(subcategoryIds.length > 0 || categoryIds.length > 0 || category);
 
   // Industries
   useEffect(() => {
@@ -630,26 +640,102 @@ function ProductsPage() {
   useEffect(() => {
     if (isLoading) return;
     const shown = searchResults ?? (anyFilterActive ? productsRef.current : null);
-    if (!shown || shown.length === 0) { setMoreProducts(null); return; }
+    if (!shown || shown.length === 0) { setMoreProducts(null); setMoreProductsReason(null); return; }
     let cancelled = false;
     const shownIds = new Set(shown.map((p) => p.id));
-    void api
-      .getDiversifiedProducts({ size: 20 })
+    const filterResult = (data: Product[]) =>
+      // This is supplementary browsing, not itself a search result — same in-stock-only rule
+      // as the general grid above, not the more permissive search-results one.
+      data.filter((p) => !shownIds.has(p.id) && getStockInfo(p, null, 0).canOrder);
+
+    // Unchanged path: a text search, or any non-taxonomy filter (industry/tag/newArrivals/
+    // deals/fastMoving/price/stock) — always the generic diversified feed, exactly as before
+    // this section learned to scope itself to a category/subcategory filter.
+    if (searchResults || !taxonomyFilterActive) {
+      void api
+        .getDiversifiedProducts({ size: 20 })
+        .then((data) => {
+          if (!cancelled) {
+            setMoreProducts(filterResult(data));
+            setMoreProductsReason(searchResults ? "search" : "diversified");
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setMoreProducts([]);
+            setMoreProductsReason(searchResults ? "search" : "diversified");
+          }
+        });
+      return () => { cancelled = true; };
+    }
+
+    // A category/subcategory filter is active. Once the filtered grid already has more than a
+    // couple of results, it's plenty to browse on its own — showing an unrelated cross-category
+    // "diversified" feed underneath it was the bug being fixed here (categories "leaking" into
+    // an otherwise narrow, deliberate browse), so suppress this section entirely instead.
+    if (shown.length > SPARSE_RESULT_MAX) {
+      setMoreProducts(null);
+      setMoreProductsReason(null);
+      return;
+    }
+
+    // Sparse result: still show a supplementary section, but keep it relatable — broaden by
+    // dropping just the subcategory constraint (same parent category), or by widening a whole
+    // category pick out to its parent segment. Only fall back to the generic diversified feed
+    // if that broadened query comes back empty.
+    let broaden: Promise<Product[]>;
+    if (subcategoryIds.length > 0) {
+      const parentCategoryIds = Array.from(
+        new Set(
+          subcategoryIds
+            .map((id) => subcategories.find((s) => s.id === id)?.categoryId)
+            .filter((id): id is string => !!id),
+        ),
+      );
+      broaden = parentCategoryIds.length > 0
+        ? api.getProducts({ categoryId: parentCategoryIds, size: 12 })
+        : Promise.resolve([]);
+    } else if (categoryIds.length > 0) {
+      const segIds = new Set(
+        categoryIds
+          .map((id) => taxCategories.find((c) => c.id === id)?.segmentId)
+          .filter((id): id is string => !!id),
+      );
+      const widenedCategoryIds = taxCategories.filter((c) => segIds.has(c.segmentId)).map((c) => c.id);
+      broaden = widenedCategoryIds.length > 0
+        ? api.getProducts({ categoryId: widenedCategoryIds, size: 12 })
+        : Promise.resolve([]);
+    } else if (category) {
+      broaden = api.getProducts({ category, size: 12 });
+    } else {
+      broaden = Promise.resolve([]);
+    }
+
+    void broaden
       .then((data) => {
-        if (!cancelled) {
-          // This is supplementary browsing, not itself a search result — same in-stock-only rule
-          // as the general grid above, not the more permissive search-results one.
-          setMoreProducts(
-            data.filter((p) => !shownIds.has(p.id) && getStockInfo(p, null, 0).canOrder),
-          );
+        if (cancelled) return undefined;
+        const filtered = filterResult(data);
+        if (filtered.length > 0) {
+          setMoreProducts(filtered);
+          setMoreProductsReason("same-category");
+          return undefined;
         }
+        // Broadened query came back empty — last resort is the generic diversified feed.
+        return api.getDiversifiedProducts({ size: 20 }).then((diversified) => {
+          if (cancelled) return;
+          setMoreProducts(filterResult(diversified));
+          setMoreProductsReason("diversified");
+        });
       })
       .catch(() => {
-        if (!cancelled) setMoreProducts([]);
+        if (!cancelled) {
+          setMoreProducts([]);
+          setMoreProductsReason("diversified");
+        }
       });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchResults, anyFilterActive, isLoading]);
+  }, [searchResults, anyFilterActive, taxonomyFilterActive, isLoading, subcategoryIdsKey, categoryIdsKey, category]);
 
   const setParam = (key: string, value: string | number | boolean | undefined) => {
     setSearchParams((prev) => { const v = value; if (v !== undefined && v !== "") prev.set(key, String(v)); else prev.delete(key); return prev; });
@@ -1348,7 +1434,11 @@ function ProductsPage() {
               <div className="mt-14 border-t border-border pt-10">
                 <div className="flex items-center justify-between gap-4">
                   <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                    {searchResults ? "Keep browsing" : "You might also like"}
+                    {moreProductsReason === "search"
+                      ? "Keep browsing"
+                      : moreProductsReason === "same-category"
+                      ? "More in this category"
+                      : "You might also like"}
                   </p>
                   <Link
                     to="/products"

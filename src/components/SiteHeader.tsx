@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingCart, User, HelpCircle } from "lucide-react";
@@ -16,13 +16,11 @@ import { api, type Segment, type Category as TaxCategory, type Subcategory } fro
  */
 type SimpleNav = { to: string; label: string };
 
-// Order: Company, Sustainability, [Shop dropdown], Track Order, Deals.
-const navBeforeShop: readonly SimpleNav[] = [
+// Order: [Shop dropdown], Company, Sustainability, Track Order, Deals.
+const navAfterShop: readonly SimpleNav[] = [
   { to: "/company-profile", label: "About Us" },
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/sustainability", label: "Our Sustainability Pledge" },
-];
-const navAfterShop: readonly SimpleNav[] = [
   { to: "/orders/track", label: "Track Order" },
   { to: "/deals", label: "Deals" },
 ];
@@ -37,7 +35,8 @@ const HEADER_BOTTOM_VAR = "--site-header-bottom";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const [shopOpen, setShopOpen] = useState(false);
+  const location = useLocation();
+  const [shopOpen, setShopOpen] = useState(() => (location.state as { keepShopMenuOpen?: boolean } | null)?.keepShopMenuOpen === true);
   const [mobileShopOpen, setMobileShopOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchSeed, setSearchSeed] = useState("");
@@ -116,6 +115,15 @@ export function SiteHeader() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [shopOpen]);
+
+  // Scrub the "keep the Shop mega-menu open" router state right after mount so that
+  // browser Back/Forward into this page doesn't re-open the menu on every visit.
+  useEffect(() => {
+    if ((location.state as { keepShopMenuOpen?: boolean } | null)?.keepShopMenuOpen) {
+      navigate(location.pathname + location.search, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Global keyboard shortcut: ⌘K / Ctrl+K opens search anywhere
   useEffect(() => {
@@ -219,22 +227,12 @@ export function SiteHeader() {
           </button>
 
           <nav className="ml-auto hidden items-center gap-1 md:flex">
-            {navBeforeShop.map((n) => (
-              <Link
-                key={n.label}
-                to={n.to}
-                className="rounded-full px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground lg:px-4"
-              >
-                {n.label}
-              </Link>
-            ))}
-
             {/* Shop dropdown */}
             <div ref={dropdownRef} className="relative" onMouseEnter={openDropdown} onMouseLeave={scheduleClose}>
               <NavLink
                 to="/products"
                 className={({ isActive }) => `inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition-colors lg:px-4 ${isActive ? "bg-secondary text-foreground" : "text-foreground/80 hover:bg-secondary hover:text-foreground"}`}
-                onClick={() => setShopOpen(false)}
+                state={{ keepShopMenuOpen: true }}
               >
                 Shop
                 <ChevronDown
@@ -337,7 +335,6 @@ export function SiteHeader() {
               )}
             </div>
 
-            {/* Track Order + Deals */}
             {navAfterShop.map((n) => (
               <Link
                 key={n.label}
@@ -493,16 +490,6 @@ export function SiteHeader() {
         {open && (
           <div className="border-t border-border bg-background md:hidden">
             <div className="flex flex-col px-5 py-3">
-              {navBeforeShop.map((n) => (
-                <Link
-                  key={n.label}
-                  to={n.to}
-                  onClick={() => setOpen(false)}
-                  className="rounded-md px-3 py-3 text-sm font-medium text-foreground/80 hover:bg-secondary"
-                >
-                  {n.label}
-                </Link>
-              ))}
               <div>
                 <div className="flex items-center">
                   <Link
