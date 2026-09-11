@@ -126,6 +126,14 @@ function ProductsPage() {
   const [suggestionsArePersonalized, setSuggestionsArePersonalized] = useState(false);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  // Collapsed by default — the header's "Browse categories" mega menu already offers this same
+  // segment/category/subcategory + industry browsing, so keeping it open here by default just
+  // duplicates that vertical real estate on every visit. Auto-opens when a deep link (nav mega
+  // menu, a shared URL) already landed on a specific industry/category/subcategory, so whatever
+  // brought the visitor here stays visible instead of hiding behind a collapsed toggle.
+  const [categorizationOpen, setCategorizationOpen] = useState(
+    () => Boolean(industrySlug) || subcategoryIds.length > 0 || categoryIds.length > 0,
+  );
   const [products, setProducts] = useState<Product[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -940,6 +948,26 @@ function ProductsPage() {
           <ToggleChip active={!!inStock} onClick={() => toggle("inStock")}>In stock</ToggleChip>
         </div>
 
+        {/* Single fold line for all the category/industry browsing below — the header's own
+            "Browse categories" mega menu already offers this exact segment/category/subcategory
+            + industry navigation, so leaving a full grid of it expanded on every visit just
+            duplicated that. Collapsed by default (see categorizationOpen's own comment for when
+            it auto-opens); the active-filter chips further down still show whatever's selected
+            even while this stays collapsed, so nothing picked here goes invisible. */}
+        {!isLoading && !searchResults && (industries.length > 0 || segments.length > 0) && (
+          <button
+            type="button"
+            onClick={() => setCategorizationOpen((v) => !v)}
+            aria-expanded={categorizationOpen}
+            className="mt-5 flex w-full items-center justify-between gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+          >
+            <span>
+              {selectedIndustry ? `Browsing ${selectedIndustry.name} — change industry or category` : "Browse by category or industry"}
+            </span>
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${categorizationOpen ? "rotate-180" : ""}`} />
+          </button>
+        )}
+
         {/* Browse by industry — stays visible even once one is picked (the
             selected tile just highlights) so switching industries is a single
             click, not "See all" then re-pick. Only hidden during a text search,
@@ -948,8 +976,8 @@ function ProductsPage() {
             actual product grid several screens down — a compact dropdown gets
             to the same result (?industry=slug) in the same footprint as any
             other filter control. */}
-        {!isLoading && !searchResults && industries.length > 0 && (
-          <div className="mt-5">
+        {!isLoading && !searchResults && industries.length > 0 && categorizationOpen && (
+          <div className="mt-3">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               Browse by industry
             </p>
@@ -1007,6 +1035,10 @@ function ProductsPage() {
             lives here alongside the legacy flat category list, sort, and price,
             all in one panel so there's one place to refine, not two competing ones. */}
         <div id="browse-by-category" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4">
+          {/* Popular-subcategories chips + the segment/category/subcategory accordion below both
+              fold under the same single-line toggle above — see its own comment for why. */}
+          {categorizationOpen && (
+          <>
           {/* Only shown with no industry selected — once an industry is picked, the
               "Categories in {industry}" accordion below already surfaces what's actually
               tagged to it, so a separate "Popular in {industry}" strip was redundant and,
@@ -1120,6 +1152,8 @@ function ProductsPage() {
                 })}
               </div>
             </div>
+          )}
+          </>
           )}
 
           <div className="flex flex-wrap items-center gap-3">
@@ -1276,7 +1310,7 @@ function ProductsPage() {
         <div id="results-anchor" className="scroll-mt-20" />
         {isLoading && grid.length === 0 ? (
           // True first load / nothing to show yet — the only time we blank to skeletons.
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:mt-10 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
             {Array.from({ length: 8 }).map((_, i) => (
               <ProductCardSkeleton key={i} />
             ))}
@@ -1372,7 +1406,7 @@ function ProductsPage() {
                 still last period's results — dim them instead of blanking to skeletons, so
                 refining a filter doesn't feel like the whole page reloading. */}
             <div
-              className={`mt-4 grid animate-in fade-in grid-cols-2 gap-3 duration-300 sm:mt-5 sm:gap-5 md:grid-cols-3 lg:gap-6 transition-opacity ${
+              className={`mt-4 grid animate-in fade-in grid-cols-1 gap-3 duration-300 sm:mt-5 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:gap-6 transition-opacity ${
                 isLoading ? "opacity-40 pointer-events-none" : "opacity-100"
               }`}
             >
@@ -1447,7 +1481,7 @@ function ProductsPage() {
                     See all products →
                   </Link>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 md:grid-cols-3 lg:grid-cols-4 lg:gap-6">
                   {moreProducts.slice(0, 8).map((p) => (
                     <ProductCard key={p.id} product={p} onConfigure={handleConfigure} />
                   ))}
