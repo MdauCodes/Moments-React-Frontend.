@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRewardDeliveryGap } from "@/hooks/useRewardDeliveryGap";
 import { useCountUp } from "@/hooks/useCountUp";
@@ -71,44 +71,14 @@ export function RewardDeliveryBanners({ topOffsetClassName }: { topOffsetClassNa
   const { isAuthenticated } = useAuth();
   const {
     myTier,
-    kesToNextTier,
-    nextTierName,
-    nextTierDiscountPercent,
-    kesToFreeDelivery,
-    freeDeliveryZoneLabel,
     freeDeliveryUnlockedZoneLabel,
     walletBalance,
     walletBalanceValueKes,
-    rewardsConfig,
     welcomeCode,
-    kesToWelcomeCode,
     welcomeCodeReady,
+    primaryGap,
+    bonusCoupons,
   } = useRewardDeliveryGap();
-
-  const primaryGap = useMemo(() => {
-    const candidates: { amount: number; benefit: string }[] = [];
-    if (kesToWelcomeCode != null && welcomeCode) {
-      candidates.push({ amount: kesToWelcomeCode, benefit: `use your welcome code ${welcomeCode} for 5% off` });
-    }
-    if (kesToNextTier != null && nextTierName != null) {
-      candidates.push({ amount: kesToNextTier, benefit: `unlock ${nextTierName} — ${nextTierDiscountPercent}% off every order` });
-    }
-    if (kesToFreeDelivery != null && freeDeliveryZoneLabel != null) {
-      // Scoped to "hand-delivery" specifically, not a blanket "delivery" claim — the threshold
-      // is only ever honoured for MANUAL_DELIVERY + HAND_DELIVERY within the zone (see
-      // CheckoutService). A customer who picks TumaBoda instead pays full price regardless of
-      // cart total; a generic "free delivery" promise would be false for that (very common,
-      // prominently-branded) fulfillment choice.
-      candidates.push({ amount: kesToFreeDelivery, benefit: `get free hand-delivery within ${freeDeliveryZoneLabel}` });
-    }
-    if (candidates.length === 0) return null;
-    return candidates.sort((a, b) => a.amount - b.amount)[0];
-  }, [kesToWelcomeCode, welcomeCode, kesToNextTier, nextTierName, nextTierDiscountPercent, kesToFreeDelivery, freeDeliveryZoneLabel]);
-
-  const bonusCoupons =
-    primaryGap && rewardsConfig && rewardsConfig.pointsPer100Kes > 0
-      ? Math.floor(primaryGap.amount / 100) * rewardsConfig.pointsPer100Kes
-      : 0;
 
   let content: React.ReactNode = null;
   let tone: "accent" | "success" = "accent";

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "@/config/api";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -120,6 +120,33 @@ export function useRewardDeliveryGap() {
     else welcomeCodeReady = true;
   }
 
+  // The single nearest, most-achievable incentive across every mechanic — welcome code > tier >
+  // free delivery, whichever needs the smallest top-up. Shared verbatim by RewardDeliveryBanners
+  // and the add-to-cart mini-cart (CartAddedSheet) so both surfaces always agree on which one
+  // message to show, rather than each computing its own ranking and risking drift.
+  const primaryGap = useMemo(() => {
+    const candidates: { amount: number; benefit: string }[] = [];
+    if (kesToWelcomeCode != null && welcomeCode) {
+      candidates.push({ amount: kesToWelcomeCode, benefit: `use your welcome code ${welcomeCode} for 5% off` });
+    }
+    if (kesToNextTier != null && nextTierName != null) {
+      candidates.push({ amount: kesToNextTier, benefit: `unlock ${nextTierName} — ${nextTierDiscountPercent}% off every order` });
+    }
+    if (kesToFreeDelivery != null && freeDeliveryZoneLabel != null) {
+      // Scoped to "hand-delivery" specifically, not a blanket "delivery" claim — the threshold is
+      // only ever honoured for MANUAL_DELIVERY + HAND_DELIVERY within the zone. A customer who
+      // picks TumaBoda instead pays full price regardless of cart total.
+      candidates.push({ amount: kesToFreeDelivery, benefit: `get free hand-delivery within ${freeDeliveryZoneLabel}` });
+    }
+    if (candidates.length === 0) return null;
+    return candidates.sort((a, b) => a.amount - b.amount)[0];
+  }, [kesToWelcomeCode, welcomeCode, kesToNextTier, nextTierName, nextTierDiscountPercent, kesToFreeDelivery, freeDeliveryZoneLabel]);
+
+  const bonusCoupons =
+    primaryGap && rewardsConfig && rewardsConfig.pointsPer100Kes > 0
+      ? Math.floor(primaryGap.amount / 100) * rewardsConfig.pointsPer100Kes
+      : 0;
+
   return {
     isAuthenticated,
     rewardsConfig,
@@ -138,5 +165,7 @@ export function useRewardDeliveryGap() {
     kesToFreeDelivery,
     freeDeliveryZoneLabel,
     freeDeliveryUnlockedZoneLabel,
+    primaryGap,
+    bonusCoupons,
   };
 }

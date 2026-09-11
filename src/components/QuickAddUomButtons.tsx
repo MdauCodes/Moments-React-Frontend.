@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { toast } from "sonner";
+import { Minus, Plus } from "lucide-react";
 
 import type { Product } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
@@ -42,6 +42,15 @@ export function QuickAddUomButtons({
   // the clearest possible "yes, that registered" feedback alongside the toast.
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
+  // Per-option × N multiplier — card layout only (the detail/PDP layout has its own surrounding
+  // quantity UI already). Keyed by option so "Carton" and "Packet" on the same product each keep
+  // their own count. Resets to 1 after a successful add, same reasoning as justAdded: the next tap
+  // is far more likely to be a fresh decision than "add 3 more of what I just added".
+  const [multipliers, setMultipliers] = useState<Record<string, number>>({});
+  const getMultiplier = (key: string) => multipliers[key] ?? 1;
+  const adjustMultiplier = (key: string, delta: number) =>
+    setMultipliers((prev) => ({ ...prev, [key]: Math.min(99, Math.max(1, (prev[key] ?? 1) + delta)) }));
+
   const options = getQuickAddOptions(product);
   const visible = options.slice(0, maxVisible);
   const overflow = options.length > maxVisible;
@@ -55,10 +64,15 @@ export function QuickAddUomButtons({
     }
     if (justAdded === opt.key) return;
 
+    const mult = getMultiplier(opt.key);
+    const effectiveQuantity = opt.quantity * mult;
+    const effectiveTotalUnits = opt.totalUnits * mult;
+    const effectiveLineTotal = opt.lineTotal * mult;
+
     // Total pieces, not packs — the same probe totalUnits exists for, so quick-add doesn't
     // inherit the PDP's pre-existing pack-vs-piece backorder mismatch (noted, not fixed, in the
     // 2026-09-08 scoping doc).
-    const stock = getStockInfo(product, null, opt.totalUnits);
+    const stock = getStockInfo(product, null, effectiveTotalUnits);
     if (!stock.canOrder) return;
 
     addItem({
@@ -68,28 +82,26 @@ export function QuickAddUomButtons({
       size: "", // the eligibility gate guarantees this product has no size options
       material: product.material || "Standard",
       finish: product.finish || "Standard",
-      quantity: opt.quantity,
+      quantity: effectiveQuantity,
       unitPrice: opt.unitPrice,
       sku: product.sku,
       isBackorder: stock.isBackorder,
       tierId: opt.tierId,
       collectionName: opt.tierId ? opt.rawTier?.collectionName : undefined,
       collectionQuantity: opt.tierId ? opt.packQty : undefined,
-      totalUnits: opt.totalUnits,
+      totalUnits: effectiveTotalUnits,
     });
 
     trackProductClick(product.id);
     onTierChosen?.(opt.tierId);
 
-    const qtyLabel = `${opt.quantity.toLocaleString()} ${opt.label}${opt.quantity !== 1 ? "s" : ""}`;
-    toast.success(
-      stock.isBackorder
-        ? "Added — backorder (extended lead time)"
-        : `Added · ${qtyLabel}${opt.packQty > 1 ? ` (${opt.packQty.toLocaleString()} ${opt.unitNoun}s)` : ""}`,
-      { duration: 2400, id: `qa-${product.id}-${opt.key}` },
-    );
-
+    // Feedback now lives in CartAddedSheet (the global mini-cart, mounted once in SiteLayout/the
+    // homepage) rather than a per-tap toast — it reacts to CartContext's lastAdded, so every
+    // add-to-cart surface (this, the configurator, the PDP) gets the same obvious "here's what
+    // happened, here's how close you are to a reward, here's checkout" surface instead of each
+    // needing its own toast call.
     setJustAdded(opt.key);
+    setMultipliers((prev) => ({ ...prev, [opt.key]: 1 }));
     window.setTimeout(() => setJustAdded((k) => (k === opt.key ? null : k)), 400);
   };
 
@@ -102,35 +114,76 @@ export function QuickAddUomButtons({
   };
 
   if (layout === "card") {
+    const stepperTap = (e: React.MouseEvent, key: string, delta: number) => {
+      if (guardAnchorNavigation) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      adjustMultiplier(key, delta);
+    };
+
     return (
       <div className="flex flex-col gap-1.5">
-        {visible.map((opt, i) => (
-          <button
-            key={opt.key}
-            type="button"
-            disabled={justAdded === opt.key}
-            onClick={(e) => handleTap(e, opt)}
-            className={`w-full rounded-full px-3 py-1.5 text-center text-[11px] font-semibold leading-tight transition-opacity disabled:opacity-60 sm:text-xs ${
-              i === 0
-                ? "bg-primary text-primary-foreground hover:opacity-90"
-                : "border border-border bg-card text-foreground hover:border-foreground/40"
-            }`}
-          >
-            <span>
-              Add {opt.quantity.toLocaleString()} {opt.label}
-              {opt.quantity !== 1 ? "s" : ""}
-              {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
-                <span className="ml-1.5 rounded-full bg-forest/15 px-1.5 py-px text-[9px] font-semibold text-forest">
-                  Save {opt.savingsPct}%
+        {visible.map((opt, i) => {
+          const mult = getMultiplier(opt.key);
+          const effQuantity = opt.quantity * mult;
+          const effLineTotal = opt.lineTotal * mult;
+          const effPackQty = opt.packQty * mult;
+          return (
+            <div key={opt.key} className="flex items-stretch gap-1">
+              {/* × N stepper — lets "3 cartons" happen in this one card interaction instead of
+                  needing the full configurator just to bump quantity. Own state per option so
+                  Carton/Packet on the same product don't share a count. */}
+              <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-border bg-card">
+                <button
+                  type="button"
+                  aria-label={`Decrease quantity of ${opt.label}`}
+                  onClick={(e) => stepperTap(e, opt.key, -1)}
+                  disabled={mult <= 1}
+                  className="grid h-full w-6 place-items-center text-foreground/60 transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <Minus className="h-2.5 w-2.5" />
+                </button>
+                <span className="min-w-[1.1rem] text-center text-[11px] font-semibold tabular-nums sm:text-xs">
+                  {mult}
                 </span>
-              )}
-            </span>
-            <small className="mt-0.5 block font-normal opacity-80">
-              {opt.packQty > 1 ? `${opt.packQty.toLocaleString()} ${opt.unitNoun}s · ` : ""}
-              KES {opt.lineTotal.toLocaleString()}
-            </small>
-          </button>
-        ))}
+                <button
+                  type="button"
+                  aria-label={`Increase quantity of ${opt.label}`}
+                  onClick={(e) => stepperTap(e, opt.key, 1)}
+                  className="grid h-full w-6 place-items-center text-foreground/60 transition-colors hover:bg-secondary"
+                >
+                  <Plus className="h-2.5 w-2.5" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                disabled={justAdded === opt.key}
+                onClick={(e) => handleTap(e, opt)}
+                className={`min-w-0 flex-1 rounded-full px-3 py-1.5 text-center text-[11px] font-semibold leading-tight transition-opacity disabled:opacity-60 sm:text-xs ${
+                  i === 0
+                    ? "bg-primary text-primary-foreground hover:opacity-90"
+                    : "border border-border bg-card text-foreground hover:border-foreground/40"
+                }`}
+              >
+                <span>
+                  Add {effQuantity.toLocaleString()} {opt.label}
+                  {effQuantity !== 1 ? "s" : ""}
+                  {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
+                    <span className="ml-1.5 rounded-full bg-forest/15 px-1.5 py-px text-[9px] font-semibold text-forest">
+                      Save {opt.savingsPct}%
+                    </span>
+                  )}
+                </span>
+                <small className="mt-0.5 block font-normal opacity-80">
+                  {effPackQty > 1 ? `${effPackQty.toLocaleString()} ${opt.unitNoun}s · ` : ""}
+                  KES {effLineTotal.toLocaleString()}
+                </small>
+              </button>
+            </div>
+          );
+        })}
         {overflow && onMoreOptions && (
           <button
             type="button"
