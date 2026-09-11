@@ -95,6 +95,13 @@ export type ProductDto = {
   sku?: string; basePrice?: number; compareAtPrice?: number; stock?: number; stockCount?: number; lowStockThreshold?: number; trackInventory?: boolean;
   stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "MADE_TO_ORDER";
   vatRate?: number; vatExempt?: boolean;
+  /** Explicit admin confirmation — see the backend Product.priceVerified/stockVerified Javadoc.
+   *  Cleared automatically the moment Riseller sync actually changes the value it covers. */
+  priceVerified?: boolean; priceVerifiedAt?: string | null; priceVerifiedBy?: string | null;
+  stockVerified?: boolean; stockVerifiedAt?: string | null; stockVerifiedBy?: string | null;
+  /** Riseller reported an implausible (negative) stock count — stockCount deliberately still
+   *  holds the last known-good value; stockAnomalyValue is the raw bad number for investigation. */
+  stockAnomaly?: boolean; stockAnomalyValue?: number | null;
   subcategoryId?: string | null; subcategoryName?: string | null; categoryName?: string | null; segmentName?: string | null;
   curatedTags?: TagDto[]; curatedTagIds?: string[]; tagIds?: string[];
   variants?: Array<{ id?: string; label: string; sku?: string; price?: number; stock?: number }>;
@@ -103,6 +110,8 @@ export type ProductDto = {
 export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries" | "curatedTags" | "curatedTagIds">;
 export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; clearSubcategory?: boolean; industryIds?: string[]; tagIds?: string[] };
 export type BulkClassifyResponse = { updatedCount: number; productIds: string[] };
+export type ProductVerifyRequest = { price: boolean; stock: boolean };
+export type ProductVerifyBulkRequest = { productIds: string[]; price: boolean; stock: boolean };
 
 
 export type BlogDto = {
@@ -654,6 +663,10 @@ export const adminResources = {
     remove: (id: string) => adminJson<void>(`/api/v1/admin/products/${encodeURIComponent(id)}`, { method: "DELETE" }),
     bulkClassify: (body: BulkClassifyRequest) =>
       adminJson<BulkClassifyResponse>("/api/v1/admin/products/bulk-classify", { method: "PATCH", body: JSON.stringify(body) }),
+    verify: (id: string, body: ProductVerifyRequest) =>
+      adminJson<ProductDto>(`/api/v1/admin/products/${encodeURIComponent(id)}/verify`, { method: "POST", body: JSON.stringify(body) }),
+    verifyBulk: (body: ProductVerifyBulkRequest) =>
+      adminJson<{ updatedCount: number }>("/api/v1/admin/products/verify-bulk", { method: "POST", body: JSON.stringify(body) }),
     listDeleted: async (params: Record<string, string | number | boolean | undefined>) =>
       unwrap(await adminJson<PageResponse<ProductDto> | ProductDto[]>(`/api/v1/admin/products/deleted${qs(params)}`)),
     restore: (id: string) =>

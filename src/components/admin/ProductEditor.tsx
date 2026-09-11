@@ -751,9 +751,24 @@ function TokenInput({
 // Main editor
 // ---------------------------------------------------------------------------
 
+/** Separate from ProductFormValues deliberately — verifying is an immediate, standalone action
+ *  against the already-saved product, not part of the draft this form's "Save" button submits. */
+export interface ProductVerificationInfo {
+  priceVerified?: boolean;
+  priceVerifiedAt?: string | null;
+  priceVerifiedBy?: string | null;
+  stockVerified?: boolean;
+  stockVerifiedAt?: string | null;
+  stockVerifiedBy?: string | null;
+  stockAnomaly?: boolean;
+  stockAnomalyValue?: number | null;
+}
+
 export interface ProductEditorProps {
   initial: ProductFormValues;
   productId?: string; // undefined = create, set = update
+  /** Only meaningful (and only ever passed) when editing an already-saved product. */
+  verification?: ProductVerificationInfo;
   submitLabel: string;
   onSubmit: (values: ProductFormValues) => Promise<void> | void;
   onDelete?: () => Promise<void> | void;
@@ -800,7 +815,7 @@ function draftKeyFor(productId?: string): string {
   return `admin-product-draft:${productId ?? "new"}`;
 }
 
-export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
+export function ProductEditor({ initial, productId, verification, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
   const draftKey = draftKeyFor(productId);
 
   const [values, setValues] = useState<ProductFormValues>(() => {
@@ -825,6 +840,26 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
   const [uoms, setUoms] = useState<Uom[]>([]);
   const [showUomDialog, setShowUomDialog] = useState(false);
   const [priceModes, setPriceModes] = useState<Record<number, "perUnit" | "total">>({});
+
+  const [verifyState, setVerifyState] = useState<ProductVerificationInfo | undefined>(verification);
+  const [verifying, setVerifying] = useState<"price" | "stock" | null>(null);
+  useEffect(() => setVerifyState(verification), [verification]);
+
+  const confirmVerified = async (field: "price" | "stock") => {
+    if (!productId) return;
+    setVerifying(field);
+    try {
+      const updated = await adminResources.products.verify(productId, {
+        price: field === "price",
+        stock: field === "stock",
+      });
+      setVerifyState((prev) => ({ ...prev, ...updated }));
+    } catch (err) {
+      reportAdminError(err, `Confirming ${field}`);
+    } finally {
+      setVerifying(null);
+    }
+  };
 
   const loadUoms = () => fetchPublicUoms().then(setUoms).catch(() => {});
   useEffect(() => {
@@ -1086,6 +1121,46 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
             <div style={s.cardTitle}>Pricing &amp; inventory</div>
             <span style={s.helper}>All prices in KES.</span>
           </div>
+
+          {productId && (
+            <div style={{
+              display: "flex", flexWrap: "wrap", gap: 16, padding: "10px 12px", marginBottom: 4,
+              background: "var(--admin-bg-subtle, #f8f8f6)", borderRadius: 8, fontSize: 12.5,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>
+                  {verifyState?.priceVerified
+                    ? `Price confirmed correct${verifyState.priceVerifiedBy ? ` by ${verifyState.priceVerifiedBy}` : ""}`
+                    : "Price never confirmed"}
+                </span>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  disabled={verifying === "price"}
+                  onClick={() => void confirmVerified("price")}
+                >
+                  Confirm price is correct
+                </button>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span>
+                  {verifyState?.stockAnomaly
+                    ? `Riseller reported an implausible count (${verifyState.stockAnomalyValue}) — held off, stock figure below is the last known-good value`
+                    : verifyState?.stockVerified
+                      ? `Stock confirmed correct${verifyState.stockVerifiedBy ? ` by ${verifyState.stockVerifiedBy}` : ""}`
+                      : "Stock never confirmed"}
+                </span>
+                <button
+                  type="button"
+                  className="admin-btn admin-btn-ghost"
+                  disabled={verifying === "stock"}
+                  onClick={() => void confirmVerified("stock")}
+                >
+                  Confirm stock is correct
+                </button>
+              </div>
+            </div>
+          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* SKU / base price / compare-at */}
             <div style={s.row3} data-admin-row>

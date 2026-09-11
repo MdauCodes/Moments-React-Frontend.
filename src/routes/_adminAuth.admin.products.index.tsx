@@ -21,7 +21,12 @@ function AdminProductsPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [filters, setFilters] = useState({ industryId: "", category: "", isDiscount: "", isNewArrival: "", isFastMoving: "" });
+  const [filters, setFilters] = useState({
+    industryId: "", category: "", isDiscount: "", isNewArrival: "", isFastMoving: "",
+    priceVerified: "", stockVerified: "", stockAnomaly: "",
+  });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [verifying, setVerifying] = useState(false);
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [view, setView] = useState<"table" | "cards">("table");
@@ -51,7 +56,10 @@ function AdminProductsPage() {
   };
   useEffect(() => {
     void load();
-  }, [page, filters.industryId, filters.category, filters.isDiscount, filters.isNewArrival, filters.isFastMoving, debouncedQ]);
+  }, [page, filters.industryId, filters.category, filters.isDiscount, filters.isNewArrival, filters.isFastMoving,
+      filters.priceVerified, filters.stockVerified, filters.stockAnomaly, debouncedQ]);
+
+  useEffect(() => { setSelectedIds([]); }, [products]);
 
   // Search/filters now run server-side (GET /api/v1/admin/products); this is a light client-side
   // pass over the already-filtered page as a redundant safety net, not the primary filter.
@@ -73,8 +81,30 @@ function AdminProductsPage() {
     if (filters.isDiscount) rows = rows.filter((p) => p.isDiscount);
     if (filters.isNewArrival) rows = rows.filter((p) => p.isNewArrival);
     if (filters.isFastMoving) rows = rows.filter((p) => p.isFastMoving);
+    if (filters.priceVerified === "false") rows = rows.filter((p) => !p.priceVerified);
+    if (filters.stockVerified === "false") rows = rows.filter((p) => !p.stockVerified);
+    if (filters.stockAnomaly === "true") rows = rows.filter((p) => p.stockAnomaly);
     return rows;
   }, [products, debouncedQ, filters]);
+
+  const verifySelected = async (field: "price" | "stock") => {
+    if (selectedIds.length === 0) return;
+    setVerifying(true);
+    try {
+      const res = await adminResources.products.verifyBulk({
+        productIds: selectedIds,
+        price: field === "price",
+        stock: field === "stock",
+      });
+      toast.success(`Marked ${field} verified on ${res.updatedCount} product${res.updatedCount === 1 ? "" : "s"}`);
+      setSelectedIds([]);
+      await load();
+    } catch (err) {
+      reportAdminError(err, `Verifying ${field}`);
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   const getStockDisplay = (p: ProductDto) => {
     const ss = (p as any).stockStatus ?? "MADE_TO_ORDER";
@@ -182,13 +212,47 @@ function AdminProductsPage() {
               {key.replace("is", "")}
             </button>
           ))}
-          {(q || filters.industryId || filters.category || filters.isDiscount || filters.isNewArrival || filters.isFastMoving) && (
+          <button
+            className={`admin-btn ${filters.priceVerified === "false" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+            title="Products whose price has never been explicitly confirmed correct"
+            onClick={() => {
+              setPage(0);
+              setFilters({ ...filters, priceVerified: filters.priceVerified === "false" ? "" : "false" });
+            }}
+          >
+            Needs price check
+          </button>
+          <button
+            className={`admin-btn ${filters.stockVerified === "false" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+            title="Products whose stock count has never been explicitly confirmed correct"
+            onClick={() => {
+              setPage(0);
+              setFilters({ ...filters, stockVerified: filters.stockVerified === "false" ? "" : "false" });
+            }}
+          >
+            Needs stock check
+          </button>
+          <button
+            className={`admin-btn ${filters.stockAnomaly === "true" ? "admin-btn-primary" : "admin-btn-ghost"}`}
+            title="Riseller reported an implausible (negative) stock count — held off rather than persisted"
+            onClick={() => {
+              setPage(0);
+              setFilters({ ...filters, stockAnomaly: filters.stockAnomaly === "true" ? "" : "true" });
+            }}
+          >
+            Stock data error
+          </button>
+          {(q || filters.industryId || filters.category || filters.isDiscount || filters.isNewArrival || filters.isFastMoving
+            || filters.priceVerified || filters.stockVerified || filters.stockAnomaly) && (
             <button
               className="admin-btn admin-btn-ghost"
               onClick={() => {
                 setQ("");
                 setPage(0);
-                setFilters({ industryId: "", category: "", isDiscount: "", isNewArrival: "", isFastMoving: "" });
+                setFilters({
+                  industryId: "", category: "", isDiscount: "", isNewArrival: "", isFastMoving: "",
+                  priceVerified: "", stockVerified: "", stockAnomaly: "",
+                });
               }}
             >
               Clear
@@ -214,6 +278,21 @@ function AdminProductsPage() {
           </div>
         </div>
 
+        {isAdmin && view === "table" && selectedIds.length > 0 && (
+          <div className="admin-panel" style={{ padding: 12, display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 13 }}>{selectedIds.length} selected</span>
+            <button className="admin-btn admin-btn-primary" disabled={verifying} onClick={() => void verifySelected("price")}>
+              Mark price verified
+            </button>
+            <button className="admin-btn admin-btn-primary" disabled={verifying} onClick={() => void verifySelected("stock")}>
+              Mark stock verified
+            </button>
+            <button className="admin-btn admin-btn-ghost" onClick={() => setSelectedIds([])}>
+              Clear selection
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="admin-panel" style={{ padding: 24 }}>
             <div className="admin-empty">Loading products…</div>
@@ -232,12 +311,22 @@ function AdminProductsPage() {
             <table className="admin-table">
               <thead>
                 <tr>
+                  {isAdmin && (
+                    <th>
+                      <input
+                        type="checkbox"
+                        checked={visibleProducts.length > 0 && selectedIds.length === visibleProducts.length}
+                        onChange={(e) => setSelectedIds(e.target.checked ? visibleProducts.map((p) => p.id) : [])}
+                      />
+                    </th>
+                  )}
                   <th>Product</th>
                   <th>SKU</th>
                   <th>Price (KES)</th>
                   <th>Stock</th>
                   <th>Category</th>
                   <th>Flags</th>
+                  <th title="Whether an admin has explicitly confirmed price/stock are correct">Verified</th>
                   <th></th>
                 </tr>
               </thead>
@@ -246,6 +335,19 @@ function AdminProductsPage() {
                   const { tone: stockTone, text: stockText } = getStockDisplay(p);
                   return (
                     <tr key={p.id}>
+                      {isAdmin && (
+                        <td>
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(p.id)}
+                            onChange={(e) =>
+                              setSelectedIds(e.target.checked
+                                ? [...selectedIds, p.id]
+                                : selectedIds.filter((id) => id !== p.id))
+                            }
+                          />
+                        </td>
+                      )}
                       <td>
                         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                           {(p.primaryImageUrl || p.imageUrls?.[0]) && (
@@ -266,6 +368,34 @@ function AdminProductsPage() {
                         {[p.isDiscount && "Discount", p.isNewArrival && "New", p.isFastMoving && "Fast"]
                           .filter(Boolean)
                           .join(" · ") || "—"}
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", gap: 4 }}>
+                          <span
+                            title={p.priceVerified ? `Price confirmed${p.priceVerifiedBy ? ` by ${p.priceVerifiedBy}` : ""}` : "Price never confirmed"}
+                            style={{
+                              fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 999,
+                              background: p.priceVerified ? "#dcfce7" : "var(--admin-border)",
+                              color: p.priceVerified ? "#15803d" : "var(--admin-muted)",
+                            }}
+                          >
+                            Price {p.priceVerified ? "✓" : "?"}
+                          </span>
+                          <span
+                            title={
+                              p.stockAnomaly
+                                ? `Riseller reported an implausible count (${p.stockAnomalyValue}) — held off`
+                                : p.stockVerified ? `Stock confirmed${p.stockVerifiedBy ? ` by ${p.stockVerifiedBy}` : ""}` : "Stock never confirmed"
+                            }
+                            style={{
+                              fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 999,
+                              background: p.stockAnomaly ? "#fee2e2" : p.stockVerified ? "#dcfce7" : "var(--admin-border)",
+                              color: p.stockAnomaly ? "#b91c1c" : p.stockVerified ? "#15803d" : "var(--admin-muted)",
+                            }}
+                          >
+                            Stock {p.stockAnomaly ? "!" : p.stockVerified ? "✓" : "?"}
+                          </span>
+                        </div>
                       </td>
                       <td>
                         <button
