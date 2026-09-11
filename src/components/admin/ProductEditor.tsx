@@ -843,7 +843,12 @@ export function ProductEditor({ initial, productId, verification, submitLabel, o
 
   const [verifyState, setVerifyState] = useState<ProductVerificationInfo | undefined>(verification);
   const [verifying, setVerifying] = useState<"price" | "stock" | null>(null);
-  useEffect(() => setVerifyState(verification), [verification]);
+  // Deliberately keyed on productId, not on `verification` itself — the parent route passes a
+  // fresh object literal on every render, which would otherwise re-sync (and wipe out a just-
+  // confirmed optimistic update from confirmVerified below) on any unrelated parent re-render.
+  // Only actually re-sync when navigating to a genuinely different product.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setVerifyState(verification), [productId]);
 
   const confirmVerified = async (field: "price" | "stock") => {
     if (!productId) return;
