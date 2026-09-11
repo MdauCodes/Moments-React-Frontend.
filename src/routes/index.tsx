@@ -162,10 +162,16 @@ function HomeNav() {
           <Link
             to="/cart"
             aria-label="Cart"
-            className={`relative grid h-10 w-10 place-items-center rounded-full transition-all duration-500 hover:bg-white/10 ${
-              cartBump ? "scale-110 ring-4 ring-[#e8c87880]" : "scale-100 ring-4 ring-transparent"
+            className={`relative grid h-10 w-10 place-items-center rounded-full transition-transform duration-500 hover:bg-white/10 ${
+              cartBump ? "scale-110" : "scale-100"
             }`}
           >
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute inset-[-14px] rounded-full transition-opacity duration-500 ${
+                cartBump ? "opacity-100 ring-4 ring-[#e8c87880]" : "opacity-0 ring-4 ring-transparent"
+              }`}
+            />
             <ShoppingBag className="h-5 w-5" />
             {itemCount > 0 && (
               <span

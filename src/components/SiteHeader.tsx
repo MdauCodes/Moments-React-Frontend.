@@ -215,12 +215,21 @@ export function SiteHeader() {
               <Link
                 to="/cart"
                 aria-label="Cart"
-                className={`relative grid h-10 w-10 place-items-center rounded-full transition-all duration-500 ${
+                className={`relative grid h-10 w-10 place-items-center rounded-full transition-transform duration-500 ${
                   itemCount > 0
                     ? "bg-primary/10 text-primary hover:bg-primary/15"
                     : "text-foreground/80 hover:bg-secondary hover:text-foreground"
-                } ${cartBump ? "scale-110 ring-4 ring-accent/40" : "scale-100 ring-4 ring-transparent"}`}
+                } ${cartBump ? "scale-110" : "scale-100"}`}
               >
+                {/* A separate, larger halo behind the icon+badge unit, not a ring on the icon's own
+                    40px box — the badge sits outside that box's corner, so a ring hugging the box
+                    directly would have its arc cut straight through the badge. */}
+                <span
+                  aria-hidden="true"
+                  className={`pointer-events-none absolute inset-[-14px] rounded-full transition-opacity duration-500 ${
+                    cartBump ? "opacity-100 ring-4 ring-accent/40" : "opacity-0 ring-4 ring-transparent"
+                  }`}
+                />
                 <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
                   <span className="absolute -right-1 -top-1 grid min-w-[20px] h-[20px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
@@ -302,10 +311,16 @@ export function SiteHeader() {
             <Link
               to="/cart"
               aria-label="Cart"
-              className={`relative grid h-10 w-10 place-items-center rounded-md transition-all duration-500 ${
+              className={`relative grid h-10 w-10 place-items-center rounded-md transition-transform duration-500 ${
                 itemCount > 0 ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-secondary"
-              } ${cartBump ? "scale-110 ring-4 ring-accent/40" : "scale-100 ring-4 ring-transparent"}`}
+              } ${cartBump ? "scale-110" : "scale-100"}`}
             >
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute inset-[-14px] rounded-full transition-opacity duration-500 ${
+                  cartBump ? "opacity-100 ring-4 ring-accent/40" : "opacity-0 ring-4 ring-transparent"
+                }`}
+              />
               <ShoppingCart className="h-5 w-5" />
               {itemCount > 0 && (
                 <span className="absolute -right-1 -top-1 grid min-w-[20px] h-[20px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
