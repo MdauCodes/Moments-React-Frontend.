@@ -10,6 +10,7 @@ import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
+import { useCartBump } from "@/hooks/useCartBump";
 import { SearchCommand } from "@/components/SearchCommand";
 import { AppSplash } from "@/components/AppSplash";
 import { BottomNav } from "@/components/BottomNav";
@@ -111,6 +112,7 @@ function FirstVisitSplash() {
 function HomeNav() {
   const { openLogin } = useAuthModal();
   const { itemCount } = useCart();
+  const cartBump = useCartBump();
   const [searchOpen, setSearchOpen] = useState(false);
   return (
     <nav
@@ -160,12 +162,14 @@ function HomeNav() {
           <Link
             to="/cart"
             aria-label="Cart"
-            className="relative grid h-10 w-10 place-items-center rounded-full transition-colors hover:bg-white/10"
+            className={`relative grid h-10 w-10 place-items-center rounded-full transition-all duration-500 hover:bg-white/10 ${
+              cartBump ? "scale-110 ring-4 ring-[#e8c87880]" : "scale-100 ring-4 ring-transparent"
+            }`}
           >
             <ShoppingBag className="h-5 w-5" />
             {itemCount > 0 && (
               <span
-                className="absolute right-0.5 top-0.5 grid min-w-[16px] h-[16px] place-items-center rounded-full px-1 text-[9px] font-semibold text-forest"
+                className="absolute right-0.5 top-0.5 grid min-w-[18px] h-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-forest"
                 style={{ background: "#e8c878" }}
               >
                 {itemCount > 99 ? "99+" : itemCount}

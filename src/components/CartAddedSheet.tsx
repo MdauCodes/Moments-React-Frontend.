@@ -29,7 +29,7 @@ function fmtKes(n: number) {
  */
 export function CartAddedSheet() {
   const navigate = useNavigate();
-  const { lastAdded, itemCount, cartTotal } = useCart();
+  const { lastAdded, cartTotal } = useCart();
   const { primaryGap, bonusCoupons } = useRewardDeliveryGap();
 
   const [open, setOpen] = useState(false);
@@ -80,22 +80,22 @@ export function CartAddedSheet() {
       onMouseLeave={scheduleDismiss}
       onFocus={clearDismissTimer}
       onBlur={scheduleDismiss}
-      className={`fixed inset-x-3 bottom-3 z-[130] transition-all duration-200 ease-out sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-[calc(var(--site-header-bottom,4.5rem)+8px)] sm:w-[360px] ${
+      className={`fixed inset-x-3 bottom-[calc(var(--bottom-nav-height,64px)+10px)] z-[130] transition-all duration-200 ease-out sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-[calc(var(--site-header-bottom,4.5rem)+8px)] sm:w-80 ${
         closing ? "translate-y-2 opacity-0 sm:translate-x-2 sm:translate-y-0" : "translate-y-0 opacity-100 sm:translate-x-0"
       }`}
     >
-      <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-2xl ring-1 ring-black/5">
-        <div className="flex items-start gap-3 p-4">
-          <div className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-forest/10 text-forest">
+      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-lg ring-1 ring-black/5">
+        <div className="flex items-center gap-2.5 p-3">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-forest/10 text-forest">
             {lastAdded.primaryImageUrl ? (
-              <img src={lastAdded.primaryImageUrl} alt="" className="h-11 w-11 rounded-full object-cover" />
+              <img src={lastAdded.primaryImageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
             ) : (
-              <ShoppingBag className="h-5 w-5" />
+              <ShoppingBag className="h-4 w-4" />
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">Added to cart</p>
-            <p className="truncate text-sm text-muted-foreground">
+            <p className="text-[13px] font-semibold leading-tight text-foreground">Added to cart</p>
+            <p className="truncate text-[13px] leading-tight text-muted-foreground">
               {lastAdded.quantity.toLocaleString()} {lastAdded.unitLabel} · {lastAdded.productName}
             </p>
             {lastAdded.isBackorder && (
@@ -113,12 +113,12 @@ export function CartAddedSheet() {
         </div>
 
         {primaryGap && (
-          <div className="border-t border-border bg-secondary/40 px-4 py-3">
+          <div className="border-t border-border bg-secondary/40 px-3 py-2">
             <p className="text-xs font-medium text-foreground">
               {fmtKes(primaryGap.amount)} more to {primaryGap.benefit}
               {bonusCoupons > 0 && ` — plus earn ${bonusCoupons} more coupon${bonusCoupons === 1 ? "" : "s"}`}.
             </p>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-border">
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-border">
               <div
                 className="h-full rounded-full bg-forest transition-all"
                 style={{
@@ -129,11 +129,11 @@ export function CartAddedSheet() {
           </div>
         )}
 
-        <div className="flex items-center gap-2 border-t border-border p-3">
+        <div className="flex items-stretch gap-2 border-t border-border p-2.5">
           <button
             type="button"
             onClick={close}
-            className="rounded-full px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="flex flex-1 items-center justify-center rounded-full border border-border px-3 py-2 text-center text-[13px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary"
           >
             Keep shopping
           </button>
@@ -143,9 +143,9 @@ export function CartAddedSheet() {
               close();
               navigate("/checkout");
             }}
-            className="ml-auto flex-1 rounded-full bg-primary px-4 py-2.5 text-center text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="flex flex-1 items-center justify-center rounded-full bg-primary px-3 py-2 text-center text-[13px] font-semibold leading-tight text-primary-foreground transition-opacity hover:opacity-90"
           >
-            Checkout · {fmtKes(cartTotal)} ({itemCount})
+            Checkout · {fmtKes(cartTotal)}
           </button>
         </div>
       </div>
