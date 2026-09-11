@@ -13,6 +13,7 @@ import {
   type TumaBodaPayment,
   type TumaBodaReconciliation,
   type TumaBodaCreditLine,
+  type TumaBodaUnmatchedDelivery,
 } from "@/services/tumaBodaSettlementService";
 
 const REMITTANCE_METHODS = [
@@ -33,6 +34,10 @@ function AdminTumaBodaSettlementsPage() {
   const [orders, setOrders] = useState<TumaBodaOrderBreakdown[]>([]);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [loadingOrders, setLoadingOrders] = useState(false);
+
+  const [unmatchedDeliveries, setUnmatchedDeliveries] = useState<TumaBodaUnmatchedDelivery[]>([]);
+  const [unmatchedOpen, setUnmatchedOpen] = useState(false);
+  const [loadingUnmatched, setLoadingUnmatched] = useState(false);
 
   const [payments, setPayments] = useState<TumaBodaPayment[]>([]);
   const [loadingPayments, setLoadingPayments] = useState(true);
@@ -106,8 +111,21 @@ function AdminTumaBodaSettlementsPage() {
     }
   };
 
+  const loadUnmatchedDeliveries = async () => {
+    setLoadingUnmatched(true);
+    try {
+      const res = await tumaBodaSettlementApi.getUnmatchedDeliveries(0, 25);
+      setUnmatchedDeliveries(res.rows);
+    } catch (err) {
+      reportAdminError(err, "Loading unmatched TumaBoda deliveries");
+    } finally {
+      setLoadingUnmatched(false);
+    }
+  };
+
   useEffect(() => { void loadBalance(); void loadPayments(); void loadReconciliations(); void loadLiveCreditLine(); }, []);
   useEffect(() => { if (ordersOpen && orders.length === 0) void loadOrders(); }, [ordersOpen]);
+  useEffect(() => { if (unmatchedOpen && unmatchedDeliveries.length === 0) void loadUnmatchedDeliveries(); }, [unmatchedOpen]);
 
   const submitPayment = async (e: FormEvent) => {
     e.preventDefault();
@@ -287,6 +305,26 @@ function AdminTumaBodaSettlementsPage() {
               </div>
             </div>
             <div className="admin-panel" style={{ padding: 16 }}>
+              <div className="admin-label" title="A real TumaBoda delivery with no matching order — the order was deleted, or a restart abandoned it. Not counted in the balance above until reconciled.">
+                Unmatched delivery cost
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--font-display)",
+                  fontSize: 28,
+                  marginTop: 6,
+                  color: (balance?.unmatchedDeliveryCost ?? 0) > 0 ? "var(--admin-clay)" : undefined,
+                }}
+              >
+                {loadingBalance ? "—" : formatKes(balance?.unmatchedDeliveryCost ?? 0)}
+              </div>
+              {(balance?.unmatchedDeliveryCount ?? 0) > 0 && (
+                <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 2 }}>
+                  {balance!.unmatchedDeliveryCount} deliver{balance!.unmatchedDeliveryCount === 1 ? "y" : "ies"} — see below
+                </div>
+              )}
+            </div>
+            <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">TumaBoda available credit (live)</div>
               {(() => {
                 const pct = liveCreditLine && liveCreditLine.creditLimit > 0
@@ -345,6 +383,65 @@ function AdminTumaBodaSettlementsPage() {
                             <td>{formatKes(o.tumabodaCost)}</td>
                             <td>{formatKes(o.amountPaid)}</td>
                             <td>{o.settlementStatus.replace("_", " ")}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="admin-panel" style={{ padding: 16 }}>
+            <button
+              type="button"
+              className="admin-btn admin-btn-ghost"
+              onClick={() => setUnmatchedOpen((v) => !v)}
+            >
+              {unmatchedOpen ? "Hide" : "Show"} unmatched deliveries
+            </button>
+            <p style={{ fontSize: 12.5, color: "var(--admin-muted)", marginTop: 8, marginBottom: 0 }}>
+              A real TumaBoda delivery with no order to match it to — either the order was deleted
+              after booking (TumaBoda has no cancel-API, so they keep tracking and billing it
+              regardless), or a restart abandoned this specific delivery to re-book a fresh one.
+              Status refreshes automatically every 30 minutes since there's no order left to
+              receive a webhook on its behalf.
+            </p>
+            {unmatchedOpen && (
+              <div data-admin-table-scroll style={{ marginTop: 12 }}>
+                {loadingUnmatched ? (
+                  <div className="admin-empty">Loading…</div>
+                ) : (
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>TumaBoda delivery ID</th>
+                        <th>Last known order ref</th>
+                        <th>Cost</th>
+                        <th>Last status</th>
+                        <th>Booked</th>
+                        <th>Booked via</th>
+                        <th>Abandoned</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {unmatchedDeliveries.length === 0 ? (
+                        <tr><td colSpan={7}><div className="admin-empty">No unmatched deliveries — everything currently ties back to a real order.</div></td></tr>
+                      ) : (
+                        unmatchedDeliveries.map((d) => (
+                          <tr key={d.tumabodaDeliveryId}>
+                            <td><code style={{ fontSize: 12 }}>{d.tumabodaDeliveryId}</code></td>
+                            <td>{d.orderReference ?? <span style={{ color: "var(--admin-muted)" }}>unknown</span>}</td>
+                            <td>{d.costKes != null ? formatKes(d.costKes) : "—"}</td>
+                            <td>{d.lastStatus ?? "—"}</td>
+                            <td>{formatDateShort(d.bookedAt)}</td>
+                            <td>{d.bookedVia}</td>
+                            <td>
+                              {d.abandonedAt
+                                ? <span title={d.abandonedReason ?? undefined}>{formatDateShort(d.abandonedAt)}</span>
+                                : "—"}
+                            </td>
                           </tr>
                         ))
                       )}

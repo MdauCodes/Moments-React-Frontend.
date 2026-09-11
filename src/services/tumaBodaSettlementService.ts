@@ -5,6 +5,23 @@ export interface TumaBodaBalance {
   totalPaid: number;
   outstandingBalance: number;
   deliveredOrderCount: number;
+  /** Deliberately excluded from totalOwed/outstandingBalance above — see the backend
+   *  TumaBodaBalanceDto's own doc comment. Shown as its own line so a deleted-order cost gap stays
+   *  visible until reconciled, instead of silently shrinking the headline balance. */
+  unmatchedDeliveryCost: number;
+  unmatchedDeliveryCount: number;
+}
+
+export interface TumaBodaUnmatchedDelivery {
+  tumabodaDeliveryId: string;
+  orderReference: string | null;
+  costKes: number | null;
+  lastStatus: string | null;
+  lastWebhookAt: string | null;
+  bookedAt: string;
+  bookedVia: string;
+  abandonedAt: string | null;
+  abandonedReason: string | null;
 }
 
 export interface TumaBodaOrderBreakdown {
@@ -83,6 +100,9 @@ export const tumaBodaSettlementApi = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  getUnmatchedDeliveries: async (page = 0, size = 25): Promise<PageResult<TumaBodaUnmatchedDelivery>> =>
+    unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/unmatched-deliveries?page=${page}&size=${size}`)),
 
   getReconciliations: async (page = 0, size = 20): Promise<PageResult<TumaBodaReconciliation>> =>
     unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/reconciliations?page=${page}&size=${size}`)),
