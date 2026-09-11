@@ -7,6 +7,7 @@ import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
 import { ShopMegaMenu } from "@/components/ShopMegaMenu";
 import { useCart } from "@/contexts/CartContext";
+import { useCartBump } from "@/hooks/useCartBump";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { api, type Segment, type Category as TaxCategory, type Subcategory } from "@/services/api";
@@ -72,21 +73,11 @@ export function SiteHeader() {
   const { isAuthenticated, user, logout } = useAuth();
   const { openLogin } = useAuthModal();
 
-  // Brief scale-up on the cart icon itself whenever the count goes UP (not on every render, and
-  // not on a decrease from removing an item) — the badge number already updates instantly, but a
-  // number changing in an 18px circle is easy to miss; a short pulse on the icon around it draws
-  // the eye to "yes, that just happened" without a toast/modal interrupting the browse flow.
-  const [cartBump, setCartBump] = useState(false);
-  const prevItemCount = useRef(itemCount);
-  useEffect(() => {
-    if (itemCount > prevItemCount.current) {
-      setCartBump(true);
-      const t = setTimeout(() => setCartBump(false), 450);
-      prevItemCount.current = itemCount;
-      return () => clearTimeout(t);
-    }
-    prevItemCount.current = itemCount;
-  }, [itemCount]);
+  // Scale + glow on the cart icon whenever the count goes UP, held for several seconds — see
+  // useCartBump's own comment for why this outlasts CartAddedSheet's dismissal instead of just
+  // flashing at add-time: it's the visual handoff back to "here's where your cart lives" once
+  // that sheet is gone, without a toast/modal interrupting the browse flow.
+  const cartBump = useCartBump();
 
   useEffect(() => {
     if (!accountOpen) return;
@@ -224,11 +215,11 @@ export function SiteHeader() {
               <Link
                 to="/cart"
                 aria-label="Cart"
-                className={`relative grid h-10 w-10 place-items-center rounded-full transition-all ${
+                className={`relative grid h-10 w-10 place-items-center rounded-full transition-all duration-500 ${
                   itemCount > 0
                     ? "bg-primary/10 text-primary hover:bg-primary/15"
                     : "text-foreground/80 hover:bg-secondary hover:text-foreground"
-                } ${cartBump ? "scale-125" : "scale-100"}`}
+                } ${cartBump ? "scale-110 ring-4 ring-accent/40" : "scale-100 ring-4 ring-transparent"}`}
               >
                 <ShoppingCart className="h-5 w-5" />
                 {itemCount > 0 && (
@@ -311,9 +302,9 @@ export function SiteHeader() {
             <Link
               to="/cart"
               aria-label="Cart"
-              className={`relative grid h-10 w-10 place-items-center rounded-md transition-all ${
+              className={`relative grid h-10 w-10 place-items-center rounded-md transition-all duration-500 ${
                 itemCount > 0 ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-secondary"
-              } ${cartBump ? "scale-125" : "scale-100"}`}
+              } ${cartBump ? "scale-110 ring-4 ring-accent/40" : "scale-100 ring-4 ring-transparent"}`}
             >
               <ShoppingCart className="h-5 w-5" />
               {itemCount > 0 && (
