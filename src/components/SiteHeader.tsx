@@ -1,10 +1,11 @@
-import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
-import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { Menu, X, ChevronDown, ChevronRight, Search, ShoppingCart, User, HelpCircle } from "lucide-react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { Menu, X, ChevronDown, Search, ShoppingCart, User, HelpCircle } from "lucide-react";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
+import { ShopMegaMenu } from "@/components/ShopMegaMenu";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -35,8 +36,6 @@ const HEADER_BOTTOM_VAR = "--site-header-bottom";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const location = useLocation();
-  const [shopOpen, setShopOpen] = useState(() => (location.state as { keepShopMenuOpen?: boolean } | null)?.keepShopMenuOpen === true);
   const [mobileShopOpen, setMobileShopOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchSeed, setSearchSeed] = useState("");
@@ -45,10 +44,12 @@ export function SiteHeader() {
   // Segment -> Category -> Subcategory taxonomy, driving the "Shop" mega-menu
   // (desktop) and the drill-down accordion (mobile) below. Falls back to the
   // legacy flat `categories` list until the admin has set these up.
+  // Still fetched here for the mobile drill-down accordion below — the desktop mega-menu now
+  // fetches its own copy independently (see ShopMegaMenu), a small deliberate duplication rather
+  // than threading this data down as props into a component also used standalone on the homepage.
   const [segments, setSegments] = useState<Segment[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
-  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
   const [mobileOpenSegmentId, setMobileOpenSegmentId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,18 +60,11 @@ export function SiteHeader() {
         setSegments(segs);
         setTaxCategories(cats);
         setSubcategories(subs);
-        if (segs.length > 0) setActiveSegmentId((prev) => prev ?? segs[0].id);
       },
     ).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
 
-  const categoriesForActiveSegment = useMemo(
-    () => taxCategories.filter((c) => c.segmentId === activeSegmentId),
-    [taxCategories, activeSegmentId],
-  );
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const accountRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
@@ -104,26 +98,6 @@ export function SiteHeader() {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [accountOpen]);
-
-  useEffect(() => {
-    if (!shopOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShopOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [shopOpen]);
-
-  // Scrub the "keep the Shop mega-menu open" router state right after mount so that
-  // browser Back/Forward into this page doesn't re-open the menu on every visit.
-  useEffect(() => {
-    if ((location.state as { keepShopMenuOpen?: boolean } | null)?.keepShopMenuOpen) {
-      navigate(location.pathname + location.search, { replace: true, state: null });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // Global keyboard shortcut: ⌘K / Ctrl+K opens search anywhere
   useEffect(() => {
@@ -177,15 +151,6 @@ export function SiteHeader() {
     };
   }, []);
 
-  const openDropdown = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    setShopOpen(true);
-  };
-  const scheduleClose = () => {
-    if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => setShopOpen(false), 120);
-  };
-
   const openSearch = (seed = "") => {
     setSearchSeed(seed);
     setSearchOpen(true);
@@ -227,113 +192,11 @@ export function SiteHeader() {
           </button>
 
           <nav className="ml-auto hidden items-center gap-1 md:flex">
-            {/* Shop dropdown */}
-            <div ref={dropdownRef} className="relative" onMouseEnter={openDropdown} onMouseLeave={scheduleClose}>
-              <NavLink
-                to="/products"
-                className={({ isActive }) => `inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition-colors lg:px-4 ${isActive ? "bg-secondary text-foreground" : "text-foreground/80 hover:bg-secondary hover:text-foreground"}`}
-                state={{ keepShopMenuOpen: true }}
-              >
-                Shop
-                <ChevronDown
-                  className={`h-3.5 w-3.5 transition-transform ${shopOpen ? "rotate-180" : ""}`}
-                  aria-hidden="true"
-                />
-              </NavLink>
-
-              {shopOpen && (
-                <div
-                  className={`absolute left-1/2 top-full z-50 -translate-x-1/2 pt-2 ${segments.length > 0 ? "w-[46rem] max-w-[90vw]" : "w-72"}`}
-                  onMouseEnter={openDropdown}
-                  onMouseLeave={scheduleClose}
-                >
-                  <div className="overflow-hidden rounded-2xl border border-border bg-background shadow-xl ring-1 ring-black/5">
-                    {segments.length > 0 ? (
-                      // Two-pane mega-menu: Segments as a left rail, the hovered
-                      // segment's Categories (as column headers) with their
-                      // Subcategories underneath on the right — same taxonomy
-                      // used on the products page's "Browse by category" panel.
-                      <div className="flex">
-                        <div className="w-52 shrink-0 border-r border-border bg-cream/40 py-2">
-                          <Link
-                            to="/products"
-                            onClick={() => setShopOpen(false)}
-                            className="block px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-                          >
-                            All products →
-                          </Link>
-                          {segments.map((seg) => (
-                            <button
-                              key={seg.id}
-                              type="button"
-                              onMouseEnter={() => setActiveSegmentId(seg.id)}
-                              onClick={() => setActiveSegmentId(seg.id)}
-                              className={`flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm transition-colors ${
-                                activeSegmentId === seg.id
-                                  ? "bg-secondary font-medium text-foreground"
-                                  : "text-foreground/80 hover:bg-secondary hover:text-foreground"
-                              }`}
-                            >
-                              {seg.name}
-                              <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-50" />
-                            </button>
-                          ))}
-                        </div>
-                        <div className="flex-1 p-5">
-                          {categoriesForActiveSegment.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-                              {categoriesForActiveSegment.map((cat) => {
-                                const catSubs = subcategories.filter((s) => s.categoryId === cat.id);
-                                if (catSubs.length === 0) return null;
-                                return (
-                                  <div key={cat.id}>
-                                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground">{cat.name}</p>
-                                    <div className="mt-2 flex flex-col gap-1.5">
-                                      {catSubs.map((sub) => (
-                                        <Link
-                                          key={sub.id}
-                                          to={`/products?subcategoryId=${sub.id}`}
-                                          onClick={() => setShopOpen(false)}
-                                          className="text-sm text-foreground/70 transition-colors hover:text-primary"
-                                        >
-                                          {sub.name}
-                                        </Link>
-                                      ))}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">No subcategories yet.</p>
-                          )}
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <Link
-                          to="/products"
-                          onClick={() => setShopOpen(false)}
-                          className="block border-b border-border bg-cream/60 px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
-                        >
-                          All products →
-                        </Link>
-                        {categories.map((c) => (
-                          <Link
-                            key={c.slug}
-                            to={`/products?category=${c.slug}`}
-                            onClick={() => setShopOpen(false)}
-                            className="block border-b border-border/60 px-4 py-2.5 text-sm text-foreground/80 transition-colors last:border-b-0 hover:bg-secondary hover:text-foreground"
-                          >
-                            {c.name}
-                          </Link>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <ShopMegaMenu
+              triggerClassName="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition-colors lg:px-4"
+              triggerActiveClassName="bg-secondary text-foreground"
+              triggerInactiveClassName="text-foreground/80 hover:bg-secondary hover:text-foreground"
+            />
 
             {navAfterShop.map((n) => (
               <Link

@@ -11,6 +11,7 @@ import { CookieConsent } from "./CookieConsent";
 import { AddToHomeScreenPrompt } from "./AddToHomeScreenPrompt";
 import { WelcomeStarterModal } from "./WelcomeStarterModal";
 import { CelebratoryRewardBanner } from "./CelebratoryRewardBanner";
+import { CartAddedSheet } from "./CartAddedSheet";
 
 const SPLASH_KEY = "moments_splash_shown";
 
@@ -46,6 +47,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <BottomNav />
       </div>
       <WelcomeStarterModal />
+      <CartAddedSheet />
     </>
   );
 }

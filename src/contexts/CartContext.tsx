@@ -26,12 +26,29 @@ export interface CartItem {
   totalUnits?: number;
 }
 
+/** What to show in the just-added mini-cart (CartAddedSheet) — deliberately NOT the full merged
+ *  CartItem (which reflects the line's new running total): a customer who already had 2 Cartons
+ *  in cart and just added 1 more should see "1 Carton added", not "3 Cartons" masquerading as a
+ *  single fresh add. `nonce` changes on every call so two identical adds in a row (same product,
+ *  same tier) still each re-open the sheet — a referentially-fresh object alone isn't a reliable
+ *  enough signal for a listener to key off. */
+export interface LastAddedInfo {
+  productName: string;
+  primaryImageUrl: string;
+  quantity: number;
+  unitLabel: string;
+  lineTotal: number;
+  isBackorder?: boolean;
+  nonce: number;
+}
+
 interface CartContextValue {
   items: CartItem[];
   itemCount: number;
   cartTotal: number;
   cartId: string | null;
   cartLoading: boolean;
+  lastAdded: LastAddedInfo | null;
   addItem: (item: Omit<CartItem, "id" | "lineTotal">) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
@@ -96,6 +113,7 @@ function parseBackendCart(data: unknown): CartItem[] | null {
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [lastAdded, setLastAdded] = useState<LastAddedInfo | null>(null);
   const [cartId, setCartId] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [cartLoading, setCartLoading] = useState(true);
@@ -187,6 +205,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const collectionQuantity = input.collectionQuantity;
     const totalUnits =
       input.totalUnits ?? (collectionQuantity != null ? input.quantity * collectionQuantity : input.quantity);
+    setLastAdded({
+      productName: input.productName,
+      primaryImageUrl: input.primaryImageUrl,
+      quantity: input.quantity,
+      unitLabel: input.collectionName || (input.quantity === 1 ? "unit" : "units"),
+      lineTotal: input.quantity * input.unitPrice,
+      isBackorder: input.isBackorder,
+      nonce: Date.now() + Math.random(),
+    });
     setItems((prev) => {
       const idx = prev.findIndex(
         (it) =>
@@ -312,7 +339,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, itemCount, cartTotal, cartId, cartLoading, addItem, removeItem, updateQuantity, clearCart }}
+      value={{ items, itemCount, cartTotal, cartId, cartLoading, lastAdded, addItem, removeItem, updateQuantity, clearCart }}
     >
       {children}
     </CartContext.Provider>

@@ -20,6 +20,8 @@ import { LatestBlogsStrip } from "@/components/blog/LatestBlogsStrip";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
+import { ShopMegaMenu } from "@/components/ShopMegaMenu";
+import { CartAddedSheet } from "@/components/CartAddedSheet";
 import catPaperBagsImg from "@/assets/categories/cat-paper-bags.webp";
 import catBoxesCartonsImg from "@/assets/categories/cat-boxes-cartons.webp";
 import catCupsSleevesImg from "@/assets/categories/cat-cups-sleeves.webp";
@@ -135,9 +137,10 @@ function HomeNav() {
           <Link to="/sustainability" className="hover:opacity-80">
             Our Sustainability Pledge
           </Link>
-          <Link to="/products" className="hover:opacity-80">
-            Shop
-          </Link>
+          <ShopMegaMenu
+            triggerClassName="inline-flex items-center gap-1 hover:opacity-80"
+            chevronClassName="h-3 w-3"
+          />
           <Link to="/orders/track" className="hover:opacity-80">
             Track Order
           </Link>
@@ -1233,6 +1236,7 @@ function HomePage() {
         <EmailInsiderPrompt />
         <BottomNav />
       </div>
+      <CartAddedSheet />
     </>
   );
 }
