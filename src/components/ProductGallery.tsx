@@ -42,12 +42,16 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
   }, [lightboxOpen]);
 
   if (images.length === 0) {
+    // Deliberately short and fixed-height, not the old aspect-square-and-nearly-400px box — a
+    // product with no photo yet shouldn't cost the visitor a near-full-screen empty square before
+    // they even reach the name and price. Still occupies real space (not `return null`) so the
+    // lg:grid-cols-5 layout beside it doesn't collapse into a lopsided gap on desktop.
     return (
-      <div className="flex aspect-square max-h-[380px] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-secondary px-4 sm:max-h-[440px]">
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-muted-foreground/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+      <div className="flex h-28 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-secondary/60 px-4 sm:h-32">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-muted-foreground/25" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
         </svg>
-        <span className="text-center text-xs text-muted-foreground/40">{productName}</span>
+        <span className="text-center text-[11px] text-muted-foreground/50">Photo coming soon</span>
       </div>
     );
   }
@@ -60,7 +64,10 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
         <button
           type="button"
           onClick={() => setLightboxOpen(true)}
-          className="group relative block aspect-square max-h-[380px] w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:max-h-[440px]"
+          // Shorter than square on mobile (aspect-[4/3] instead of aspect-square) so the image
+          // doesn't eat half the viewport before the visitor reaches name/price/buy options —
+          // full square is reserved for sm+ where there's room to spare.
+          className="group relative block aspect-[4/3] max-h-[260px] w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:aspect-square sm:max-h-[380px] lg:max-h-[440px]"
         >
           <img
             key={activeIndex}
