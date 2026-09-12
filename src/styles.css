@@ -520,8 +520,16 @@
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
   }
+
+  /* Countdown bar on CartAddedSheet — shrinks once (not infinite) over the panel's own
+     auto-dismiss window, pausing in lockstep with the dismiss timer on hover/focus. */
+  @keyframes cart-sheet-countdown {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+  }
   @media (prefers-reduced-motion: reduce) {
     [style*="marquee-x"] { animation: none !important; }
+    .cart-sheet-countdown { animation: none !important; }
   }
 }
 
