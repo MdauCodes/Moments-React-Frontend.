@@ -91,71 +91,76 @@ export function CartAddedSheet() {
         closing ? "translate-y-2 opacity-0 sm:translate-x-2 sm:translate-y-0" : "translate-y-0 opacity-100 sm:translate-x-0"
       }`}
     >
-      <div className="overflow-hidden rounded-xl border border-pink-200 bg-background shadow-lg ring-1 ring-pink-500/10">
+      <div
+        className="overflow-hidden rounded-2xl bg-background shadow-[0_8px_28px_-6px_oklch(from_var(--clay)_l_c_h_/_0.35)]"
+      >
         {/* Countdown bar — one-shot shrink over AUTO_DISMISS_MS, not infinite like the site's other
            keyframe animations, so it's keyed to lastAdded.nonce to restart per add rather than
            reusing a stale mid-shrink animation from the previous item. Paused in lockstep with the
            dismiss timer via the exact same handlers, so hovering/focusing the panel visibly holds
            the bar still instead of it silently finishing while the timer is actually paused. */}
-        <div className="h-[3px] w-full bg-pink-100">
+        <div className="h-[3px] w-full bg-[oklch(from_var(--clay)_0.93_calc(c*0.4)_h)]">
           <div
             key={lastAdded.nonce}
-            className="cart-sheet-countdown h-full w-full origin-left bg-pink-500"
+            className="cart-sheet-countdown h-full w-full origin-left bg-[oklch(from_var(--clay)_calc(l-0.08)_c_h)]"
             style={{
               animation: `cart-sheet-countdown ${AUTO_DISMISS_MS}ms linear forwards`,
               animationPlayState: paused ? "paused" : "running",
             }}
           />
         </div>
-        <div className="flex items-center gap-2.5 p-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pink-100 text-pink-600">
+
+        {/* One glanceable row: what got added, the single nearest incentive right underneath in
+           the same breath (no separate bordered sub-panel — a real toast says one thing, not
+           three stacked cards), then a light two-action line. Deliberately no border/ring on the
+           outer shell either — the shadow alone is what makes this read as "floating message",
+           not "docked panel", per the exact "this looks like a blocking modal" feedback. */}
+        <div className="flex items-start gap-2.5 px-3 pb-2 pt-2.5">
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[oklch(from_var(--clay)_0.93_calc(c*0.4)_h)] text-[oklch(from_var(--clay)_calc(l-0.08)_c_h)]">
             {lastAdded.primaryImageUrl ? (
-              <img src={lastAdded.primaryImageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
+              <img src={lastAdded.primaryImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
             ) : (
-              <ShoppingBag className="h-4 w-4" />
+              <ShoppingBag className="h-3.5 w-3.5" />
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold leading-tight text-foreground">Added to cart</p>
-            <p className="truncate text-[13px] leading-tight text-muted-foreground">
-              {lastAdded.quantity.toLocaleString()} {lastAdded.unitLabel} · {lastAdded.productName}
+            <p className="truncate text-[13px] leading-tight text-foreground">
+              <span className="font-semibold">Added</span> · {lastAdded.quantity.toLocaleString()} {lastAdded.unitLabel} {lastAdded.productName}
             </p>
-            {lastAdded.isBackorder && (
-              <p className="mt-0.5 text-xs font-medium text-amber-600">Backorder — extended lead time</p>
-            )}
+            {lastAdded.isBackorder ? (
+              <p className="mt-0.5 text-[11px] font-medium text-amber-600">Backorder — extended lead time</p>
+            ) : primaryGap ? (
+              <div className="mt-1">
+                <p className="text-[11px] leading-tight text-muted-foreground">
+                  {fmtKes(primaryGap.amount)} more to {primaryGap.benefit}
+                  {bonusCoupons > 0 && ` +${bonusCoupons} coupon${bonusCoupons === 1 ? "" : "s"}`}
+                </p>
+                <div className="mt-1 h-[3px] w-full max-w-[10rem] overflow-hidden rounded-full bg-[oklch(from_var(--clay)_0.93_calc(c*0.4)_h)]">
+                  <div
+                    className="h-full rounded-full bg-[oklch(from_var(--clay)_calc(l-0.08)_c_h)] transition-all"
+                    style={{
+                      width: `${Math.min(100, Math.max(4, (cartTotal / (cartTotal + primaryGap.amount)) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
           <button
             type="button"
             onClick={close}
             aria-label="Dismiss"
-            className="shrink-0 rounded-full p-1 text-foreground/40 transition-colors hover:bg-secondary hover:text-foreground"
+            className="shrink-0 rounded-full p-1 text-foreground/30 transition-colors hover:bg-secondary hover:text-foreground"
           >
             ×
           </button>
         </div>
 
-        {primaryGap && (
-          <div className="border-t border-pink-100 bg-pink-50 px-3 py-2">
-            <p className="text-xs font-medium text-foreground">
-              {fmtKes(primaryGap.amount)} more to {primaryGap.benefit}
-              {bonusCoupons > 0 && ` — plus earn ${bonusCoupons} more coupon${bonusCoupons === 1 ? "" : "s"}`}.
-            </p>
-            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-pink-200/60">
-              <div
-                className="h-full rounded-full bg-pink-500 transition-all"
-                style={{
-                  width: `${Math.min(100, Math.max(4, (cartTotal / (cartTotal + primaryGap.amount)) * 100))}%`,
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-stretch gap-2 border-t border-pink-100 p-2.5">
+        <div className="flex items-center justify-end gap-3 px-3 pb-2.5">
           <button
             type="button"
             onClick={close}
-            className="flex flex-1 items-center justify-center rounded-full border border-border px-3 py-2 text-center text-[13px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary"
+            className="shrink-0 px-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Keep shopping
           </button>
@@ -165,7 +170,7 @@ export function CartAddedSheet() {
               close();
               navigate("/checkout");
             }}
-            className="flex flex-1 items-center justify-center rounded-full bg-pink-600 px-3 py-2 text-center text-[13px] font-semibold leading-tight text-white transition-colors hover:bg-pink-700"
+            className="shrink-0 rounded-full bg-[oklch(from_var(--clay)_calc(l-0.08)_c_h)] px-3.5 py-1.5 text-center text-[12px] font-semibold leading-tight text-white transition-opacity hover:opacity-90"
           >
             Checkout · {fmtKes(cartTotal)}
           </button>
