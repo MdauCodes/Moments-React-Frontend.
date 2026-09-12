@@ -92,10 +92,11 @@ export function CartAddedSheet() {
       }`}
     >
       <div
-        // A shade darker than the page's own --background (bg-secondary, not bg-background) —
-        // per feedback, sets the toast apart from whatever page it's floating over just a bit,
-        // without going full dark-mode-snackbar and fighting the clay accent for attention.
-        className="overflow-hidden rounded-2xl bg-secondary shadow-[0_8px_28px_-6px_oklch(from_var(--clay)_l_c_h_/_0.35)]"
+        // Deliberately darker than plain --secondary now (per "more darker please") — a warm,
+        // clay-tinted mid-tone rather than a generic gray-down, so it still reads as "this app's
+        // accent family" rather than an arbitrary dark box. text-foreground/muted-foreground
+        // inside stay legible against this lightness.
+        className="overflow-hidden rounded-2xl bg-[oklch(0.82_0.035_65)] shadow-[0_8px_28px_-6px_oklch(from_var(--clay)_l_c_h_/_0.4)]"
       >
         {/* Countdown bar — one-shot shrink over AUTO_DISMISS_MS, not infinite like the site's other
            keyframe animations, so it's keyed to lastAdded.nonce to restart per add rather than
