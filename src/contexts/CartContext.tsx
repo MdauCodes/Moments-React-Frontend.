@@ -69,6 +69,19 @@ function isBackendId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
 
+/**
+ * The one formula every cart-line total must agree on. `unitPrice` is always PER PIECE (see
+ * cart.tsx's "per unit" label and its "per {collectionName}" = unitPrice * collectionQuantity
+ * display, which this mirrors); for a tier/collection line, `collectionQuantity` is pieces per
+ * pack and `quantity` is the number of packs, so the real total is quantity packs × pieces/pack ×
+ * price/piece. For a plain individual sale, collectionQuantity is undefined and this reduces to
+ * the previous quantity * unitPrice.
+ */
+function computeLineTotal(quantity: number, unitPrice: number, collectionQuantity?: number): number {
+  const packSize = collectionQuantity && collectionQuantity > 0 ? collectionQuantity : 1;
+  return quantity * unitPrice * packSize;
+}
+
 /** Best-effort normalization of a backend cart payload into CartItem[]. */
 function parseBackendCart(data: unknown): CartItem[] | null {
   if (!data || typeof data !== "object") return null;
@@ -92,7 +105,7 @@ function parseBackendCart(data: unknown): CartItem[] | null {
       finish: String(it.finish ?? ""),
       quantity,
       unitPrice,
-      lineTotal: Number(it.lineTotal ?? quantity * unitPrice),
+      lineTotal: Number(it.lineTotal ?? computeLineTotal(quantity, unitPrice, collectionQuantity)),
       variantId: it.variantId ?? undefined,
       variantLabel: it.variantLabel ?? undefined,
       sku: it.sku ?? undefined,
@@ -210,7 +223,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       primaryImageUrl: input.primaryImageUrl,
       quantity: input.quantity,
       unitLabel: input.collectionName || (input.quantity === 1 ? "unit" : "units"),
-      lineTotal: input.quantity * input.unitPrice,
+      lineTotal: computeLineTotal(input.quantity, input.unitPrice, input.collectionQuantity),
       isBackorder: input.isBackorder,
       nonce: Date.now() + Math.random(),
     });
@@ -230,7 +243,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const merged = {
           ...next[idx],
           quantity: newQty,
-          lineTotal: newQty * next[idx].unitPrice,
+          lineTotal: computeLineTotal(newQty, next[idx].unitPrice, next[idx].collectionQuantity),
           totalUnits: next[idx].collectionQuantity != null ? newQty * (next[idx].collectionQuantity as number) : newQty,
         };
         next[idx] = merged;
@@ -241,7 +254,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         {
           ...input,
           id: genId(),
-          lineTotal: input.quantity * input.unitPrice,
+          lineTotal: computeLineTotal(input.quantity, input.unitPrice, input.collectionQuantity),
           totalUnits,
         },
       ];
@@ -295,7 +308,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
-    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, quantity, lineTotal: quantity * it.unitPrice } : it)));
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === id ? { ...it, quantity, lineTotal: computeLineTotal(quantity, it.unitPrice, it.collectionQuantity) } : it,
+      ),
+    );
     // Only call the backend if the id is a real UUID from the server.
     if (!isBackendId(id)) return;
     void (async () => {
