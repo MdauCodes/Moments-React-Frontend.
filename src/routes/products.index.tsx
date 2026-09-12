@@ -126,11 +126,14 @@ function ProductsPage() {
   const [suggestionsArePersonalized, setSuggestionsArePersonalized] = useState(false);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  // Collapsed by default — the header's "Browse categories" mega menu already offers this same
-  // segment/category/subcategory + industry browsing, so keeping it open here by default just
-  // duplicates that vertical real estate on every visit. Auto-opens when a deep link (nav mega
-  // menu, a shared URL) already landed on a specific industry/category/subcategory, so whatever
-  // brought the visitor here stays visible instead of hiding behind a collapsed toggle.
+  // Desktop/tablet (sm+) only — collapsed by default there, since the header's "Browse
+  // categories" mega menu already offers this same segment/category/subcategory + industry
+  // browsing at that width, so keeping it open by default just duplicates that vertical real
+  // estate. Auto-opens when a deep link (nav mega menu, a shared URL) already landed on a
+  // specific industry/category/subcategory, so whatever brought the visitor here stays visible.
+  // On mobile this state is ignored entirely (see the two sections it gates below) — the mobile
+  // nav has no equivalent mega-menu hover, only a drill-down accordion tucked inside the slide-out
+  // menu, so the on-page categorization stays the visitor's real way to browse there.
   const [categorizationOpen, setCategorizationOpen] = useState(
     () => Boolean(industrySlug) || subcategoryIds.length > 0 || categoryIds.length > 0,
   );
@@ -948,18 +951,20 @@ function ProductsPage() {
           <ToggleChip active={!!inStock} onClick={() => toggle("inStock")}>In stock</ToggleChip>
         </div>
 
-        {/* Single fold line for all the category/industry browsing below — the header's own
-            "Browse categories" mega menu already offers this exact segment/category/subcategory
-            + industry navigation, so leaving a full grid of it expanded on every visit just
-            duplicated that. Collapsed by default (see categorizationOpen's own comment for when
-            it auto-opens); the active-filter chips further down still show whatever's selected
-            even while this stays collapsed, so nothing picked here goes invisible. */}
+        {/* Single fold line, desktop/tablet (sm+) only, for the industry grid + category
+            accordion below — the header's own "Browse categories" mega menu already offers this
+            exact segment/category/subcategory + industry navigation at that width, so leaving a
+            full grid of it expanded on every visit just duplicated that. Collapsed by default
+            (see categorizationOpen's own comment for when it auto-opens); the active-filter chips
+            further down still show whatever's selected even while this stays collapsed. Hidden on
+            mobile entirely — there, the sections below always show (no fold to control), so this
+            toggle would have nothing to do. */}
         {!isLoading && !searchResults && (industries.length > 0 || segments.length > 0) && (
           <button
             type="button"
             onClick={() => setCategorizationOpen((v) => !v)}
             aria-expanded={categorizationOpen}
-            className="mt-5 flex w-full items-center justify-between gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5"
+            className="mt-5 hidden w-full items-center justify-between gap-2 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 sm:flex"
           >
             <span>
               {selectedIndustry ? `Browsing ${selectedIndustry.name} — change industry or category` : "Browse by category or industry"}
@@ -971,14 +976,16 @@ function ProductsPage() {
         {/* Browse by industry — stays visible even once one is picked (the
             selected tile just highlights) so switching industries is a single
             click, not "See all" then re-pick. Only hidden during a text search,
-            since search results replace the whole grid below anyway. A card
-            grid works fine on tablet/desktop, but on a phone it pushes the
-            actual product grid several screens down — a compact dropdown gets
-            to the same result (?industry=slug) in the same footprint as any
-            other filter control. */}
-        {!isLoading && !searchResults && industries.length > 0 && categorizationOpen && (
-          <div className="mt-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            since search results replace the whole grid below anyway. Mobile's own compact
+            select dropdown (immediately below) always shows regardless of categorizationOpen —
+            only the desktop/tablet card grid folds behind that toggle. */}
+        {!isLoading && !searchResults && industries.length > 0 && (
+          <div className="mt-5 sm:mt-3">
+            <p
+              className={`text-xs font-semibold uppercase tracking-widest text-muted-foreground ${
+                categorizationOpen ? "" : "sm:hidden"
+              }`}
+            >
               Browse by industry
             </p>
             <div className="mt-3 sm:hidden">
@@ -993,7 +1000,13 @@ function ProductsPage() {
                 ))}
               </select>
             </div>
-            <div className="mt-3 hidden gap-x-3 gap-y-3 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            <div
+              className={
+                categorizationOpen
+                  ? "mt-3 hidden gap-x-3 gap-y-3 sm:grid sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                  : "hidden"
+              }
+            >
               {industries.map((ind) => {
                 const Icon = ind.icon;
                 const isActive = industrySlug === ind.slug;
@@ -1036,9 +1049,10 @@ function ProductsPage() {
             all in one panel so there's one place to refine, not two competing ones. */}
         <div id="browse-by-category" className="scroll-mt-24 rounded-2xl border border-border bg-card p-4">
           {/* Popular-subcategories chips + the segment/category/subcategory accordion below both
-              fold under the same single-line toggle above — see its own comment for why. */}
-          {categorizationOpen && (
-          <>
+              fold under the same single-line toggle above, sm+ only — see its own comment for
+              why. Always visible on mobile (block, unconditionally) regardless of
+              categorizationOpen; only sm+ hides it when the toggle is collapsed. */}
+          <div className={categorizationOpen ? "block" : "block sm:hidden"}>
           {/* Only shown with no industry selected — once an industry is picked, the
               "Categories in {industry}" accordion below already surfaces what's actually
               tagged to it, so a separate "Popular in {industry}" strip was redundant and,
@@ -1153,8 +1167,7 @@ function ProductsPage() {
               </div>
             </div>
           )}
-          </>
-          )}
+          </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-xs font-medium text-foreground">
