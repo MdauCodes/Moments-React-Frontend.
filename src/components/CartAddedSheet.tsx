@@ -92,7 +92,10 @@ export function CartAddedSheet() {
       }`}
     >
       <div
-        className="overflow-hidden rounded-2xl bg-background shadow-[0_8px_28px_-6px_oklch(from_var(--clay)_l_c_h_/_0.35)]"
+        // A shade darker than the page's own --background (bg-secondary, not bg-background) —
+        // per feedback, sets the toast apart from whatever page it's floating over just a bit,
+        // without going full dark-mode-snackbar and fighting the clay accent for attention.
+        className="overflow-hidden rounded-2xl bg-secondary shadow-[0_8px_28px_-6px_oklch(from_var(--clay)_l_c_h_/_0.35)]"
       >
         {/* Countdown bar — one-shot shrink over AUTO_DISMISS_MS, not infinite like the site's other
            keyframe animations, so it's keyed to lastAdded.nonce to restart per add rather than
