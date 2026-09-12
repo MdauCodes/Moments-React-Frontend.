@@ -8,6 +8,7 @@ import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
+import { SearchCommand } from "@/components/SearchCommand";
 
 import { api, type Segment, type Category as TaxCategory, type Subcategory, type Tag } from "@/services/api";
 import { WHATSAPP_NUMBER, filterVisibleIndustries } from "@/data/products";
@@ -147,6 +148,13 @@ function ProductsPage() {
   const [moreProductsReason, setMoreProductsReason] = useState<"search" | "same-category" | "diversified" | null>(null);
   const [query, setQuery] = useState(q ?? "");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Typing (and browsing results) itself now happens in the SAME overlay used on Home/desktop
+  // nav (SearchCommand) — it already shows live PRODUCT results first, which this page's own
+  // inline "type here" box never did (it dropped into a category/segment filter panel instead,
+  // per 2026-09-12 client feedback). This page's own `query`/searchResults state is left wired
+  // up untouched so a bookmarked/shared `/products?q=...` link still renders a filtered grid
+  // here directly — only the interactive typing entry point is redirected to the overlay.
+  const [searchOverlayOpen, setSearchOverlayOpen] = useState(false);
   // Local, uncommitted price input text — only pushed into the URL params (and
   // thus the product fetch) after the visitor pauses typing, same debounce
   // pattern as search below. Without this, every keystroke on a price field
@@ -926,9 +934,18 @@ function ProductsPage() {
             <input
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              readOnly
+              onFocus={(e) => {
+                // Same overlay experience as Home/the header's search — hand off immediately
+                // instead of letting this box's own native keyboard/typing take over, so
+                // product results (not the category panel below) are what the customer sees
+                // as they type. Blur first so the native keyboard doesn't flash open behind it.
+                e.target.blur();
+                setSearchOverlayOpen(true);
+              }}
+              onClick={() => setSearchOverlayOpen(true)}
               placeholder="Search products — e.g. pizza box, coffee cups, mifuko, cling film..."
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full cursor-pointer rounded-xl border border-border bg-background px-4 py-3 pl-10 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             {query && (
               <button
@@ -942,6 +959,12 @@ function ProductsPage() {
             )}
           </div>
         </div>
+
+        <SearchCommand
+          open={searchOverlayOpen}
+          onClose={() => setSearchOverlayOpen(false)}
+          initialQuery={query}
+        />
 
         {/* Status toggles */}
         <div className="scrollbar-hide mt-3 flex items-center gap-2 overflow-x-auto pb-3">
