@@ -34,6 +34,11 @@ export function CartAddedSheet() {
 
   const [open, setOpen] = useState(false);
   const [closing, setClosing] = useState(false);
+  // Drives the countdown bar's animation-play-state — kept in lockstep with the dismiss timer
+  // itself (paused/resumed from the exact same hover/focus/blur handlers) rather than a separate
+  // signal, so the bar can never show "still running" while the timer is actually paused or vice
+  // versa.
+  const [paused, setPaused] = useState(false);
   const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastNonce = useRef<number | null>(null);
 
@@ -42,10 +47,12 @@ export function CartAddedSheet() {
       clearTimeout(dismissTimer.current);
       dismissTimer.current = null;
     }
+    setPaused(true);
   };
 
   const scheduleDismiss = () => {
     clearDismissTimer();
+    setPaused(false);
     dismissTimer.current = setTimeout(() => close(), AUTO_DISMISS_MS);
   };
 
@@ -84,9 +91,24 @@ export function CartAddedSheet() {
         closing ? "translate-y-2 opacity-0 sm:translate-x-2 sm:translate-y-0" : "translate-y-0 opacity-100 sm:translate-x-0"
       }`}
     >
-      <div className="overflow-hidden rounded-xl border border-border bg-background shadow-lg ring-1 ring-black/5">
+      <div className="overflow-hidden rounded-xl border border-pink-200 bg-background shadow-lg ring-1 ring-pink-500/10">
+        {/* Countdown bar — one-shot shrink over AUTO_DISMISS_MS, not infinite like the site's other
+           keyframe animations, so it's keyed to lastAdded.nonce to restart per add rather than
+           reusing a stale mid-shrink animation from the previous item. Paused in lockstep with the
+           dismiss timer via the exact same handlers, so hovering/focusing the panel visibly holds
+           the bar still instead of it silently finishing while the timer is actually paused. */}
+        <div className="h-[3px] w-full bg-pink-100">
+          <div
+            key={lastAdded.nonce}
+            className="cart-sheet-countdown h-full w-full origin-left bg-pink-500"
+            style={{
+              animation: `cart-sheet-countdown ${AUTO_DISMISS_MS}ms linear forwards`,
+              animationPlayState: paused ? "paused" : "running",
+            }}
+          />
+        </div>
         <div className="flex items-center gap-2.5 p-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-forest/10 text-forest">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-pink-100 text-pink-600">
             {lastAdded.primaryImageUrl ? (
               <img src={lastAdded.primaryImageUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
             ) : (
@@ -113,14 +135,14 @@ export function CartAddedSheet() {
         </div>
 
         {primaryGap && (
-          <div className="border-t border-border bg-secondary/40 px-3 py-2">
+          <div className="border-t border-pink-100 bg-pink-50 px-3 py-2">
             <p className="text-xs font-medium text-foreground">
               {fmtKes(primaryGap.amount)} more to {primaryGap.benefit}
               {bonusCoupons > 0 && ` — plus earn ${bonusCoupons} more coupon${bonusCoupons === 1 ? "" : "s"}`}.
             </p>
-            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-border">
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-pink-200/60">
               <div
-                className="h-full rounded-full bg-forest transition-all"
+                className="h-full rounded-full bg-pink-500 transition-all"
                 style={{
                   width: `${Math.min(100, Math.max(4, (cartTotal / (cartTotal + primaryGap.amount)) * 100))}%`,
                 }}
@@ -129,7 +151,7 @@ export function CartAddedSheet() {
           </div>
         )}
 
-        <div className="flex items-stretch gap-2 border-t border-border p-2.5">
+        <div className="flex items-stretch gap-2 border-t border-pink-100 p-2.5">
           <button
             type="button"
             onClick={close}
@@ -143,7 +165,7 @@ export function CartAddedSheet() {
               close();
               navigate("/checkout");
             }}
-            className="flex flex-1 items-center justify-center rounded-full bg-primary px-3 py-2 text-center text-[13px] font-semibold leading-tight text-primary-foreground transition-opacity hover:opacity-90"
+            className="flex flex-1 items-center justify-center rounded-full bg-pink-600 px-3 py-2 text-center text-[13px] font-semibold leading-tight text-white transition-colors hover:bg-pink-700"
           >
             Checkout · {fmtKes(cartTotal)}
           </button>
