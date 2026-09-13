@@ -878,3 +878,59 @@ html { font-size: 16px; }
   .admin-board-scroll-btn { display: none; }
 }
 
+/* Admin sidebar nav — hover/focus/keyboard states the inline `style={styles.x}` objects in
+ * AdminSidebarNav.tsx can't express on their own (same split as the rest of this file: inline
+ * styles for static look, real CSS here for :hover/:focus-visible/transitions). */
+.admin-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.admin-nav-filter {
+  width: 100%;
+  background: var(--admin-sidebar-surface);
+  border: 1px solid var(--admin-sidebar-border);
+  border-radius: 7px;
+  padding: 7px 30px 7px 28px;
+  font-size: 12px;
+  color: var(--admin-sidebar-text);
+  font-family: inherit;
+  outline: none;
+}
+.admin-nav-filter::placeholder { color: var(--admin-sidebar-muted); }
+.admin-nav-filter:focus-visible { border-color: var(--admin-accent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--admin-accent) 35%, transparent); }
+.admin-nav-filter-hint {
+  position: absolute;
+  right: 8px;
+  font-size: 9px;
+  color: var(--admin-sidebar-muted);
+  opacity: 0.6;
+  border: 1px solid var(--admin-sidebar-border);
+  border-radius: 4px;
+  padding: 1px 4px;
+  pointer-events: none;
+}
+.admin-nav-section-btn:hover { background: var(--admin-sidebar-surface); }
+.admin-nav-section-btn:focus-visible,
+.admin-nav-item:focus-visible {
+  outline: 2px solid var(--admin-accent);
+  outline-offset: -2px;
+}
+.admin-nav-item:hover {
+  background: var(--admin-sidebar-surface);
+  color: var(--admin-sidebar-text);
+}
+.admin-nav-item[aria-current="page"]:hover {
+  background: var(--admin-sidebar-surface);
+}
+.admin-nav-item-highlighted {
+  background: var(--admin-sidebar-surface);
+  color: var(--admin-sidebar-text);
+}
+

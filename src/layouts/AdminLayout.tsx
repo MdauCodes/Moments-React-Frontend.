@@ -1,56 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import {
-  LayoutList,
-  Package,
-  Star,
-  Users,
-  Settings,
-  Bell,
-  Search,
-  FileText,
-  LayoutDashboard,
-  LogOut,
-  Menu,
-  X,
-  ShoppingCart,
-  
-  BarChart3,
-  Truck,
-  RefreshCw,
-  CheckCircle2,
-  PackageCheck,
-  ScanLine,
-  ShieldCheck,
-  Boxes,
-  HelpCircle,
-  Briefcase,
-  TicketPercent,
-  Landmark,
-  HandCoins,
-  Gift,
-  TrendingUp,
-  BookOpen,
-  Share2,
-  Receipt,
-  FileCheck2,
-  ClipboardCheck,
-  Wrench,
-  Coins,
-  ListTree,
-  LayoutGrid,
-  MapPin,
-  UserPlus,
-  AlertTriangle,
-  Layers,
-  Undo2,
-  Image,
-  Building2,
-} from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Bell, BellRing, HelpCircle, LogOut, Menu, RefreshCw, Search, X } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
-import { hasAnyPerm, PERM, type PermissionCode } from "@/lib/permissions";
 import { RoleBadge } from "@/components/admin/RoleBadge";
-import { resolveStaffRole, STAFF_ROLE_DISPLAY, STAFF_ROLE_RANK } from "@/lib/roles";
+import { resolveStaffRole, STAFF_ROLE_DISPLAY } from "@/lib/roles";
 import { OnboardingTour } from "@/components/admin/OnboardingTour";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
@@ -59,7 +12,8 @@ import { subscribeToAdminOrderEvents } from "@/services/commerceApi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
-import { BellRing } from "lucide-react";
+import { navSections, NAV_PATH_TO_FULFILLMENT_TYPE, visibleSectionsFor, type NavItem } from "@/layouts/adminNav";
+import { AdminSidebarNav, type SidebarBadge } from "@/components/admin/AdminSidebarNav";
 
 function MockModeBanner() {
   const { enabled, message } = useMockModeState();
@@ -92,136 +46,9 @@ interface AdminLayoutProps {
   children: ReactNode;
 }
 
-interface NavItem {
-  label: string;
-  to: string;
-  icon: typeof LayoutList;
-  badge?: number;
-  /** Item is visible when user has ANY of these permissions. Omit = always visible. */
-  requiresAny?: PermissionCode[];
-  /** Renders faded with a tooltip explaining why, instead of the normal hover/active styling —
-   *  for pages that still exist but whose primary action has moved elsewhere (e.g. a partner's
-   *  own portal), without removing staff's ability to open the page for reference. */
-  disabledNote?: string;
-  /** Item is only ever visible to the Super Admin staff role, regardless of permissions. */
-  superAdminOnly?: boolean;
-  /** Item is visible to ADMIN and SUPER_ADMIN, but not lower staff ranks, regardless of
-   *  permissions — for actions with real financial/data-destructive consequences that are still
-   *  meant for more than just the super admin. */
-  adminOnly?: boolean;
-}
-
-interface NavSection {
-  label: string;
-  items: NavItem[];
-}
-
-// Ordered by day-to-day usability for staff, not alphabetically or by when a section was
-// added — daily operational work first, technical/reference material last (Help and Developer
-// are both low-frequency reference material, so they sit next to each other at the bottom).
-const navSections: NavSection[] = [
-  {
-    label: "Overview",
-    items: [
-      // Dashboard adapts internally — show whenever there's anything to show.
-      { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard, requiresAny: [PERM.ANALYTICS_VIEW, PERM.ORDER_VIEW, PERM.USER_MANAGE_ROLES, PERM.PRODUCT_MANAGE, PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.USER_VIEW] },
-    ],
-  },
-  {
-    label: "Orders",
-    items: [
-      { label: "All Orders", to: "/admin/orders", icon: ShoppingCart, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Pickup", to: "/admin/board/pickup", icon: CheckCircle2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
-      { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
-      { label: "CBD / Hand Delivery", to: "/admin/board/hand-delivery", icon: Building2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
-      { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
-      { label: "Payments", to: "/admin/payments-log", icon: Coins, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
-      { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
-      { label: "Delivery Settings", to: "/admin/delivery-settings", icon: MapPin, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Refund Requests", to: "/admin/refund-requests", icon: Undo2, requiresAny: [PERM.PAYMENT_REFUND] },
-    ],
-  },
-  {
-    label: "Inventory",
-    items: [
-      { label: "Products", to: "/admin/products", icon: Package, requiresAny: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE] },
-      { label: "Stock Levels", to: "/admin/inventory", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Classifications", to: "/admin/catalog", icon: ListTree, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Classify Products", to: "/admin/classify-products", icon: LayoutList, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Delivery Zones", to: "/admin/delivery-zones", icon: Truck, requiresAny: [PERM.SETTINGS_MANAGE] },
-    ],
-  },
-  {
-    label: "Audience",
-    items: [
-      { label: "Customers", to: "/admin/customers", icon: Users, requiresAny: [PERM.CUSTOMER_VIEW] },
-      { label: "Business Accounts", to: "/admin/business-accounts", icon: Briefcase, requiresAny: [PERM.CUSTOMER_VIEW] },
-      { label: "Credit Accounts", to: "/admin/credit-accounts", icon: Landmark, requiresAny: [PERM.CUSTOMER_VIEW] },
-      { label: "Change Requests", to: "/admin/change-requests", icon: ClipboardCheck, requiresAny: [PERM.CUSTOMER_VIEW] },
-      { label: "Enquiries", to: "/admin/enquiries", icon: LayoutList, requiresAny: [PERM.ENQUIRY_VIEW] },
-      { label: "Reviews", to: "/admin/reviews", icon: Star, requiresAny: [PERM.REVIEW_MODERATE] },
-    ],
-  },
-  {
-    label: "Sales",
-    items: [
-      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Referral Payout Tiers", to: "/admin/referral-tiers", icon: Share2, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Settings", to: "/admin/rewards-settings", icon: Coins, requiresAny: [PERM.SETTINGS_MANAGE] },
-    ],
-  },
-  {
-    label: "Analytics",
-    items: [
-      { label: "Overview", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Needs Attention", to: "/admin/analytics/needs-attention", icon: AlertTriangle, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Customers", to: "/admin/analytics/customers", icon: Users, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Signups & Demographics", to: "/admin/analytics/signups-demographics", icon: UserPlus, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Geographic", to: "/admin/analytics/geographic", icon: MapPin, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Delivery", to: "/admin/analytics/delivery", icon: Truck, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Products & Inventory", to: "/admin/analytics/products", icon: Boxes, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Profitability", to: "/admin/analytics/profitability", icon: TrendingUp, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Tax & Compliance", to: "/admin/analytics/tax", icon: Receipt, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Rewards & Referrals", to: "/admin/analytics/rewards", icon: Gift, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Data Visualization", to: "/admin/analytics/data-visualization", icon: LayoutGrid, requiresAny: [PERM.ANALYTICS_VIEW] },
-    ],
-  },
-  {
-    label: "Content",
-    items: [
-      { label: "Blogs", to: "/admin/blogs", icon: FileText, requiresAny: [PERM.BLOG_MANAGE] },
-    ],
-  },
-  {
-    label: "System",
-    items: [
-      { label: "Users", to: "/admin/users", icon: Users, requiresAny: [PERM.USER_VIEW, PERM.USER_CREATE, PERM.USER_MANAGE_ROLES] },
-      { label: "Roles", to: "/admin/roles", icon: ShieldCheck, requiresAny: [PERM.USER_MANAGE_ROLES] },
-      { label: "Audit Logs", to: "/admin/audit-logs", icon: FileText, requiresAny: [PERM.AUDIT_VIEW] },
-      { label: "Changelog", to: "/admin/changelog", icon: BookOpen, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Settings", to: "/admin/settings", icon: Settings, requiresAny: [PERM.SETTINGS_MANAGE] },
-    ],
-  },
-  {
-    label: "Help",
-    items: [
-      { label: "Feature Guide", to: "/admin/feature-guide", icon: BookOpen },
-      { label: "System Architecture", to: "/admin/architecture", icon: Layers, superAdminOnly: true },
-    ],
-  },
-  {
-    label: "Developer",
-    items: [
-      { label: "Developer", to: "/admin/developer", icon: Wrench, superAdminOnly: true },
-      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, adminOnly: true },
-    ],
-  },
-];
+// Sidebar nav structure (navSections, NAV_PATH_TO_FULFILLMENT_TYPE, permission filtering, active-
+// route resolution, search matching) now lives in @/layouts/adminNav — extracted so it's reusable
+// and independently testable, and so this file's own diff for the sidebar redesign stays reviewable.
 
 const styles: Record<string, CSSProperties> = {
   root: {
@@ -268,51 +95,6 @@ const styles: Record<string, CSSProperties> = {
   brandLink: { display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 },
   brandName: { fontSize: 15, fontWeight: 700, color: "var(--admin-sidebar-text)", lineHeight: 1.1, fontFamily: "var(--font-display)" },
   brandSub: { fontSize: 10, color: "var(--admin-sidebar-muted)", lineHeight: 1.2 },
-  nav: { flex: 1, overflowY: "auto", padding: "10px 8px" },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: 700,
-    textTransform: "uppercase",
-    letterSpacing: "0.14em",
-    color: "var(--admin-sidebar-muted)",
-    padding: "14px 16px 6px",
-    opacity: 0.75,
-  },
-  sectionDivider: {
-    height: 1,
-    margin: "4px 12px 0",
-    background: "var(--admin-sidebar-border)",
-    opacity: 0.6,
-    border: "none",
-  },
-  navItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: 9,
-    padding: "10px 12px",
-    borderRadius: 6,
-    borderLeft: "3px solid transparent",
-    color: "var(--admin-sidebar-muted)",
-    fontSize: 13,
-    textDecoration: "none",
-    cursor: "pointer",
-    transition: "background 120ms, color 120ms",
-  },
-  navItemActive: {
-    background: "var(--admin-sidebar-surface)",
-    borderLeft: "3px solid var(--admin-accent)",
-    color: "var(--admin-sidebar-text)",
-  },
-  badge: {
-    marginLeft: "auto",
-    background: "var(--admin-clay)",
-    color: "var(--cream)",
-    fontSize: 9,
-    fontWeight: 600,
-    padding: "2px 6px",
-    borderRadius: 999,
-    lineHeight: 1.2,
-  },
   sidebarBottom: {
     marginTop: "auto",
     borderTop: "1px solid var(--admin-sidebar-border)",
@@ -423,17 +205,6 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
-// Maps a nav item's `to` path to the FulfillmentType key AdminNotification.fulfillmentType
-// stores (see AdminNotificationService.countUnreadByFulfillmentType) — used to attach the live
-// per-tab unread badge at render time. Hand Delivery intentionally shares MANUAL_DELIVERY's count
-// with the plain Manual Delivery entry (see the note where this is consumed).
-const NAV_PATH_TO_FULFILLMENT_TYPE: Record<string, string> = {
-  "/admin/board/pickup": "PICKUP",
-  "/admin/board/manual-delivery": "MANUAL_DELIVERY",
-  "/admin/board/hand-delivery": "MANUAL_DELIVERY",
-  "/admin/board/tumaboda": "TUMABODA_DELIVERY",
-};
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length === 0) return "?";
@@ -441,56 +212,11 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function NavLink({ item, active }: { item: NavItem; active: boolean }) {
-  const Icon = item.icon;
-  const tourKey = item.to.split("/").filter(Boolean).slice(-1)[0] ?? item.to;
-  const faded = Boolean(item.disabledNote);
-  return (
-    <Link
-      to={item.to}
-      data-tour={`nav-${tourKey}`}
-      title={item.disabledNote}
-      style={{
-        ...styles.navItem,
-        ...(active ? styles.navItemActive : {}),
-        ...(faded ? { opacity: 0.55 } : {}),
-      }}
-      onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!active && !faded) {
-          e.currentTarget.style.background = "var(--admin-sidebar-surface)";
-          e.currentTarget.style.color = "var(--admin-sidebar-text)";
-        }
-      }}
-      onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
-        if (!active && !faded) {
-          e.currentTarget.style.background = "transparent";
-          e.currentTarget.style.color = "var(--admin-sidebar-muted)";
-        }
-      }}
-    >
-      <Icon size={16} />
-      <span>{item.label}</span>
-      {item.badge !== undefined && item.badge > 0 && (
-        <span style={styles.badge}>{item.badge}</span>
-      )}
-    </Link>
-  );
-}
-
-// AdminLayout is instantiated fresh inside every admin page (not a shared
-// route layout), so its <nav> DOM node is destroyed and recreated on every
-// navigation — resetting scroll to the top and forcing staff to re-scroll
-// down to reach lower nav items. This module-level value survives that
-// remount (persists for the SPA session) so scroll position carries across
-// page changes.
-let sidebarScrollTop = 0;
-
 export function AdminLayout({ title, actionLabel, onAction, onReload, children }: AdminLayoutProps) {
   const { user, logout, permissions } = useAdminAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const pathname = location.pathname;
-  const sidebarNavRef = useRef<HTMLElement | null>(null);
   const [headerSearch, setHeaderSearch] = useState("");
 
   const runHeaderSearch = () => {
@@ -499,12 +225,25 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     navigate(`/admin/enquiries?q=${encodeURIComponent(q)}`);
   };
 
-  useEffect(() => {
-    if (sidebarNavRef.current) sidebarNavRef.current.scrollTop = sidebarScrollTop;
-  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const staffRole = resolveStaffRole(user);
+
+  // Permission filtering happens once here — AdminSidebarNav (rendering) and the tax-doc poll
+  // gate below both read this same filtered set, so a role that can't see an item also can't
+  // trigger a background request for its data.
+  const visibleSections = useMemo(() => visibleSectionsFor(navSections, permissions, staffRole), [permissions, staffRole]);
+  const canViewTaxDocuments = useMemo(
+    () => visibleSections.some((s) => s.items.some((i) => i.to === "/admin/tax-documents")),
+    [visibleSections],
+  );
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setSidebarOpen(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [sidebarOpen]);
 
   // Bell was previously purely decorative — a static dot, no real data behind it at all (no
   // notification system existed anywhere in the backend before this). Polls the unread count
@@ -558,9 +297,13 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   // "Not yet handled" tax invoices (PENDING = requested, not yet generated/uploaded/emailed —
   // see TaxDocumentStatus) — reuses the existing list endpoint rather than a new count-only one:
   // size=1 still returns the real totalElements for the full PENDING count. Less time-sensitive
-  // than order/refund activity, so a slower 60s poll (vs. 30s above) is enough.
+  // than order/refund activity, so a slower 60s poll (vs. 30s above) is enough. Gated on the same
+  // permission the sidebar item itself requires — previously this polled unconditionally for
+  // every signed-in staff member, including roles that can't see the item (or call the endpoint),
+  // failing silently forever via the empty catch below.
   const [pendingTaxDocCount, setPendingTaxDocCount] = useState(0);
   useEffect(() => {
+    if (!canViewTaxDocuments) return;
     let cancelled = false;
     function poll() {
       adminResources.taxDocuments.list({ status: "PENDING", size: 1 })
@@ -570,7 +313,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     poll();
     const interval = setInterval(poll, 60_000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, []);
+  }, [canViewTaxDocuments]);
 
   // Live push (AdminOrderEventStreamService) the instant a new order is placed — both badge
   // counts above otherwise only catch up on their own 30s tick or the next route change. This is
@@ -659,21 +402,25 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     }
   };
 
-  const isActive = (to: string): boolean => {
-    if (to === "/admin/dashboard") {
-      return pathname === "/admin" || pathname === "/admin/" || pathname === to;
-    }
-    if (to === "/admin/enquiries") {
-      return pathname === to || pathname.startsWith("/admin/enquiries/");
-    }
-    return pathname === to;
-  };
-
   const displayName = user?.name ?? "Admin User";
   const displayEmail = user?.email ?? "Signed in";
 
   // Sidebar visibility is permission-driven only (see navSections[].requiresAny).
-  // Role names are never consulted for nav gating.
+  // Role names are never consulted for nav gating. Active-route highlighting and which section
+  // that implies should be open both live in AdminSidebarNav (resolveActiveNav), so they can
+  // never disagree with each other the way two separate ad hoc checks could.
+
+  const badgeFor = (item: NavItem): SidebarBadge | undefined => {
+    const fulfillmentType = NAV_PATH_TO_FULFILLMENT_TYPE[item.to];
+    if (fulfillmentType) {
+      const count = tabUnreadCounts[fulfillmentType];
+      return count > 0 ? { key: fulfillmentType, count } : undefined;
+    }
+    if (item.to === "/admin/tax-documents") {
+      return pendingTaxDocCount > 0 ? { key: item.to, count: pendingTaxDocCount } : undefined;
+    }
+    return undefined;
+  };
 
   // --- Onboarding tour state ---
   const [tourOpen, setTourOpen] = useState(false);
@@ -723,41 +470,14 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           </button>
         </div>
 
-        <nav
-          style={styles.nav}
-          ref={sidebarNavRef}
-          onScroll={(e) => { sidebarScrollTop = e.currentTarget.scrollTop; }}
-        >
-          {navSections.map((section, sectionIdx) => {
-            const visible = section.items.filter((item) => {
-              if (item.superAdminOnly) return staffRole === "SUPER_ADMIN";
-              if (item.adminOnly) return !!staffRole && STAFF_ROLE_RANK[staffRole] <= STAFF_ROLE_RANK.ADMIN;
-              if (!item.requiresAny) return true;
-              if (hasAnyPerm(permissions, item.requiresAny)) return true;
-              // SUPER_ADMIN sees audit logs even without explicit AUDIT_VIEW perm.
-              if (staffRole === "SUPER_ADMIN" && item.requiresAny.includes(PERM.AUDIT_VIEW)) return true;
-              return false;
-            });
-            if (visible.length === 0) return null;
-            return (
-              <div key={section.label} style={{ marginBottom: 4 }}>
-                {sectionIdx > 0 && <hr style={styles.sectionDivider} />}
-                <div style={styles.sectionLabel}>{section.label}</div>
-                {visible.map((item) => {
-                  const fulfillmentType = NAV_PATH_TO_FULFILLMENT_TYPE[item.to];
-                  const badge = fulfillmentType
-                    ? tabUnreadCounts[fulfillmentType]
-                    : item.to === "/admin/tax-documents"
-                      ? pendingTaxDocCount
-                      : undefined;
-                  return (
-                    <NavLink key={item.to} item={badge ? { ...item, badge } : item} active={isActive(item.to)} />
-                  );
-                })}
-              </div>
-            );
-          })}
-        </nav>
+        <AdminSidebarNav
+          sections={visibleSections}
+          pathname={pathname}
+          userId={user?.id}
+          badgeFor={badgeFor}
+          forceExpandAll={tourOpen}
+          onNavigate={() => setSidebarOpen(false)}
+        />
 
         <div style={styles.sidebarBottom}>
           <div style={styles.userPill}>
