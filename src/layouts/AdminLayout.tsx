@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Bell, BellRing, HelpCircle, LogOut, Menu, RefreshCw, Search, X } from "lucide-react";
+import { Bell, BellRing, Globe, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, X } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { RoleBadge } from "@/components/admin/RoleBadge";
@@ -14,6 +14,21 @@ import { toast } from "sonner";
 import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
 import { navSections, NAV_PATH_TO_FULFILLMENT_TYPE, visibleSectionsFor, type NavItem } from "@/layouts/adminNav";
 import { AdminSidebarNav, type SidebarBadge } from "@/components/admin/AdminSidebarNav";
+import { readSidebarPrefs, writeSidebarCollapsed } from "@/lib/adminSidebarPrefs";
+import logoUrl from "@/assets/moments_logo_without_background.png";
+
+// Frontend-only, mirrors DashboardHeader.tsx's own tiny greeting helper (customer-facing side) —
+// small enough that sharing it isn't worth a cross-context import; purely a display string, never
+// sent anywhere.
+function timeOfDayGreeting(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
+}
 
 function MockModeBanner() {
   const { enabled, message } = useMockModeState();
@@ -70,36 +85,37 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     flexDirection: "column",
     flexShrink: 0,
+    transition: "width 180ms ease",
+    overflow: "hidden",
   },
   sidebarTop: {
-    padding: "18px 16px",
+    padding: "16px",
     borderBottom: "1px solid var(--admin-sidebar-border)",
     display: "flex",
-    alignItems: "center",
-    gap: 10,
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 6,
   },
-  logoMark: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    background: "var(--admin-accent)",
-    color: "var(--cream)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily: "var(--font-display)",
-    fontSize: 16,
-    fontWeight: 600,
-    lineHeight: 1,
-  },
-  brandLink: { display: "flex", alignItems: "center", gap: 10, textDecoration: "none", minWidth: 0 },
-  brandName: { fontSize: 15, fontWeight: 700, color: "var(--admin-sidebar-text)", lineHeight: 1.1, fontFamily: "var(--font-display)" },
-  brandSub: { fontSize: 10, color: "var(--admin-sidebar-muted)", lineHeight: 1.2 },
+  sidebarTopRow: { display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" },
+  logoLink: { display: "flex", alignItems: "center", textDecoration: "none", minWidth: 0 },
+  // The real brand logo (the wordmark image the storefront header also uses) — not a stand-in CSS
+  // square — since the point is that it already carries the "Moments" name itself.
+  logoImg: { height: 26, width: "auto", display: "block" },
+  // Collapsed rail (64px): the full wide wordmark has no room, so this crops to just its left
+  // edge (the icon glyph) via a fixed small box + object-fit — still the real logo file, not a
+  // separate asset, just windowed down to the part that reads at that size.
+  logoImgCollapsed: { height: 30, width: 30, objectFit: "cover", objectPosition: "left center", borderRadius: 6, display: "block" },
+  greeting: { fontSize: 12, color: "var(--admin-sidebar-muted)", lineHeight: 1.3 },
+  greetingName: { color: "oklch(0.98 0.015 84)", fontWeight: 600 },
   sidebarBottom: {
     marginTop: "auto",
     borderTop: "1px solid var(--admin-sidebar-border)",
-    padding: "12px 8px",
+    padding: "10px 8px",
+    display: "flex",
+    flexDirection: "column",
+    gap: 6,
   },
+  sidebarBottomCollapsed: { alignItems: "center" },
   userPill: {
     display: "flex",
     alignItems: "center",
@@ -126,6 +142,34 @@ const styles: Record<string, CSSProperties> = {
   },
   userName: { fontSize: 12, color: "var(--admin-sidebar-text)", lineHeight: 1.2 },
   userRole: { fontSize: 10, color: "var(--admin-sidebar-muted)", lineHeight: 1.2 },
+  footerRow: { display: "flex", alignItems: "center", gap: 4 },
+  footerLinkBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
+    padding: "7px 10px",
+    borderRadius: 8,
+    color: "var(--admin-sidebar-muted)",
+    fontSize: 12,
+    textDecoration: "none",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+  },
+  footerIconBtn: {
+    display: "grid",
+    placeItems: "center",
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    color: "var(--admin-sidebar-muted)",
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    flexShrink: 0,
+    textDecoration: "none",
+  },
   main: {
     flex: 1,
     display: "flex",
@@ -228,6 +272,31 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [reloading, setReloading] = useState(false);
   const staffRole = resolveStaffRole(user);
+
+  // Whole-sidebar rail mode — persisted per-user in localStorage only (see adminSidebarPrefs.ts),
+  // same as the per-section accordion state. Desktop only: collapsing the mobile drawer to a 64px
+  // rail would defeat the point of opening a full-width overlay in the first place, so `isMobile`
+  // (tracked via matchMedia, not a fixed read at mount — a real window resize should flip this
+  // live) forces it back open there regardless of the stored preference.
+  const [sidebarCollapsedPref, setSidebarCollapsedPref] = useState(() => readSidebarPrefs(user?.id).collapsed ?? false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 920px)").matches,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 920px)");
+    const handler = () => setIsMobile(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  useEffect(() => {
+    setSidebarCollapsedPref(readSidebarPrefs(user?.id).collapsed ?? false);
+  }, [user?.id]);
+  const toggleSidebarCollapsed = () => {
+    const next = !sidebarCollapsedPref;
+    setSidebarCollapsedPref(next);
+    writeSidebarCollapsed(user?.id, next);
+  };
 
   // Permission filtering happens once here — AdminSidebarNav (rendering) and the tax-doc poll
   // gate below both read this same filtered set, so a role that can't see an item also can't
@@ -426,6 +495,12 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const [tourOpen, setTourOpen] = useState(false);
   const [tourStepFilter, setTourStepFilter] = useState<((s: { targetSelector: string | null }) => boolean) | undefined>(undefined);
 
+  // The rail's flyout items carry no data-tour attributes at all (see AdminSidebarNav's own
+  // comment on why), so a tour running while the sidebar happened to be collapsed would find none
+  // of its targets — forced back to the full accordion for the tour's duration, same as isMobile.
+  const sidebarCollapsed = sidebarCollapsedPref && !isMobile && !tourOpen;
+  const greeting = timeOfDayGreeting(new Date().getHours());
+
   // Auto-launch on first login (once per user, per browser)
   useEffect(() => {
     if (!user?.id || !staffRole) return;
@@ -456,18 +531,31 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   return (
     <div className="admin-shell" style={styles.root}>
       {sidebarOpen && <button className="admin-sidebar-scrim" aria-label="Close menu" onClick={() => setSidebarOpen(false)} />}
-      <aside data-tour="sidebar" className={`admin-sidebar ${sidebarOpen ? "is-open" : ""}`} style={styles.sidebar}>
-        <div style={styles.sidebarTop}>
-          <Link to="/" style={styles.brandLink} aria-label="Back to Moments website">
-            <div style={styles.logoMark}>m</div>
-            <div>
-              <div style={styles.brandName}>Moments</div>
-              <div style={styles.brandSub}>Back to website</div>
+      <aside
+        data-tour="sidebar"
+        className={`admin-sidebar ${sidebarOpen ? "is-open" : ""}`}
+        style={{ ...styles.sidebar, width: sidebarCollapsed ? 64 : 248 }}
+      >
+        <div style={{ ...styles.sidebarTop, ...(sidebarCollapsed ? { alignItems: "center" } : {}) }}>
+          <div style={styles.sidebarTopRow}>
+            {/* The actual brand logo — the same wordmark image the storefront header uses,
+                since it already carries the "Moments" name itself, not a stand-in CSS mark.
+                Always the real click-back-to-the-site link; collapsed mode just crops it down
+                to its left edge (see logoImgCollapsed's own comment) instead of swapping assets. */}
+            <Link to="/" style={styles.logoLink} aria-label="Back to Moments website">
+              <img src={logoUrl} alt="Moments" style={sidebarCollapsed ? styles.logoImgCollapsed : styles.logoImg} />
+            </Link>
+            {!sidebarCollapsed && (
+              <button type="button" className="admin-sidebar-close" aria-label="Close menu" onClick={() => setSidebarOpen(false)}>
+                <X size={16} />
+              </button>
+            )}
+          </div>
+          {!sidebarCollapsed && (
+            <div style={styles.greeting}>
+              {greeting}, <span style={styles.greetingName}>{firstName(displayName)}</span>
             </div>
-          </Link>
-          <button type="button" className="admin-sidebar-close" aria-label="Close menu" onClick={() => setSidebarOpen(false)}>
-            <X size={16} />
-          </button>
+          )}
         </div>
 
         <AdminSidebarNav
@@ -476,32 +564,66 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           userId={user?.id}
           badgeFor={badgeFor}
           forceExpandAll={tourOpen}
+          collapsed={sidebarCollapsed}
           onNavigate={() => setSidebarOpen(false)}
         />
 
-        <div style={styles.sidebarBottom}>
-          <div style={styles.userPill}>
-            <div style={styles.avatar}>{getInitials(displayName)}</div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={styles.userName}>{displayName}</div>
-              <div style={styles.userRole}>{displayEmail}</div>
-              {staffRole && (
-                <div data-tour="role-badge" style={{ marginTop: 4 }}>
-                  <RoleBadge role={staffRole} />
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={logout}
-              aria-label="Logout"
-              title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`}
-              style={{ marginLeft: "auto", background: "transparent", border: "none", color: "var(--admin-sidebar-muted)", cursor: "pointer", padding: 4, alignSelf: "flex-start" }}
-            >
-              <LogOut size={14} />
+        {sidebarCollapsed ? (
+          <div style={{ ...styles.sidebarBottom, ...styles.sidebarBottomCollapsed }}>
+            <div style={styles.avatar} title={displayName}>{getInitials(displayName)}</div>
+            <button type="button" onClick={logout} aria-label="Logout" title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`} className="admin-nav-rail-btn" style={styles.footerIconBtn}>
+              <LogOut size={16} />
+            </button>
+            <Link to="/" aria-label="Back to Moments website" title="Back to website" className="admin-nav-rail-btn" style={styles.footerIconBtn}>
+              <Globe size={16} />
+            </Link>
+            <button type="button" onClick={toggleSidebarCollapsed} aria-label="Expand sidebar" title="Expand sidebar" className="admin-nav-rail-btn" style={styles.footerIconBtn}>
+              <PanelLeftOpen size={16} />
             </button>
           </div>
-        </div>
+        ) : (
+          <div style={styles.sidebarBottom}>
+            <div style={styles.userPill}>
+              <div style={styles.avatar}>{getInitials(displayName)}</div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={styles.userName}>{displayName}</div>
+                <div style={styles.userRole}>{displayEmail}</div>
+                {staffRole && (
+                  <div data-tour="role-badge" style={{ marginTop: 4 }}>
+                    <RoleBadge role={staffRole} />
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={logout}
+                aria-label="Logout"
+                title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`}
+                style={{ marginLeft: "auto", background: "transparent", border: "none", color: "var(--admin-sidebar-muted)", cursor: "pointer", padding: 4, alignSelf: "flex-start" }}
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+            {/* Website link + collapse toggle grouped here, in the same unscrollable footer as the
+                account pill above — not up top, not floating mid-list. */}
+            <div style={styles.footerRow}>
+              <Link to="/" style={styles.footerLinkBtn} className="admin-nav-item">
+                <Globe size={14} />
+                <span>Back to website</span>
+              </Link>
+              <button
+                type="button"
+                onClick={toggleSidebarCollapsed}
+                aria-label="Collapse sidebar"
+                title="Collapse sidebar"
+                className="admin-nav-rail-btn admin-sidebar-collapse-toggle"
+                style={styles.footerIconBtn}
+              >
+                <PanelLeftClose size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
 

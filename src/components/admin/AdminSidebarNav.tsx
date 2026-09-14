@@ -34,8 +34,13 @@ export interface AdminSidebarNavProps {
   badgeFor: (item: NavItem) => SidebarBadge | undefined;
   /** True while the onboarding tour is running — forces every section open so the tour's
    *  data-tour selectors can always find their target, overriding even an explicit user
-   *  collapse. */
+   *  collapse. Has no effect in rail mode (`collapsed`) — the tour needs the full list, so
+   *  AdminLayout forces `collapsed` off itself while a tour runs (see its own comment). */
   forceExpandAll: boolean;
+  /** Whole-sidebar rail mode: 64px, one icon per section, click for a flyout of its items —
+   *  instead of the default expanded accordion. AdminLayout owns the persisted preference; this
+   *  component just renders whichever mode it's told. */
+  collapsed: boolean;
   /** Fired on any navigation via this nav (click or keyboard-select) — lets the mobile drawer
    *  close itself, which today only happens by accident when AdminLayout remounts. */
   onNavigate?: () => void;
@@ -55,28 +60,31 @@ const styles: Record<string, CSSProperties> = {
     padding: 4,
     display: "flex",
   },
+  // A real, obviously-clickable header bar — not just uppercase text floating in the list. The
+  // always-on surface + border is what reads as "this is a control" at a glance; hover then
+  // brightens the border (same affordance .admin-board-scroll-btn already uses elsewhere in this
+  // file's own CSS, reused here rather than inventing a second hover language).
   sectionHeader: {
     display: "flex",
     width: "100%",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    padding: "8px 10px",
-    marginTop: 6,
-    background: "transparent",
-    border: "none",
-    borderRadius: 6,
+    padding: "9px 12px",
+    marginTop: 8,
+    background: "var(--admin-sidebar-surface)",
+    border: "1px solid var(--admin-sidebar-border)",
+    borderRadius: 8,
     cursor: "pointer",
     font: "inherit",
     textAlign: "left",
   },
   sectionHeaderLabel: {
-    fontSize: 10,
-    fontWeight: 700,
+    fontSize: 11,
+    fontWeight: 800,
     textTransform: "uppercase",
-    letterSpacing: "0.14em",
-    color: "var(--admin-sidebar-muted)",
-    opacity: 0.85,
+    letterSpacing: "0.1em",
+    color: "oklch(0.88 0.02 84)",
   },
   sectionHeaderRight: { display: "flex", alignItems: "center", gap: 6 },
   sectionCount: { fontSize: 10, color: "var(--admin-sidebar-muted)", opacity: 0.75 },
@@ -88,7 +96,11 @@ const styles: Record<string, CSSProperties> = {
     padding: "8px 10px",
     borderRadius: 6,
     borderLeft: "3px solid transparent",
-    color: "var(--admin-sidebar-muted)",
+    // Brighter than --admin-sidebar-muted (the shared, dimmer tone used elsewhere in the admin
+    // shell for genuinely secondary text — timestamps, placeholders) — nav item labels are a
+    // primary reading task done dozens of times a session, not incidental metadata, so they get
+    // their own, brighter-than-muted shade rather than reusing that one.
+    color: "oklch(0.88 0.02 84)",
     fontSize: 13,
     textDecoration: "none",
     cursor: "pointer",
@@ -96,7 +108,10 @@ const styles: Record<string, CSSProperties> = {
   navItemActive: {
     background: "var(--admin-sidebar-surface)",
     borderLeft: "3px solid var(--admin-accent)",
-    color: "var(--admin-sidebar-text)",
+    // Brighter still than the already-bright inactive state above — including past
+    // --admin-sidebar-text's own 0.96 lightness, which reads as merely "not dim" next to a truly
+    // bright active row.
+    color: "oklch(0.98 0.015 84)",
     fontWeight: 600,
   },
   badge: {
@@ -117,6 +132,54 @@ const styles: Record<string, CSSProperties> = {
     padding: "2px 6px",
     borderRadius: 999,
     lineHeight: 1.2,
+  },
+  // Rail mode (collapsed=true)
+  rail: { flex: 1, overflowY: "auto", padding: "10px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+  railBtn: {
+    width: 44,
+    height: 44,
+    display: "grid",
+    placeItems: "center",
+    borderRadius: 10,
+    border: "none",
+    cursor: "pointer",
+    position: "relative",
+  },
+  railBadge: {
+    position: "absolute",
+    top: 2,
+    right: 2,
+    background: "var(--admin-clay)",
+    color: "var(--cream)",
+    fontSize: 9,
+    fontWeight: 700,
+    borderRadius: 999,
+    minWidth: 15,
+    height: 15,
+    display: "grid",
+    placeItems: "center",
+    padding: "0 3px",
+  },
+  flyout: {
+    position: "absolute",
+    left: "100%",
+    top: 0,
+    marginLeft: 8,
+    width: 224,
+    background: "var(--admin-sidebar)",
+    border: "1px solid var(--admin-sidebar-border)",
+    borderRadius: 10,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+    padding: 6,
+    zIndex: 50,
+  },
+  flyoutLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.14em",
+    color: "var(--admin-sidebar-muted)",
+    padding: "6px 10px",
   },
 };
 
@@ -146,7 +209,104 @@ function sectionBadgeTotal(section: NavSection, badgeFor: (item: NavItem) => Sid
   return total;
 }
 
-export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExpandAll, onNavigate }: AdminSidebarNavProps) {
+/** Rail mode: one icon per section (its first item's icon stands in for the section), click opens
+ *  a flyout with that section's real items. No search/keyboard-jump here — there's no room for a
+ *  filter box at 64px, and this mode exists specifically for "give me a clean, minimal view", not
+ *  "give me the fastest way to jump somewhere" (that's what expanded + Ctrl+K is for). */
+function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
+  sections: NavSection[];
+  pathname: string;
+  badgeFor: (item: NavItem) => SidebarBadge | undefined;
+  onNavigate?: () => void;
+}) {
+  const navigate = useNavigate();
+  const [openLabel, setOpenLabel] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const { activeTo, activeSectionLabel } = useMemo(() => resolveActiveNav(pathname, sections), [pathname, sections]);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpenLabel(null);
+    }
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") setOpenLabel(null);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  useEffect(() => setOpenLabel(null), [pathname]);
+
+  function go(to: string) {
+    setOpenLabel(null);
+    navigate(to);
+    onNavigate?.();
+  }
+
+  return (
+    <div ref={rootRef} style={styles.rail}>
+      {sections.map((section) => {
+        const RepIcon = section.items[0].icon;
+        const isOpen = openLabel === section.label;
+        const isActiveSection = section.label === activeSectionLabel;
+        const badgeTotal = sectionBadgeTotal(section, badgeFor);
+        return (
+          <div key={section.label} style={{ position: "relative" }}>
+            <button
+              type="button"
+              title={section.label}
+              aria-expanded={isOpen}
+              aria-label={section.label}
+              onClick={() => setOpenLabel(isOpen ? null : section.label)}
+              className="admin-nav-rail-btn"
+              style={{
+                ...styles.railBtn,
+                background: isOpen || isActiveSection ? "var(--admin-sidebar-surface)" : "transparent",
+                color: isActiveSection ? "oklch(0.98 0.015 84)" : "oklch(0.88 0.02 84)",
+              }}
+            >
+              <RepIcon size={20} />
+              {badgeTotal > 0 && (
+                <span style={styles.railBadge} aria-label={badgeAriaLabel(badgeTotal)}>{badgeTotal}</span>
+              )}
+            </button>
+
+            {isOpen && (
+              <div style={styles.flyout}>
+                <div style={styles.flyoutLabel}>{section.label}</div>
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = item.to === activeTo;
+                  const badge = badgeFor(item);
+                  return (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      onClick={(e) => { e.preventDefault(); go(item.to); }}
+                      style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}), borderLeft: "none" }}
+                    >
+                      <Icon size={16} />
+                      <span style={{ flex: 1 }}>{item.label}</span>
+                      {badge !== undefined && badge.count > 0 && (
+                        <span style={styles.badge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExpandAll, collapsed, onNavigate }: AdminSidebarNavProps) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -167,7 +327,7 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
   const dense = useMemo(() => countVisibleItems(sections) > DENSE_ITEM_THRESHOLD, [sections]);
 
   const trimmedQuery = query.trim();
-  const searching = dense && trimmedQuery.length > 0;
+  const searching = !collapsed && dense && trimmedQuery.length > 0;
   const matches = useMemo(() => (searching ? matchNavItems(sections, trimmedQuery) : []), [searching, sections, trimmedQuery]);
 
   // Query is never persisted, and stays scoped to whatever page you were on when you typed it —
@@ -193,11 +353,11 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
     if (navRef.current) navRef.current.scrollTop = 0;
   }, [searching, activeSectionLabel]);
 
-  // Ctrl/Cmd+K focuses the filter — desktop only. On the mobile drawer this would fight the soft
-  // keyboard popping up over the menu the instant it opens, so the shortcut (not the box itself,
-  // which stays visible and tappable) is suppressed below the drawer breakpoint.
+  // Ctrl/Cmd+K focuses the filter — desktop, expanded mode only. On the mobile drawer this would
+  // fight the soft keyboard popping up over the menu the instant it opens; in rail mode there's no
+  // filter box to focus at all.
   useEffect(() => {
-    if (!dense) return;
+    if (!dense || collapsed) return;
     const handler = (e: globalThis.KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && window.innerWidth > MOBILE_BREAKPOINT) {
         e.preventDefault();
@@ -206,7 +366,29 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [dense]);
+  }, [dense, collapsed]);
+
+  // Grouped for display (sections keep their natural top-to-bottom order; items within a
+  // matching section follow relevance, filtered to only the items that actually matched — that's
+  // the point of a filter, not a highlight over an unchanged list), but the keyboard-navigable
+  // flat list follows the global relevance order in `matches` regardless of grouping, so Enter
+  // always jumps to the single best match on the page. Computed before the collapsed early return
+  // below (even though rail mode never reads it) — every hook in this component must run on every
+  // render regardless of `collapsed`, or React sees a different hook count between renders and
+  // throws "Rendered fewer hooks than expected."
+  const matchesBySection = useMemo(() => {
+    const map = new Map<string, NavMatch[]>();
+    for (const m of matches) {
+      const list = map.get(m.section.label) ?? [];
+      list.push(m);
+      map.set(m.section.label, list);
+    }
+    return map;
+  }, [matches]);
+
+  if (collapsed) {
+    return <AdminSidebarRail sections={sections} pathname={pathname} badgeFor={badgeFor} onNavigate={onNavigate} />;
+  }
 
   function isSectionOpen(section: NavSection): boolean {
     if (searching) return true; // only ever asked for sections that already have ≥1 match
@@ -255,21 +437,6 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
       inputRef.current?.blur();
     }
   }
-
-  // Grouped for display (sections keep their natural top-to-bottom order; items within a
-  // matching section follow relevance, filtered to only the items that actually matched — that's
-  // the point of a filter, not a highlight over an unchanged list), but the keyboard-navigable
-  // flat list follows the global relevance order in `matches` regardless of grouping, so Enter
-  // always jumps to the single best match on the page.
-  const matchesBySection = useMemo(() => {
-    const map = new Map<string, NavMatch[]>();
-    for (const m of matches) {
-      const list = map.get(m.section.label) ?? [];
-      list.push(m);
-      map.set(m.section.label, list);
-    }
-    return map;
-  }, [matches]);
 
   return (
     <nav

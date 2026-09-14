@@ -2,6 +2,7 @@
 // storage pattern (guard for SSR/no-window, silent no-op on read/write failure — private
 // browsing, quota, etc.). Keyed per user since admin machines get shared; a global key would
 // mean one person's collapsed Analytics greets the next person to log in on the same machine.
+// Frontend-only, by design — nothing here ever reaches the backend.
 
 export interface SidebarPrefs {
   v: 1;
@@ -10,6 +11,10 @@ export interface SidebarPrefs {
    *  renaming, or removing a section later degrades gracefully instead of inheriting a stale
    *  value for a section that no longer means the same thing. */
   sections: Record<string, boolean>;
+  /** Whole-sidebar rail mode (icon-only + flyouts) vs. the default expanded accordion. Desktop
+   *  only — AdminLayout ignores this on the mobile drawer, where collapsing to a 64px rail inside
+   *  an already-temporary overlay defeats the point of opening it. Absent/false = expanded. */
+  collapsed?: boolean;
 }
 
 const EMPTY_PREFS: SidebarPrefs = { v: 1, sections: {} };
@@ -25,7 +30,7 @@ export function readSidebarPrefs(userId: string | undefined | null): SidebarPref
     if (!raw) return EMPTY_PREFS;
     const parsed = JSON.parse(raw) as Partial<SidebarPrefs>;
     if (parsed.v !== 1 || typeof parsed.sections !== "object" || parsed.sections === null) return EMPTY_PREFS;
-    return { v: 1, sections: parsed.sections };
+    return { v: 1, sections: parsed.sections, collapsed: parsed.collapsed === true };
   } catch {
     return EMPTY_PREFS;
   }
@@ -35,10 +40,21 @@ export function writeSidebarSectionOpen(userId: string | undefined | null, secti
   if (!userId || typeof window === "undefined") return;
   try {
     const current = readSidebarPrefs(userId);
-    const next: SidebarPrefs = { v: 1, sections: { ...current.sections, [sectionLabel]: open } };
+    const next: SidebarPrefs = { v: 1, sections: { ...current.sections, [sectionLabel]: open }, collapsed: current.collapsed };
     window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
   } catch {
     /* private mode, quota, etc. — the toggle still works for the rest of this session via
      * AdminSidebarNav's own in-memory state; it just won't survive a reload. */
+  }
+}
+
+export function writeSidebarCollapsed(userId: string | undefined | null, collapsed: boolean): void {
+  if (!userId || typeof window === "undefined") return;
+  try {
+    const current = readSidebarPrefs(userId);
+    const next: SidebarPrefs = { v: 1, sections: current.sections, collapsed };
+    window.localStorage.setItem(storageKey(userId), JSON.stringify(next));
+  } catch {
+    /* same as above — collapse still works for this session, just doesn't survive a reload. */
   }
 }
