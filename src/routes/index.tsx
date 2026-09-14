@@ -1056,9 +1056,10 @@ function PromoCarousel() {
                     {i === active && (
                       <span
                         key={active}
-                        className="absolute inset-y-0 left-0 block rounded-full"
+                        className="absolute inset-y-0 left-0 block w-full rounded-full"
                         style={{
                           background: "#e8c878",
+                          transformOrigin: "left",
                           animation: `mpk-promo-dot ${CAROUSEL_INTERVAL_MS}ms linear forwards`,
                         }}
                       />
@@ -1066,8 +1067,11 @@ function PromoCarousel() {
                   </button>
                 ))}
               </div>
+              {/* transform, not width — a width keyframe forces layout on every animation frame
+                  for the full 6s duration (Lighthouse's "non-composited animation" flag); scaleX
+                  is compositor-only and renders identically since the span is left-anchored. */}
               <style>{`
-                @keyframes mpk-promo-dot { from { width: 0%; } to { width: 100%; } }
+                @keyframes mpk-promo-dot { from { transform: scaleX(0); } to { transform: scaleX(1); } }
               `}</style>
             </div>
 
