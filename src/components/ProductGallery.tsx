@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 interface ProductGalleryProps {
   images: string[];
@@ -71,7 +72,7 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
         >
           <img
             key={activeIndex}
-            src={activeImage}
+            src={cloudinaryOptimized(activeImage, 700)}
             alt={productName}
             className="h-full w-full animate-in fade-in object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
@@ -98,7 +99,7 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
                 i === activeIndex ? "border-primary" : "border-transparent hover:border-border"
               }`}
             >
-              <img src={img} alt="" className="h-full w-full object-cover" />
+              <img src={cloudinaryOptimized(img, 160)} alt="" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>
@@ -142,7 +143,7 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
           )}
           <img
             key={activeIndex}
-            src={activeImage}
+            src={cloudinaryOptimized(activeImage, 1200)}
             alt={productName}
             className="max-h-[88vh] max-w-[92vw] animate-in fade-in zoom-in-95 rounded-lg object-contain duration-200"
             onClick={(e) => e.stopPropagation()}

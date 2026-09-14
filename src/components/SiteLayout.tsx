@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, lazy, Suspense, useEffect, useState } from "react";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { WhatsAppFloat } from "./WhatsAppFloat";
@@ -9,7 +9,13 @@ import { AppSplash } from "./AppSplash";
 import { BottomNav } from "./BottomNav";
 import { CookieConsent } from "./CookieConsent";
 import { AddToHomeScreenPrompt } from "./AddToHomeScreenPrompt";
-import { WelcomeStarterModal } from "./WelcomeStarterModal";
+// Lazy — its two avatar images (~220KB combined) have no business competing with the hero image
+// and fonts during the critical render path for a component that doesn't even show for 2.5s (and
+// may never show at all for a logged-in visitor). Moving it into its own chunk keeps the main
+// bundle lighter to parse without changing when/whether the modal itself appears.
+const WelcomeStarterModal = lazy(() =>
+  import("./WelcomeStarterModal").then((m) => ({ default: m.WelcomeStarterModal })),
+);
 import { CelebratoryRewardBanner } from "./CelebratoryRewardBanner";
 import { CartAddedSheet } from "./CartAddedSheet";
 
@@ -46,7 +52,9 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <CookieConsent />
         <BottomNav />
       </div>
-      <WelcomeStarterModal />
+      <Suspense fallback={null}>
+        <WelcomeStarterModal />
+      </Suspense>
       <CartAddedSheet />
     </>
   );

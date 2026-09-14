@@ -7,6 +7,7 @@ import { api } from "@/services/api";
 import { industries as allIndustries } from "@/data/products";
 import type { Product } from "@/data/products";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 const RECENTS_KEY = "moments.recentSearches.v1";
 const MAX_RECENTS = 6;
@@ -324,7 +325,7 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
                       <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
                         {p.primaryImageUrl ? (
                           <img
-                            src={p.primaryImageUrl}
+                            src={cloudinaryOptimized(p.primaryImageUrl, 150)}
                             alt={p.name}
                             loading="lazy"
                             className="h-full w-full object-cover"

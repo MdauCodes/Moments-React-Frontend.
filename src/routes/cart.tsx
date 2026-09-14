@@ -6,6 +6,7 @@ import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { useCart } from "@/contexts/CartContext";
 import { WHATSAPP_NUMBER } from "@/data/products";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 
 
@@ -82,7 +83,7 @@ function CartPage() {
               {items.map((it) => (
                 <li key={it.id} className="flex gap-4 p-4 sm:p-5">
                   <img
-                    src={it.primaryImageUrl}
+                    src={cloudinaryOptimized(it.primaryImageUrl, 200)}
                     alt={it.productName}
                     className="h-20 w-20 flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-24"
                   />

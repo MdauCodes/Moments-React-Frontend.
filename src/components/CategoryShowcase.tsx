@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Flame, Sparkles, Tag, ArrowRight } from "lucide-react";
 import { api } from "@/services/api";
 import type { Product } from "@/data/products";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 type TabKey = "discount" | "new" | "fast";
 
@@ -205,7 +206,7 @@ function ShowcaseCard({ product, flag }: { product: Product; flag: TabKey }) {
     >
       <div className="relative aspect-square overflow-hidden bg-secondary">
         <img
-          src={product.primaryImageUrl ?? ""}
+          src={cloudinaryOptimized(product.primaryImageUrl, 300)}
           alt={product.name}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"

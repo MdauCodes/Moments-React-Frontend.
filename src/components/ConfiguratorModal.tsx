@@ -12,6 +12,7 @@ import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
 import { getStockInfo } from "@/lib/stock";
 import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 interface ConfiguratorModalProps {
   product: Product | null;
@@ -205,7 +206,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl bg-secondary">
               {product.primaryImageUrl ? (
                 <img
-                  src={product.primaryImageUrl}
+                  src={cloudinaryOptimized(product.primaryImageUrl, 200)}
                   alt={product.name}
                   className="h-full w-full object-cover"
                 />
