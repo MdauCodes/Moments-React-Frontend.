@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronDown, Search, X } from "lucide-react";
 
@@ -160,18 +161,19 @@ const styles: Record<string, CSSProperties> = {
     placeItems: "center",
     padding: "0 3px",
   },
+  // position/top/left are set inline per-open from the trigger button's real screen position (see
+  // AdminSidebarRail) — this is rendered through a portal straight into document.body specifically
+  // so it can never be clipped by the sidebar's own `overflow: hidden` (needed to keep the 64px/
+  // 248px width transition clean) or caught in some other ancestor's stacking context.
   flyout: {
-    position: "absolute",
-    left: "100%",
-    top: 0,
-    marginLeft: 8,
+    position: "fixed",
     width: 224,
     background: "var(--admin-sidebar)",
     border: "1px solid var(--admin-sidebar-border)",
     borderRadius: 10,
     boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
     padding: 6,
-    zIndex: 50,
+    zIndex: 200,
   },
   flyoutLabel: {
     fontSize: 10,
@@ -221,12 +223,21 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
 }) {
   const navigate = useNavigate();
   const [openLabel, setOpenLabel] = useState<string | null>(null);
+  const [flyoutPos, setFlyoutPos] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const flyoutRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { activeTo, activeSectionLabel } = useMemo(() => resolveActiveNav(pathname, sections), [pathname, sections]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpenLabel(null);
+      const target = e.target as Node;
+      // The flyout itself is portaled to document.body, outside rootRef entirely — a click inside
+      // it (e.g. a Link) must not count as "outside" or it would close before the Link's own
+      // onClick (go()) ever runs.
+      if (rootRef.current?.contains(target)) return;
+      if (flyoutRef.current?.contains(target)) return;
+      setOpenLabel(null);
     }
     function onKey(e: globalThis.KeyboardEvent) {
       if (e.key === "Escape") setOpenLabel(null);
@@ -241,11 +252,26 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
 
   useEffect(() => setOpenLabel(null), [pathname]);
 
+  function toggle(label: string) {
+    if (openLabel === label) {
+      setOpenLabel(null);
+      return;
+    }
+    const btn = btnRefs.current[label];
+    if (btn) {
+      const rect = btn.getBoundingClientRect();
+      setFlyoutPos({ top: rect.top, left: rect.right + 8 });
+    }
+    setOpenLabel(label);
+  }
+
   function go(to: string) {
     setOpenLabel(null);
     navigate(to);
     onNavigate?.();
   }
+
+  const openSection = sections.find((s) => s.label === openLabel);
 
   return (
     <div ref={rootRef} style={styles.rail}>
@@ -255,53 +281,54 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
         const isActiveSection = section.label === activeSectionLabel;
         const badgeTotal = sectionBadgeTotal(section, badgeFor);
         return (
-          <div key={section.label} style={{ position: "relative" }}>
-            <button
-              type="button"
-              title={section.label}
-              aria-expanded={isOpen}
-              aria-label={section.label}
-              onClick={() => setOpenLabel(isOpen ? null : section.label)}
-              className="admin-nav-rail-btn"
-              style={{
-                ...styles.railBtn,
-                background: isOpen || isActiveSection ? "var(--admin-sidebar-surface)" : "transparent",
-                color: isActiveSection ? "oklch(0.98 0.015 84)" : "oklch(0.88 0.02 84)",
-              }}
-            >
-              <RepIcon size={20} />
-              {badgeTotal > 0 && (
-                <span style={styles.railBadge} aria-label={badgeAriaLabel(badgeTotal)}>{badgeTotal}</span>
-              )}
-            </button>
-
-            {isOpen && (
-              <div style={styles.flyout}>
-                <div style={styles.flyoutLabel}>{section.label}</div>
-                {section.items.map((item) => {
-                  const Icon = item.icon;
-                  const active = item.to === activeTo;
-                  const badge = badgeFor(item);
-                  return (
-                    <Link
-                      key={item.to}
-                      to={item.to}
-                      onClick={(e) => { e.preventDefault(); go(item.to); }}
-                      style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}), borderLeft: "none" }}
-                    >
-                      <Icon size={16} />
-                      <span style={{ flex: 1 }}>{item.label}</span>
-                      {badge !== undefined && badge.count > 0 && (
-                        <span style={styles.badge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
+          <button
+            key={section.label}
+            ref={(el) => { btnRefs.current[section.label] = el; }}
+            type="button"
+            title={section.label}
+            aria-expanded={isOpen}
+            aria-label={section.label}
+            onClick={() => toggle(section.label)}
+            className="admin-nav-rail-btn"
+            style={{
+              ...styles.railBtn,
+              background: isOpen || isActiveSection ? "var(--admin-sidebar-surface)" : "transparent",
+              color: isActiveSection ? "oklch(0.98 0.015 84)" : "oklch(0.88 0.02 84)",
+            }}
+          >
+            <RepIcon size={20} />
+            {badgeTotal > 0 && (
+              <span style={styles.railBadge} aria-label={badgeAriaLabel(badgeTotal)}>{badgeTotal}</span>
             )}
-          </div>
+          </button>
         );
       })}
+
+      {openSection && flyoutPos && createPortal(
+        <div ref={flyoutRef} style={{ ...styles.flyout, top: flyoutPos.top, left: flyoutPos.left }}>
+          <div style={styles.flyoutLabel}>{openSection.label}</div>
+          {openSection.items.map((item) => {
+            const Icon = item.icon;
+            const active = item.to === activeTo;
+            const badge = badgeFor(item);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={(e) => { e.preventDefault(); go(item.to); }}
+                style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}), borderLeft: "none" }}
+              >
+                <Icon size={16} />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                {badge !== undefined && badge.count > 0 && (
+                  <span style={styles.badge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
+                )}
+              </Link>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
