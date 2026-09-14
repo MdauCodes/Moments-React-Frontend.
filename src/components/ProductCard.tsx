@@ -9,6 +9,7 @@ import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
 import { sanitizeProductDescription } from "@/lib/utils";
 import { getQuickAddTiers, isIndividualBuyable, isQuickAddEligible, trackProductClick } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 interface ProductCardProps {
   product: Product;
@@ -24,7 +25,7 @@ interface ProductCardProps {
 export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductCardProps) {
   const stock = getStockInfo(p, null, 0);
 
-  const image = p.primaryImageUrl;
+  const image = cloudinaryOptimized(p.primaryImageUrl, 480);
 
   const tiers = getQuickAddTiers(p) as Array<any>;
 

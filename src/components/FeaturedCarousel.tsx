@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, Flame, Sparkles, Tag } from "lucide-react";
 import { api } from "@/services/api";
 import type { Product } from "@/data/products";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 type Flag = "discount" | "new" | "fast";
 
@@ -169,7 +170,7 @@ export function FeaturedCarousel() {
                   <div className="relative aspect-square h-[88px] w-[88px] shrink-0 overflow-hidden rounded-lg bg-secondary sm:h-24 sm:w-24">
                     {p.primaryImageUrl ? (
                       <img
-                        src={p.primaryImageUrl}
+                        src={cloudinaryOptimized(p.primaryImageUrl, 200)}
                         alt={p.name}
                         loading="lazy"
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"

@@ -23,6 +23,7 @@ import { orderStore, type FulfillmentType, type CourierType } from "@/services/o
 import { businessAccountApi } from "@/services/businessAccountApi";
 import { referralStore } from "@/services/referralStore";
 import { profileStore } from "@/services/profileStore";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 import { apiUrl, apiFetch } from "@/config/api";
 import { trackFunnelStep } from "@/services/checkoutFunnelTracker";
 import { CountySelect } from "@/components/CountySelect";
@@ -1423,7 +1424,7 @@ function CheckoutModal() {
                     <div className="flex items-start gap-3">
                       <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-secondary">
                         {it.primaryImageUrl ? (
-                          <img src={it.primaryImageUrl} alt={it.productName} className="h-full w-full object-cover" />
+                          <img src={cloudinaryOptimized(it.primaryImageUrl, 200)} alt={it.productName} className="h-full w-full object-cover" />
                         ) : (
                           <div className="h-full w-full bg-muted" />
                         )}

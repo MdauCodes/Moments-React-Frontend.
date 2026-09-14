@@ -1,11 +1,17 @@
 import { Link } from "react-router-dom";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
 import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
-import { WelcomeStarterModal } from "@/components/WelcomeStarterModal";
+// Lazy — its two avatar images (~220KB combined) have no business competing with the hero image
+// and fonts during the critical render path for a component that doesn't even show for 2.5s (and
+// may never show at all for a logged-in visitor). Moving it into its own chunk keeps the main
+// bundle lighter to parse without changing when/whether the modal itself appears.
+const WelcomeStarterModal = lazy(() =>
+  import("@/components/WelcomeStarterModal").then((m) => ({ default: m.WelcomeStarterModal })),
+);
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,6 +57,7 @@ import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandD
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
 import { filterVisibleIndustries } from "@/data/products";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 import cloudV3 from "@/assets/packaging-cloud-hero-v3.webp";
 import cloudKraft from "@/assets/packaging-cloud-hero.webp";
 import ecoCluster from "@/assets/company-profile/eco-packaging-cluster.webp";
@@ -981,7 +988,7 @@ function PromoCarousel() {
   const TabIcon = tab.icon;
   const products = productsByTab[active] ?? [];
   const showcase = products.slice(0, 4);
-  const backdropImage = showcase.find((p) => p.primaryImageUrl)?.primaryImageUrl;
+  const backdropImage = cloudinaryOptimized(showcase.find((p) => p.primaryImageUrl)?.primaryImageUrl, 640);
 
   return (
     <section className="bg-cream">
@@ -1087,7 +1094,7 @@ function PromoCarousel() {
                       <div className="relative aspect-square w-full overflow-hidden bg-secondary">
                         {p.primaryImageUrl && (
                           <img
-                            src={p.primaryImageUrl}
+                            src={cloudinaryOptimized(p.primaryImageUrl, 300)}
                             alt={p.name}
                             loading="lazy"
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -1194,7 +1201,9 @@ function HomePage() {
   return (
     <>
       <FirstVisitSplash />
-      <WelcomeStarterModal />
+      <Suspense fallback={null}>
+        <WelcomeStarterModal />
+      </Suspense>
       <CookieConsent />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>

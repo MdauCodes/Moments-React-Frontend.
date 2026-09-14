@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { useCart } from "@/contexts/CartContext";
 import { products } from "@/data/products";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 
 
@@ -56,7 +57,7 @@ function WishlistPage() {
                 <Link to={`/products/${p.slug}`} className="block">
                   {p.primaryImageUrl ? (
                     <img
-                      src={p.primaryImageUrl ?? ""}
+                      src={cloudinaryOptimized(p.primaryImageUrl, 400)}
                       alt={p.name}
                       className="aspect-[4/3] w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                     />

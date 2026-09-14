@@ -12,6 +12,7 @@ import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import { refundStore, refundEligibility, type RefundRequest } from "@/services/refundStore";
 import { orderReviewStore, type OrderReview } from "@/services/orderReviewStore";
 import { useCart } from "@/contexts/CartContext";
+import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 
 
 
@@ -193,7 +194,7 @@ function OrderDetailPage() {
               <ul className="mt-4 divide-y divide-border">
                 {order.items.map((it, i) => (
                   <li key={i} className="flex items-center gap-4 py-4">
-                    <img src={it.primaryImageUrl} alt={it.productName} className="h-16 w-16 rounded-lg object-cover" />
+                    <img src={cloudinaryOptimized(it.primaryImageUrl, 150)} alt={it.productName} className="h-16 w-16 rounded-lg object-cover" />
                     <div className="flex-1">
                       <p className="font-semibold">{it.productName}</p>
                       <p className="text-xs text-muted-foreground">{[it.size, it.material, it.finish].filter(Boolean).join(" · ")}</p>
