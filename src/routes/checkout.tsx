@@ -527,8 +527,8 @@ function CheckoutModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedPromo?.code]);
 
-  async function applyPointsRedemption() {
-    const points = parseInt(redeemInput, 10);
+  async function applyPointsRedemption(pointsOverride?: number) {
+    const points = pointsOverride ?? parseInt(redeemInput, 10);
     if (!points || points <= 0) {
       setRedeemError("Enter how many Reward Coupons to redeem");
       return;
@@ -564,6 +564,16 @@ function CheckoutModal() {
     setAppliedRedemption(null);
     setRedeemInput("");
     setRedeemError(null);
+  }
+
+  // One-tap redeem-everything — the plain Apply flow still requires typing an exact point count,
+  // which is real friction for the common case of "just use what I have." Reuses the same
+  // preview/cap/error handling as a manual Apply (via applyPointsRedemption's override param), so
+  // there's no separate code path to keep in sync with the server-side redemption rules.
+  function useMaxPoints() {
+    if (!pointsBalance) return;
+    setRedeemInput(String(pointsBalance));
+    void applyPointsRedemption(pointsBalance);
   }
 
   // Destination-driven coverage check — resolves whether real-time-quoted courier delivery is
@@ -2520,7 +2530,16 @@ function CheckoutModal() {
                             />
                             <button
                               type="button"
-                              onClick={applyPointsRedemption}
+                              onClick={useMaxPoints}
+                              disabled={redeemChecking || !pointsBalance}
+                              title={`Redeem all ${pointsBalance} Reward Coupons`}
+                              className="rounded-lg border border-border px-2.5 py-2 text-xs font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-60"
+                            >
+                              Max
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => applyPointsRedemption()}
                               disabled={redeemChecking || !redeemInput.trim()}
                               className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-secondary disabled:opacity-60"
                             >
