@@ -27,6 +27,9 @@ import { LatestBlogsStrip } from "@/components/blog/LatestBlogsStrip";
 import { ProductCardSkeleton } from "@/components/ProductCardSkeleton";
 import { ProductCard } from "@/components/ProductCard";
 import { ConfiguratorModal } from "@/components/ConfiguratorModal";
+import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
+import { isQuickAddEligible } from "@/lib/quickAdd";
+import { getStockInfo } from "@/lib/stock";
 import { ShopMegaMenu } from "@/components/ShopMegaMenu";
 import { CartAddedSheet } from "@/components/CartAddedSheet";
 import catPaperBagsImg from "@/assets/categories/cat-paper-bags.webp";
@@ -982,6 +985,140 @@ const CAROUSEL_TABS = [
 
 const CAROUSEL_INTERVAL_MS = 6000;
 
+// The two colours the promo panel already speaks in — the gold used by its CTA button and its
+// progress dots, and the deep forest that gold sits on. Reused by the cards below so they read as
+// part of this section rather than plain white boxes that happen to be sitting on top of it.
+const PROMO_GOLD = "#e8c878";
+const PROMO_FOREST = "#0d3320";
+
+/** The one flag chip a promo card shows, derived from the product rather than from which tab is
+ *  on screen. The old version only showed a badge when the flag happened to match the active tab
+ *  (discount on the Deals tab, new on New Arrivals) and showed nothing at all on Best Sellers —
+ *  so a discounted product sitting in the Best Sellers lineup advertised no discount. Priority is
+ *  discount > new > fast, i.e. loudest commercial signal first. */
+function promoFlag(p: Product): { label: string; bg: string; color: string; ring: string } | null {
+  if (p.isDiscount) return { label: `-${p.discountPercent ?? 10}%`, bg: PROMO_GOLD, color: PROMO_FOREST, ring: "rgba(13,51,32,0.3)" };
+  if (p.isNewArrival) return { label: "NEW", bg: PROMO_FOREST, color: PROMO_GOLD, ring: "rgba(232,200,120,0.55)" };
+  if (p.isFastMoving) return { label: "HOT", bg: "var(--kraft-ink)", color: "var(--kraft-foreground)", ring: "rgba(255,255,255,0.4)" };
+  return null;
+}
+
+/** A single card in the promo carousel's lineup.
+ *
+ *  Rebuilt from a passive photo-name-price tile on two counts the site owner raised: it had no
+ *  per-product call to action at all (the only actionable thing in the whole section was the one
+ *  "Shop the deal" button up top, so a shopper who liked a specific product had to open its full
+ *  page just to act), and it read as a flat white box against what is otherwise a rich dark
+ *  panel.
+ *
+ *  The CTA is the same QuickAddUomButtons the catalogue card uses, not a new interaction — same
+ *  handler, same one-tap-add semantics, same CartAddedSheet confirmation — just compact
+ *  (showMultiplier={false}, maxVisible={1}) because these cards are half the width of a catalogue
+ *  card. Products that need real configuration (sizes, materials, variants) aren't quick-addable
+ *  and get a clear "View options" affordance instead of a button that would lie about what
+ *  happens next. */
+function PromoShowcaseCard({ product: p }: { product: Product }) {
+  const stock = getStockInfo(p, null, 0);
+  const eligible = isQuickAddEligible(p, stock);
+  const flag = promoFlag(p);
+  const wasPrice =
+    p.originalBasePrice !== undefined && p.basePrice !== undefined && p.originalBasePrice > p.basePrice
+      ? p.originalBasePrice
+      : null;
+
+  return (
+    <Link
+      to={`/products/${p.slug}`}
+      /* One fixed width at every breakpoint rather than growing at sm. The promo panel's card
+         column measures 773px on a maxed-out desktop, so with the 20px gap the widest a card can
+         be and still leave four in a single row is 178px — anything larger (the old sm:w-48, or
+         the sm:w-52 this was first written at) wraps the fourth card onto a row of its own and
+         leaves the lineup looking 3-and-a-bit. */
+      className="group relative flex w-44 shrink-0 snap-start flex-col overflow-hidden rounded-2xl transition-transform duration-300 hover:-translate-y-1"
+      style={{
+        // Warm gradient rather than flat #fff, a hairline of the section's own gold, and a deep
+        // shadow — the card should look lit from above against the dark panel, not pasted on.
+        background: "linear-gradient(168deg, #ffffff 0%, var(--cream) 100%)",
+        boxShadow: "0 14px 34px -10px rgba(0,0,0,0.55), 0 2px 6px -2px rgba(0,0,0,0.3)",
+        outline: `1px solid ${PROMO_GOLD}59`,
+        outlineOffset: "-1px",
+      }}
+    >
+      <div className="relative aspect-square w-full overflow-hidden" style={{ background: "var(--secondary)" }}>
+        {p.primaryImageUrl && (
+          <img
+            src={cloudinaryOptimized(p.primaryImageUrl, 300)}
+            /* Deliberately empty, not missing: the product name is rendered as text inside this
+               same <Link>, so the link already has an accessible name. Repeating it here is the
+               exact redundant-alt pattern the category tiles were just fixed for. */
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.07]"
+          />
+        )}
+        {/* Softens the hard photo/card seam so the image sits *in* the card rather than on it. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-8"
+          style={{ background: "linear-gradient(to bottom, transparent, var(--cream))" }}
+        />
+        {flag && (
+          <span
+            className="absolute left-2 top-2 rounded-full px-2 py-1 text-[10px] font-extrabold uppercase leading-none tracking-wider shadow-md sm:text-[11px]"
+            style={{ background: flag.bg, color: flag.color, outline: `1px solid ${flag.ring}`, outlineOffset: "-1px" }}
+          >
+            {flag.label}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col gap-2 px-3 pb-3 pt-1.5">
+        {/* min-h of two lines: product names here run from "MUFFIN HOLDER BOXES 6PCS" to
+            "890ML-ECO HAPA- ALUMINIUM FOIL CONTAINER & LIDS", and letting the block collapse to
+            one line left neighbouring cards in the same row visibly different heights. */}
+        <p className="line-clamp-2 min-h-[2.5em] text-xs font-medium leading-snug text-foreground sm:text-[13px]">
+          {p.name}
+        </p>
+
+        {p.basePrice !== undefined && (
+          // Price is the second thing after the photo on a deal card, so it gets real weight
+          // instead of the 12px semibold line it used to share with the product name.
+          <p className="flex flex-wrap items-baseline gap-x-1.5 leading-none">
+            <span className="font-display text-base font-bold sm:text-lg" style={{ color: PROMO_FOREST }}>
+              KES {p.basePrice.toLocaleString()}
+            </span>
+            {/* basePrice is always the smallest-unit price, so say so — without it a "KES 4"
+                headline sitting above an "Add 1 Packet · KES 400" button reads as a contradiction
+                rather than as unit price vs pack price. Same "/ pc" wording ProductCard uses. */}
+            <span className="text-[10px] font-medium text-muted-foreground sm:text-[11px]">/ pc</span>
+            {wasPrice && (
+              <span className="text-[11px] font-medium text-muted-foreground line-through">
+                {wasPrice.toLocaleString()}
+              </span>
+            )}
+          </p>
+        )}
+
+        <div className="mt-auto pt-0.5">
+          {eligible ? (
+            <QuickAddUomButtons product={p} layout="card" maxVisible={1} showMultiplier={false} />
+          ) : (
+            // A styled <span>, not a <button> — the whole card is already a <Link> to this
+            // product, so this is an affordance telling you what the tap does, not a second
+            // control. A nested interactive element here would be invalid HTML for no gain.
+            <span
+              className="flex w-full items-center justify-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-semibold transition-opacity group-hover:opacity-90 sm:text-xs"
+              style={{ background: PROMO_FOREST, color: PROMO_GOLD }}
+            >
+              View options <ArrowRight className="h-3 w-3" />
+            </span>
+          )}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 function PromoCarousel() {
   const [active, setActive] = useState(0);
   const [productsByTab, setProductsByTab] = useState<Record<number, Product[]>>({});
@@ -1130,59 +1267,27 @@ function PromoCarousel() {
             {/* Product showcase — flex, not a 4-column grid, so a tab with fewer
                 than 4 products doesn't leave dead empty columns (cards stay a
                 fixed width and left-align instead of stretching to fill). */}
-            <div className="-mx-6 flex flex-wrap gap-4 overflow-x-auto px-6 pb-1 sm:mx-0 sm:gap-5 sm:overflow-visible sm:px-0">
+            {/* flex-nowrap + snap on mobile, wrapping only from sm up. This row already carried
+                `overflow-x-auto`, but paired with `flex-wrap` that never did anything: the cards
+                wrapped instead of scrolling, so on a phone the "lineup" was really a tall vertical
+                stack — one card per row, four rows deep. Now it's the swipeable strip the
+                overflow was always asking for (same snap-x/snap-start pattern FeaturedCarousel
+                uses), which also keeps the section compact now that the cards are taller. */}
+            <div className="scrollbar-hide -mx-6 flex snap-x snap-mandatory flex-nowrap gap-4 overflow-x-auto px-6 pb-1 sm:mx-0 sm:snap-none sm:flex-wrap sm:gap-5 sm:overflow-visible sm:px-0">
               {showcase.length === 0
-                ? Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="w-40 shrink-0 overflow-hidden rounded-xl bg-white/95 shadow-lg sm:w-48">
+                ? // Mirrors PromoShowcaseCard's width, radius and internal rhythm (including the
+                  // CTA row) so the lineup doesn't visibly resize when the real products land.
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="w-44 shrink-0 overflow-hidden rounded-2xl bg-white/95 shadow-lg">
                       <div className="shimmer aspect-square w-full" />
-                      <div className="p-3">
+                      <div className="flex flex-col gap-2 px-3 pb-3 pt-1.5">
                         <div className="shimmer h-3 w-4/5 rounded" />
-                        <div className="shimmer mt-2 h-2.5 w-1/2 rounded" />
+                        <div className="shimmer h-4 w-1/2 rounded" />
+                        <div className="shimmer h-6 w-full rounded-full" />
                       </div>
                     </div>
                   ))
-                : showcase.map((p) => (
-                    <Link
-                      key={p.id}
-                      to={`/products/${p.slug}`}
-                      className="group relative w-40 shrink-0 overflow-hidden rounded-xl bg-white shadow-lg transition-transform hover:-translate-y-1 sm:w-48"
-                    >
-                      <div className="relative aspect-square w-full overflow-hidden bg-secondary">
-                        {p.primaryImageUrl && (
-                          <img
-                            src={cloudinaryOptimized(p.primaryImageUrl, 300)}
-                            alt={p.name}
-                            loading="lazy"
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                        )}
-                        {tab.key === "deals" && p.isDiscount && (
-                          <span
-                            className="absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold text-white"
-                            style={{ background: "#b91c1c" }}
-                          >
-                            -{p.discountPercent ?? 10}%
-                          </span>
-                        )}
-                        {tab.key === "new" && p.isNewArrival && (
-                          <span
-                            className="absolute left-1.5 top-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold"
-                            style={{ background: "#e8c878", color: "#0d3320" }}
-                          >
-                            NEW
-                          </span>
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <p className="line-clamp-1 text-xs font-medium text-foreground sm:text-sm">{p.name}</p>
-                        {p.basePrice !== undefined && (
-                          <p className="mt-0.5 text-xs font-semibold" style={{ color: "#0d3320" }}>
-                            KES {p.basePrice.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-                    </Link>
-                  ))}
+                : showcase.map((p) => <PromoShowcaseCard key={p.id} product={p} />)}
             </div>
           </div>
         </div>
