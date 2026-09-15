@@ -729,7 +729,12 @@ function CategoryRow() {
                 </span>
                 <span
                   className="block truncate"
-                  style={{ fontSize: "calc(10.5px * var(--a11y-font-scale))", color: "color-mix(in oklab, var(--ink) 55%, transparent)" }}
+                  /* 68%, not the 55% this used to be: at 55% the composited result over --cream is
+                     #7d7368, which is 4.0:1 — under the 4.5:1 WCAG AA minimum for 10.5px text, and
+                     one of the elements Lighthouse's contrast audit was flagging. 68% lands at
+                     6.2:1 while still reading as clearly secondary next to the full-ink 13px
+                     industry name directly above it. */
+                  style={{ fontSize: "calc(10.5px * var(--a11y-font-scale))", color: "color-mix(in oklab, var(--ink) 68%, transparent)" }}
                 >
                   {ind.description}
                 </span>
@@ -788,7 +793,7 @@ function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, b
       <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-accent">{eyebrow}</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-accent-ink">{eyebrow}</p>
             <h2 className="mt-2 font-display text-2xl font-medium text-foreground sm:text-3xl">{title}</h2>
             {desc && <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">{desc}</p>}
           </div>
@@ -844,10 +849,57 @@ const SEGMENT_IMAGE_FALLBACK_POOL = [
   catLabelsStickersImg, catFoodContainersImg, catGiftEventImg, catBeautyPharmaImg,
 ];
 
+// What each segment photo actually shows, keyed the same way as SEGMENT_IMAGES above.
+//
+// These tiles used to pass `alt={seg.name}` — the exact same string as the caption rendered over
+// the photo inside the very same <Link>. Lighthouse flagged that as redundant alt text, and it is:
+// a screen reader announced every tile's name twice ("Food Packaging, Food Packaging, link"), and
+// the alt carried no information the caption didn't already give. Written from the photos
+// themselves, so they describe the real contents rather than restating the category name.
+const SEGMENT_IMAGE_ALTS: Record<string, string> = {
+  "food packaging":
+    "Kraft carrier bags, window pastry boxes, burger clamshells, dessert cups and printed greaseproof wraps",
+  "disposable tableware":
+    "Bagasse compartment plates and clamshells, foil trays, kraft soup cups, sushi trays and sauce pots",
+  "cutlery":
+    "Wooden, clear plastic and CPLA spoons, forks and knives, some standing in kraft cups",
+  "drinks packaging":
+    "Ripple-wall coffee cups, clear cold cups with domed lids, moulded pulp cup carriers, paper straws and wooden stirrers",
+  "kitchen and table accessories":
+    "Kitchen towel rolls, serviettes, tissue boxes, cleaning cloths and sachets of sugar, salt, ketchup and black pepper",
+  "wooden accessories":
+    "Bamboo skewers, cocktail picks, coffee stirrers, wooden serving boats and wooden forks",
+  "hygiene essentials":
+    "Boxed nitrile and vinyl gloves, disposable hair nets, face masks, hand towel rolls and facial tissue boxes",
+  "bags and sacks":
+    "Woven polypropylene shopping bags, coloured non-woven totes and vest-style carrier bags, some printed with full-colour designs",
+  "general supplies and stationeries":
+    "Rolls of packing tape, stretch film and thermal receipt paper, balls of twine and coloured mesh net sacks",
+  "custom branding":
+    "Rolls and sheets of branded stickers and thank-you labels printed with the Moments Packaging logo",
+  "cosmetics":
+    "Amber and frosted glass dropper bottles, pump and spray bottles, cream jars and squeeze tubes",
+  "agriculture":
+    "Moulded pulp egg trays, clear egg cartons, black nursery planting bags and seedling propagation trays",
+  "dairy":
+    "Clear PET bottles in a range of sizes, including handled jerrycan-style bottles, all with white caps",
+  "pharmacy":
+    "Clear tablet jars with white lids, kraft stand-up pouches and kraft dispensing envelopes holding capsules and tablets",
+};
+
 function imageForSegment(name: string, fallbackIndex: number): string {
   const match = SEGMENT_IMAGES[name.trim().toLowerCase()];
   if (match) return match;
   return SEGMENT_IMAGE_FALLBACK_POOL[fallbackIndex % SEGMENT_IMAGE_FALLBACK_POOL.length];
+}
+
+/** Alt text for a segment tile's photo. A segment the backend adds later has no named photo and
+ *  therefore falls back to a generic stock shot from the pool — there is nothing truthful to say
+ *  about what that particular picture shows, and the tile's own caption already names the
+ *  category, so the honest answer is the empty string: mark it decorative and let the caption be
+ *  the link's accessible name, rather than inventing a description or repeating the caption. */
+function altForSegment(name: string): string {
+  return SEGMENT_IMAGE_ALTS[name.trim().toLowerCase()] ?? "";
 }
 
 function CategoryGrid() {
@@ -872,7 +924,7 @@ function CategoryGrid() {
         <SignatureDivider className="mb-10" />
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.25em] text-accent">Browse</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-accent-ink">Browse</p>
             <h2 className="mt-2 font-display text-3xl font-medium text-foreground sm:text-4xl">Shop by category</h2>
           </div>
           <Link
@@ -891,7 +943,7 @@ function CategoryGrid() {
             >
               <img
                 src={imageForSegment(seg.name, i)}
-                alt={seg.name}
+                alt={altForSegment(seg.name)}
                 loading="lazy"
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
@@ -1149,7 +1201,7 @@ function AccountTypesCallout() {
       <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For individuals</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-accent-ink">For individuals</p>
             <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
               Open a free Individual Shopper Account.
             </h2>
@@ -1162,12 +1214,12 @@ function AccountTypesCallout() {
                 to="/individual-shopper-account"
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                Learn more <ArrowRight className="h-4 w-4" />
+                See Shopper Account benefits <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
           <div className="rounded-2xl border border-border bg-card p-6 text-center sm:p-8">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-accent">For businesses</p>
+            <p className="text-[11px] uppercase tracking-[0.25em] text-accent-ink">For businesses</p>
             <h2 className="mt-2 font-display text-xl font-medium text-foreground sm:text-2xl">
               Ordering for your business? Open a free Business Account.
             </h2>
@@ -1180,7 +1232,7 @@ function AccountTypesCallout() {
                 to="/business-account"
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                Learn more <ArrowRight className="h-4 w-4" />
+                See Business Account benefits <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>

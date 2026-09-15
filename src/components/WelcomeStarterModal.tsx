@@ -228,7 +228,7 @@ export function WelcomeStarterModal() {
                     className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
                     style={{ color: GRAY_INK }}
                   >
-                    Learn more
+                    Business Account details
                   </Link>
                 </div>
 
@@ -254,7 +254,7 @@ export function WelcomeStarterModal() {
                     className="text-xs font-semibold underline underline-offset-2 hover:opacity-80"
                     style={{ color: GRAY_INK }}
                   >
-                    Learn more
+                    Shopper Account details
                   </Link>
                 </div>
 

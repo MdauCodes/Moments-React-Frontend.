@@ -36,7 +36,7 @@ function DealsPage() {
   return (
     <SiteLayout>
       <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8">
-        <p className="text-[11px] uppercase tracking-[0.25em] text-accent">Save today</p>
+        <p className="text-[11px] uppercase tracking-[0.25em] text-accent-ink">Save today</p>
         <h1 className="mt-2 font-display text-3xl font-medium text-foreground sm:text-4xl">Deals</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
           A mix of real markdowns and picks we're nudging you toward — every price shown is

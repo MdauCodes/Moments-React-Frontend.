@@ -24,6 +24,7 @@
   --font-sans: "Inter", system-ui, sans-serif;
   --color-kraft: var(--kraft);
   --color-kraft-foreground: var(--kraft-foreground);
+  --color-kraft-ink: var(--kraft-ink);
   --color-cream: var(--cream);
   --color-forest: var(--forest);
   --color-forest-foreground: var(--forest-foreground);
@@ -50,6 +51,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-accent-ink: var(--accent-ink);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -98,12 +100,23 @@
   --cream: oklch(0.952 0.028 83);
   --kraft: oklch(0.62 0.09 60);
   --kraft-foreground: oklch(0.99 0.01 85);
+  /* Text/badge-safe kraft — same hue and chroma as --kraft, deeper. Exactly the same reasoning as
+     --accent-ink below: --kraft (#ae794c) is a fine large surface but fails AA at small sizes in
+     both directions — --kraft-foreground on it is only 3.61:1 (the product card's "Hot" badge),
+     and --kraft *as* text on a white card is 3.72:1 (the subcategory pill). This value clears 4.5
+     in every combination the site uses: 5.44:1 for --kraft-foreground on it, 5.62:1 as text on
+     --card, 4.88:1 as text on --cream. --kraft itself is unchanged for large surfaces and
+     borders. */
+  --kraft-ink: oklch(0.52 0.09 60);
   --forest: oklch(0.32 0.045 155);
   --forest-foreground: oklch(0.97 0.02 85);
   /* Brighter green for small always-visible UI (e.g. mobile bottom nav
      active state) where the dark --forest/--primary reads as too muted
      against a light background at icon size. */
-  --forest-bright: oklch(0.55 0.13 155);
+  /* 0.52, down from 0.55: at 0.55 the mobile bottom nav's active label measured 4.38:1 on the
+     page background — just under the 4.5:1 AA minimum for 11px text. 0.52 is 4.95:1 and still
+     reads as the distinctly brighter green this token exists for (--forest is 0.32). */
+  --forest-bright: oklch(0.52 0.13 155);
   /* Noticeably darker than --forest — reserved for large dark surfaces (the customer dashboard
      sidebar/header) that need to read as clearly distinct from the rest of the site's --forest
      usage (buttons, banners), not just a tint of it. */
@@ -129,6 +142,20 @@
   --muted-foreground: oklch(0.36 0.025 65);
   --accent: oklch(0.62 0.16 35);
   --accent-foreground: oklch(0.99 0.01 85);
+  /* Text/badge-safe clay. Same hue and chroma as --accent, just deeper — not a new colour, the
+     same accent taken down to a lightness that actually passes WCAG AA at small sizes, both as
+     text on a light surface and as a ground under --accent-foreground.
+     --accent itself (#d45b3d) only reaches 3.92:1 on the white card and 3.76:1 on --cream, so
+     every small clay label on a light surface (the uppercase eyebrows above section headings, the
+     11px inline links) was failing the 4.5:1 minimum — which is exactly what Lighthouse's
+     "background and foreground colors do not have a sufficient contrast ratio" audit was pointing
+     at. This lands at 5.71:1 on the card, 5.49:1 on --background and 4.96:1 on --cream, so it
+     clears AA on all three surfaces the site actually uses with room to spare, and white-on-it is
+     5.71:1 so it also works as a small badge ground (--accent as a ground was only 3.85:1).
+     Use it for small clay text and small clay badges. --accent stays exactly as it was for large
+     fills, borders, icons and tints, where the brand colour is doing its real job and a darker
+     value would visibly change the site's character. */
+  --accent-ink: oklch(0.53 0.16 35);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.88 0.02 70);
@@ -184,6 +211,12 @@
   --muted-foreground: oklch(0.704 0.04 256.788);
   --accent: oklch(0.279 0.041 260.031);
   --accent-foreground: oklch(0.984 0.003 247.858);
+  /* Defined so text-accent-ink is never an undefined variable, but note this whole .dark block is
+     the stock shadcn slate theme and is not applied anywhere in the app today — nothing adds the
+     `dark` class. On a dark ground the contrast problem inverts, so this goes lighter than
+     --accent rather than darker, unlike its :root counterpart. */
+  --accent-ink: oklch(0.82 0.03 260);
+  --kraft-ink: oklch(0.78 0.05 60);
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(1 0 0 / 10%);

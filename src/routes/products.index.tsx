@@ -1013,6 +1013,10 @@ function ProductsPage() {
             </p>
             <div className="mt-3 sm:hidden">
               <select
+                /* The visible "Browse by industry" heading above is a <p>, not a <label>, so
+                   nothing was associating it with this control — a screen reader announced an
+                   unnamed combo box. */
+                aria-label="Browse by industry"
                 value={industrySlug ?? ""}
                 onChange={(e) => setParam("industry", e.target.value || undefined)}
                 className="w-full rounded-full border border-foreground/20 bg-background px-4 py-2.5 text-sm text-foreground"

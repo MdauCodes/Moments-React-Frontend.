@@ -343,9 +343,9 @@ function RegisterStep() {
               <Link
                 to={t.value === "BUSINESS" ? "/account-options#business" : "/account-options#individual"}
                 onClick={close}
-                className="mt-1.5 ml-12 inline-block text-[11px] font-medium text-accent underline underline-offset-2 hover:text-accent/80"
+                className="mt-1.5 ml-12 inline-block text-[11px] font-medium text-accent-ink underline underline-offset-2 hover:text-accent-ink/80"
               >
-                Learn more
+                {t.value === "BUSINESS" ? "Business Account details" : "Shopper Account details"}
               </Link>
             </div>
           ))}

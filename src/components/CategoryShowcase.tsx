@@ -15,9 +15,9 @@ const TABS: { key: TabKey; label: string; sublabel: string; icon: typeof Tag }[]
 ];
 
 const tabAccent: Record<TabKey, string> = {
-  discount: "text-accent",
+  discount: "text-accent-ink",
   new: "text-primary",
-  fast: "text-kraft",
+  fast: "text-kraft-ink",
 };
 
 /**
@@ -71,7 +71,7 @@ export function CategoryShowcase() {
       <div className="mx-auto max-w-7xl px-5 py-10 sm:py-14 lg:px-8 lg:py-16">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-accent sm:text-xs">Self-serve discovery</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-accent-ink sm:text-xs">Self-serve discovery</p>
             <h2 className="mt-1.5 font-display text-2xl font-medium text-foreground sm:text-3xl lg:text-4xl">
               Let the products talk.
             </h2>
@@ -189,7 +189,7 @@ function MarqueeRail({ items, flag }: MarqueeRailProps) {
 }
 
 function ShowcaseCard({ product, flag }: { product: Product; flag: TabKey }) {
-  const accent = flag === "discount" ? "text-accent" : flag === "new" ? "text-primary" : "text-kraft";
+  const accent = flag === "discount" ? "text-accent-ink" : flag === "new" ? "text-primary" : "text-kraft-ink";
   const cta =
     flag === "discount"
       ? product.discountPercent
@@ -212,7 +212,7 @@ function ShowcaseCard({ product, flag }: { product: Product; flag: TabKey }) {
           className="h-full w-full object-cover transition-transform duration-500 group-hover/card:scale-105"
         />
         {flag === "discount" && product.discountPercent ? (
-          <span className="absolute left-1.5 top-1.5 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-accent-ink px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
             -{product.discountPercent}%
           </span>
         ) : null}
