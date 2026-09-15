@@ -131,7 +131,10 @@ export function RewardDeliveryBanners({ topOffsetClassName }: { topOffsetClassNa
     <div
       ref={barRef}
       className={`fixed inset-x-0 z-40 px-3 py-2 text-xs font-semibold sm:text-sm ${topOffsetClassName ?? ""} ${
-        tone === "success" ? "bg-emerald-600 text-white" : "bg-accent text-accent-foreground"
+        // bg-accent-ink, not bg-accent: --accent-foreground on --accent is 3.79:1 at this text
+        // size, under the 4.5:1 AA minimum. The deeper clay takes it to 5.54:1 — see --accent-ink
+        // in styles.css.
+        tone === "success" ? "bg-emerald-600 text-white" : "bg-accent-ink text-accent-foreground"
       }`}
       style={topOffsetClassName ? undefined : { top: "var(--site-header-bottom, 4.5rem)" }}
     >

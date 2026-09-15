@@ -26,7 +26,7 @@ function EducativeView({ data }: { data: Extract<BlogBody, { template: "educativ
         {data.keyPoints.map((kp, i) => (
           <li key={i} className="rounded-2xl border border-border bg-card p-5 sm:p-6">
             <div className="flex items-start gap-3">
-              <span className="mt-0.5 grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-semibold text-accent">
+              <span className="mt-0.5 grid h-7 w-7 flex-shrink-0 place-items-center rounded-full bg-accent/15 text-xs font-semibold text-accent-ink">
                 {i + 1}
               </span>
               <div>
@@ -166,7 +166,7 @@ export function BlogCard({ blog }: { blog: Blog }) {
       </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent">
+          <span className="rounded-full bg-accent/15 px-2 py-0.5 text-accent-ink">
             {blog.template}
           </span>
           <span>{blog.readingTimeMin} min read</span>
@@ -179,7 +179,7 @@ export function BlogCard({ blog }: { blog: Blog }) {
           <span className="truncate">By {blog.author}</span>
           {date && <span className="flex-shrink-0">{date}</span>}
         </div>
-        <span className="mt-3 text-sm font-medium text-accent">Read story →</span>
+        <span className="mt-3 text-sm font-medium text-accent-ink">Read story →</span>
       </div>
     </article>
   );

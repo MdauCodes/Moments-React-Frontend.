@@ -33,7 +33,7 @@ export function LatestBlogsStrip() {
       <div className="mx-auto max-w-7xl px-5 py-14 sm:py-20 lg:px-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
-            <p className="text-xs uppercase tracking-[0.25em] text-accent">From the blog</p>
+            <p className="text-xs uppercase tracking-[0.25em] text-accent-ink">From the blog</p>
             <h2 className="mt-3 font-display text-3xl font-medium text-foreground sm:text-4xl">
               Stories, scenarios & guides from the packaging floor.
             </h2>

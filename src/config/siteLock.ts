@@ -31,6 +31,22 @@ function resolveLaunchAt(): number {
 export const LAUNCH_AT = resolveLaunchAt();
 
 /**
+ * Whether to register the /launch countdown route at all (App.tsx reads this).
+ *
+ * Retired after the real launch (2026-09-04) — the ribbon-cut/confetti sequence and its
+ * auto-redirect only make sense as a one-time pre-launch event. The page itself is kept in the
+ * codebase rather than deleted in case a future re-launch, rebrand event, or similar TikTok-live
+ * moment wants it again: flip this back to `true` — no other code changes needed.
+ *
+ * Deliberately lives here rather than in src/routes/launch.tsx (where it used to): App.tsx now
+ * lazy()-loads that route, and a *static* named import of this flag from the same module would
+ * pull the whole page — plus its framer-motion and canvas-confetti dependencies, which nothing
+ * else on the site uses — straight back into the initial bundle every visitor downloads, for a
+ * route that is currently switched off entirely.
+ */
+export const LAUNCH_PAGE_ENABLED = false;
+
+/**
  * Whether the pre-launch blur/lock banner should show. Time-based (not a static flag) so it
  * disappears on its own the instant LAUNCH_AT passes — no manual flip or redeploy needed at the
  * exact go-live second. Purely cosmetic on the frontend: the real payment gate is enforced

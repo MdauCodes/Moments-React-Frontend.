@@ -114,7 +114,7 @@ export function CookieConsent() {
                 to="/privacy"
                 className="ml-auto text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
               >
-                Learn more
+                Read our Privacy Policy
               </Link>
             </div>
           </div>

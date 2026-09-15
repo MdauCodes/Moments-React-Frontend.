@@ -26,6 +26,14 @@ export interface QuickAddUomButtonsProps {
    *  alone leaves the browser's native anchor navigation to fire unimpeded. Defaults to true for
    *  layout="card" (always inside a Link today) and false for "detail" (never is). */
   guardAnchorNavigation?: boolean;
+  /** layout="card" only. Drops the × N stepper, leaving just the add button. For hosts too narrow
+   *  to give the stepper and the button room side by side — the homepage promo carousel's compact
+   *  cards, where the stepper would squeeze the button down to an unreadable sliver. Everything
+   *  else (the handler, the justAdded feedback, the CartAddedSheet hand-off) is unchanged, so a
+   *  compact host is still the same one-tap add as the catalogue card, not a second interaction
+   *  model. Someone who wants three cartons taps through to the product page, which is where a
+   *  compact teaser card should be sending them anyway. */
+  showMultiplier?: boolean;
 }
 
 export function QuickAddUomButtons({
@@ -35,6 +43,7 @@ export function QuickAddUomButtons({
   onMoreOptions,
   onTierChosen,
   guardAnchorNavigation = layout === "card",
+  showMultiplier = true,
 }: QuickAddUomButtonsProps) {
   const { addItem } = useCart();
   // Briefly disables the just-tapped button after a tap: a double-tap on a one-tap control is
@@ -133,7 +142,9 @@ export function QuickAddUomButtons({
             <div key={opt.key} className="flex items-stretch gap-1">
               {/* × N stepper — lets "3 cartons" happen in this one card interaction instead of
                   needing the full configurator just to bump quantity. Own state per option so
-                  Carton/Packet on the same product don't share a count. */}
+                  Carton/Packet on the same product don't share a count. Suppressed by
+                  showMultiplier={false} in hosts too narrow to fit it — see the prop's comment. */}
+              {showMultiplier && (
               <div className="flex shrink-0 items-center overflow-hidden rounded-full border border-border bg-card">
                 <button
                   type="button"
@@ -156,6 +167,7 @@ export function QuickAddUomButtons({
                   <Plus className="h-2.5 w-2.5" />
                 </button>
               </div>
+              )}
 
               <button
                 type="button"

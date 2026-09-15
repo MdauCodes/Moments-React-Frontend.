@@ -19,53 +19,68 @@ import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
 
 // ── Public pages ────────────────────────────────────────────────────────────
+// The homepage alone stays a static import: it is the one route that must be in the initial
+// bundle (a cold visitor almost always lands here, and it is what Lighthouse/PSI measures), so
+// splitting it would only add a network round-trip to the critical path. Every *other* public
+// page below is lazy() — see the note above the account block for why.
 import HomePage from "@/routes/index";
-import LaunchCountdownPage, { LAUNCH_PAGE_ENABLED } from "@/routes/launch";
-import AboutPage from "@/routes/about";
-import ContactPage from "@/routes/contact";
-import CartPage from "@/routes/cart";
-import CheckoutPage from "@/routes/checkout";
-import CompanyProfilePage from "@/routes/company-profile";
-import SustainabilityPage from "@/routes/sustainability";
-import EnterpriseQuotePage from "@/routes/enterprise-quote";
-import IndustriesPage from "@/routes/industries";
-import LoginPage from "@/routes/login";
-import OrderConfirmationPage from "@/routes/order-confirmation";
-import OrdersTrackPage from "@/routes/orders.track";
-import PrivacyPage from "@/routes/privacy";
-import TermsPage from "@/routes/terms";
-import RewardsTermsPage from "@/routes/rewards-terms";
-import RefundsPage from "@/routes/refunds";
-import AccessibilityPolicyPage from "@/routes/accessibility-policy";
-import ManageMyDataPage from "@/routes/manage-my-data";
-import StyleGuidePage from "@/routes/style-guide";
-import BlogIndexPage from "@/routes/blog.index";
-import BlogSlugPage from "@/routes/blog.$slug";
-import FaqPage from "@/routes/faq";
-import HowItWorksPage from "@/routes/how-it-works";
-import PaymentMethodsPage from "@/routes/payment-methods";
-import CareersPage from "@/routes/careers";
-import BecomeAPartnerPage from "@/routes/become-a-partner";
-import ProductsIndexPage from "@/routes/products.index";
-import DealsPage from "@/routes/deals";
-import ProductSlugPage from "@/routes/products.$slug";
-import BusinessAccountInfoPage from "@/routes/business-account";
-import IndividualShopperAccountInfoPage from "@/routes/individual-shopper-account";
-import AccountOptionsPage from "@/routes/account-options";
+import { LAUNCH_PAGE_ENABLED } from "@/config/siteLock";
+
+// Every public page other than the homepage is dynamically imported. Previously all of these were
+// static imports, so a visitor landing on `/` downloaded and parsed the JS for the entire
+// storefront — catalogue, product detail, cart, checkout, blog, every legal/static page and the
+// whole account area — before the homepage could become interactive. PageSpeed Insights measured
+// the result: 512KB transferred for the single entry chunk, 386KB (75%) of it unused on the
+// homepage. lazy() + the shared <Suspense> boundary around <Routes> below gives each of these its
+// own chunk, fetched the moment its route is actually navigated to and not before.
+const LaunchCountdownPage = lazy(() => import("@/routes/launch"));
+const AboutPage = lazy(() => import("@/routes/about"));
+const ContactPage = lazy(() => import("@/routes/contact"));
+const CartPage = lazy(() => import("@/routes/cart"));
+const CheckoutPage = lazy(() => import("@/routes/checkout"));
+const CompanyProfilePage = lazy(() => import("@/routes/company-profile"));
+const SustainabilityPage = lazy(() => import("@/routes/sustainability"));
+const EnterpriseQuotePage = lazy(() => import("@/routes/enterprise-quote"));
+const IndustriesPage = lazy(() => import("@/routes/industries"));
+const LoginPage = lazy(() => import("@/routes/login"));
+const OrderConfirmationPage = lazy(() => import("@/routes/order-confirmation"));
+const OrdersTrackPage = lazy(() => import("@/routes/orders.track"));
+const PrivacyPage = lazy(() => import("@/routes/privacy"));
+const TermsPage = lazy(() => import("@/routes/terms"));
+const RewardsTermsPage = lazy(() => import("@/routes/rewards-terms"));
+const RefundsPage = lazy(() => import("@/routes/refunds"));
+const AccessibilityPolicyPage = lazy(() => import("@/routes/accessibility-policy"));
+const ManageMyDataPage = lazy(() => import("@/routes/manage-my-data"));
+const StyleGuidePage = lazy(() => import("@/routes/style-guide"));
+const BlogIndexPage = lazy(() => import("@/routes/blog.index"));
+const BlogSlugPage = lazy(() => import("@/routes/blog.$slug"));
+const FaqPage = lazy(() => import("@/routes/faq"));
+const HowItWorksPage = lazy(() => import("@/routes/how-it-works"));
+const PaymentMethodsPage = lazy(() => import("@/routes/payment-methods"));
+const CareersPage = lazy(() => import("@/routes/careers"));
+const BecomeAPartnerPage = lazy(() => import("@/routes/become-a-partner"));
+const ProductsIndexPage = lazy(() => import("@/routes/products.index"));
+const DealsPage = lazy(() => import("@/routes/deals"));
+const ProductSlugPage = lazy(() => import("@/routes/products.$slug"));
+const BusinessAccountInfoPage = lazy(() => import("@/routes/business-account"));
+const IndividualShopperAccountInfoPage = lazy(() => import("@/routes/individual-shopper-account"));
+const AccountOptionsPage = lazy(() => import("@/routes/account-options"));
 
 // ── Account pages ───────────────────────────────────────────────────────────
-import AccountLoginPage from "@/routes/account.login";
-import AccountRegisterPage from "@/routes/account.register";
-import AccountDashboardPage from "@/routes/account.dashboard";
-import AccountForgotPasswordPage from "@/routes/account.forgot-password";
-import AccountResetPasswordPage from "@/routes/account.reset-password";
-import AccountOrdersPage from "@/routes/account.orders";
-import AccountOrderDetailPage from "@/routes/account.orders.$reference";
-import AccountProfilePage from "@/routes/account.profile";
-import AccountReferralsPage from "@/routes/account.referrals";
-import AccountWishlistPage from "@/routes/account.wishlist";
-import AccountBusinessPage from "@/routes/account.business";
-import AccountMerchantPage from "@/routes/account.merchant";
+// Lazy for the same reason as the public pages above, and even more clearly so: none of this is
+// reachable without signing in, yet every anonymous visitor was paying to download it.
+const AccountLoginPage = lazy(() => import("@/routes/account.login"));
+const AccountRegisterPage = lazy(() => import("@/routes/account.register"));
+const AccountDashboardPage = lazy(() => import("@/routes/account.dashboard"));
+const AccountForgotPasswordPage = lazy(() => import("@/routes/account.forgot-password"));
+const AccountResetPasswordPage = lazy(() => import("@/routes/account.reset-password"));
+const AccountOrdersPage = lazy(() => import("@/routes/account.orders"));
+const AccountOrderDetailPage = lazy(() => import("@/routes/account.orders.$reference"));
+const AccountProfilePage = lazy(() => import("@/routes/account.profile"));
+const AccountReferralsPage = lazy(() => import("@/routes/account.referrals"));
+const AccountWishlistPage = lazy(() => import("@/routes/account.wishlist"));
+const AccountBusinessPage = lazy(() => import("@/routes/account.business"));
+const AccountMerchantPage = lazy(() => import("@/routes/account.merchant"));
 
 // ── Admin auth pages (no auth required) ────────────────────────────────────
 // Every admin page below is dynamically imported — the entire admin dashboard (analytics,
@@ -153,6 +168,39 @@ function AdminRouteFallback() {
   );
 }
 
+/** Suspense fallback for the lazy public/account routes.
+ *
+ *  Worth being precise about when a real customer actually sees this, because it drove the design:
+ *  react-router v7 wraps every navigation in React's `startTransition`, and React does not hide
+ *  already-revealed content behind a Suspense boundary during a transition. So clicking from the
+ *  homepage into /products keeps the homepage fully on screen — chrome, scroll position and all —
+ *  until the products chunk resolves, then swaps straight to the finished page. No blank flash, no
+ *  layout shift, nothing torn down and rebuilt. That is why a single shared boundary wraps
+ *  <Routes> below rather than one boundary per route: a fresh per-route boundary would be a new
+ *  mount every time and *would* show its fallback on every single navigation.
+ *
+ *  What remains is the cold case — someone landing directly on a lazy route from Google, a shared
+ *  link or a bookmark, where there is genuinely no previous page to hold. There is no shared
+ *  layout element to keep mounted either (SiteLayout is rendered by each page itself, not as a
+ *  parent route), so rather than fake a header skeleton that could drift out of sync with the real
+ *  SiteHeader, this is a calm branded hold in the site's own forest/kraft palette — visually of a
+ *  piece with AppSplash, which is what a first-time visitor sees on the homepage anyway. */
+function PublicRouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background" role="status" aria-live="polite">
+      <span className="sr-only">Loading page…</span>
+      <div
+        aria-hidden="true"
+        className="h-9 w-9 animate-spin rounded-full border-[3px]"
+        style={{
+          borderColor: "color-mix(in oklab, var(--kraft) 28%, transparent)",
+          borderTopColor: "var(--forest)",
+        }}
+      />
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -168,6 +216,12 @@ export default function App() {
             <WishlistProvider>
               <AdminAuthProvider>
                 <PersonaProvider>
+                  {/* One shared Suspense boundary for every lazy public/account route (the admin
+                      routes keep their own inner boundaries below, which take precedence for
+                      those). Shared, not per-route, on purpose — see PublicRouteFallback's own
+                      comment: it is what lets react-router's startTransition hold the current page
+                      on screen during an in-app navigation instead of flashing a fallback. */}
+                  <Suspense fallback={<PublicRouteFallback />}>
                   <Routes>
                     {/* Public */}
                     <Route path="/" element={<HomePage />} />
@@ -310,6 +364,7 @@ export default function App() {
                       </div>
                     } />
                   </Routes>
+                  </Suspense>
                   <Toaster />
                   <SiteLockOverlay />
                   <AuthModal />

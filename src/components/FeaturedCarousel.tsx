@@ -16,8 +16,8 @@ const flagMeta: Record<Flag, { label: string; icon: typeof Tag; tone: string; ct
   discount: {
     label: "Deal",
     icon: Tag,
-    tone: "bg-accent/15 text-accent",
-    ctaTone: "text-accent",
+    tone: "bg-accent/15 text-accent-ink",
+    ctaTone: "text-accent-ink",
   },
   new: {
     label: "Mpya",
@@ -28,8 +28,8 @@ const flagMeta: Record<Flag, { label: string; icon: typeof Tag; tone: string; ct
   fast: {
     label: "Hot",
     icon: Flame,
-    tone: "bg-kraft/15 text-kraft",
-    ctaTone: "text-kraft",
+    tone: "bg-kraft/15 text-kraft-ink",
+    ctaTone: "text-kraft-ink",
   },
 };
 
@@ -120,7 +120,7 @@ export function FeaturedCarousel() {
       <div className="mx-auto max-w-7xl px-5 py-8 sm:py-10 lg:px-8 lg:py-12">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-accent sm:text-xs">Curated highlights</p>
+            <p className="text-[10px] uppercase tracking-[0.25em] text-accent-ink sm:text-xs">Curated highlights</p>
             <h2 className="mt-1.5 font-display text-xl font-medium text-foreground sm:text-2xl lg:text-3xl">
               {heading}
             </h2>
@@ -179,7 +179,7 @@ export function FeaturedCarousel() {
                       <div className="flex h-full w-full items-center justify-center bg-secondary" />
                     )}
                     {p.flag === "discount" && p.discountPercent ? (
-                      <span className="absolute left-1 top-1 rounded-md bg-accent px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
+                      <span className="absolute left-1 top-1 rounded-md bg-accent-ink px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm">
                         -{p.discountPercent}%
                       </span>
                     ) : null}

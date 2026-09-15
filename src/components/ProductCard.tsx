@@ -111,7 +111,11 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
               />
             </svg>
-            <span className="text-center text-[9px] font-medium uppercase tracking-wide text-muted-foreground/40 line-clamp-2 sm:text-[10px]">
+            {/* /80, not the /40 this was: at /40 the product name in the no-photo placeholder
+                measured 2.0:1, nowhere near the 4.5:1 AA minimum — for many products this label is
+                the only thing identifying the card, so it has to be readable. /80 is 5.3:1 and
+                still reads as the quiet placeholder treatment it is meant to be. */}
+            <span className="text-center text-[9px] font-medium uppercase tracking-wide text-muted-foreground/80 line-clamp-2 sm:text-[10px]">
               {p.name}
             </span>
           </div>
@@ -122,11 +126,18 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           {isTracked && (
             <span
               className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider sm:px-2.5 sm:py-1 sm:text-[10px] ${
+                /* Contrast, not taste: at 9–10px these count as normal text, so WCAG AA wants
+                   4.5:1. White on amber-500 was 2.1:1 and white on green-600 was 3.2:1 — both
+                   flagged by Lighthouse's contrast audit. Low stock keeps the bright amber ground
+                   (it is an urgency signal and should stay loud) and takes near-black text
+                   instead, which is both the conventional treatment for amber chips and a big
+                   jump to 7.0:1. In-stock just steps one shade down to green-700, 5.0:1, which is
+                   visually almost identical. */
                 stock.state === "out_of_stock"
                   ? "bg-secondary text-muted-foreground"
                   : stock.state === "low_stock"
-                    ? "bg-amber-500 text-white"
-                    : "bg-green-600 text-white"
+                    ? "bg-amber-500 text-amber-950"
+                    : "bg-green-700 text-white"
               }`}
             >
               {stock.state === "out_of_stock"
@@ -145,7 +156,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                 New
               </span>
             ) : p.isFastMoving ? (
-              <span className="rounded-full bg-kraft px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-kraft-foreground sm:px-2.5 sm:py-1 sm:text-[10px]">
+              <span className="rounded-full bg-kraft-ink px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-kraft-foreground sm:px-2.5 sm:py-1 sm:text-[10px]">
                 Hot
               </span>
             ) : null)}
@@ -153,7 +164,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
       </div>
 
       <div className="flex flex-1 flex-col px-2.5 pt-0 pb-2.5 sm:px-4 sm:pt-0 sm:pb-4">
-        <span className="hidden self-start rounded-full border border-kraft/30 bg-kraft/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-kraft sm:inline-block">
+        <span className="hidden self-start rounded-full border border-kraft/30 bg-kraft/5 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-kraft-ink sm:inline-block">
           {p.subcategoryName ?? p.category}
         </span>
         <h3 className="font-display text-sm font-semibold leading-snug text-foreground line-clamp-2 sm:mt-2 sm:text-base">
@@ -367,7 +378,8 @@ function StockLine({
   }
 
   return (
-    <p className="mt-1 text-[10px] text-muted-foreground/70 sm:text-[11px]">
+    // /85 rather than /70 — /70 landed at 4.46:1, just under the 4.5:1 AA line for 10px text.
+    <p className="mt-1 text-[10px] text-muted-foreground/85 sm:text-[11px]">
       {isMadeToOrder ? "Made to order — enquire for availability." : "Out of stock — enquire for availability."}
     </p>
   );

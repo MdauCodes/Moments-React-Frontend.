@@ -8,10 +8,10 @@ import { LAUNCH_AT } from "@/config/siteLock";
  * Retired after the real launch (2026-09-04) — the ribbon-cut/confetti sequence and its
  * auto-redirect only make sense as a one-time pre-launch event. Kept in the codebase rather than
  * deleted in case a future re-launch, rebrand event, or similar TikTok-live moment wants it
- * again: flip this back to `true` (App.tsx reads it to decide whether to register the /launch
- * route at all) — no other code changes needed.
+ * again: flip LAUNCH_PAGE_ENABLED (now in @/config/siteLock, so that App.tsx can read the flag
+ * without statically importing — and therefore eagerly bundling — this whole page) back to
+ * `true` — no other code changes needed.
  */
-export const LAUNCH_PAGE_ENABLED = false;
 
 // How long to hold the "WE'RE LIVE" celebration + confetti before the ribbon-cut reveal starts.
 const CELEBRATE_MS = 3200;

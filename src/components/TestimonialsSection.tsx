@@ -29,7 +29,7 @@ export function TestimonialsSection() {
     <section className="bg-cream">
       <div className="mx-auto max-w-7xl px-5 py-14 sm:py-20 lg:px-8">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-accent">What customers say</p>
+          <p className="text-[11px] uppercase tracking-[0.25em] text-accent-ink">What customers say</p>
           <h2 className="mt-2 font-display text-3xl font-medium text-foreground sm:text-4xl">
             Trusted by Kenyan businesses
           </h2>
