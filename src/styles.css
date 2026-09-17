@@ -974,4 +974,17 @@ html { font-size: 16px; }
   background: var(--admin-sidebar-surface);
   color: var(--admin-sidebar-text);
 }
+/* Pin toggle on each row: hidden until the row is hovered/focused (~50 items across the full
+ * sidebar would otherwise show a pin icon on every single one, all the time) — except once an
+ * item is actually pinned, where it stays visible so unpinning is always discoverable without
+ * needing to hover first. */
+.admin-nav-item-pin { opacity: 0; transition: opacity 120ms; }
+.admin-nav-item:hover .admin-nav-item-pin,
+.admin-nav-item:focus-within .admin-nav-item-pin,
+.admin-nav-item-pin:focus-visible,
+.admin-nav-item-pin-active {
+  opacity: 1;
+}
+.admin-nav-item-pin:hover { background: var(--admin-sidebar-border); }
+.admin-nav-item-pin:focus-visible { outline: 2px solid var(--admin-accent); outline-offset: -1px; }
 

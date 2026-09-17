@@ -119,6 +119,14 @@ export const navSections: NavSection[] = [
       { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
+    ],
+  },
+  {
+    // Split out of "Sales" — these 4 are one coherent subsystem (tiers, referral payouts, and
+    // the report/settings pages that go with them), and "Sales" as a label didn't predict any of
+    // them. Same items, same permissions, just filed under a name that actually describes them.
+    label: "Rewards",
+    items: [
       { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Referral Payout Tiers", to: "/admin/referral-tiers", icon: Share2, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
@@ -228,6 +236,19 @@ export function visibleSectionsFor(
 
 export function countVisibleItems(sections: NavSection[]): number {
   return sections.reduce((sum, s) => sum + s.items.length, 0);
+}
+
+/** Looks up a nav item by its `to` path within an already permission-filtered section list —
+ *  used to render pinned items, which are stored as bare paths (see adminSidebarPrefs.ts) and
+ *  need their icon/label/section resolved fresh each render rather than cached, so a pin to a
+ *  route the current user can no longer see (role change, permission change) simply stops
+ *  resolving instead of rendering a stale, now-inaccessible entry. */
+export function findVisibleNavItem(sections: NavSection[], to: string): NavItem | undefined {
+  for (const section of sections) {
+    const item = section.items.find((i) => i.to === to);
+    if (item) return item;
+  }
+  return undefined;
 }
 
 /** Picks the active nav item by longest matching path prefix, not exact match — so a detail page

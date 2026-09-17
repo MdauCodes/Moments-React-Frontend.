@@ -1,18 +1,19 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronDown, Search, X } from "lucide-react";
+import { ChevronDown, Pin, Search, X } from "lucide-react";
 
 import {
   countVisibleItems,
   DENSE_ITEM_THRESHOLD,
+  findVisibleNavItem,
   matchNavItems,
   resolveActiveNav,
   type NavItem,
   type NavMatch,
   type NavSection,
 } from "@/layouts/adminNav";
-import { readSidebarPrefs, writeSidebarSectionOpen } from "@/lib/adminSidebarPrefs";
+import { readSidebarPrefs, toggleSidebarPin, writeSidebarSectionOpen } from "@/lib/adminSidebarPrefs";
 
 // Sidebar drawer flips to the fixed mobile overlay below this width (styles.css's own
 // `@media (max-width: 920px)` on .admin-sidebar) — kept as a local constant rather than reusing
@@ -45,6 +46,11 @@ export interface AdminSidebarNavProps {
   /** Fired on any navigation via this nav (click or keyboard-select) — lets the mobile drawer
    *  close itself, which today only happens by accident when AdminLayout remounts. */
   onNavigate?: () => void;
+  /** Rail mode only: opens AdminLayout's global command palette. Rail mode has no room for its
+   *  own filter box (see AdminSidebarRail's own comment), so this is its one search entry point —
+   *  the palette itself lives in AdminLayout since it also has to work for mobile, independent of
+   *  whatever mode the sidebar is in. Omitted in expanded mode, which keeps its own inline filter. */
+  onRequestSearch?: () => void;
 }
 
 const styles: Record<string, CSSProperties> = {
@@ -90,6 +96,12 @@ const styles: Record<string, CSSProperties> = {
   sectionHeaderRight: { display: "flex", alignItems: "center", gap: 6 },
   sectionCount: { fontSize: 10, color: "var(--admin-sidebar-muted)", opacity: 0.75 },
   chevron: { color: "var(--admin-sidebar-muted)", transition: "transform 150ms", flexShrink: 0 },
+  // A section's items previously started at nearly the same left edge as their own header (12px
+  // header padding vs. 10px item padding) — no visual cue that the rows below actually belong to
+  // the header above, especially with several collapsed sections stacked in a row. This modest
+  // indent (kept small since the whole sidebar is only 248px wide) makes that parent/child
+  // relationship read at a glance without needing to trace the accordion state.
+  sectionItemsWrap: { paddingLeft: 8 },
   navItem: {
     display: "flex",
     alignItems: "center",
@@ -134,8 +146,31 @@ const styles: Record<string, CSSProperties> = {
     borderRadius: 999,
     lineHeight: 1.2,
   },
+  pinBtn: {
+    marginLeft: "auto",
+    flexShrink: 0,
+    display: "grid",
+    placeItems: "center",
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    border: "none",
+    background: "transparent",
+    color: "var(--admin-sidebar-muted)",
+    cursor: "pointer",
+  },
+  pinnedWrap: { marginBottom: 10 },
+  pinnedLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: "0.12em",
+    color: "var(--admin-sidebar-muted)",
+    padding: "0 10px 4px",
+  },
   // Rail mode (collapsed=true)
   rail: { flex: 1, overflowY: "auto", padding: "10px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+  railDivider: { width: 28, height: 1, background: "var(--admin-sidebar-border)", margin: "4px 0" },
   railBtn: {
     width: 44,
     height: 44,
@@ -168,6 +203,11 @@ const styles: Record<string, CSSProperties> = {
   flyout: {
     position: "fixed",
     width: 224,
+    // Belt-and-braces alongside the JS clamp in `toggle()`/the post-mount reposition effect below:
+    // if a section ever gets long enough that even a clamped top still can't fit it above the
+    // viewport edge, this keeps it scrollable in place instead of running off-screen anyway.
+    maxHeight: "calc(100vh - 16px)",
+    overflowY: "auto",
     background: "var(--admin-sidebar)",
     border: "1px solid var(--admin-sidebar-border)",
     borderRadius: 10,
@@ -212,14 +252,18 @@ function sectionBadgeTotal(section: NavSection, badgeFor: (item: NavItem) => Sid
 }
 
 /** Rail mode: one icon per section (its first item's icon stands in for the section), click opens
- *  a flyout with that section's real items. No search/keyboard-jump here — there's no room for a
- *  filter box at 64px, and this mode exists specifically for "give me a clean, minimal view", not
- *  "give me the fastest way to jump somewhere" (that's what expanded + Ctrl+K is for). */
-function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
+ *  a flyout with that section's real items. No inline filter box here — there's no room for one
+ *  at 64px — but `onRequestSearch` gives it the same global command palette expanded mode's
+ *  Ctrl+K reaches, via a dedicated icon button, so collapsing the sidebar no longer means losing
+ *  fast navigation entirely. */
+function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate, onRequestSearch, pinned, onTogglePin }: {
   sections: NavSection[];
   pathname: string;
   badgeFor: (item: NavItem) => SidebarBadge | undefined;
   onNavigate?: () => void;
+  onRequestSearch?: () => void;
+  pinned: string[];
+  onTogglePin: (to: string) => void;
 }) {
   const navigate = useNavigate();
   const [openLabel, setOpenLabel] = useState<string | null>(null);
@@ -228,6 +272,34 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
   const flyoutRef = useRef<HTMLDivElement>(null);
   const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
   const { activeTo, activeSectionLabel } = useMemo(() => resolveActiveNav(pathname, sections), [pathname, sections]);
+  const pinnedItems = useMemo(
+    () => pinned.map((to) => findVisibleNavItem(sections, to)).filter((i): i is NavItem => !!i),
+    [pinned, sections],
+  );
+
+  // Clamps the flyout's top so it can never render past the bottom of the viewport — a section
+  // near the end of a long list (Reports, Sales, System) opened from a shorter screen would
+  // otherwise position its flyout using only the trigger's own top, with no regard for how tall
+  // the flyout's actual content is, running its last items off-screen with no way to reach them.
+  // Runs after mount/content-change (useLayoutEffect, not effect) so the reposition happens
+  // before the browser paints the first frame in the wrong place.
+  useLayoutEffect(() => {
+    if (!openLabel || !flyoutRef.current) return;
+    const el = flyoutRef.current;
+    function reclamp() {
+      const height = el.getBoundingClientRect().height;
+      setFlyoutPos((prev) => {
+        if (!prev) return prev;
+        const maxTop = Math.max(8, window.innerHeight - height - 8);
+        const clampedTop = Math.min(prev.top, maxTop);
+        return clampedTop === prev.top ? prev : { ...prev, top: clampedTop };
+      });
+    }
+    reclamp();
+    window.addEventListener("resize", reclamp);
+    return () => window.removeEventListener("resize", reclamp);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openLabel]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
@@ -275,6 +347,50 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
 
   return (
     <div ref={rootRef} style={styles.rail}>
+      {onRequestSearch && (
+        <button
+          type="button"
+          title="Search navigation (Ctrl K)"
+          aria-label="Search navigation"
+          onClick={onRequestSearch}
+          className="admin-nav-rail-btn"
+          style={{ ...styles.railBtn, color: "oklch(0.88 0.02 84)" }}
+        >
+          <Search size={18} />
+        </button>
+      )}
+
+      {pinnedItems.length > 0 && (
+        <>
+          {pinnedItems.map((item) => {
+            const Icon = item.icon;
+            const active = item.to === activeTo;
+            const badge = badgeFor(item);
+            return (
+              <button
+                key={item.to}
+                type="button"
+                title={item.label}
+                aria-label={item.label}
+                onClick={() => go(item.to)}
+                className="admin-nav-rail-btn"
+                style={{
+                  ...styles.railBtn,
+                  background: active ? "var(--admin-sidebar-surface)" : "transparent",
+                  color: active ? "oklch(0.98 0.015 84)" : "oklch(0.88 0.02 84)",
+                }}
+              >
+                <Icon size={18} />
+                {badge !== undefined && badge.count > 0 && (
+                  <span style={styles.railBadge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
+                )}
+              </button>
+            );
+          })}
+          <div style={styles.railDivider} aria-hidden="true" />
+        </>
+      )}
+
       {sections.map((section) => {
         const RepIcon = section.items[0].icon;
         const isOpen = openLabel === section.label;
@@ -311,6 +427,7 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
             const Icon = item.icon;
             const active = item.to === activeTo;
             const badge = badgeFor(item);
+            const isPinned = pinned.includes(item.to);
             return (
               <Link
                 key={item.to}
@@ -323,6 +440,15 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
                 {badge !== undefined && badge.count > 0 && (
                   <span style={styles.badge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
                 )}
+                <button
+                  type="button"
+                  title={isPinned ? "Unpin" : "Pin to top of sidebar"}
+                  aria-label={isPinned ? `Unpin ${item.label}` : `Pin ${item.label} to top of sidebar`}
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTogglePin(item.to); }}
+                  style={{ ...styles.pinBtn, marginLeft: badge ? 4 : "auto", color: isPinned ? "var(--admin-accent)" : "var(--admin-sidebar-muted)" }}
+                >
+                  <Pin size={12} fill={isPinned ? "currentColor" : "none"} />
+                </button>
               </Link>
             );
           })}
@@ -333,7 +459,7 @@ function AdminSidebarRail({ sections, pathname, badgeFor, onNavigate }: {
   );
 }
 
-export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExpandAll, collapsed, onNavigate }: AdminSidebarNavProps) {
+export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExpandAll, collapsed, onNavigate, onRequestSearch }: AdminSidebarNavProps) {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -345,10 +471,22 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
   // per-navigation remount within the same userId for the rest of the session even if storage
   // itself becomes unwritable partway through (private-mode edge case).
   const [toggled, setToggled] = useState<Record<string, boolean>>(() => readSidebarPrefs(userId).sections);
+  // Same in-memory-mirror-of-localStorage pattern as `toggled` above, for pinned nav items.
+  const [pinned, setPinned] = useState<string[]>(() => readSidebarPrefs(userId).pinned ?? []);
 
   useEffect(() => {
     setToggled(readSidebarPrefs(userId).sections);
+    setPinned(readSidebarPrefs(userId).pinned ?? []);
   }, [userId]);
+
+  function togglePin(to: string) {
+    setPinned(toggleSidebarPin(userId, to));
+  }
+
+  const pinnedItems = useMemo(
+    () => pinned.map((to) => findVisibleNavItem(sections, to)).filter((i): i is NavItem => !!i),
+    [pinned, sections],
+  );
 
   const { activeTo, activeSectionLabel } = useMemo(() => resolveActiveNav(pathname, sections), [pathname, sections]);
   const dense = useMemo(() => countVisibleItems(sections) > DENSE_ITEM_THRESHOLD, [sections]);
@@ -414,7 +552,17 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
   }, [matches]);
 
   if (collapsed) {
-    return <AdminSidebarRail sections={sections} pathname={pathname} badgeFor={badgeFor} onNavigate={onNavigate} />;
+    return (
+      <AdminSidebarRail
+        sections={sections}
+        pathname={pathname}
+        badgeFor={badgeFor}
+        onNavigate={onNavigate}
+        onRequestSearch={onRequestSearch}
+        pinned={pinned}
+        onTogglePin={togglePin}
+      />
+    );
   }
 
   function isSectionOpen(section: NavSection): boolean {
@@ -471,6 +619,44 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
       ref={navRef}
       onScroll={(e) => { sidebarScrollTop = e.currentTarget.scrollTop; }}
     >
+      {pinnedItems.length > 0 && !searching && (
+        <div style={styles.pinnedWrap}>
+          <div style={styles.pinnedLabel}>Pinned</div>
+          <div style={styles.sectionItemsWrap}>
+            {pinnedItems.map((item) => {
+              const Icon = item.icon;
+              const active = item.to === activeTo;
+              const badge = badgeFor(item);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => onNavigate?.()}
+                  aria-current={active ? "page" : undefined}
+                  className="admin-nav-item"
+                  style={{ ...styles.navItem, ...(active ? styles.navItemActive : {}) }}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                  {badge !== undefined && badge.count > 0 && (
+                    <span style={styles.badge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
+                  )}
+                  <button
+                    type="button"
+                    title="Unpin"
+                    aria-label={`Unpin ${item.label}`}
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.to); }}
+                    style={{ ...styles.pinBtn, marginLeft: badge ? 4 : "auto", color: "var(--admin-accent)" }}
+                  >
+                    <Pin size={12} fill="currentColor" />
+                  </button>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {dense && (
         <div style={styles.filterWrap}>
           <Search size={13} style={styles.filterIcon} />
@@ -526,13 +712,14 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
               </span>
             </button>
             {open && (
-              <div id={sectionId}>
+              <div id={sectionId} style={styles.sectionItemsWrap}>
                 {itemsToRender.map((item) => {
                   const Icon = item.icon;
                   const active = item.to === activeTo;
                   const badge = badgeFor(item);
                   const tourKey = item.to.split("/").filter(Boolean).slice(-1)[0] ?? item.to;
                   const isHighlighted = searching && matches[highlightIndex]?.item.to === item.to;
+                  const isPinned = pinned.includes(item.to);
                   return (
                     <Link
                       key={item.to}
@@ -553,6 +740,16 @@ export function AdminSidebarNav({ sections, pathname, userId, badgeFor, forceExp
                       {badge !== undefined && badge.count > 0 && (
                         <span style={styles.badge} aria-label={badgeAriaLabel(badge.count)}>{badge.count}</span>
                       )}
+                      <button
+                        type="button"
+                        title={isPinned ? "Unpin" : "Pin to top of sidebar"}
+                        aria-label={isPinned ? `Unpin ${item.label}` : `Pin ${item.label} to top of sidebar`}
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(item.to); }}
+                        className={`admin-nav-item-pin${isPinned ? " admin-nav-item-pin-active" : ""}`}
+                        style={{ ...styles.pinBtn, marginLeft: badge ? 4 : "auto", color: isPinned ? "var(--admin-accent)" : "var(--admin-sidebar-muted)" }}
+                      >
+                        <Pin size={12} fill={isPinned ? "currentColor" : "none"} />
+                      </button>
                     </Link>
                   );
                 })}
