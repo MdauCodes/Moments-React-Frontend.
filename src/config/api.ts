@@ -22,10 +22,17 @@
 const PROD_API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
 const STAGING_API_BASE = "https://api-staging.momentspackaging.com";
 
+// EXACT production hostnames only. This used to be `host.endsWith(".momentspackaging.com")`, which made
+// EVERY subdomain production, including staging.momentspackaging.com: the staging site silently read and
+// wrote the production backend (production data on screen, staging visits counted in production
+// analytics, and a test checkout would have created a real order). Any new subdomain (staging, preview,
+// crm...) is now non-production by default and uses VITE_API_BASE or STAGING_API_BASE. A NEW production
+// hostname must be added here on purpose.
+const PRODUCTION_HOSTS = ["momentspackaging.com", "www.momentspackaging.com"];
+
 function isProductionHost(): boolean {
   if (typeof window === "undefined") return false;
-  const host = window.location.hostname;
-  return host === "momentspackaging.com" || host.endsWith(".momentspackaging.com");
+  return PRODUCTION_HOSTS.includes(window.location.hostname);
 }
 
 export const API_BASE = isProductionHost()
