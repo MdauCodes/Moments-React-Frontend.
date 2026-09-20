@@ -753,7 +753,7 @@ export const adminResources = {
   roles: {
     list: () => adminJson<RoleDto[]>("/api/v1/admin/roles"),
     create: (body: RoleRequest) => adminJson<RoleDto>("/api/v1/admin/roles", { method: "POST", body: JSON.stringify(body) }),
-    update: (id: string, body: RoleRequest) => adminJson<RoleDto>(`/api/v1/admin/roles/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(body) }),
+    update: (id: string, body: RoleRequest) => adminJson<RoleDto>(`/api/v1/admin/roles/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
     remove: (id: string) => adminJson<void>(`/api/v1/admin/roles/${encodeURIComponent(id)}`, { method: "DELETE" }),
     listPermissions: () => adminJson<string[]>("/api/v1/admin/permissions"),
   },
