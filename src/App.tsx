@@ -12,6 +12,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { PersonaProvider } from "@/contexts/PersonaContext";
+import { EnquiryProvider } from "@/contexts/EnquiryContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -216,6 +217,7 @@ export default function App() {
             <WishlistProvider>
               <AdminAuthProvider>
                 <PersonaProvider>
+                <EnquiryProvider>
                   {/* One shared Suspense boundary for every lazy public/account route (the admin
                       routes keep their own inner boundaries below, which take precedence for
                       those). Shared, not per-route, on purpose — see PublicRouteFallback's own
@@ -369,6 +371,7 @@ export default function App() {
                   <SiteLockOverlay />
                   <AuthModal />
                   <AccessibilityToolbar />
+                </EnquiryProvider>
                 </PersonaProvider>
               </AdminAuthProvider>
             </WishlistProvider>

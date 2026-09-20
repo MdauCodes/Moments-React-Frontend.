@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, ArrowLeft, Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,6 +27,7 @@ import { useSeo } from "@/hooks/useSeo";
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { openEnquiry } = useEnquiry();
   const { addItem } = useCart();
   const wishlist = useWishlist();
 
@@ -527,6 +529,14 @@ export default function ProductDetail() {
                   : stock.isBackorder ? "Add to cart (backorder)" : "Add to cart"}
               </button>
             ) : null}
+
+            <button
+              type="button"
+              onClick={() => openEnquiry({ topic: "product", product: { id: String(product.id), name: product.name, slug: product.slug } })}
+              className="block w-full pt-1 text-center text-sm font-medium text-accent underline underline-offset-4"
+            >
+              Ask a question about this product
+            </button>
 
             <div className="flex items-center justify-center gap-6 pt-1 text-sm text-muted-foreground">
               <button type="button" onClick={handleWishlist} className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground">
