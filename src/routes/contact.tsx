@@ -181,10 +181,10 @@ function ContactPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Email {contactMethod === "email" ? "*" : "(optional)"}</label>
+                    <label className={labelClass}>Email *</label>
                     <input
                       type="email"
-                      required={contactMethod === "email"}
+                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="your@email.com"
@@ -243,10 +243,10 @@ function ContactPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Work email {contactMethod === "email" ? "*" : "(optional)"}</label>
+                    <label className={labelClass}>Work email *</label>
                     <input
                       type="email"
-                      required={contactMethod === "email"}
+                      required
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@company.com"

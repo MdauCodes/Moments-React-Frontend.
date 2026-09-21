@@ -89,11 +89,10 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
     return () => clearTimeout(t);
   }, []);
 
-  const emailRequired = replyVia === "email";
   const problems = {
     name: name.trim().length < 2,
     phone: !phoneLooksReal(phone),
-    email: email.trim() !== "" ? !EMAIL_PATTERN.test(email.trim()) : emailRequired,
+    email: !EMAIL_PATTERN.test(email.trim()),
     text: text.trim().length < 3,
     consent: !consent,
   };
@@ -211,7 +210,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
 
       <div>
         <label htmlFor="qe-email" className={labelClass}>
-          Email {emailRequired ? "*" : "(optional)"}
+          Email *
         </label>
         <input
           id="qe-email"
@@ -222,7 +221,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
           onChange={(e) => setEmail(e.target.value)}
         />
         {showErrors && problems.email && (
-          <p className={errorClass}>{emailRequired && !email.trim() ? "Add an email to be answered by email." : "That email does not look right."}</p>
+          <p className={errorClass}>{!email.trim() ? "Please add your email address." : "That email does not look right."}</p>
         )}
       </div>
 
