@@ -21,6 +21,8 @@ import { filterVisibleIndustries, type Industry } from "@/data/products";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { CheckCircle2 } from "lucide-react";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
+import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 
@@ -46,6 +48,8 @@ function EnterpriseQuotePage() {
   const [success, setSuccess] = useState<{ firstName: string; email: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [consent, setConsent] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
   const [form, setForm] = useState({
     contactName: "",
     email: "",
@@ -103,8 +107,13 @@ function EnterpriseQuotePage() {
           productInterest: [data.industry, data.productInterest].filter(Boolean).join(" — "),
           message: data.message,
           consentPolicyVersion: PRIVACY_POLICY_VERSION,
+          ...toPayload(turnstileToken),
         },
       });
+      if (res.status === 429) {
+        toast.error("Too many requests. Please wait a little and try again.");
+        return;
+      }
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const firstName = data.contactName.split(" ")[0] || data.contactName;
       setSuccess({ firstName, email: data.email });
@@ -270,6 +279,8 @@ function EnterpriseQuotePage() {
                     />
                   </Field>
                 </div>
+                <HoneypotField value={honeypot} onChange={setHoneypot} />
+                <TurnstileWidget onToken={setTurnstileToken} />
                 <div className="mt-5">
                   <ConsentCheckbox
                     checked={consent}
