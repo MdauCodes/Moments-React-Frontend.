@@ -3,6 +3,7 @@ import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { WhatsAppFloat } from "./WhatsAppFloat";
 import { SignUpFab } from "./SignUpFab";
+import { EnquireFab } from "./EnquireFab";
 import { PageProgressBar } from "./PageProgressBar";
 import { EmailInsiderPrompt } from "./EmailInsiderPrompt";
 import { AppSplash } from "./AppSplash";
@@ -48,6 +49,7 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <SiteFooter />
         <WhatsAppFloat />
         <SignUpFab />
+        <EnquireFab />
         <EmailInsiderPrompt />
         <CookieConsent />
         <BottomNav />

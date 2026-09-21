@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 
 import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook } from "lucide-react";
 import {
@@ -16,6 +17,7 @@ import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 
 export function SiteFooter() {
+  const { openEnquiry } = useEnquiry();
   return (
     <footer
       className="mt-16 border-t border-border text-primary-foreground sm:mt-24"
@@ -51,6 +53,13 @@ export function SiteFooter() {
             <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Contact Us
             </Link>
+            <button
+              type="button"
+              onClick={() => openEnquiry()}
+              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
+            >
+              Ask a question
+            </button>
           </nav>
         </div>
 

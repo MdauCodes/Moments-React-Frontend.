@@ -5,6 +5,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
 import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
+import { EnquireFab } from "@/components/EnquireFab";
 // Lazy — its two avatar images (~220KB combined) have no business competing with the hero image
 // and fonts during the critical render path for a component that doesn't even show for 2.5s (and
 // may never show at all for a logged-in visitor). Moving it into its own chunk keeps the main
@@ -1413,6 +1414,7 @@ function HomePage() {
         </main>
         <SiteFooter />
         <WhatsAppFloat />
+        <EnquireFab withSignUpFab={false} />
         <EmailInsiderPrompt />
         <BottomNav />
       </div>

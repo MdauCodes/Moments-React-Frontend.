@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Sparkles, X, Gift, Bell, Tag } from "lucide-react";
 import { usePersona } from "@/contexts/PersonaContext";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
@@ -7,7 +8,11 @@ import { apiUrl } from "@/config/api";
 /**
  * Proactive insider-led email capture.
  *
- * Triggers (first one wins, per session):
+ * Never appears before the visitor has been on the site for MIN_TIME_ON_SITE_MS (10 minutes): a
+ * newsletter ask in the first seconds interrupts people who have not seen anything yet. It is also
+ * never shown on checkout or cart pages, where it would interrupt a purchase.
+ *
+ * Once that time has passed, triggers (first one wins, per session):
  *   1. Exit intent (desktop): mouseleave at top of viewport
  *   2. Scroll depth: user scrolls past 50% of page
  *   3. Idle: 30 seconds with no interaction
@@ -26,8 +31,28 @@ import { apiUrl } from "@/config/api";
 const STORAGE_KEY = "moments_insider_prompt";
 const LEAD_KEY = "mpk_lead";
 const IDLE_MS = 30_000;
+const MIN_TIME_ON_SITE_MS = 10 * 60_000;
+const SESSION_START_KEY = "moments_session_start";
+const QUIET_PATHS = ["/checkout", "/cart"];
 const SCROLL_THRESHOLD = 0.5;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** When this browser session started, remembered so navigating between pages does not restart the clock. */
+let memorySessionStart: number | null = null;
+
+function sessionStart(): number {
+  const now = Date.now();
+  if (memorySessionStart !== null) return memorySessionStart;
+  try {
+    const saved = Number(window.sessionStorage.getItem(SESSION_START_KEY));
+    if (saved > 0 && saved <= now) return saved;
+    window.sessionStorage.setItem(SESSION_START_KEY, String(now));
+  } catch {
+    // storage unavailable: count from the first time this tab asked, held in memory across pages
+  }
+  memorySessionStart = now;
+  return now;
+}
 
 function shouldShow(): boolean {
   if (typeof window === "undefined") return false;
@@ -49,14 +74,29 @@ export function EmailInsiderPrompt() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const firedRef = useRef(false);
+  const { pathname } = useLocation();
+  const [seasoned, setSeasoned] = useState(false);
+  const quietPage = QUIET_PATHS.some((p) => pathname.startsWith(p));
 
   useEffect(() => {
     if (!emailCaptureEnabled) return;
     setEligible(shouldShow());
   }, [persona, emailCaptureEnabled]);
 
+  // Starts the 10-minute clock the first time this component mounts in a session.
   useEffect(() => {
-    if (!eligible || open || submitted) return;
+    if (!emailCaptureEnabled) return;
+    const remaining = sessionStart() + MIN_TIME_ON_SITE_MS - Date.now();
+    if (remaining <= 0) {
+      setSeasoned(true);
+      return;
+    }
+    const t = setTimeout(() => setSeasoned(true), remaining);
+    return () => clearTimeout(t);
+  }, [emailCaptureEnabled]);
+
+  useEffect(() => {
+    if (!eligible || !seasoned || quietPage || open || submitted) return;
     if (typeof window === "undefined") return;
     if (persona === null) return;
 
@@ -97,7 +137,7 @@ export function EmailInsiderPrompt() {
       activityEvents.forEach((ev) => window.removeEventListener(ev, resetIdle));
       if (idleTimer) clearTimeout(idleTimer);
     };
-  }, [eligible, open, submitted, persona]);
+  }, [eligible, seasoned, quietPage, open, submitted, persona]);
 
   useEffect(() => {
     if (!submitted) return;

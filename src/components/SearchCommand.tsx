@@ -8,6 +8,7 @@ import { industries as allIndustries } from "@/data/products";
 import type { Product } from "@/data/products";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 
 const RECENTS_KEY = "moments.recentSearches.v1";
 const MAX_RECENTS = 6;
@@ -49,6 +50,7 @@ interface SearchCommandProps {
 }
 
 export function SearchCommand({ open, onClose, initialQuery = "" }: SearchCommandProps) {
+  const { openEnquiry } = useEnquiry();
   const [query, setQuery] = useState(initialQuery);
   const [debounced, setDebounced] = useState(initialQuery);
   const [results, setResults] = useState<Product[]>([]);
@@ -297,6 +299,16 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openEnquiry({ topic: "product", message: `Hi, do you have ${debounced}?` });
+                }}
+                className="mt-3 block w-full text-sm font-medium text-accent underline underline-offset-4"
+              >
+                Can&apos;t find it? Ask us about it
+              </button>
             </div>
           )}
 
