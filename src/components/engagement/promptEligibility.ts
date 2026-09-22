@@ -118,8 +118,43 @@ export function hasLead(): boolean {
   }
 }
 
+/**
+ * TEMPORARY: the share of sessions in which the insider email ask is allowed to appear at all.
+ *
+ * The lead capture behind it is not fully wired up yet, so until it is, the prompt should be a
+ * rarity rather than a fixture — it can be seen working without being shown to nearly anyone.
+ *
+ * TODO: restore to 1 once the lead pipeline is configured. That is the entire change; every other
+ * threshold and throttle (dwell time, route exclusions, one-ask-per-session, the mpk_lead flag)
+ * is untouched and keeps working exactly as it does now.
+ */
+export const EMAIL_CAPTURE_SAMPLE_RATE = 0.1;
+
+const EMAIL_SAMPLE_KEY = "moments_insider_sampled";
+
+/**
+ * Rolled once per session and remembered, deliberately: rolling per check would mean a visitor
+ * who is "out" this second is "in" the next, which is not a sample rate at all — it is a slow
+ * drip that eventually shows the prompt to everyone. Stored per session so the answer is stable
+ * for a whole visit, and re-rolled on the next one.
+ */
+function isSampledIn(): boolean {
+  try {
+    const stored = window.sessionStorage.getItem(EMAIL_SAMPLE_KEY);
+    if (stored !== null) return stored === "1";
+    const rolled = Math.random() < EMAIL_CAPTURE_SAMPLE_RATE;
+    window.sessionStorage.setItem(EMAIL_SAMPLE_KEY, rolled ? "1" : "0");
+    return rolled;
+  } catch {
+    // No storage to remember a roll with — roll once per call rather than defaulting to "always",
+    // which would make the prompt common in exactly the browsers we can throttle least.
+    return Math.random() < EMAIL_CAPTURE_SAMPLE_RATE;
+  }
+}
+
 export function isEmailPromptEligible(): boolean {
   if (typeof window === "undefined") return false;
+  if (!isSampledIn()) return false;
   try {
     if (hasLead()) return false;
     return window.sessionStorage.getItem(EMAIL_PROMPT_KEY) === null;

@@ -12,6 +12,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { WishlistProvider } from "@/contexts/WishlistContext";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
 import { PersonaProvider } from "@/contexts/PersonaContext";
+import { EnquiryProvider } from "@/contexts/EnquiryContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -217,6 +218,7 @@ export default function App() {
             <WishlistProvider>
               <AdminAuthProvider>
                 <PersonaProvider>
+                <EnquiryProvider>
                   {/* One shared Suspense boundary for every lazy public/account route (the admin
                       routes keep their own inner boundaries below, which take precedence for
                       those). Shared, not per-route, on purpose — see PublicRouteFallback's own
@@ -371,14 +373,19 @@ export default function App() {
                   <AuthModal />
                   <AccessibilityToolbar />
                   {/* One mount, above the router outlet, for every optional engagement prompt
-                      (the welcome starter offer and the insider email ask). Deliberately here
-                      rather than inside SiteLayout: SiteLayout is rendered *by* each route, so
-                      anything mounted in it is torn down and rebuilt on every navigation — and
-                      the homepage keeps its own copy of the layout, which is how both prompts
-                      ended up mounted twice over. Being outside the outlet also means the gate's
-                      own state survives navigation, which is the whole point of measuring how
-                      long someone has been browsing. */}
+                      (the welcome starter offer, the post-order account nudge and the insider
+                      email ask). Deliberately here rather than inside SiteLayout: SiteLayout is
+                      rendered *by* each route, so anything mounted in it is torn down and rebuilt
+                      on every navigation — and the homepage keeps its own copy of the layout,
+                      which is how both prompts ended up mounted twice over. Being outside the
+                      outlet also means the gate's own state survives navigation, which is the
+                      whole point of measuring how long someone has been browsing.
+
+                      Inside EnquiryProvider, so a prompt could open the enquiry panel if one ever
+                      needs to — and so the provider's own lazily-mounted QuickEnquirySheet stays
+                      the single instance of that panel for the whole app. */}
                   <EngagementPrompts />
+                </EnquiryProvider>
                 </PersonaProvider>
               </AdminAuthProvider>
             </WishlistProvider>

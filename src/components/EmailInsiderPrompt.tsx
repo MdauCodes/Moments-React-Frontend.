@@ -24,6 +24,12 @@ import { markEmailPromptResolved } from "@/components/engagement/promptEligibili
  * centered card on desktop, always with a visible ×, Escape and a backdrop click. That one is a
  * proposition worth a full stop; this is a newsletter ask, and a newsletter ask should never be
  * something a visitor has to work to get out of.
+ *
+ * Merge note: an earlier fix on main gave this component a 10-minute minimum time-on-site and a
+ * checkout/cart skip list of its own. Neither is lost — the gate enforces both, and more strictly:
+ * it measures *visible-tab* time rather than wall-clock (a tab left open in the background is not
+ * a visitor spending time here), and its route exclusions are a superset that also covers sign-in,
+ * registration, order tracking and admin. The sampling below is what now makes this prompt rare.
  */
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

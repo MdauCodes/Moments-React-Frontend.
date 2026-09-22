@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
+import { EnquireFab } from "@/components/EnquireFab";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -47,7 +49,7 @@ import segCosmeticsImg from "@/assets/categories/cosmetics.webp";
 import segAgricultureImg from "@/assets/categories/agriculture.webp";
 import segDairyImg from "@/assets/categories/Dairy.webp";
 import segPharmacyImg from "@/assets/categories/Pharmacy.webp";
-import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift, Tag, Sparkles, Flame } from "lucide-react";
+import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift, Tag, Sparkles, Flame, MessageSquareText } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
@@ -290,102 +292,6 @@ function RotatingTagline() {
   );
 }
 
-// ── Hero category chips ──
-// Real backend Segments — the same taxonomy the "Shop by category" grid further down the page
-// and the Shop mega-menu are built from, linking to the same `/products?segmentId=` filter. This
-// is the "where do I actually browse" answer that has to be inside the first screen, so it is
-// built to survive a slow or absent API rather than leaving a hole above the fold:
-//   • fixed-height rail with pill skeletons while the call is in flight — no layout shift, and
-//     nothing jumps under a thumb that is already reaching for a chip;
-//   • if segments come back empty or the call fails, it falls back to the canonical industry
-//     list, which is static frontend data and therefore always available.
-const HERO_CHIP_COUNT = 6;
-
-function HeroCategoryChips() {
-  const [segments, setSegments] = useState<Segment[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getSegments()
-      .then((data) => { if (!cancelled) setSegments(data); })
-      .catch(() => { if (!cancelled) setSegments([]); });
-    return () => { cancelled = true; };
-  }, []);
-
-  const chips =
-    segments === null
-      ? null
-      : segments.length > 0
-        ? segments.slice(0, HERO_CHIP_COUNT).map((s) => ({
-            key: s.id,
-            label: s.name,
-            to: `/products?segmentId=${s.id}`,
-          }))
-        : industries.slice(0, HERO_CHIP_COUNT).map((i) => ({
-            key: i.slug,
-            label: i.name,
-            to: `/products?industry=${i.slug}`,
-          }));
-
-  return (
-    <div className="mt-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <p
-          className="uppercase font-semibold"
-          style={{
-            fontSize: "calc(10px * var(--a11y-font-scale))",
-            letterSpacing: "0.16em",
-            color: "rgba(255,255,255,0.72)",
-          }}
-        >
-          Shop by category
-        </p>
-        <Link
-          to="/products"
-          className="inline-flex items-center gap-1 font-semibold text-white/85 underline-offset-2 hover:text-white hover:underline"
-          style={{ fontSize: "calc(11.5px * var(--a11y-font-scale))" }}
-        >
-          See all <ChevronRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-      {/* Two rows on a phone, one on a wide screen — the last two chips are held back below `sm`
-          purely so this rail costs two rows instead of three there. Every category is still one
-          tap away through "See all" directly above. */}
-      <div className="mt-2 flex min-h-[74px] flex-wrap content-start gap-2 md:min-h-[76px]">
-        {chips === null
-          ? Array.from({ length: HERO_CHIP_COUNT }).map((_, i) => (
-              <span
-                key={i}
-                aria-hidden
-                className={`h-8 rounded-full border border-white/15 bg-white/10 ${i >= 4 ? "hidden sm:block" : ""}`}
-                style={{ width: `${[104, 88, 120, 96, 112, 84][i]}px` }}
-              />
-            ))
-          : chips.map((c, i) => (
-              <Link
-                key={c.key}
-                to={c.to}
-                className={`h-8 items-center rounded-full border border-white/25 px-3.5 font-medium text-white backdrop-blur transition-colors hover:border-accent/70 ${
-                  i >= 4 ? "hidden sm:inline-flex" : "inline-flex"
-                }`}
-                /* Solid dark fill rather than white/10: these chips are the widest element in the
-                   copy column and on a phone they run right across the hero photograph, where a
-                   translucent pill left white text sitting on paper bags. Opaque forest keeps
-                   every chip legible wherever the photo happens to be. */
-                style={{
-                  fontSize: "calc(12.5px * var(--a11y-font-scale))",
-                  background: "color-mix(in oklab, #08231a 88%, transparent)",
-                }}
-              >
-                {c.label}
-              </Link>
-            ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Hero ──
 //
 // Rebuilt around one question a first-time visitor is actually asking: where are the products?
@@ -400,6 +306,7 @@ function HeroCategoryChips() {
 // already the page's account section and which previously only linked to explanatory pages; it
 // now carries the "create one now" action those hero cards were for.
 function Hero() {
+  const { openEnquiry } = useEnquiry();
   return (
     <section
       className="relative overflow-hidden"
@@ -611,17 +518,14 @@ function Hero() {
                pill) rendered underneath the wave. */
             className="md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%] pt-[52px] pb-[30px] md:pt-11 md:pb-[68px]"
           >
-            <p
-              className="uppercase font-medium"
-              style={{
-                fontSize: "calc(10px * var(--a11y-font-scale))",
-                letterSpacing: "0.18em",
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "12px",
-              }}
-            >
-              QUALITY PACKAGING · NAIROBI, KENYA
-            </p>
+            {/* The "QUALITY PACKAGING · NAIROBI, KENYA" eyebrow that used to sit here is gone —
+                it was the smallest, faintest line on the page, it said nothing the headline and
+                subhead underneath it do not already say, and on a phone it cost a row of the one
+                screen this section is fighting for. None of its keywords went with it, which was
+                checked rather than assumed: "Packaging" and "Kenyan" are in the <h1> below,
+                "Nairobi" is in the subhead below that, and index.html's title, meta description,
+                Open Graph/Twitter cards and Organization JSON-LD all still carry
+                "Nairobi, Kenya" and "packaging". */}
             {/* The rotating tagline used to be the h1's third line. A headline that erases and
                 retypes itself is the least stable thing on the page in the exact spot the eye
                 lands first, it is a moving target for the LCP measurement, and it made the one
@@ -666,8 +570,14 @@ function Hero() {
               Nairobi, 3 days countrywide.
             </p>
 
-            {/* One unmistakable primary action, with the deals page as its only companion. */}
-            <div className="flex flex-wrap items-center gap-2.5">
+            {/* Two calls to action, deliberately equal in weight: the visitor either knows what
+                they want and browses, or they have a question and asks. Those are the two real
+                journeys into this business, and the hero should not make one of them a footnote.
+                Stacked and full-width on a phone so neither is the small one; side by side from
+                sm up. The deals link that used to sit here is gone — a third button in the hero
+                was crowding, which is the whole complaint, and Deals already has its own place in
+                the top nav and its own promo panel immediately below this section. */}
+            <div className="flex max-w-sm flex-col items-stretch gap-2.5 sm:max-w-none sm:flex-row sm:items-center">
               <Link
                 to="/products"
                 className="inline-flex items-center justify-center gap-2 font-bold shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl"
@@ -681,20 +591,26 @@ function Hero() {
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                to="/deals"
-                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-white/30 bg-white/10 font-semibold text-white backdrop-blur transition-colors hover:border-accent/60 hover:bg-white/20"
-                style={{ padding: "14px 18px", fontSize: "calc(14px * var(--a11y-font-scale))" }}
+              <button
+                type="button"
+                onClick={() => openEnquiry()}
+                className="inline-flex items-center justify-center gap-2 font-bold shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl"
+                /* Solid, not an outline: an outline button next to a filled gold one reads as the
+                   lesser option, and this one is not meant to be. Opens the site's real enquiry
+                   panel through EnquiryContext — the same single QuickEnquirySheet the floating
+                   Enquire button and the product pages open, never a second copy of that form. */
+                style={{
+                  background: "#ffffff",
+                  color: "#0d3320",
+                  borderRadius: "10px",
+                  padding: "14px 20px",
+                  fontSize: "calc(15px * var(--a11y-font-scale))",
+                }}
               >
-                <Tag className="h-4 w-4" aria-hidden="true" />
-                {/* Short label on a phone so both calls to action fit one row at 390px — two
-                    stacked full-width buttons cost 60px of the first screen for no extra clarity. */}
-                <span className="sm:hidden">Deals</span>
-                <span className="hidden sm:inline">Today&apos;s deals</span>
-              </Link>
+                <MessageSquareText className="h-4 w-4" aria-hidden="true" /> Send us an enquiry
+              </button>
             </div>
 
-            <HeroCategoryChips />
 
             <div
               className="mt-4 inline-flex items-center"
@@ -1526,6 +1442,9 @@ function HomePage() {
         </main>
         <SiteFooter />
         <WhatsAppFloat />
+        {/* This page renders its own layout rather than SiteLayout, and that layout has no
+            SignUpFab — so the Enquire button takes the lower slot here, always. */}
+        <EnquireFab withSignUpFab={false} />
         <BottomNav />
       </div>
       <CartAddedSheet />

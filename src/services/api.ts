@@ -471,7 +471,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`Enquiry failed: ${res.status}`);
+    if (!res.ok) {
+      // The status rides along on the error so the form can tell a rate limit (wait and retry)
+      // apart from a rejected field (fix something) apart from a real outage (try WhatsApp) —
+      // all three used to surface as the same "something went wrong".
+      const err = new Error(`Enquiry failed: ${res.status}`) as Error & { status?: number };
+      err.status = res.status;
+      throw err;
+    }
     return res.json() as Promise<{ id: string; reference?: string; success?: boolean }>;
   },
 

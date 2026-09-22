@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
-import { Menu, X, ChevronDown, Search, ShoppingCart, User, HelpCircle } from "lucide-react";
+import { Menu, X, ChevronDown, Search, ShoppingCart, User, HelpCircle, MessageSquareText } from "lucide-react";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import { categories } from "@/data/products";
 import { SearchCommand } from "@/components/SearchCommand";
@@ -70,6 +71,7 @@ export function SiteHeader() {
   const headerRef = useRef<HTMLElement>(null);
   const navigate = useNavigate();
   const { itemCount } = useCart();
+  const { openEnquiry } = useEnquiry();
   const { isAuthenticated, user, logout } = useAuth();
   const { openLogin } = useAuthModal();
 
@@ -203,6 +205,14 @@ export function SiteHeader() {
                 {n.label}
               </Link>
             ))}
+
+            <button
+              type="button"
+              onClick={() => openEnquiry()}
+              className="ml-1 inline-flex items-center gap-1.5 rounded-full border border-primary/30 px-3 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground lg:px-4"
+            >
+              <MessageSquareText className="h-4 w-4" aria-hidden="true" /> Enquire
+            </button>
 
             <div className="ml-2 flex items-center gap-1">
               <Link
