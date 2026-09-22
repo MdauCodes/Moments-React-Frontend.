@@ -107,13 +107,13 @@ export function TurnstileWidget({ onToken }: { onToken: (token: string) => void 
   }, [armed]);
 
   if (!SITE_KEY) return null;
-  // min-height reserves the widget's own height so arming it doesn't shove the submit button down
-  // under the visitor's thumb mid-tap.
+  // min-height reserves the widget's own rendered height (measured: 71px) so arming it doesn't
+  // shove the submit button down under the visitor's thumb mid-tap.
   return (
     <div
       ref={containerRef}
       id={`turnstile-${containerId}`}
-      style={{ margin: "8px 0", minHeight: 65 }}
+      style={{ margin: "8px 0", minHeight: 71 }}
     />
   );
 }
