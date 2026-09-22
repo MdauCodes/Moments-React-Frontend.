@@ -1,23 +1,19 @@
-import { ReactNode, lazy, Suspense, useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { WhatsAppFloat } from "./WhatsAppFloat";
 import { SignUpFab } from "./SignUpFab";
 import { PageProgressBar } from "./PageProgressBar";
-import { EmailInsiderPrompt } from "./EmailInsiderPrompt";
 import { AppSplash } from "./AppSplash";
 import { BottomNav } from "./BottomNav";
 import { CookieConsent } from "./CookieConsent";
 import { AddToHomeScreenPrompt } from "./AddToHomeScreenPrompt";
-// Lazy — its two avatar images (~220KB combined) have no business competing with the hero image
-// and fonts during the critical render path for a component that doesn't even show for 2.5s (and
-// may never show at all for a logged-in visitor). Moving it into its own chunk keeps the main
-// bundle lighter to parse without changing when/whether the modal itself appears.
-const WelcomeStarterModal = lazy(() =>
-  import("./WelcomeStarterModal").then((m) => ({ default: m.WelcomeStarterModal })),
-);
 import { CelebratoryRewardBanner } from "./CelebratoryRewardBanner";
 import { CartAddedSheet } from "./CartAddedSheet";
+
+// The welcome starter offer and the insider email prompt used to be mounted here (and again in
+// the homepage's own copy of this layout). Both now live behind the single engagement gate
+// mounted once in App.tsx — see components/engagement/EngagementPrompts.tsx.
 
 const SPLASH_KEY = "moments_splash_shown";
 
@@ -48,13 +44,9 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <SiteFooter />
         <WhatsAppFloat />
         <SignUpFab />
-        <EmailInsiderPrompt />
         <CookieConsent />
         <BottomNav />
       </div>
-      <Suspense fallback={null}>
-        <WelcomeStarterModal />
-      </Suspense>
       <CartAddedSheet />
     </>
   );

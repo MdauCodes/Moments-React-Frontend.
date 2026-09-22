@@ -1,134 +1,85 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, X, Gift, Bell, Tag } from "lucide-react";
-import { usePersona } from "@/contexts/PersonaContext";
-import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { apiUrl } from "@/config/api";
+import { markEmailPromptResolved } from "@/components/engagement/promptEligibility";
 
 /**
- * Proactive insider-led email capture.
+ * Insider-led email capture.
  *
- * Triggers (first one wins, per session):
- *   1. Exit intent (desktop): mouseleave at top of viewport
- *   2. Scroll depth: user scrolls past 50% of page
- *   3. Idle: 30 seconds with no interaction
+ * It no longer decides when to appear. It used to arm three triggers of its own — desktop exit
+ * intent, 50% scroll depth, and a 30-second idle timer — the first of which won. Scroll depth in
+ * particular meant a first-time visitor got this modal simply for reading down the homepage,
+ * which is the one behaviour the page is asking for. All three are gone; the engagement gate
+ * (components/engagement/EngagementPrompts.tsx) decides, and this component just renders when
+ * mounted and reports the outcome.
  *
- * Centered overlay (not a bottom-right corner card) — that corner is SignUpFab's permanent home
- * now (see SiteLayout.tsx), and this prompt firing at the same time as that FAB (a guest idling
- * or scrolling is exactly SignUpFab's audience too) used to mean the two fighting for the same
- * few square inches. A centered modal can't collide with a fixed-position FAB anywhere on screen.
+ * (Removed along with them: a `persona !== null` precondition inherited from a PersonaGate
+ * component that is no longer mounted anywhere in the app. Because `persona` is only ever
+ * non-null for someone carrying a `moments_persona` value in localStorage from an older build,
+ * that condition had quietly made this prompt unreachable for every genuinely new visitor while
+ * still firing for a long tail of returning ones — unpredictable in exactly the way a prompt
+ * policy must not be.)
  *
- * Dismiss: × button, Escape, or the backdrop. No "No thanks" text link — the difference from
- * WelcomeStarterModal (no close affordance at all) is deliberate: that one gates a first-visit
- * welcome offer worth actually reading, this one is a lower-stakes newsletter ask that shouldn't
- * trap anyone who just wants back to what they were doing.
+ * Presentation is deliberately asymmetric with the welcome offer: a bottom sheet on phones and a
+ * centered card on desktop, always with a visible ×, Escape and a backdrop click. That one is a
+ * proposition worth a full stop; this is a newsletter ask, and a newsletter ask should never be
+ * something a visitor has to work to get out of.
  */
 
-const STORAGE_KEY = "moments_insider_prompt";
-const LEAD_KEY = "mpk_lead";
-const IDLE_MS = 30_000;
-const SCROLL_THRESHOLD = 0.5;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function shouldShow(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    if (window.localStorage.getItem(LEAD_KEY)) return false;
-    return window.sessionStorage.getItem(STORAGE_KEY) === null;
-  } catch {
-    return true;
-  }
-}
-
-export function EmailInsiderPrompt() {
-  const { persona } = usePersona();
-  const { emailCaptureEnabled } = useSiteConfig();
-  const [eligible, setEligible] = useState(false);
-  const [open, setOpen] = useState(false);
+export function EmailInsiderPrompt({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const firedRef = useRef(false);
-
-  useEffect(() => {
-    if (!emailCaptureEnabled) return;
-    setEligible(shouldShow());
-  }, [persona, emailCaptureEnabled]);
-
-  useEffect(() => {
-    if (!eligible || open || submitted) return;
-    if (typeof window === "undefined") return;
-    if (persona === null) return;
-
-    const trigger = () => {
-      if (firedRef.current) return;
-      firedRef.current = true;
-      if (!shouldShow()) return;
-      setOpen(true);
-    };
-
-    const onMouseLeave = (e: MouseEvent) => {
-      if (e.clientY <= 0) trigger();
-    };
-
-    const onScroll = () => {
-      const doc = document.documentElement;
-      const scrollable = doc.scrollHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      const ratio = window.scrollY / scrollable;
-      if (ratio >= SCROLL_THRESHOLD) trigger();
-    };
-
-    let idleTimer: ReturnType<typeof setTimeout> | null = null;
-    const resetIdle = () => {
-      if (idleTimer) clearTimeout(idleTimer);
-      idleTimer = setTimeout(trigger, IDLE_MS);
-    };
-    const activityEvents: (keyof WindowEventMap)[] = ["mousemove", "keydown", "touchstart", "scroll", "click"];
-
-    document.documentElement.addEventListener("mouseleave", onMouseLeave);
-    window.addEventListener("scroll", onScroll, { passive: true });
-    activityEvents.forEach((ev) => window.addEventListener(ev, resetIdle, { passive: true }));
-    resetIdle();
-
-    return () => {
-      document.documentElement.removeEventListener("mouseleave", onMouseLeave);
-      window.removeEventListener("scroll", onScroll);
-      activityEvents.forEach((ev) => window.removeEventListener(ev, resetIdle));
-      if (idleTimer) clearTimeout(idleTimer);
-    };
-  }, [eligible, open, submitted, persona]);
-
-  useEffect(() => {
-    if (!submitted) return;
-    const t = setTimeout(() => setOpen(false), 3500);
-    return () => clearTimeout(t);
-  }, [submitted]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusToRef = useRef<HTMLElement | null>(null);
 
   const handleDismiss = () => {
-    try {
-      window.sessionStorage.setItem(STORAGE_KEY, "dismissed");
-    } catch {
-      // ignore
-    }
-    setOpen(false);
+    markEmailPromptResolved("dismissed");
+    onClose();
   };
 
-  // Escape closes it, same as any other centered dialog on this site (WelcomeStarterModal
-  // excepted, deliberately, per its own comment) — expected now that this is true modal chrome
-  // with a backdrop, not a dismissible corner card.
   useEffect(() => {
-    if (!open) return;
+    restoreFocusToRef.current = document.activeElement as HTMLElement | null;
+    // The close button, not the email field: focusing the input pops the software keyboard on a
+    // phone the instant the sheet slides up, which turns a dismissible ask into a screenful.
+    panelRef.current?.querySelector<HTMLButtonElement>("button[data-dismiss]")?.focus({ preventScroll: true });
+    return () => restoreFocusToRef.current?.focus?.({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") handleDismiss();
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const items = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, []);
 
-  if (!emailCaptureEnabled) return null;
-  if (!open) return null;
+  // Let the thank-you land, then get out of the way on its own.
+  useEffect(() => {
+    if (!submitted) return;
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [submitted, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,12 +96,7 @@ export function EmailInsiderPrompt() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: trimmed, source: "popup", trigger: "newsletter" }),
       });
-      try {
-        window.localStorage.setItem(LEAD_KEY, "1");
-        window.sessionStorage.setItem(STORAGE_KEY, "submitted");
-      } catch {
-        // ignore
-      }
+      markEmailPromptResolved("submitted");
       setSubmitted(true);
     } catch {
       setError("Something went wrong. Please try again.");
@@ -165,21 +111,33 @@ export function EmailInsiderPrompt() {
       aria-modal="true"
       aria-labelledby="insider-prompt-title"
       aria-describedby="insider-prompt-desc"
+      data-mpk-overlay="insider-email"
       onClick={handleDismiss}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300 motion-reduce:animate-none sm:items-center sm:bg-black/60 sm:p-4 sm:backdrop-blur-md"
     >
       <div
+        ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-sm animate-in zoom-in-95 duration-300 overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-2xl"
+        /* Bottom sheet on phones, centered card from sm up. The sheet clears the fixed bottom
+           nav (--bottom-nav-height, set by BottomNav itself) so the site's own tab bar is never
+           the thing this covers. */
+        className="relative w-full animate-in slide-in-from-bottom-4 duration-300 motion-reduce:animate-none overflow-hidden rounded-t-2xl border border-border bg-card text-card-foreground shadow-2xl sm:max-w-sm sm:rounded-2xl sm:zoom-in-95"
+        style={{ marginBottom: "var(--bottom-nav-height, 0px)" }}
       >
         {/* Decorative gradient header */}
         <div className="relative bg-gradient-to-br from-primary/15 via-primary/5 to-transparent px-5 pb-3 pt-5">
+          {/* Grab handle — the affordance a sheet is expected to have on a phone. */}
+          <span
+            aria-hidden
+            className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-foreground/15 sm:hidden"
+          />
           {/* Explicit close button, in addition to Escape and the backdrop click above */}
           <button
             type="button"
+            data-dismiss
             onClick={handleDismiss}
             aria-label="Dismiss"
-            className="absolute right-2 top-2 rounded-full p-1.5 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="absolute right-2 top-2 rounded-full p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -189,14 +147,14 @@ export function EmailInsiderPrompt() {
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">Insiders only</p>
-              <h3 id="insider-prompt-title" className="text-base font-semibold leading-tight">
-                Wait — be first in line.
-              </h3>
+              <h2 id="insider-prompt-title" className="text-base font-semibold leading-tight">
+                Be first in line.
+              </h2>
             </div>
           </div>
         </div>
 
-        <div className="px-5 pb-5">
+        <div className="px-5 pb-6 sm:pb-5">
           {submitted ? (
             <div className="py-2 text-center">
               <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary">
@@ -237,6 +195,7 @@ export function EmailInsiderPrompt() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
+                  aria-label="Email address"
                   maxLength={255}
                   disabled={loading}
                   autoComplete="email"

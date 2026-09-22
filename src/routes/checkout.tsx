@@ -26,6 +26,7 @@ import { profileStore } from "@/services/profileStore";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 import { apiUrl, apiFetch } from "@/config/api";
 import { trackFunnelStep } from "@/services/checkoutFunnelTracker";
+import { recordOrderPlaced } from "@/lib/engagementSignals";
 import { CountySelect } from "@/components/CountySelect";
 import { AddressAutocompleteInput, type ResolvedAddress } from "@/components/AddressAutocompleteInput";
 import { isWithinNairobiCbd } from "@/lib/nairobiCbd";
@@ -1114,6 +1115,12 @@ function CheckoutModal() {
         setOrderId(id);
         setOrderRef(ref);
         trackFunnelStep("ORDER_PLACED", { orderReference: ref });
+        // Local, client-side only — no new backend call and no new field on the beacon above.
+        // Unlocks the post-order engagement moment (see lib/engagementSignals.ts): a customer who
+        // has just ordered has earned the right to be asked about an account or the insider list,
+        // in a way a stranger who arrived ten seconds ago has not. Recorded here rather than on
+        // the confirmation page so it still holds if the customer navigates away mid-payment.
+        recordOrderPlaced();
         // Server-computed (BusinessHoursConfig, Africa/Nairobi) — see OrderDto.outsideHoursMessage
         // on the backend. Shown right at order creation, not after payment succeeds: the customer
         // is about to wait on an M-Pesa prompt either way, so they may as well know now that

@@ -77,6 +77,12 @@ export function CookieConsent() {
       role="dialog"
       aria-live="polite"
       aria-label="Cookie consent"
+      /* Purely a marker for the engagement gate (components/engagement/EngagementPrompts.tsx):
+         while a consent choice is still outstanding, no optional marketing prompt may open on
+         top of it. Nothing about this banner's timing, wording, placement or behaviour changes —
+         it is a legal element and stays exactly as it is; it simply now takes precedence over
+         the things that are not. */
+      data-mpk-overlay="cookie-consent"
       className="fixed inset-x-0 bottom-0 z-[120] px-3 pb-3 sm:px-5 sm:pb-5 pointer-events-none"
     >
       <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur supports-[backdrop-filter]:bg-card/85 sm:p-5">

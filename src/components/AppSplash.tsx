@@ -3,8 +3,17 @@ import momentsBrandLogo from "@/assets/moments_logo_without_background.png";
 
 /**
  * Branded app splash — forest-green stage with the Moments logo revealed
- * through two unfolding flaps in the same forest theme. Fades out at 2.75s.
+ * through two unfolding flaps in the same forest theme.
+ *
+ * Shortened from 2.75s (+0.45s fade) to 1.1s (+0.4s fade). It is a full-screen, opaque cover
+ * over the homepage, so every millisecond of it is a millisecond a first-time visitor cannot
+ * browse — and the flap animation itself completes in 700ms, so the old timing was mostly the
+ * finished logo sitting still, holding the page hostage. The brand moment survives; the wait
+ * doesn't. `data-mpk-overlay` keeps the engagement gate from ever opening a prompt behind it.
  */
+const FLAP_HOLD_MS = 1100;
+const FADE_MS = 400;
+
 export function AppSplash() {
   const [open, setOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -12,8 +21,8 @@ export function AppSplash() {
 
   useEffect(() => {
     const openTimer = requestAnimationFrame(() => setOpen(true));
-    const fadeTimer = setTimeout(() => setHidden(true), 2750);
-    const removeTimer = setTimeout(() => setRemoved(true), 3200);
+    const fadeTimer = setTimeout(() => setHidden(true), FLAP_HOLD_MS);
+    const removeTimer = setTimeout(() => setRemoved(true), FLAP_HOLD_MS + FADE_MS);
     return () => {
       cancelAnimationFrame(openTimer);
       clearTimeout(fadeTimer);
@@ -26,6 +35,7 @@ export function AppSplash() {
   return (
     <div
       aria-hidden="true"
+      data-mpk-overlay="splash"
       className="fixed inset-0 z-[200] flex items-center justify-center transition-opacity duration-500 ease-out"
       style={{
         background:

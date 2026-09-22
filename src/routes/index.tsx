@@ -1,17 +1,9 @@
 import { Link } from "react-router-dom";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
-import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
-// Lazy — its two avatar images (~220KB combined) have no business competing with the hero image
-// and fonts during the critical render path for a component that doesn't even show for 2.5s (and
-// may never show at all for a logged-in visitor). Moving it into its own chunk keeps the main
-// bundle lighter to parse without changing when/whether the modal itself appears.
-const WelcomeStarterModal = lazy(() =>
-  import("@/components/WelcomeStarterModal").then((m) => ({ default: m.WelcomeStarterModal })),
-);
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1362,9 +1354,10 @@ function HomePage() {
   return (
     <>
       <FirstVisitSplash />
-      <Suspense fallback={null}>
-        <WelcomeStarterModal />
-      </Suspense>
+      {/* The welcome offer and the insider email prompt used to be mounted here as well as in
+          SiteLayout. Both now go through the single engagement gate in App.tsx — see
+          components/engagement/EngagementPrompts.tsx. CookieConsent stays: this page does not use
+          SiteLayout, and it is the only reason the banner renders on the homepage at all. */}
       <CookieConsent />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
@@ -1413,7 +1406,6 @@ function HomePage() {
         </main>
         <SiteFooter />
         <WhatsAppFloat />
-        <EmailInsiderPrompt />
         <BottomNav />
       </div>
       <CartAddedSheet />

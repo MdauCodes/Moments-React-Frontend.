@@ -83,6 +83,9 @@ export function CartAddedSheet() {
     <div
       role="status"
       aria-live="polite"
+      /* Marker for the engagement gate — someone who has just added to their cart is mid-task,
+         and this toast already owns the same bottom strip the insider prompt's mobile sheet uses. */
+      data-mpk-overlay="cart-added"
       onMouseEnter={clearDismissTimer}
       onMouseLeave={scheduleDismiss}
       onFocus={clearDismissTimer}

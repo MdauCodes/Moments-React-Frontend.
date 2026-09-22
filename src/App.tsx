@@ -17,6 +17,7 @@ import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
+import { EngagementPrompts } from "@/components/engagement/EngagementPrompts";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 // The homepage alone stays a static import: it is the one route that must be in the initial
@@ -369,6 +370,15 @@ export default function App() {
                   <SiteLockOverlay />
                   <AuthModal />
                   <AccessibilityToolbar />
+                  {/* One mount, above the router outlet, for every optional engagement prompt
+                      (the welcome starter offer and the insider email ask). Deliberately here
+                      rather than inside SiteLayout: SiteLayout is rendered *by* each route, so
+                      anything mounted in it is torn down and rebuilt on every navigation — and
+                      the homepage keeps its own copy of the layout, which is how both prompts
+                      ended up mounted twice over. Being outside the outlet also means the gate's
+                      own state survives navigation, which is the whole point of measuring how
+                      long someone has been browsing. */}
+                  <EngagementPrompts />
                 </PersonaProvider>
               </AdminAuthProvider>
             </WishlistProvider>
