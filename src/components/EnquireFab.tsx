@@ -4,8 +4,10 @@ import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEnquiry } from "@/contexts/EnquiryContext";
 
-/** Pages where a floating button would cover something the visitor is in the middle of doing. */
-const HIDDEN_ON = ["/checkout"];
+/** Pages where a floating button would cover something the visitor is in the middle of doing —
+ *  including the enquiry forms themselves, where it floats over the fields while offering to open
+ *  a second copy of the form the visitor is already filling in. */
+const HIDDEN_ON = ["/checkout", "/contact", "/enterprise-quote"];
 
 /**
  * The one place a visitor who "just has a question" can always reach, on every public page. Sits

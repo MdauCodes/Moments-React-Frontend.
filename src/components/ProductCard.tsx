@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Flame } from "lucide-react";
 
 import type { Product } from "@/data/products";
-import { whatsappLink } from "@/data/products";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { getStockInfo } from "@/lib/stock";
 import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
 import { sanitizeProductDescription } from "@/lib/utils";
@@ -56,6 +56,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
   // otherwise this default silently rides along into ConfiguratorModal via onConfigure below.
   const [activeTierId, setActiveTierId] = useState<string | null>(tiers.length === 1 ? tierKey(tiers[0]) : null);
   const activeTier = hasTiers ? (tiers.find((t) => tierKey(t) === activeTierId) ?? tiers[0]) : null;
+  const { openEnquiry } = useEnquiry();
 
   const handlePillClick = (e: React.MouseEvent, id: string) => {
     // preventDefault is the important one here, not just stopPropagation: the card is now
@@ -312,20 +313,25 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
             // A plain <button> here, not an <a> — this card is already wrapped in its own <Link>
             // (a real <a href> for crawlability, see the component's top-level wrapper), and
             // nested <a> tags are invalid HTML with genuinely unreliable click behavior across
-            // browsers, not just a lint nitpick. window.open reproduces the same "open WhatsApp
-            // in a new tab" result without nesting an anchor inside one.
+            // browsers, not just a lint nitpick.
+            //
+            // This used to jump straight out to WhatsApp, which meant the single highest-intent
+            // enquiry we get — someone asking for a product we cannot currently sell them — left
+            // no record anywhere: no enquiry row, no CRM lead, nothing to follow up when the stock
+            // lands. It now opens the enquiry panel with the product already attached (the panel
+            // still offers WhatsApp for anyone who would rather just chat).
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                window.open(
-                  whatsappLink(
-                    `Hi, I'd like to enquire about ${p.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
-                  ),
-                  "_blank",
-                  "noopener,noreferrer",
-                );
+                openEnquiry({
+                  topic: "product",
+                  product: { id: String(p.id), name: p.name, slug: p.slug },
+                  message: `Is ${p.name} available? It is showing as ${
+                    stock.isMadeToOrder ? "made to order" : "out of stock"
+                  }.`,
+                });
               }}
               className="w-full rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
             >
