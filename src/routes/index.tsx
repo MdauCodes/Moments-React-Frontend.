@@ -337,8 +337,20 @@ function Hero() {
            phone, so the hero *was* the first screen by construction and the catalogue could only
            ever be below it. These are floors, not fixed heights — the mobile column is in normal
            flow and still grows for long copy or a large accessibility font scale. */
-        @media (max-width: 767px) { .mpk-hero-section { min-height: 496px !important; } }
-        @media (min-width: 768px) { .mpk-hero-section { min-height: 548px !important; } }
+        @media (max-width: 767px) { .mpk-hero-section { min-height: 560px !important; } }
+        @media (min-width: 768px) { .mpk-hero-section { min-height: 600px !important; } }
+
+        /* Mobile only: the text column used to sit in normal flow with nothing to fill the
+           section's min-height, so the CTAs landed right under the copy and everything below
+           them — down to the wave — was dead space over the photo. Matching the section's own
+           height and turning the column into a flex stack lets .mpk-hero-spacer (a mobile-only,
+           zero-content flex-1 div between the description and the buttons) push the CTAs and the
+           M-Pesa pill down to where the extra height actually is, instead of leaving them
+           clustered at the top. Desktop is untouched: that column is absolutely centred already,
+           and the spacer is display:none there. */
+        @media (max-width: 767px) {
+          .mpk-hero-content { display: flex; flex-direction: column; min-height: 560px; }
+        }
 
         /* ── Hero image positioning ── */
         .mpk-hero-img-a,
@@ -516,7 +528,7 @@ function Hero() {
                section's edges — the announcement marquee at the top (~40px) and the decorative
                wave at the bottom (60px). With even padding the last row of the column (the M-Pesa
                pill) rendered underneath the wave. */
-            className="md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%] pt-[52px] pb-[30px] md:pt-11 md:pb-[68px]"
+            className="mpk-hero-content md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%] pt-[52px] pb-[30px] md:pt-11 md:pb-[68px]"
           >
             {/* The "QUALITY PACKAGING · NAIROBI, KENYA" eyebrow that used to sit here is gone —
                 it was the smallest, faintest line on the page, it said nothing the headline and
@@ -569,6 +581,11 @@ function Hero() {
               Cups, containers, bags, labels and more — order online, pay with M-Pesa. Same-day delivery in
               Nairobi, 3 days countrywide.
             </p>
+
+            {/* Mobile only — see .mpk-hero-content's comment above. Absent from the DOM's effect
+                on desktop (hidden, and that column isn't a flex container there), so it never
+                changes desktop's already-centred layout. */}
+            <div className="block md:hidden" style={{ flex: 1, minHeight: "16px" }} aria-hidden="true" />
 
             {/* Two calls to action, deliberately equal in weight: the visitor either knows what
                 they want and browses, or they have a question and asks. Those are the two real
