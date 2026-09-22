@@ -51,7 +51,7 @@ import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift, Tag, Sp
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
-import { filterVisibleIndustries } from "@/data/products";
+import { filterVisibleIndustries, industries } from "@/data/products";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 import cloudV3 from "@/assets/packaging-cloud-hero-v3.webp";
 import cloudKraft from "@/assets/packaging-cloud-hero.webp";
@@ -290,16 +290,123 @@ function RotatingTagline() {
   );
 }
 
+// ── Hero category chips ──
+// Real backend Segments — the same taxonomy the "Shop by category" grid further down the page
+// and the Shop mega-menu are built from, linking to the same `/products?segmentId=` filter. This
+// is the "where do I actually browse" answer that has to be inside the first screen, so it is
+// built to survive a slow or absent API rather than leaving a hole above the fold:
+//   • fixed-height rail with pill skeletons while the call is in flight — no layout shift, and
+//     nothing jumps under a thumb that is already reaching for a chip;
+//   • if segments come back empty or the call fails, it falls back to the canonical industry
+//     list, which is static frontend data and therefore always available.
+const HERO_CHIP_COUNT = 6;
+
+function HeroCategoryChips() {
+  const [segments, setSegments] = useState<Segment[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getSegments()
+      .then((data) => { if (!cancelled) setSegments(data); })
+      .catch(() => { if (!cancelled) setSegments([]); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const chips =
+    segments === null
+      ? null
+      : segments.length > 0
+        ? segments.slice(0, HERO_CHIP_COUNT).map((s) => ({
+            key: s.id,
+            label: s.name,
+            to: `/products?segmentId=${s.id}`,
+          }))
+        : industries.slice(0, HERO_CHIP_COUNT).map((i) => ({
+            key: i.slug,
+            label: i.name,
+            to: `/products?industry=${i.slug}`,
+          }));
+
+  return (
+    <div className="mt-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p
+          className="uppercase font-semibold"
+          style={{
+            fontSize: "calc(10px * var(--a11y-font-scale))",
+            letterSpacing: "0.16em",
+            color: "rgba(255,255,255,0.72)",
+          }}
+        >
+          Shop by category
+        </p>
+        <Link
+          to="/products"
+          className="inline-flex items-center gap-1 font-semibold text-white/85 underline-offset-2 hover:text-white hover:underline"
+          style={{ fontSize: "calc(11.5px * var(--a11y-font-scale))" }}
+        >
+          See all <ChevronRight className="h-3.5 w-3.5" />
+        </Link>
+      </div>
+      {/* Two rows on a phone, one on a wide screen — the last two chips are held back below `sm`
+          purely so this rail costs two rows instead of three there. Every category is still one
+          tap away through "See all" directly above. */}
+      <div className="mt-2 flex min-h-[74px] flex-wrap content-start gap-2 md:min-h-[76px]">
+        {chips === null
+          ? Array.from({ length: HERO_CHIP_COUNT }).map((_, i) => (
+              <span
+                key={i}
+                aria-hidden
+                className={`h-8 rounded-full border border-white/15 bg-white/10 ${i >= 4 ? "hidden sm:block" : ""}`}
+                style={{ width: `${[104, 88, 120, 96, 112, 84][i]}px` }}
+              />
+            ))
+          : chips.map((c, i) => (
+              <Link
+                key={c.key}
+                to={c.to}
+                className={`h-8 items-center rounded-full border border-white/25 px-3.5 font-medium text-white backdrop-blur transition-colors hover:border-accent/70 ${
+                  i >= 4 ? "hidden sm:inline-flex" : "inline-flex"
+                }`}
+                /* Solid dark fill rather than white/10: these chips are the widest element in the
+                   copy column and on a phone they run right across the hero photograph, where a
+                   translucent pill left white text sitting on paper bags. Opaque forest keeps
+                   every chip legible wherever the photo happens to be. */
+                style={{
+                  fontSize: "calc(12.5px * var(--a11y-font-scale))",
+                  background: "color-mix(in oklab, #08231a 88%, transparent)",
+                }}
+              >
+                {c.label}
+              </Link>
+            ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Hero ──
+//
+// Rebuilt around one question a first-time visitor is actually asking: where are the products?
+// It previously answered that once, with a single "Browse all packaging" button, and then
+// immediately undercut it with two account-signup cards of similar size directly underneath —
+// while a 760px (mobile) / 680px (desktop) minimum height guaranteed that nothing resembling a
+// product was on screen until the visitor scrolled. Now the first screen carries the primary
+// browse CTA, a deals link, and six real category entry points, and the section is short enough
+// that the promo carousel underneath it peeks into view on both reference viewports.
+//
+// The account-signup cards are not gone — they moved down to AccountTypesCallout, which was
+// already the page's account section and which previously only linked to explanatory pages; it
+// now carries the "create one now" action those hero cards were for.
 function Hero() {
-  const { openRegister } = useAuthModal();
   return (
     <section
       className="relative overflow-hidden"
       style={{
         background:
           "linear-gradient(135deg, color-mix(in oklab, var(--forest) 82%, black) 0%, var(--forest) 55%, color-mix(in oklab, var(--forest) 70%, black) 100%)",
-        minHeight: "520px",
+        minHeight: "420px",
       }}
     >
       <style>{`
@@ -319,32 +426,41 @@ function Hero() {
         .mpk-hero-cursor { animation: mpk-cursor-blink 1s steps(1) infinite; margin-left: 1px; }
         @keyframes mpk-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .mpk-marquee-track { animation: mpk-marquee 18s linear infinite; }
-        @media (max-width: 767px) { .mpk-hero-section { min-height: 760px !important; } }
-        @media (min-width: 768px) { .mpk-hero-section { min-height: 680px !important; } }
+        /* Down from 760/680. Those floors alone were taller than the usable area of a 390x844
+           phone, so the hero *was* the first screen by construction and the catalogue could only
+           ever be below it. These are floors, not fixed heights — the mobile column is in normal
+           flow and still grows for long copy or a large accessibility font scale. */
+        @media (max-width: 767px) { .mpk-hero-section { min-height: 496px !important; } }
+        @media (min-width: 768px) { .mpk-hero-section { min-height: 548px !important; } }
 
         /* ── Hero image positioning ── */
         .mpk-hero-img-a,
         .mpk-hero-img-b,
         .mpk-hero-img-c {
-          /* Mobile: fixed to viewport-relative right side via the section's coordinate space */
-          right: -8vw;
-          top: 50%;
-          bottom: auto;
-          transform: translateY(-44%);
-          width: 92vw;
-          max-height: none;
+          /* Mobile: anchored bottom-right, scaled down to match the shorter section — at the old
+             92vw it would now be taller than the copy column it is meant to sit behind, and the
+             category chips (which run the full width of that column) would read over the middle
+             of a photograph. */
+          right: -6vw;
+          top: auto;
+          bottom: -1%;
+          transform: none;
+          width: 66vw;
+          max-height: 50%;
           object-fit: contain;
+          object-position: bottom right;
         }
         @media (min-width: 768px) {
           .mpk-hero-img-a,
           .mpk-hero-img-b,
           .mpk-hero-img-c {
             right: 2%;
-            top: calc(50% + 30px);
+            top: calc(50% + 20px);
             bottom: auto;
             transform: translateY(-50%);
             width: 46%;
-            max-height: 86%;
+            max-height: 84%;
+            object-position: center;
           }
         }
         @media (min-width: 1024px) {
@@ -365,7 +481,7 @@ function Hero() {
         }
       `}</style>
 
-      <div className="mpk-hero-section relative" style={{ minHeight: "560px" }}>
+      <div className="mpk-hero-section relative" style={{ minHeight: "460px" }}>
         {/* Hero images — positioned relative to the full section, not the padded container */}
         <img
           src={cloudV3}
@@ -415,13 +531,17 @@ function Hero() {
           No more full-coverage overlay that kills the image.
         */}
         {/* Mobile scrim: diagonal — top-left is opaque (text), bottom-right is open (image).
-            Single layer, no stacking, so the image is never double-darkened. */}
+            Single layer, no stacking, so the image is never double-darkened.
+            Re-tuned for the shorter hero: the copy column now runs nearly the full height of the
+            section and the photo sits bottom-right, so the opaque band has to hold further down
+            and further across than it did. Checked against the same WCAG AA floor the recent
+            contrast pass set — white and white/88% body copy over this stay above 4.5:1. */}
         <div
           className="absolute inset-0 md:hidden"
           style={{
             zIndex: 3,
             background:
-              "linear-gradient(125deg, color-mix(in oklab, var(--forest) 96%, black) 0%, color-mix(in oklab, var(--forest) 90%, black) 30%, color-mix(in oklab, var(--forest) 55%, black) 52%, color-mix(in oklab, var(--forest) 18%, transparent) 72%, transparent 100%)",
+              "linear-gradient(118deg, color-mix(in oklab, var(--forest) 97%, black) 0%, color-mix(in oklab, var(--forest) 93%, black) 40%, color-mix(in oklab, var(--forest) 72%, black) 60%, color-mix(in oklab, var(--forest) 30%, transparent) 80%, color-mix(in oklab, var(--forest) 8%, transparent) 100%)",
           }}
         />
 
@@ -484,13 +604,12 @@ function Hero() {
             On desktop: absolute centered left column. */}
         <div className="relative md:absolute md:inset-0 mx-auto max-w-7xl px-5 lg:px-8" style={{ zIndex: 4 }}>
           <div
-            className="md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%]"
-            /* paddingTop was 150px to clear the nav that used to overlay the
-               top of this section (absolute) — nav is now HomeNav, sticky
-               and external, so the hero starts right below it in normal
-               flow. Only the announcement bar (still overlaid, ~40px) needs
-               clearing now. Re-tune if the vertical balance looks off. */
-            style={{ paddingTop: "56px", paddingBottom: "48px" }}
+            /* Desktop padding is asymmetric on purpose: this column is vertically centred in the
+               section, so the padding is what holds it clear of the two things overlaid on that
+               section's edges — the announcement marquee at the top (~40px) and the decorative
+               wave at the bottom (60px). With even padding the last row of the column (the M-Pesa
+               pill) rendered underneath the wave. */
+            className="md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%] pt-[52px] pb-[30px] md:pt-11 md:pb-[68px]"
           >
             <p
               className="uppercase font-medium"
@@ -498,41 +617,57 @@ function Hero() {
                 fontSize: "calc(10px * var(--a11y-font-scale))",
                 letterSpacing: "0.18em",
                 color: "rgba(255,255,255,0.8)",
-                marginBottom: "18px",
+                marginBottom: "12px",
               }}
             >
               QUALITY PACKAGING · NAIROBI, KENYA
             </p>
+            {/* The rotating tagline used to be the h1's third line. A headline that erases and
+                retypes itself is the least stable thing on the page in the exact spot the eye
+                lands first, it is a moving target for the LCP measurement, and it made the one
+                <h1> on the site read differently every four seconds for search engines and screen
+                readers alike. The line itself is kept — it is deliberate brand copy, Swahili and
+                all — and just moved one step down, where it can rotate without destabilising the
+                headline or the page's main heading. */}
             <h1
               className="font-display"
               style={{
-                fontSize: "calc(clamp(28px, 3.8vw, 42px) * var(--a11y-font-scale))",
+                fontSize: "calc(clamp(27px, 3.4vw, 40px) * var(--a11y-font-scale))",
                 lineHeight: 1.1,
                 letterSpacing: "-0.03em",
                 color: "white",
                 fontWeight: 500,
               }}
             >
-              Packaging Solutions for
-              <br />
-              Kenyan Businesses —<br />
-              <em className="italic" style={{ color: "#e8c878" }}>
-                <RotatingTagline />
-              </em>
+              Packaging Solutions for Kenyan Businesses
             </h1>
             <p
+              className="font-display italic"
               style={{
-                fontSize: "calc(14px * var(--a11y-font-scale))",
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.88)",
-                maxWidth: "400px",
-                margin: "22px 0 30px",
+                fontSize: "calc(clamp(15px, 1.5vw, 18px) * var(--a11y-font-scale))",
+                lineHeight: 1.3,
+                color: "#e8c878",
+                marginTop: "8px",
+                minHeight: "1.3em",
               }}
             >
-              Cups, containers, bags, and more — order online and pay via M-Pesa. Enjoy same-day delivery within
-              Nairobi and delivery within 3 days countrywide.
+              <RotatingTagline />
             </p>
-            <div className="flex flex-col md:flex-row gap-3 max-w-sm md:max-w-none">
+            <p
+              style={{
+                fontSize: "calc(13.5px * var(--a11y-font-scale))",
+                lineHeight: 1.6,
+                color: "rgba(255,255,255,0.88)",
+                maxWidth: "400px",
+                margin: "14px 0 18px",
+              }}
+            >
+              Cups, containers, bags, labels and more — order online, pay with M-Pesa. Same-day delivery in
+              Nairobi, 3 days countrywide.
+            </p>
+
+            {/* One unmistakable primary action, with the deals page as its only companion. */}
+            <div className="flex flex-wrap items-center gap-2.5">
               <Link
                 to="/products"
                 className="inline-flex items-center justify-center gap-2 font-bold shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl"
@@ -540,81 +675,44 @@ function Hero() {
                   background: "#e8c878",
                   color: "#0d3320",
                   borderRadius: "10px",
-                  padding: "15px 30px",
+                  padding: "14px 20px",
                   fontSize: "calc(15px * var(--a11y-font-scale))",
                 }}
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
-            </div>
-
-            {/* Account-type promo — deliberately secondary to "Browse all packaging" above:
-                translucent/outline treatment (same family as the "company profile" pill below),
-                not a competing solid-gold fill, so there's one clear primary action. */}
-            <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
-              <button
-                type="button"
-                onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/25 bg-white/8 text-left backdrop-blur transition-colors hover:border-white/40 hover:bg-white/12"
-                style={{ padding: "12px 14px" }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10">
-                    <Gift className="h-4 w-4 text-white/85" />
-                  </span>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white/90">Individual Shopper Account</p>
-                    <p className="text-[11px] font-medium text-white/60">Welcome bonus + rewards</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/60" />
-              </button>
-              <button
-                type="button"
-                onClick={() => openRegister({ accountType: "BUSINESS" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/25 bg-white/8 text-left backdrop-blur transition-colors hover:border-white/40 hover:bg-white/12"
-                style={{ padding: "12px 14px" }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10">
-                    <Briefcase className="h-4 w-4 text-white/85" />
-                  </span>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white/90">Business Account</p>
-                    <p className="text-[11px] font-medium text-white/60">Welcome bonus + order history</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/60" />
-              </button>
-            </div>
-
-            {/* Secondary CTA row */}
-            <div className="mt-5 flex flex-wrap items-center gap-3">
               <Link
-                to="/company-profile"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/8 px-4 py-2.5 text-[13px] font-medium text-white/90 backdrop-blur transition-colors hover:border-accent/60 hover:bg-white/12 hover:text-white active:scale-95"
-                style={{ minHeight: "40px" }}
+                to="/deals"
+                className="inline-flex items-center justify-center gap-2 rounded-[10px] border border-white/30 bg-white/10 font-semibold text-white backdrop-blur transition-colors hover:border-accent/60 hover:bg-white/20"
+                style={{ padding: "14px 18px", fontSize: "calc(14px * var(--a11y-font-scale))" }}
               >
-                View our company profile <ArrowRight className="h-3.5 w-3.5" />
+                <Tag className="h-4 w-4" aria-hidden="true" />
+                {/* Short label on a phone so both calls to action fit one row at 390px — two
+                    stacked full-width buttons cost 60px of the first screen for no extra clarity. */}
+                <span className="sm:hidden">Deals</span>
+                <span className="hidden sm:inline">Today&apos;s deals</span>
               </Link>
-              <div
-                className="inline-flex items-center"
-                style={{
-                  gap: "8px",
-                  background: "rgba(255,255,255,0.09)",
-                  border: "1px solid rgba(141,201,106,0.28)",
-                  backdropFilter: "blur(8px)",
-                  borderRadius: "8px",
-                  padding: "8px 14px",
-                  minHeight: "40px",
-                }}
-              >
-                <span
-                  className="inline-block rounded-full"
-                  style={{ width: "6px", height: "6px", background: "#00A651" }}
-                />
-                <span style={{ fontSize: "calc(11px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
-              </div>
+            </div>
+
+            <HeroCategoryChips />
+
+            <div
+              className="mt-4 inline-flex items-center"
+              style={{
+                gap: "8px",
+                background: "rgba(255,255,255,0.09)",
+                border: "1px solid rgba(141,201,106,0.28)",
+                backdropFilter: "blur(8px)",
+                borderRadius: "8px",
+                padding: "7px 13px",
+                minHeight: "36px",
+              }}
+            >
+              <span
+                className="inline-block rounded-full"
+                style={{ width: "6px", height: "6px", background: "#00A651" }}
+              />
+              <span style={{ fontSize: "calc(11px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
             </div>
           </div>
         </div>
@@ -1291,8 +1389,16 @@ function PromoCarousel() {
 // ── Account types callout — compact CTA promoting both real account types
 // (Individual Shopper + Business), styled like the become-a-partner.tsx CTA box
 // rather than a new pattern. Guests are already served by the product grid
-// around this section, so this block is only about the two account paths. ──
+// around this section, so this block is only about the two account paths.
+//
+// This is also where the hero's two account-promo cards landed. They were competing for
+// attention with "Browse all packaging" in the first screen, which is the one place the site
+// should only be saying one thing; here they are in the section that was already about accounts,
+// and they close a real gap in it — this block used to offer nothing but links to explanatory
+// pages, so the shortest route to actually opening an account was to go and read about it first.
+// Same handler (openRegister with the same accountType), same promise, secondary placement. ──
 function AccountTypesCallout() {
+  const { openRegister } = useAuthModal();
   return (
     <section className="bg-background">
       <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
@@ -1306,12 +1412,19 @@ function AccountTypesCallout() {
               Earn a welcome bonus, Reward Coupons on every order, and referral rewards — redeemable for
               real discounts at checkout.
             </p>
-            <div className="mt-5">
-              <Link
-                to="/individual-shopper-account"
+            <div className="mt-5 flex flex-col items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                See Shopper Account benefits <ArrowRight className="h-4 w-4" />
+                <Gift className="h-4 w-4" aria-hidden="true" /> Create a free Shopper Account
+              </button>
+              <Link
+                to="/individual-shopper-account"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:text-accent hover:underline"
+              >
+                See Shopper Account benefits <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
@@ -1324,12 +1437,19 @@ function AccountTypesCallout() {
               Earn a welcome bonus, build your order history, and be first in line when trade
               credit accounts launch.
             </p>
-            <div className="mt-5">
-              <Link
-                to="/business-account"
+            <div className="mt-5 flex flex-col items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => openRegister({ accountType: "BUSINESS" })}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                See Business Account benefits <ArrowRight className="h-4 w-4" />
+                <Briefcase className="h-4 w-4" aria-hidden="true" /> Create a free Business Account
+              </button>
+              <Link
+                to="/business-account"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:text-accent hover:underline"
+              >
+                See Business Account benefits <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>

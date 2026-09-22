@@ -236,6 +236,10 @@ function normalizeIndustry(industry: Partial<Industry> & { displayId?: number })
   };
 }
 
+/** In-flight/result cache for getSegments — see its comment below. Module-scoped, so it lives
+ *  for the page load and resets on a real reload. */
+let segmentsRequest: Promise<Segment[]> | null = null;
+
 export const api = {
   getConfig: async () => ({
     blogsEnabled: true,
@@ -416,7 +420,20 @@ export const api = {
   // re-queried per keystroke. "Other" free text is resolved server-side at submission.
   getPurchasePurposes: async () => getJson<Array<{ id: string; label: string }>>("/api/v1/public/purchase-purposes"),
 
-  getSegments: async () => getJson<Segment[]>("/api/v1/public/segments"),
+  // Deduped per page load. Segments are a small, slow-moving taxonomy that three independent
+  // components on the homepage alone now ask for (the Shop mega-menu in the nav, the hero's
+  // category chips, the "Shop by category" grid), plus the products page — previously that was
+  // three or four identical requests racing each other on the critical path. A failure is not
+  // cached, so a component that retries later still gets a real attempt.
+  getSegments: async () => {
+    if (!segmentsRequest) {
+      segmentsRequest = getJson<Segment[]>("/api/v1/public/segments").catch((err) => {
+        segmentsRequest = null;
+        throw err;
+      });
+    }
+    return segmentsRequest;
+  },
 
   getCategories: async (params?: { segmentId?: string; industryId?: string }) =>
     getJson<Category[]>(`/api/v1/public/categories${qs({ segmentId: params?.segmentId, industryId: params?.industryId })}`),
