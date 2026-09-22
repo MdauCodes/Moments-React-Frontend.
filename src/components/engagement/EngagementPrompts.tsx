@@ -13,6 +13,7 @@ import {
 } from "@/lib/engagementSignals";
 import {
   isEmailPromptEligible,
+  isPostOrderPromptEligible,
   isWelcomeOfferEligible,
   markWelcomeOfferShown,
 } from "./promptEligibility";
@@ -54,8 +55,11 @@ const WelcomeStarterModal = lazy(() =>
 const EmailInsiderPrompt = lazy(() =>
   import("@/components/EmailInsiderPrompt").then((m) => ({ default: m.EmailInsiderPrompt })),
 );
+const PostOrderAccountPrompt = lazy(() =>
+  import("./PostOrderAccountPrompt").then((m) => ({ default: m.PostOrderAccountPrompt })),
+);
 
-type PromptId = "welcome" | "email";
+type PromptId = "welcome" | "email" | "post_order";
 type Reason = "dwell" | "post_order";
 
 /** Routes where a visitor is doing something with money, an order or an account. Nothing
@@ -126,34 +130,45 @@ export function EngagementPrompts() {
     if (current !== null) return;
 
     const postOrder = orderPlacedRecently();
-    if (!postOrder && activeMs < ACTIVE_DWELL_MS) return;
-    const reason: Reason = postOrder ? "post_order" : "dwell";
+    const dwelled = activeMs >= ACTIVE_DWELL_MS;
+    if (!postOrder && !dwelled) return;
 
-    if (!routeAllows(location.pathname, reason)) return;
     if (Date.now() - lastNavAtRef.current < NAV_SETTLE_MS) return;
     if (msSinceLastPrompt() < BETWEEN_PROMPTS_MS) return;
     if (anotherOverlayIsOpen()) return;
 
+    // The post-order moment gets its own compact, non-modal prompt — not the full-screen welcome
+    // offer, which has no business covering a receipt. Once that has been shown (or the customer
+    // is signed in), a visitor who carries on browsing falls back to the ordinary dwell rules.
     let next: PromptId | null = null;
-    if (!isAuthenticated && isWelcomeOfferEligible()) next = "welcome";
-    else if (emailCaptureEnabled && isEmailPromptEligible()) next = "email";
+    let reason: Reason = "dwell";
+    if (postOrder && !isAuthenticated && isPostOrderPromptEligible()) {
+      next = "post_order";
+      reason = "post_order";
+    } else if (dwelled) {
+      if (!isAuthenticated && isWelcomeOfferEligible()) next = "welcome";
+      else if (emailCaptureEnabled && isEmailPromptEligible()) next = "email";
+    }
     if (!next) return;
+    if (!routeAllows(location.pathname, reason)) return;
 
     if (next === "welcome") markWelcomeOfferShown();
     recordPromptShown();
     setCurrent(next);
   }, [activeMs, current, emailCaptureEnabled, isAuthenticated, location.pathname]);
 
-  // A visitor who signs in while the welcome offer is on screen has just answered it.
+  // A visitor who signs in while an account prompt is on screen has just answered it.
   useEffect(() => {
-    if (isAuthenticated && current === "welcome") setCurrent(null);
+    if (isAuthenticated && (current === "welcome" || current === "post_order")) setCurrent(null);
   }, [isAuthenticated, current]);
 
   if (current === null) return null;
 
   return (
     <Suspense fallback={null}>
-      {current === "welcome" ? <WelcomeStarterModal onClose={close} /> : <EmailInsiderPrompt onClose={close} />}
+      {current === "welcome" && <WelcomeStarterModal onClose={close} />}
+      {current === "email" && <EmailInsiderPrompt onClose={close} />}
+      {current === "post_order" && <PostOrderAccountPrompt onClose={close} />}
     </Suspense>
   );
 }

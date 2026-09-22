@@ -82,6 +82,28 @@ export function markWelcomeOfferSnoozed(): void {
   }
 }
 
+// ── Post-order account prompt ───────────────────────────────────────────────
+// Once per session, full stop. Someone who has just paid and said no is not going to be talked
+// round by being asked again on the same visit.
+export const POST_ORDER_PROMPT_KEY = "moments_post_order_prompt";
+
+export function isPostOrderPromptEligible(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(POST_ORDER_PROMPT_KEY) === null;
+  } catch {
+    return true;
+  }
+}
+
+export function markPostOrderPromptShown(): void {
+  try {
+    window.sessionStorage.setItem(POST_ORDER_PROMPT_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
 // ── Insider email capture ───────────────────────────────────────────────────
 export const EMAIL_PROMPT_KEY = "moments_insider_prompt";
 export const LEAD_KEY = "mpk_lead";
