@@ -340,16 +340,17 @@ function Hero() {
         @media (max-width: 767px) { .mpk-hero-section { min-height: 560px !important; } }
         @media (min-width: 768px) { .mpk-hero-section { min-height: 600px !important; } }
 
-        /* Mobile only: the text column used to sit in normal flow with nothing to fill the
-           section's min-height, so the CTAs landed right under the copy and everything below
-           them — down to the wave — was dead space over the photo. Matching the section's own
-           height and turning the column into a flex stack lets .mpk-hero-spacer (a mobile-only,
-           zero-content flex-1 div between the description and the buttons) push the CTAs and the
-           M-Pesa pill down to where the extra height actually is, instead of leaving them
-           clustered at the top. Desktop is untouched: that column is absolutely centred already,
-           and the spacer is display:none there. */
+        /* Mobile only: the text column used to sit in normal flow, top-anchored, with nothing to
+           fill the section's min-height — the copy and CTAs bunched at the top and everything
+           below them, down to the wave, was dead space over the photo. A first attempt inserted a
+           single spacer between the description and the buttons, but that just moved the problem:
+           one big gap in the middle instead of one at the bottom, rather than an actually balanced
+           block. Centering the whole column as a group — same treatment desktop already gives it
+           via absolute + top:50% — is the real fix: the H1-to-M-Pesa-pill block sits in the middle
+           of the section with its own natural (unchanged) margins between each line, and the extra
+           height becomes even space above and below the whole group instead of one seam inside it. */
         @media (max-width: 767px) {
-          .mpk-hero-content { display: flex; flex-direction: column; min-height: 560px; }
+          .mpk-hero-content { display: flex; flex-direction: column; justify-content: center; min-height: 560px; }
         }
 
         /* ── Hero image positioning ── */
@@ -581,11 +582,6 @@ function Hero() {
               Cups, containers, bags, labels and more — order online, pay with M-Pesa. Same-day delivery in
               Nairobi, 3 days countrywide.
             </p>
-
-            {/* Mobile only — see .mpk-hero-content's comment above. Absent from the DOM's effect
-                on desktop (hidden, and that column isn't a flex container there), so it never
-                changes desktop's already-centred layout. */}
-            <div className="block md:hidden" style={{ flex: 1, minHeight: "16px" }} aria-hidden="true" />
 
             {/* Two calls to action, deliberately equal in weight: the visitor either knows what
                 they want and browses, or they have a question and asks. Those are the two real
