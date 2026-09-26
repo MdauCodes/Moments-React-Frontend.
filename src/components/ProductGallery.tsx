@@ -61,14 +61,15 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row-reverse">
-      <div className="relative flex-1">
+      {/* Sized (and centered once capped) here rather than on the button — max-w mirrors max-h
+          at every breakpoint so a wide desktop grid column can't stretch this into a letterboxed
+          rectangle the way height-only clamping did (flex-1 + a max-width + mx-auto is the
+          standard flex trick: grow to fill space up to the cap, then center in what's left). */}
+      <div className="relative mx-auto aspect-[4/3] max-h-[260px] w-full flex-1 sm:aspect-square sm:max-h-[380px] sm:max-w-[380px] lg:max-h-[440px] lg:max-w-[440px]">
         <button
           type="button"
           onClick={() => setLightboxOpen(true)}
-          // Shorter than square on mobile (aspect-[4/3] instead of aspect-square) so the image
-          // doesn't eat half the viewport before the visitor reaches name/price/buy options —
-          // full square is reserved for sm+ where there's room to spare.
-          className="group relative block aspect-[4/3] max-h-[260px] w-full overflow-hidden rounded-2xl border border-border bg-secondary sm:aspect-square sm:max-h-[380px] lg:max-h-[440px]"
+          className="group relative block h-full w-full overflow-hidden rounded-2xl border border-border bg-secondary"
         >
           <img
             key={activeIndex}
