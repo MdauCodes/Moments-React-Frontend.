@@ -1,7 +1,7 @@
 import type { Product, ProductPricingTierLike } from "@/data/products";
 import type { StockInfo } from "@/lib/stock";
 import { apiUrl } from "@/config/api";
-import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
+import { cleanUomLabel, individualUnitLabel, isBulkContainerUomName } from "@/lib/uomLabel";
 
 export interface QuickAddOption {
   /** Stable key for React lists and the toast dedup id. */
@@ -55,9 +55,17 @@ export function getQuickAddTiers(p: Pick<Product, "pricingTiers">): ProductPrici
  * Matches the backend's CartService.isIndividualSaleAvailable exactly — the flag alone isn't
  * enough. A Riseller-created product can have individualSalesEnabled on with no real price yet
  * (Riseller reported 0/blank), and "KES 0/piece" must never be offered as a buyable option.
+ * Also excludes bulk-container base units (Carton/Case/Bale/Box) — RisellerSyncService derives a
+ * real pricing tier for those since 2026-09-27, so this option would otherwise duplicate it.
  */
-export function isIndividualBuyable(p: Pick<Product, "individualSalesEnabled" | "basePrice">): boolean {
-  return p.individualSalesEnabled === true && Number(p.basePrice) > 0;
+export function isIndividualBuyable(
+  p: Pick<Product, "individualSalesEnabled" | "basePrice" | "risellerUomName">,
+): boolean {
+  return (
+    p.individualSalesEnabled === true &&
+    Number(p.basePrice) > 0 &&
+    !isBulkContainerUomName(p.risellerUomName)
+  );
 }
 
 /**

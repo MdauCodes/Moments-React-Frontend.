@@ -28,6 +28,20 @@ export function individualUnitLabel(risellerUomName: string | null | undefined):
   return RISELLER_UOM_LABELS[key] ?? risellerUomName.trim().toLowerCase();
 }
 
+const BULK_CONTAINER_UNITS = new Set(["CTN", "CARTON", "CASE", "BALE", "BOX"]);
+
+/**
+ * Mirrors the backend's RisellerNameMatcher.isBulkContainerUnit exactly — must stay in sync.
+ * Used by quickAdd.ts's isIndividualBuyable to skip the individual-buy option for these units:
+ * since 2026-09-27 the backend derives a real pricing tier for the base unit itself (Carton,
+ * Case, ...) for these, so the individual-buy option would otherwise offer "Add 1 Carton" a
+ * second time, identical to that tier.
+ */
+export function isBulkContainerUomName(risellerUomName: string | null | undefined): boolean {
+  if (!risellerUomName) return false;
+  return BULK_CONTAINER_UNITS.has(risellerUomName.trim().toUpperCase());
+}
+
 export function cleanUomLabel(name: string | null | undefined, quantity: number | null | undefined): string {
   const raw = (name ?? "").trim();
   if (!raw) return "";
