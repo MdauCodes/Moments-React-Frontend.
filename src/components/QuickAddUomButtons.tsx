@@ -217,23 +217,37 @@ export function QuickAddUomButtons({
           type="button"
           disabled={justAdded === opt.key}
           onClick={(e) => handleTap(e, opt)}
-          className="flex flex-col items-start rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/40 disabled:opacity-60"
+          // Border-2 + shadow + an always-visible "+" badge (never hover-only — touch devices have
+          // no hover state to reveal it) so this reads as a tappable action card on sight, not a
+          // static price label. The cheapest-per-unit option gets the primary-color treatment —
+          // same isCheapestPerUnit signal ProductCard already computes, just applied to styling
+          // here instead of only to the savings badge.
+          className={`flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 ${
+            opt.isCheapestPerUnit
+              ? "border-primary bg-primary/5"
+              : "border-border bg-card hover:border-primary/40"
+          }`}
         >
-          <span className="font-display text-base text-foreground">
-            Add {opt.quantity.toLocaleString()} {opt.label}
-            {opt.quantity !== 1 ? "s" : ""}
+          <span className="flex flex-col items-start">
+            <span className="font-display text-base text-foreground">
+              Add {opt.quantity.toLocaleString()} {opt.label}
+              {opt.quantity !== 1 ? "s" : ""}
+            </span>
+            {opt.packQty > 1 && (
+              <span className="mt-0.5 text-xs text-muted-foreground">
+                {opt.packQty.toLocaleString()} {opt.unitNoun}s
+              </span>
+            )}
+            <span className="mt-2 text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
+            {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
+              <span className="mt-1 rounded-full bg-forest/15 px-1.5 py-px text-[10px] font-semibold text-forest">
+                Save {opt.savingsPct}%
+              </span>
+            )}
           </span>
-          {opt.packQty > 1 && (
-            <span className="mt-0.5 text-xs text-muted-foreground">
-              {opt.packQty.toLocaleString()} {opt.unitNoun}s
-            </span>
-          )}
-          <span className="mt-2 text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
-          {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
-            <span className="mt-1 rounded-full bg-forest/15 px-1.5 py-px text-[10px] font-semibold text-forest">
-              Save {opt.savingsPct}%
-            </span>
-          )}
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4" />
+          </span>
         </button>
       ))}
       {overflow && onMoreOptions && (
