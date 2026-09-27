@@ -134,9 +134,7 @@ export function CartAddedSheet() {
             <p className="truncate text-[13px] leading-tight text-foreground">
               <span className="font-semibold">Added</span> · {lastAdded.quantity.toLocaleString()} {lastAdded.unitLabel} {lastAdded.productName}
             </p>
-            {lastAdded.isBackorder ? (
-              <p className="mt-0.5 text-[11px] font-medium text-amber-600">Backorder — extended lead time</p>
-            ) : primaryGap ? (
+            {primaryGap ? (
               <div className="mt-1">
                 <p className="text-[11px] leading-tight text-muted-foreground">
                   {fmtKes(primaryGap.amount)} more to {primaryGap.benefit}

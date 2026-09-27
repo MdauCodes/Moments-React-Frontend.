@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { toast } from "sonner";
 import { apiFetch } from "@/config/api";
 
 export interface CartItem {
@@ -16,8 +17,6 @@ export interface CartItem {
   variantId?: string;
   variantLabel?: string;
   sku?: string;
-  /** True when the line was placed beyond available stock. */
-  isBackorder?: boolean;
   /** Pricing-tier (collection) selection. Null/undefined = individual units. */
   tierId?: string | null;
   collectionName?: string;
@@ -38,7 +37,6 @@ export interface LastAddedInfo {
   quantity: number;
   unitLabel: string;
   lineTotal: number;
-  isBackorder?: boolean;
   nonce: number;
 }
 
@@ -109,7 +107,6 @@ function parseBackendCart(data: unknown): CartItem[] | null {
       variantId: it.variantId ?? undefined,
       variantLabel: it.variantLabel ?? undefined,
       sku: it.sku ?? undefined,
-      isBackorder: it.isBackorder ?? undefined,
       tierId: it.tierId ?? null,
       collectionName: it.collectionName ?? undefined,
       collectionQuantity,
@@ -224,7 +221,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
       quantity: input.quantity,
       unitLabel: input.collectionName || (input.quantity === 1 ? "unit" : "units"),
       lineTotal: computeLineTotal(input.quantity, input.unitPrice, input.collectionQuantity),
-      isBackorder: input.isBackorder,
       nonce: Date.now() + Math.random(),
     });
     setItems((prev) => {
@@ -308,6 +304,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
+    // Unlike addItem (whose callers now all check stock before ever calling this), nothing
+    // upstream of the cart page's own stepper checks quantity against available stock -- this
+    // is genuinely the backend's call. Captured before the optimistic update so a rejection can
+    // roll back to it precisely, rather than leaving the UI showing a quantity the server never
+    // actually accepted (2026-09-27 fix -- this previously just gave up on !res.ok, silently
+    // diverging from the server's real cart).
+    const previous = items.find((it) => it.id === id)?.quantity;
     setItems((prev) =>
       prev.map((it) =>
         it.id === id ? { ...it, quantity, lineTotal: computeLineTotal(quantity, it.unitPrice, it.collectionQuantity) } : it,
@@ -323,12 +326,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
           auth: true,
           json: { quantity },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          toast.error(data?.message || "Couldn't update that quantity.");
+          if (previous != null) {
+            setItems((prev) =>
+              prev.map((it) =>
+                it.id === id
+                  ? { ...it, quantity: previous, lineTotal: computeLineTotal(previous, it.unitPrice, it.collectionQuantity) }
+                  : it,
+              ),
+            );
+          }
+          return;
+        }
         const data = await res.json().catch(() => null);
         const parsed = parseBackendCart(data);
         if (parsed) setItems(parsed);
       } catch {
-        /* keep local state */
+        /* keep local state -- a network hiccup, not a real rejection */
       }
     })();
   };

@@ -117,11 +117,6 @@ function CartPage() {
                             </p>
                           );
                         })()}
-                        {it.isBackorder && (
-                          <p className="mt-1 inline-flex rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">
-                            Backorder · ~21 days
-                          </p>
-                        )}
                         {/* Clear price breakdown */}
                         <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                           <p>

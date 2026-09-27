@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import type { Product } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
@@ -78,11 +79,14 @@ export function QuickAddUomButtons({
     const effectiveTotalUnits = opt.totalUnits * mult;
     const effectiveLineTotal = opt.lineTotal * mult;
 
-    // Total pieces, not packs — the same probe totalUnits exists for, so quick-add doesn't
-    // inherit the PDP's pre-existing pack-vs-piece backorder mismatch (noted, not fixed, in the
-    // 2026-09-08 scoping doc).
+    // Total pieces, not packs — the same probe totalUnits exists for, so this checks the real
+    // piece-level stock cap regardless of which UOM was tapped.
     const stock = getStockInfo(product, null, effectiveTotalUnits);
     if (!stock.canOrder) return;
+    if (stock.exceedsAvailable) {
+      toast.error(`Only ${stock.available.toLocaleString()} left — reduce the quantity to add this.`);
+      return;
+    }
 
     addItem({
       productId: product.id,
@@ -94,7 +98,6 @@ export function QuickAddUomButtons({
       quantity: effectiveQuantity,
       unitPrice: opt.unitPrice,
       sku: product.sku,
-      isBackorder: stock.isBackorder,
       tierId: opt.tierId,
       collectionName: opt.tierId ? opt.rawTier?.collectionName : undefined,
       collectionQuantity: opt.tierId ? opt.packQty : undefined,

@@ -47,7 +47,6 @@ export interface CustomerOrderItem {
   lineTotal: number;
   variantLabel?: string;
   sku?: string;
-  isBackorder?: boolean;
 }
 
 export type CheckoutPaymentMethod = "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";

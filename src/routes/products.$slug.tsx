@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEnquiry } from "@/contexts/EnquiryContext";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Heart, Share2 } from "lucide-react";
+import { ArrowLeft, Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProductDetailSkeleton } from "@/components/ProductDetailSkeleton";
@@ -117,12 +117,17 @@ export default function ProductDetail() {
   const collectionPrice = selectedTier ? Number(selectedTier.collectionPrice ?? unitPrice * collectionQty) || 0 : 0;
   const lineTotal = selectedTier ? qty * collectionPrice : qty * unitPrice;
 
+  // Total pieces, not packs — qty counts tiers (e.g. cartons) when a tier is selected, but stock
+  // is tracked in pieces. Passing bare qty here previously under-counted by a factor of
+  // collectionQty for any tiered product (the "pack-vs-piece backorder mismatch" QuickAddUomButtons
+  // already worked around) — fixed 2026-09-27 alongside removing backorders altogether.
+  const totalUnitsRequested = qty * (selectedTier ? collectionQty : 1);
   const stock = useMemo(
     () =>
       product
-        ? getStockInfo(product, activeVariant, qty)
-        : { state: "untracked" as const, label: "", available: 0, threshold: 0, isBackorder: false, canOrder: true, isMadeToOrder: false },
-    [product, activeVariant, qty],
+        ? getStockInfo(product, activeVariant, totalUnitsRequested)
+        : { state: "untracked" as const, label: "", available: 0, threshold: 0, exceedsAvailable: false, canOrder: true, isMadeToOrder: false },
+    [product, activeVariant, totalUnitsRequested],
   );
   // Quick-add is eligible only when UOM/tier is this product's sole choice — see
   // isQuickAddEligible's own comment for the full reasoning and the 2026-09-08 widening.
@@ -161,7 +166,14 @@ export default function ProductDetail() {
     const n = Number(v);
     if (Number.isNaN(n)) return;
     setQty(n);
-    setQtyError(n < minQty ? `Minimum: ${minQty.toLocaleString()}` : null);
+    const requested = n * (selectedTier ? collectionQty : 1);
+    setQtyError(
+      n < minQty
+        ? `Minimum: ${minQty.toLocaleString()}`
+        : stock.state === "low_stock" && requested > stock.available
+          ? `Only ${stock.available.toLocaleString()} left`
+          : null,
+    );
   };
 
   const handleSelectTier = (tierKey: string | null) => {
@@ -185,6 +197,7 @@ export default function ProductDetail() {
     if (!stock.canOrder) return; // UI already hides this control — guard in case that ever changes
     if (enterprise) { navigate("/enterprise-quote"); return; }
     if (qty < minQty) { setQtyError(`Minimum: ${minQty.toLocaleString()}`); return; }
+    if (stock.exceedsAvailable) { setQtyError(`Only ${stock.available.toLocaleString()} left`); return; }
     if (sizeMissing) return; // the Size field's own inline prompt (sizeMissing) is already visible
     if (tierMissing) return; // ditto for the tier prompt near "Choose how to buy"
     addItem({
@@ -202,13 +215,12 @@ export default function ProductDetail() {
       variantId: activeVariant?.id ?? activeVariant?.label,
       variantLabel: activeVariant?.label,
       sku: activeVariant?.sku ?? product.sku,
-      isBackorder: stock.isBackorder,
       tierId: selectedTier ? selectedTierId : null,
       collectionName: selectedTier?.collectionName,
       collectionQuantity: selectedTier ? collectionQty : undefined,
       totalUnits: selectedTier ? qty * collectionQty : qty,
     });
-    toast.success(stock.isBackorder ? "Added — backorder (extended lead time)" : "Added to cart", { duration: 2400 });
+    toast.success("Added to cart", { duration: 2400 });
   };
 
   const handleWishlist = async () => {
@@ -467,9 +479,18 @@ export default function ProductDetail() {
               <ConfigField
                 label={eligible ? "Add more?" : selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
                 note={eligible ? undefined : selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
-                <input type="number" min={minQty} step={1} value={qty}
+                <input type="number" min={minQty}
+                  max={stock.state === "low_stock" ? Math.floor(stock.available / (selectedTier ? collectionQty : 1)) : undefined}
+                  step={1} value={qty}
                   onChange={(e) => handleQty(e.target.value)}
-                  onBlur={() => { if (qty < minQty) setQty(minQty); setQtyError(null); }}
+                  onBlur={() => {
+                    if (qty < minQty) setQty(minQty);
+                    else if (stock.state === "low_stock") {
+                      const maxQty = Math.floor(stock.available / (selectedTier ? collectionQty : 1));
+                      if (qty > maxQty) setQty(Math.max(minQty, maxQty));
+                    }
+                    setQtyError(null);
+                  }}
                   className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
                 {qtyError && <p className="mt-1.5 text-xs text-accent">{qtyError}</p>}
               </ConfigField>
@@ -494,13 +515,6 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {stock.canOrder && stock.isBackorder && !enterprise && (
-              <div className="flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3 text-xs text-foreground">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-                <p><strong>Backorder:</strong> requested quantity may exceed current stock. Contact us to confirm availability.</p>
-              </div>
-            )}
-
             {!stock.canOrder ? (
               <a
                 href={whatsappLink(
@@ -517,16 +531,20 @@ export default function ProductDetail() {
                 Request enterprise quote →
               </button>
             ) : showQuantityPanel ? (
-              <button type="button" onClick={handleAddToCart} disabled={sizeMissing || tierMissing}
-                title={sizeMissing ? "Please choose a size first" : tierMissing ? "Please choose how you'd like to buy first" : undefined}
+              <button type="button" onClick={handleAddToCart}
+                disabled={sizeMissing || tierMissing || stock.exceedsAvailable}
+                title={
+                  sizeMissing ? "Please choose a size first"
+                    : tierMissing ? "Please choose how you'd like to buy first"
+                    : stock.exceedsAvailable ? `Only ${stock.available.toLocaleString()} left — reduce the quantity`
+                    : undefined
+                }
                 className={`h-[52px] w-full rounded-full text-sm font-semibold shadow-sm transition-opacity ${
-                  sizeMissing || tierMissing
+                  sizeMissing || tierMissing || stock.exceedsAvailable
                     ? "cursor-not-allowed bg-accent/40 text-accent-foreground/60"
                     : "bg-accent text-accent-foreground hover:opacity-90"
                 }`}>
-                {eligible
-                  ? `Add ${qty.toLocaleString()} more`
-                  : stock.isBackorder ? "Add to cart (backorder)" : "Add to cart"}
+                {eligible ? `Add ${qty.toLocaleString()} more` : "Add to cart"}
               </button>
             ) : null}
 
