@@ -96,6 +96,17 @@ export function isQuickAddEligible(p: Product, stock: StockInfo): boolean {
 export function getQuickAddOptions(p: Product): QuickAddOption[] {
   const tiers = getQuickAddTiers(p);
 
+  // A tier's subtitle ("N {unitNoun}s") describes what's bundled inside it, normally the
+  // product's own Riseller base unit -- correct for a Packaging-derived tier, since Riseller's
+  // base unit there already IS the finest sold grain. But RisellerSyncService.derivePieceTierFromName
+  // can derive a Piece tier on a product whose OWN base unit is something coarser (a Carton) --
+  // once that exists, "piece" is the true finest grain for every tier on this product, including
+  // deriveBaseUnitTier's own Carton tier (a "Carton of 1000" bundles 1000 pieces, not 1000
+  // cartons). Detected by collectionName rather than a dedicated flag: both derived tiers set it
+  // to exactly their own uom's display name, and derivePieceTierFromName's is always "Piece".
+  const hasDerivedPieceTier = tiers.some((t) => t.collectionName === "Piece");
+  const tierContentsUnitNoun = hasDerivedPieceTier ? "piece" : individualUnitLabel(p.risellerUomName);
+
   const options: QuickAddOption[] = tiers.map((t) => {
     const packQty = Number(t.quantity) || 0;
     const lineTotal = Number(t.collectionPrice ?? Number(t.pricePerUnit) * packQty) || 0;
@@ -108,7 +119,7 @@ export function getQuickAddOptions(p: Product): QuickAddOption[] {
       totalUnits: packQty,
       unitPrice: Number(t.pricePerUnit) || 0,
       lineTotal,
-      unitNoun: individualUnitLabel(p.risellerUomName),
+      unitNoun: tierContentsUnitNoun,
       savingsPct: 0,
       isCheapestPerUnit: false,
       rawTier: t,
