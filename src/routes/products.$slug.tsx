@@ -23,6 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sanitizeProductDescription } from "@/lib/utils";
 import { individualUnitLabel } from "@/lib/uomLabel";
 import { useSeo } from "@/hooks/useSeo";
+import { productSeo } from "@/seo/seoData";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -240,18 +241,19 @@ export default function ProductDetail() {
     }
   };
 
-  // Per-page SEO — previously every product page silently inherited the homepage's title/
-  // description/OG tags (see useSeo's own Javadoc-style comment for why), meaning neither search
-  // engines nor an AI assistant's own fetcher could tell one product page from another, or from
-  // the homepage. Product schema (with an Offer) is the same structured-data shape Google's rich
-  // results and AI shopping assistants both parse for price/availability.
-  const seoDescription = product
-    ? sanitizeProductDescription(product.description).slice(0, 155) ||
-      `${product.name} — custom packaging from Moments Packaging Kenya. Order online, pay with M-Pesa, nationwide delivery.`
-    : "Loading product…";
+  // Per-page SEO. Title/description come from productSeo() in src/seo/seoData.js — the same
+  // function scripts/prerender-seo.mjs uses to bake this page's raw HTML at build time, so the
+  // head a crawler sees without JavaScript and the one after hydration always match. Product
+  // schema (with an Offer) is the structured-data shape Google's rich results and AI shopping
+  // assistants both parse for price/availability.
+  const productHead = productSeo(product);
+  const seoDescription = productHead.description;
   const seoImage = product?.primaryImageUrl ?? product?.image;
   useSeo({
-    title: product ? `${product.name} — Moments Packaging Kenya` : "Loading product… — Moments Packaging Kenya",
+    // While loading, leave the (prerendered or route-default) head alone rather than writing a
+    // "Loading…" title a crawler could snapshot.
+    enabled: !!product,
+    title: productHead.title,
     description: seoDescription,
     path: `/products/${slug ?? ""}`,
     image: seoImage,
@@ -259,7 +261,7 @@ export default function ProductDetail() {
       ? {
           "@context": "https://schema.org",
           "@type": "Product",
-          name: product.name,
+          name: productHead.name,
           description: seoDescription,
           image: seoImage,
           sku: product.sku,

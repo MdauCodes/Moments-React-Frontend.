@@ -33,6 +33,7 @@ export default function BlogDetailPage() {
   // missing wiring. BlogPosting schema is the shape Google's rich results (and AI assistants
   // summarizing an article) both parse for author/publish date.
   useSeo({
+    enabled: !!blog,
     title: blog ? `${blog.seoTitle || blog.title} — Moments Packaging Kenya` : "Loading… — Moments Packaging Kenya",
     description: blog ? (blog.seoDescription || blog.excerpt) : "Loading article…",
     path: `/blog/${slug ?? ""}`,
