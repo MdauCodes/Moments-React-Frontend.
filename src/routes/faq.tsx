@@ -3,6 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { COMPANY_EMAIL, COMPANY_PHONE, COMPANY_PHONE_ALT, whatsappLink } from "@/data/products";
 import { MessageCircle, Mail } from "lucide-react";
 import { useSeo } from "@/hooks/useSeo";
+import { STATIC_PAGES } from "@/seo/seoData";
 
 /**
  * DRAFT CONTENT — needs admin sign-off before shipping.
@@ -88,8 +89,9 @@ function FaqPage() {
   // to quote a specific answer directly, rather than needing to guess at page structure — this
   // flattens FAQ_GROUPS (already a clean, structured Q&A list) straight into it.
   useSeo({
-    title: "Frequently Asked Questions — Moments Packaging Kenya",
-    description: "Answers on ordering, payment (M-Pesa), delivery times, and returns for Moments Packaging Kenya's custom paper packaging.",
+    // Same copy the prerendered /faq HTML carries (src/seo/seoData.js), so raw and hydrated agree.
+    title: STATIC_PAGES["/faq"].title,
+    description: STATIC_PAGES["/faq"].description,
     path: "/faq",
     jsonLd: {
       "@context": "https://schema.org",

@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/generate-sitemap.mjs && tsc --noEmit && vite build",
+    "build": "node scripts/generate-sitemap.mjs && tsc --noEmit && vite build && node scripts/prerender-seo.mjs",
+    "prerender-seo": "node scripts/prerender-seo.mjs",
     "generate-sitemap": "node scripts/generate-sitemap.mjs",
     "preview": "vite preview",
     "lint": "eslint .",

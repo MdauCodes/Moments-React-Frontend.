@@ -16,6 +16,7 @@ import { EnquiryProvider } from "@/contexts/EnquiryContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { RouteSeo } from "@/components/RouteSeo";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
 
@@ -207,6 +208,7 @@ export default function App() {
     <ErrorBoundary>
     <BrowserRouter>
       <ScrollToTop />
+      <RouteSeo />
       <PageViewTracker />
       <ReferralCapture />
       <SiteConfigProvider>
