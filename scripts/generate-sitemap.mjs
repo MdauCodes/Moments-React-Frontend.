@@ -17,6 +17,10 @@
 // staging backend was also cost-paused, which left this fetch failing and the sitemap frozen.
 const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
 
+// Product/blog URLs carry a trailing slash — the canonical form (see productPath's comment in
+// src/seo/seoData.js for why Render needs it).
+import { productPath, blogPath } from "../src/seo/seoData.js";
+
 // The four original in-repo blog posts (src/data/blogs.ts) — not in the backend `blogs` table,
 // but they render on /blog (see api.ts mergeStaticBlogs), so they belong in the sitemap too.
 const STATIC_BLOG_SLUGS = [
@@ -78,9 +82,15 @@ async function fetchAllProducts() {
       // is live in production right now, so filter obvious dev-test data out of the sitemap by
       // name/slug. This is a stopgap for the sitemap only; the underlying test product is still
       // live and purchasable on the real storefront — worth cleaning up separately in admin.
-      const isObviousTestProduct = /test.product/i.test(p.slug ?? "") || /test product/i.test(p.name ?? "");
+      const isObviousTestProduct =
+        /test.product/i.test(p.slug ?? "") || /test product/i.test(p.name ?? "");
       if (p.slug && !isObviousTestProduct) {
-        urls.push({ loc: `/products/${p.slug}`, lastmod: p.updatedAt, changefreq: "weekly", priority: "0.7" });
+        urls.push({
+          loc: productPath(p.slug),
+          lastmod: p.updatedAt,
+          changefreq: "weekly",
+          priority: "0.7",
+        });
       }
     }
     if (data.last || !data.content?.length) break;
@@ -96,15 +106,15 @@ async function fetchAllBlogPosts() {
   const backend = (posts ?? [])
     .filter((b) => b.slug)
     .map((b) => ({
-      loc: `/blog/${b.slug}`,
+      loc: blogPath(b.slug),
       lastmod: b.updatedAt ?? b.publishedAt,
       changefreq: "monthly",
       priority: "0.6",
     }));
   // Add the in-repo static posts that aren't in the backend (see api.ts mergeStaticBlogs).
   const backendSlugs = new Set(backend.map((u) => u.loc));
-  const statics = STATIC_BLOG_SLUGS.filter((s) => !backendSlugs.has(`/blog/${s}`)).map((s) => ({
-    loc: `/blog/${s}`,
+  const statics = STATIC_BLOG_SLUGS.filter((s) => !backendSlugs.has(blogPath(s))).map((s) => ({
+    loc: blogPath(s),
     changefreq: "monthly",
     priority: "0.6",
   }));
@@ -114,7 +124,9 @@ async function fetchAllBlogPosts() {
 function buildXml(urls) {
   const entries = urls
     .map((u) => {
-      const lastmodTag = u.lastmod ? `\n    <lastmod>${new Date(u.lastmod).toISOString().slice(0, 10)}</lastmod>` : "";
+      const lastmodTag = u.lastmod
+        ? `\n    <lastmod>${new Date(u.lastmod).toISOString().slice(0, 10)}</lastmod>`
+        : "";
       return `  <url>
     <loc>${escapeXml(SITE_ORIGIN + u.loc)}</loc>${lastmodTag}
     <changefreq>${u.changefreq}</changefreq>
@@ -129,7 +141,12 @@ async function main() {
   const { writeFile } = await import("node:fs/promises");
   const { fileURLToPath } = await import("node:url");
   const path = await import("node:path");
-  const outPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public", "sitemap.xml");
+  const outPath = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "public",
+    "sitemap.xml",
+  );
 
   let dynamicUrls = [];
   try {
@@ -139,13 +156,17 @@ async function main() {
     // Never fail the whole build over a transient API hiccup — keep whatever sitemap.xml already
     // exists on disk (committed from the last successful run) rather than overwriting it with an
     // empty/partial one.
-    console.warn(`[generate-sitemap] Couldn't fetch catalog (${err.message}) — leaving existing public/sitemap.xml untouched.`);
+    console.warn(
+      `[generate-sitemap] Couldn't fetch catalog (${err.message}) — leaving existing public/sitemap.xml untouched.`,
+    );
     return;
   }
 
   const xml = buildXml([...STATIC_PAGES, ...dynamicUrls]);
   await writeFile(outPath, xml, "utf8");
-  console.log(`[generate-sitemap] Wrote ${STATIC_PAGES.length + dynamicUrls.length} URLs to public/sitemap.xml`);
+  console.log(
+    `[generate-sitemap] Wrote ${STATIC_PAGES.length + dynamicUrls.length} URLs to public/sitemap.xml`,
+  );
 }
 
 main();

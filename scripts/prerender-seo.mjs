@@ -34,6 +34,8 @@ import {
   cleanProductDescription,
   formatKes,
   priceUnitLabel,
+  productPath,
+  blogPath,
 } from "../src/seo/seoData.js";
 
 const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
@@ -158,7 +160,7 @@ function productLinkList(products) {
     .map((p) => {
       const price =
         p.basePrice != null ? ` — ${formatKes(p.basePrice)} per ${esc(priceUnitLabel(p))}` : "";
-      return `<li><a href="/products/${esc(p.slug)}">${esc(displayProductName(p.name))}</a>${price}</li>`;
+      return `<li><a href="${esc(productPath(p.slug))}">${esc(displayProductName(p.name))}</a>${price}</li>`;
     })
     .join("")}</ul>`;
 }
@@ -200,8 +202,18 @@ function setMeta(html, attr, key, value) {
   return re.test(html) ? html.replace(re, tag) : html.replace("</head>", `    ${tag}\n  </head>`);
 }
 
-function renderPage(template, { urlPath, title, description, image, jsonLd = [], body }) {
-  const canonical = `${SITE_ORIGIN}${urlPath === "/" ? "/" : urlPath}`;
+// `canonicalPath` differs from `urlPath` only for product/blog detail pages, whose official URL
+// carries a trailing slash (see productPath in src/seo/seoData.js). The homepage deliberately gets
+// NO canonical tag in its raw HTML: dist/index.html is also what Render serves for every URL that
+// has no file of its own (/cart, an old slash-less product link...), and a crawler that doesn't run
+// the guard script must never read "this page is the homepage" off one of those. The app adds the
+// homepage canonical after it loads (RouteSeo).
+function renderPage(
+  template,
+  { urlPath, canonicalPath, title, description, image, jsonLd = [], body },
+) {
+  const isHome = urlPath === "/";
+  const canonical = `${SITE_ORIGIN}${isHome ? "/" : (canonicalPath ?? urlPath)}`;
   let html = template.replace(/<title>[^<]*<\/title>/, `<title>${esc(title)}</title>`);
   html = setMeta(html, "name", "description", description);
   html = setMeta(html, "property", "og:title", title);
@@ -214,7 +226,7 @@ function renderPage(template, { urlPath, title, description, image, jsonLd = [],
     html = setMeta(html, "name", "twitter:image", image);
   }
   const headExtra = [
-    `<link rel="canonical" href="${esc(canonical)}" />`,
+    ...(isHome ? [] : [`<link rel="canonical" href="${esc(canonical)}" />`]),
     ...jsonLd.map(
       (obj) =>
         `<script type="application/ld+json" data-prerender-ld>${jsonForScript(obj)}</script>`,
@@ -228,11 +240,9 @@ function renderPage(template, { urlPath, title, description, image, jsonLd = [],
   return html.replace('<div id="root"></div>', `<div id="root">${block}</div>`);
 }
 
-// Each page is written twice — <path>/index.html AND <path>.html — because static hosts differ on
-// how an extensionless URL like /contact maps to a file: some resolve the directory index, some
-// the .html sibling, and a host that finds neither falls through to the SPA rewrite (serving the
-// homepage HTML, which the guard script then strips). Both forms are tiny; writing both means
-// the canonical, slash-free URL gets its real HTML whichever way the host resolves it.
+// Each page is written as <path>/index.html (what Render serves for /<path>/, and what the per-page
+// Rewrite rules in the Render dashboard point /contact etc. at) and also as <path>.html, which
+// costs nothing and keeps the output portable to hosts that resolve extensionless URLs that way.
 async function writeRoute(urlPath, html) {
   if (urlPath === "/") {
     await writeFile(path.join(DIST, "index.html"), html, "utf8");
@@ -251,6 +261,7 @@ async function writeRoute(urlPath, html) {
 function productPage(p, related) {
   const { title, description, name } = productSeo(p);
   const urlPath = `/products/${p.slug}`;
+  const canonicalPath = productPath(p.slug);
   const category = categoryOf(p);
   const unit = priceUnitLabel(p);
   const image = p.primaryImageUrl || p.imageUrls?.[0] || undefined;
@@ -260,7 +271,7 @@ function productPage(p, related) {
     ["/", "Home"],
     ["/products", "Products"],
     [null, category],
-    [urlPath, name],
+    [canonicalPath, name],
   ];
 
   const tierTable = tiers.length
@@ -291,7 +302,7 @@ ${related.length ? `<section><h2>More ${esc(category)}</h2>${productLinkList(rel
 
   const offer = {
     "@type": "Offer",
-    url: `${SITE_ORIGIN}${urlPath}`,
+    url: `${SITE_ORIGIN}${canonicalPath}`,
     priceCurrency: "KES",
     ...(p.basePrice != null ? { price: Number(p.basePrice) } : {}),
     availability: availabilitySchema(p),
@@ -311,6 +322,7 @@ ${related.length ? `<section><h2>More ${esc(category)}</h2>${productLinkList(rel
   };
   return {
     urlPath,
+    canonicalPath,
     title,
     description,
     image,
@@ -422,7 +434,7 @@ ${storeSection()}`,
     staticPage(
       "/blog",
       blogs.length
-        ? `<ul>${blogs.map((b) => `<li><a href="/blog/${esc(b.slug)}">${esc(b.seoTitle || b.title)}</a></li>`).join("")}</ul>`
+        ? `<ul>${blogs.map((b) => `<li><a href="${esc(blogPath(b.slug))}">${esc(b.seoTitle || b.title)}</a></li>`).join("")}</ul>`
         : "",
     ),
   );
@@ -433,15 +445,17 @@ ${storeSection()}`,
   // Blog posts — title, excerpt, and the same BlogPosting schema blog.$slug.tsx sets client-side.
   for (const b of blogs) {
     const urlPath = `/blog/${b.slug}`;
+    const canonicalPath = blogPath(b.slug);
     const title = `${b.seoTitle || b.title} — Moments Packaging Kenya`;
     const description = b.seoDescription || b.excerpt || "";
     const crumbs = [
       ["/", "Home"],
       ["/blog", "Blog"],
-      [urlPath, b.title],
+      [canonicalPath, b.title],
     ];
     pages.push({
       urlPath,
+      canonicalPath,
       title,
       description,
       image: b.coverImage?.url || undefined,
@@ -455,7 +469,7 @@ ${storeSection()}`,
           author: { "@type": "Organization", name: b.author || SITE_NAME },
           ...(b.publishedAt ? { datePublished: b.publishedAt } : {}),
           ...(b.updatedAt ? { dateModified: b.updatedAt } : {}),
-          mainEntityOfPage: `${SITE_ORIGIN}${urlPath}`,
+          mainEntityOfPage: `${SITE_ORIGIN}${canonicalPath}`,
         },
         breadcrumbSchema(crumbs),
       ],

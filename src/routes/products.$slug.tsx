@@ -243,7 +243,7 @@ export default function ProductDetail() {
     enabled: !!product,
     title: productHead.title,
     description: seoDescription,
-    path: `/products/${slug ?? ""}`,
+    path: `/products/${slug ?? ""}/`,
     image: seoImage,
     jsonLd: product
       ? {
@@ -257,7 +257,7 @@ export default function ProductDetail() {
           brand: { "@type": "Brand", name: "Moments Packaging Kenya" },
           offers: {
             "@type": "Offer",
-            url: `https://momentspackaging.com/products/${slug ?? ""}`,
+            url: `https://momentspackaging.com/products/${slug ?? ""}/`,
             priceCurrency: "KES",
             price: product.basePrice ?? undefined,
             availability:

@@ -848,7 +848,7 @@ function ProductsPage() {
       itemListElement: grid.slice(0, 20).map((p, i) => ({
         "@type": "ListItem",
         position: i + 1,
-        url: `https://www.momentspackaging.com/products/${p.slug}`,
+        url: `https://momentspackaging.com/products/${p.slug}/`,
         name: p.name,
       })),
     };

@@ -54,7 +54,7 @@ function WishlistPage() {
                 >
                   <X className="h-4 w-4" />
                 </button>
-                <Link to={`/products/${p.slug}`} className="block">
+                <Link to={`/products/${p.slug}/`} className="block">
                   {p.primaryImageUrl ? (
                     <img
                       src={cloudinaryOptimized(p.primaryImageUrl, 400)}
@@ -69,7 +69,7 @@ function WishlistPage() {
                 </Link>
                 <div className="p-4">
                   <Link
-                    to={`/products/${p.slug}`}
+                    to={`/products/${p.slug}/`}
                     className="block font-display text-lg leading-tight hover:text-accent"
                   >
                     {p.name}

@@ -36,7 +36,7 @@ export default function BlogDetailPage() {
     enabled: !!blog,
     title: blog ? `${blog.seoTitle || blog.title} — Moments Packaging Kenya` : "Loading… — Moments Packaging Kenya",
     description: blog ? (blog.seoDescription || blog.excerpt) : "Loading article…",
-    path: `/blog/${slug ?? ""}`,
+    path: `/blog/${slug ?? ""}/`,
     image: blog?.coverImage?.url || undefined,
     jsonLd: blog
       ? {
@@ -48,7 +48,7 @@ export default function BlogDetailPage() {
           author: { "@type": "Organization", name: blog.author || "Moments Packaging Kenya" },
           datePublished: blog.publishedAt ?? undefined,
           dateModified: blog.updatedAt ?? undefined,
-          mainEntityOfPage: `https://momentspackaging.com/blog/${slug ?? ""}`,
+          mainEntityOfPage: `https://momentspackaging.com/blog/${slug ?? ""}/`,
         }
       : undefined,
   });
@@ -128,7 +128,7 @@ export default function BlogDetailPage() {
               <h2 className="mt-3 font-display text-2xl font-medium text-foreground sm:text-3xl">Suggested next read</h2>
               <div className="mt-8 grid gap-5 sm:grid-cols-2 sm:gap-6">
                 {related.map((r) => (
-                  <Link key={r.id} to={`/blog/${r.slug}`} className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                  <Link key={r.id} to={`/blog/${r.slug}/`} className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                     <BlogCard blog={r} />
                   </Link>
                 ))}

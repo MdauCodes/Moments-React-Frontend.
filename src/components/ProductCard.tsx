@@ -82,7 +82,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
     // display:contents keeps the grid/flex layout exactly as if <article> were the direct child —
     // the real <a href> this renders is what makes each product discoverable/crawlable by search
     // engines, which the previous onClick-only <article> never was.
-    <Link to={`/products/${p.slug}`} onClick={() => trackProductClick(p.id)} className="contents">
+    <Link to={`/products/${p.slug}/`} onClick={() => trackProductClick(p.id)} className="contents">
     <article
       className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
     >

@@ -129,7 +129,7 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
           e.preventDefault();
           pushRecent(query);
           onClose();
-          void navigate(`/products/${target.slug}`);
+          void navigate(`/products/${target.slug}/`);
         }
       }
     };
@@ -323,7 +323,7 @@ export function SearchCommand({ open, onClose, initialQuery = "" }: SearchComman
                 return (
                   <li key={p.id}>
                     <Link
-                      to={`/products/${p.slug}`}
+                      to={`/products/${p.slug}/`}
                       onClick={() => {
                         pushRecent(query);
                         void api.trackClick(p.id);
