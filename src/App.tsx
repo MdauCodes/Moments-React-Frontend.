@@ -16,6 +16,7 @@ import { EnquiryProvider } from "@/contexts/EnquiryContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { MetaPixel } from "@/components/MetaPixel";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { EngagementPrompts } from "@/components/engagement/EngagementPrompts";
@@ -208,6 +209,7 @@ export default function App() {
     <ErrorBoundary>
     <BrowserRouter>
       <ScrollToTop />
+      <MetaPixel />
       <PageViewTracker />
       <ReferralCapture />
       <SiteConfigProvider>
