@@ -57,3 +57,7 @@ The backend now has a real staging environment (see the backend repo's `CLAUDE.m
 ## Open before Phase 6 (TumaBoda frontend checkout UX)
 
 The plan (`~/.claude/plans/rippling-booping-lobster.md`, Phase 6) describes the *shape* of the checkout change at a high level — step-wise checkout (personal info → location), TumaBoda offered as an added perk for covered areas, pin-drop address via the backend's maps-proxy — but the actual user-journey detail (exact screens, what the pin-drop/address step looks like, how the "added perk" offer is presented, what the track-order page's TumaBoda iframe embed looks like alongside existing order-status UI) hasn't been walked through yet. Worth doing as its own design pass before Phase 6 implementation starts, separate from the backend-only Phases 2–5 which don't touch the frontend at all.
+
+## Planned: Meta ads attribution (as of 2026-09-29)
+
+Full plan: `docs/META_ADS_ATTRIBUTION_PLAN.md` — read it before touching `MetaPixel.tsx`, `CookieConsent.tsx`, checkout attribution, or any "marketing" analytics. Covers UTM/click capture, browser pixel events, the backend Conversions API hook in `PaymentService.applySuccessfulPayment`, the admin Marketing tab (revenue/ROAS per Meta campaign), the catalogue feed, and the owner decisions (D1–D7) with recommended defaults.
