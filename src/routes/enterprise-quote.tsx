@@ -25,6 +25,7 @@ import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
 import { focusFirstError } from "@/lib/formFocus";
 import { normalizeKenyanPhone, phoneForSubmission } from "@/lib/enquiryMessage";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
+import { metaLead } from "@/lib/metaEvents";
 
 
 
@@ -171,6 +172,7 @@ function EnterpriseQuotePage() {
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const firstName = data.contactName.split(" ")[0] || data.contactName;
       setSuccess({ firstName, email: data.email });
+      metaLead("enterprise-quote");
     } catch {
       setSubmitError("That did not go through — nothing you typed has been lost, so please try again.");
     } finally {

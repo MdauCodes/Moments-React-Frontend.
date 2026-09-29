@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
 import { toast } from "sonner";
 import { apiFetch } from "@/config/api";
+import { metaAddToCart } from "@/lib/metaEvents";
 
 export interface CartItem {
   id: string;
@@ -215,6 +216,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const collectionQuantity = input.collectionQuantity;
     const totalUnits =
       input.totalUnits ?? (collectionQuantity != null ? input.quantity * collectionQuantity : input.quantity);
+    // The one place every add-to-cart entry point passes through (product page, quick-add,
+    // configurator, wishlist, re-order) — so Meta's AddToCart is reported from here only.
+    metaAddToCart({
+      productId: input.productId,
+      name: input.productName,
+      units: totalUnits,
+      value: computeLineTotal(input.quantity, input.unitPrice, input.collectionQuantity),
+    });
     setLastAdded({
       productName: input.productName,
       primaryImageUrl: input.primaryImageUrl,

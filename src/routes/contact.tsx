@@ -24,6 +24,7 @@ import {
   type ReplyVia,
 } from "@/lib/enquiryMessage";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
+import { metaLead } from "@/lib/metaEvents";
 import { api } from "@/services/api";
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -164,6 +165,7 @@ function ContactPage() {
         ...toPayload(turnstileToken),
       });
       setFormState("success");
+      metaLead("contact");
       clearCart();
     } catch (err) {
       console.error("Enquiry submission failed:", err);

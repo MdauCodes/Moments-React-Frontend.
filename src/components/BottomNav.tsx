@@ -21,6 +21,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useCartBump } from "@/hooks/useCartBump";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
+import { metaContact } from "@/lib/metaEvents";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 /** Set on <html> so CartAddedSheet (a fixed mobile element of its own) can sit just above this bar
@@ -184,7 +185,10 @@ export function BottomNav() {
                 href={chatHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => setMoreOpen(false)}
+                onClick={() => {
+                  metaContact("whatsapp");
+                  setMoreOpen(false);
+                }}
                 className="flex items-center gap-3 px-5 py-4 text-left text-sm font-medium text-foreground"
               >
                 <MessageCircle className="h-5 w-5 text-muted-foreground" />

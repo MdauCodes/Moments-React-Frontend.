@@ -24,6 +24,7 @@ import { sanitizeProductDescription } from "@/lib/utils";
 import { individualUnitLabel } from "@/lib/uomLabel";
 import { useSeo } from "@/hooks/useSeo";
 import { productSeo } from "@/seo/seoData";
+import { metaViewContent } from "@/lib/metaEvents";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -280,6 +281,19 @@ export default function ProductDetail() {
         }
       : undefined,
   });
+
+  // Meta ViewContent — once per product viewed (keyed on the id, not the object, so state
+  // changes like picking a size don't re-report it).
+  useEffect(() => {
+    if (!product) return;
+    metaViewContent({
+      id: product.id,
+      name: productHead.name,
+      category: product.categoryName ?? product.category,
+      price: product.basePrice,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   // ── early return AFTER all hooks ─────────────────────────────────────────
   if (loading || !product) return <SiteLayout><ProductDetailSkeleton /></SiteLayout>;

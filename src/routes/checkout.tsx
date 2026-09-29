@@ -36,6 +36,7 @@ import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { buildReceiptPdfBlob } from "@/lib/pdf";
 import type { CustomerOrder } from "@/services/orderStore";
+import { metaInitiateCheckout } from "@/lib/metaEvents";
 import { getDeliveryPartner } from "@/data/deliveryPartners";
 
 const tumaBodaPartner = getDeliveryPartner("tumaboda");
@@ -869,6 +870,18 @@ function CheckoutModal() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { trackFunnelStep("OPENED"); }, []);
+
+  // Meta InitiateCheckout — once, as soon as the cart is known to have items (it can hydrate a
+  // render after mount, so this can't be folded into the mount-only effect above).
+  const initiatedCheckoutRef = useRef(false);
+  useEffect(() => {
+    if (initiatedCheckoutRef.current || items.length === 0) return;
+    initiatedCheckoutRef.current = true;
+    metaInitiateCheckout(
+      items.map((i) => ({ productId: i.productId, quantity: i.totalUnits ?? i.quantity })),
+      cartTotal,
+    );
+  }, [items, cartTotal]);
 
   function clearAllTimers() {
     const t = timersRef.current;

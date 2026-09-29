@@ -23,6 +23,7 @@ import {
   type ReplyVia,
 } from "@/lib/enquiryMessage";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
+import { metaContact, metaLead } from "@/lib/metaEvents";
 import { api } from "@/services/api";
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -160,6 +161,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
         ...toPayload(turnstileToken),
       });
       setFormState("success");
+      metaLead("quick-enquiry");
     } catch (err) {
       console.error("Quick enquiry failed:", err);
       setErrorText(submitErrorMessage(err));
@@ -191,6 +193,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
         </p>
         <a
           href={whatsappLink(whatsappText)}
+          onClick={() => metaContact("whatsapp")}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-5 inline-flex min-h-[48px] items-center gap-2 rounded-full bg-[#25D366] px-5 py-2.5 text-sm font-medium text-white"
@@ -357,6 +360,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
           {errorText}{" "}
           <a
             href={whatsappLink(whatsappText)}
+            onClick={() => metaContact("whatsapp")}
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-accent underline"
@@ -379,6 +383,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
         Would rather chat?{" "}
         <a
           href={whatsappLink(whatsappText)}
+          onClick={() => metaContact("whatsapp")}
           target="_blank"
           rel="noopener noreferrer"
           className="font-medium text-accent underline"

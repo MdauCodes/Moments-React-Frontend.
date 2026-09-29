@@ -18,6 +18,8 @@
 import { apiUrl, apiFetch } from "@/config/api";
 import { authFetch, getAccessToken } from "@/contexts/AuthContext";
 import type { CartItem } from "@/contexts/CartContext";
+import { getCheckoutAttribution } from "@/lib/marketingAttribution";
+import { metaPurchase } from "@/lib/metaEvents";
 import type { RefundRequest, RefundDesiredAction } from "@/services/refundStore";
 
 // Mirrors the backend's OrderStatus enum exactly (order/entity/OrderStatus.java) — these are
@@ -381,6 +383,8 @@ export const orderStore = {
     if (input.promoCode) body.promoCode = input.promoCode;
     if (input.redeemPoints) body.redeemPoints = input.redeemPoints;
     if (input.sessionId) body.sessionId = input.sessionId;
+    // How this visitor arrived (ad, search, ...). Optional server-side; recorded after the order commits.
+    body.attribution = getCheckoutAttribution();
     if (input.etrRequested) {
       body.etrRequested = true;
       body.documentsEmail = input.documentsEmail;
@@ -505,6 +509,13 @@ export const orderStore = {
             updatedAt: nowIso(),
           };
           writeAll(all);
+          // Tell Meta about the sale (browser side). Value excludes delivery — see metaEvents.ts.
+          const paid = all[idx];
+          metaPurchase({
+            reference: paid.reference,
+            value: (paid.total ?? 0) - (paid.shippingFee ?? 0),
+            lines: (paid.items ?? []).map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          });
         }
       }
 

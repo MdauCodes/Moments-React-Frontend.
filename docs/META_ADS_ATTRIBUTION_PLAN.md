@@ -1,6 +1,6 @@
 # Meta Ads: optimised campaigns and full revenue attribution
 
-**Status:** planned, not started (written 2026-09-29).
+**Status:** Phases 1 and 2 are BUILT and verified (2026-09-30); Phases 0, 3, 4 and 5 are not. See "Build status" directly below this header for exactly what exists and what is left. Originally written 2026-09-29.
 **Repos:** this frontend repo (`MdauCodes/Moments-React-Frontend`) and the backend repo
 (`MdauCodes/Moments-Backend`, local path `J:\backend\moments-packaging-backend-Java-First client`).
 **Goal, in one sentence:** for any Meta ad or campaign, the admin dashboard shows how many paid
@@ -10,6 +10,35 @@ algorithm can optimise delivery towards buyers.
 
 Read this whole document before writing code. Section 9 lists the decisions the owner must make;
 each has a recommended default, so work can start on the defaults.
+
+---
+
+## Build status (updated 2026-09-30)
+
+**Built (Phases 1 and 2), on branch `marketing-attribution` in both repos. Check `git log` on `main` for whether it has been merged and deployed; a session that finds it unmerged must not assume it is live.**
+
+| Area | What exists | Where |
+|---|---|---|
+| Attribution capture | UTM/click-id/referrer capture on every route, 30-day localStorage, first + last touch, landing beacon | FE `src/lib/marketingAttribution.ts`, `src/components/MarketingAttributionCapture.tsx` |
+| Attribution at checkout | `attribution` object added to the checkout request | FE `src/services/orderStore.ts` (`placeOrder`) |
+| Backend storage | `order_attribution` (1 row per order), `marketing_touch_events`; endpoint `POST /api/v1/public/marketing/touch`; channel classifier; recorded AFTER the order commits, in its own transaction | BE package `marketing/`, migration `V41__marketing_attribution.sql`, hook in `CheckoutService.checkout` |
+| Staff-entered orders | "How did this customer find us?" select on the admin create-order modal, sent as `acquisitionChannel` | FE `AdminOrderCreateModal.tsx`, `commerceApi.ts`; BE `AdminOrderCreateRequest` |
+| Pixel events | ViewContent, AddToCart, InitiateCheckout, Purchase (browser side), Lead, Contact; held until cookie consent, replayed for the current page on accept | FE `src/lib/metaPixel.ts` (loader + `trackMeta`), `src/lib/metaEvents.ts` (one helper per event), `src/components/MetaPixel.tsx` |
+| Cookie banner timing | 15 s for normal visitors; immediately for visitors who arrived from a tagged link | FE `src/components/CookieConsent.tsx` |
+
+**Not built yet:** Phase 0 (owner's Meta setup: domain verification, Conversions API token), Phase 3 (server-side Purchase), Phase 4 (Marketing dashboard tab, `marketing_spend`, reports), Phase 5 (catalogue feed). Also not done: the AddPaymentInfo event (deliberately skipped), and updating `/privacy` to mention Meta. That is a legal-text change: the owner approves the wording first, then bump `PRIVACY_POLICY_VERSION` in `src/lib/policyVersion.ts`.
+
+**Verified (2026-09-30):** on a fresh scratch database all 41 migrations apply and Hibernate `validate` passes; four real checkouts (tagged, untagged, garbage attribution, non-object attribution) all returned 201 with exactly one `order_attribution` row each; backend unit tests (11) pass; the full suite passes except the known local-only `contextLoads` failure. In a browser: tags stored correctly, direct visits don't erase an ad touch, zero requests to Facebook before consent or after "Only essentials", staff routes never send, held events replay on accept, Purchase reports once per order with event id `purchase-<reference>`.
+
+**NOT verified live, do this after deploy:** (1) AddToCart from the real product page and quick-add buttons (the local sandbox can't load products because of CORS, so this was only verified by code review and typecheck); (2) ViewContent on a real product page; (3) Purchase from a real M-Pesa payment; (4) that Events Manager, under Test events, shows them. The owner can watch Test events, or use the Meta Pixel Helper Chrome extension.
+
+**Things that differ from the original plan text below, and why:**
+- **`META_UNTAGGED` channel added.** Facebook appends `fbclid` to outbound clicks from *organic* posts too, so "fbclid with no tags = paid" would inflate paid numbers. A bare `fbclid` is `META_UNTAGGED`; only clicks tagged `utm_source=meta|facebook|instagram|fb|ig` with a paid `utm_medium` are `META_PAID`. The Marketing report must show `META_UNTAGGED` separately and explain it.
+- **Purchase value (D4) is `total - shippingFee`** (what the customer paid for products), not "subtotal minus discount", because it stays correct for every kind of discount, including points redemption. Server side it is `totalAmount - deliveryFee`.
+- **The attribution field is raw JSON on `CheckoutRequest`** (`JsonNode`) and parsed leniently in `AttributionPayload.fromJson`. The first version used a typed object, and a malformed field made Jackson reject the whole checkout with a 500, which broke the "never reject an order" rule. Do not turn it back into a typed field.
+- **No foreign key from `order_attribution` to `orders`**, because the row is written after the order commits, in a separate transaction.
+- **Migration number:** `V41`. `origin/staging` and `origin/ecom-tax-capture` both carry their own, different `V41__*`; whoever merges second renumbers.
+- **Debug switch:** `localStorage.setItem("mpk_meta_pixel_debug", "1")` lets the pixel run on hosts other than momentspackaging.com (for example localhost, when testing). Remove it afterwards; it sends real events to the live dataset.
 
 ---
 
@@ -124,9 +153,11 @@ Derive one `channel` value (store it on the backend; compute it on the backend f
 
 | channel | rule (first match wins) |
 |---|---|
-| `META_PAID` | `utm_source` in (`meta`,`facebook`,`fb`,`instagram`,`ig`) AND `utm_medium` in (`paid_social`,`paid`,`cpc`,`ads`), OR `fbclid` present with no utm at all |
+| `META_PAID` | `utm_source` in (`meta`,`facebook`,`fb`,`instagram`,`ig`) AND `utm_medium` in (`paid_social`,`paid`,`cpc`,`ads`, ...) |
+| `META_UNTAGGED` | `fbclid` present with no utm tags at all, or only a bare Meta `utm_source` with no medium. Could be an untagged ad OR an organic post click, so it is never counted as paid |
 | `META_ORGANIC` | referrer host ends with `facebook.com` / `instagram.com` / `l.instagram.com` / `lm.facebook.com`, no paid tags |
 | `GOOGLE_ADS` | `gclid` present OR (`utm_source=google` AND `utm_medium=cpc`) |
+| `OTHER_PAID` | `ttclid` present, or any other source with a paid medium (for example TikTok) |
 | `SEARCH_ORGANIC` | referrer is a search engine (google., bing., duckduckgo., yahoo.) |
 | `AI_ASSISTANT` | referrer is chatgpt.com, chat.openai.com, perplexity.ai, gemini.google.com, copilot.microsoft.com, claude.ai |
 | `WHATSAPP` | `utm_source=whatsapp` or referrer `wa.me` / `whatsapp.com` |
@@ -134,7 +165,7 @@ Derive one `channel` value (store it on the backend; compute it on the backend f
 | `REFERRAL` | any other external referrer |
 | `DIRECT` | nothing |
 
-Start from branch `traffic-source-tracking` (`666ca32`); it already classifies search / AI / social / referral. Note that a missing referrer for `fbclid` visits is normal: Meta's in-app browser often strips it.
+The implemented classifier is `MarketingChannelClassifier.java` (unit-tested in `MarketingAttributionTest`). The unmerged branch `traffic-source-tracking` (`666ca32`) is a separate, older page-journey classification and was not reused. A missing referrer on `fbclid` visits is normal: Meta's in-app browser often strips it.
 
 ### 4.3 Checkout sends attribution
 
@@ -220,7 +251,7 @@ Rules:
 - Guard `Purchase` with a `sessionStorage` key per reference so refreshing the confirmation page doesn't send it twice.
 - The value definition must match Phase 3 exactly (decision D4).
 
-**Cookie banner timing (decision D3).** Recommended change in `CookieConsent.tsx`: show the banner **immediately** when the landing URL carries `utm_*`/`fbclid` (paid traffic), and after ~15 seconds otherwise, instead of 3 minutes. Without this, almost no ad visitor ever loads the pixel, and Meta can't optimise. Keep the banner's wording and behaviour, which are legal elements; change only when it appears.
+**Cookie banner timing (decision D3), IMPLEMENTED.** `CookieConsent.tsx` shows the banner **immediately** when the session started from a tagged link (`utm_*`, `fbclid`, `gclid`, `ttclid`), and after 15 seconds otherwise, instead of 3 minutes. Without this, almost no ad visitor ever loads the pixel, and Meta can't optimise. Keep the banner's wording and behaviour, which are legal elements; change only when it appears.
 
 **Acceptance for Phase 2:** with Meta Pixel Helper (Chrome extension) and Events Manager → Test events, after accepting cookies: product page → ViewContent; add to cart from product page AND a quick-add button → AddToCart each time; checkout → InitiateCheckout; pay a real small order → Purchase with the `purchase-<ref>` event ID. With "Only essentials" chosen, no request goes to `facebook.com`.
 
@@ -354,7 +385,7 @@ Campaign names become report rows, so name them for humans and keep them stable 
 | D1 | Attribution model and window | last non-direct click / first click / both | **Store both first and last touch; report on last non-direct click; 30-day window** |
 | D2 | Consent scope | (a) capture UTM for our own records without consent, send to Meta only with consent; (b) require consent for everything; (c) send server events for all buyers | **(a)**. It matches how `?ref=` and page journeys already work. Server-side sends to Meta include hashed email/phone, which is personal data under the Kenya Data Protection Act, so only for consenting buyers. The owner should confirm this with whoever handles legal and privacy. Update `/privacy` to mention Meta (Phase 2). |
 | D3 | Cookie banner timing | keep 3 min / immediate for ad traffic + ~15 s otherwise / immediate always | **Immediate for tagged ad traffic, ~15 s otherwise** |
-| D4 | "Value" of a purchase (for Meta and for our ROAS) | total paid incl. delivery / product subtotal excl. delivery / excl. VAT | **Product subtotal after discounts, excluding delivery fee, including VAT as displayed.** Delivery fees aren't sales revenue. Use the same value in the pixel, the server event and the dashboard. |
+| D4 | "Value" of a purchase (for Meta and for our ROAS) | total paid incl. delivery / product value excl. delivery / excl. VAT | **What the customer paid for the products, excluding delivery, including VAT as displayed: `total - shippingFee`.** Delivery fees aren't sales revenue. Use the same value in the pixel, the server event and the dashboard. **Implemented this way in the pixel.** |
 | D5 | Ad spend source | manual entry / Meta Marketing API | **Manual first (7.1a)**; automate later if the report proves useful |
 | D6 | Offline and WhatsApp sales from ads | ignore / admin "How did you find us?" field | **Admin field** on admin-created orders |
 | D7 | Store client IP for server events | no / yes, with retention limit | **No** (user agent + hashed contact is enough to start) |

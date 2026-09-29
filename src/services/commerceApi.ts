@@ -226,6 +226,8 @@ export interface CreateOrderItem {
 
 export interface CreateOrderParams {
   customerId?: string; // attach to an existing customer's account instead of a guest order
+  /** "How did this customer find us?" — a channel code (META_PAID, WHATSAPP, DIRECT ...). Lets phone/walk-in orders that came from an ad count towards that ad in the Marketing report. */
+  acquisitionChannel?: string;
   contactName: string;
   email: string;
   phone: string;

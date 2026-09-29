@@ -126,6 +126,8 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
   const [productResults, setProductResults] = useState<ProductDto[]>([]);
   const [items, setItems] = useState<DraftItem[]>([]);
   const [notes, setNotes] = useState("");
+  // "How did this customer find us?" — feeds the Marketing report (channel codes match the backend).
+  const [acquisitionChannel, setAcquisitionChannel] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const estimatedTotal = useMemo(
@@ -180,6 +182,7 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
     setProductResults([]);
     setItems([]);
     setNotes("");
+    setAcquisitionChannel("");
   }
 
   useEffect(() => {
@@ -420,6 +423,7 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
         email: email.trim(),
         phone: phone.trim(),
         notes: notes.trim() || undefined,
+        acquisitionChannel: acquisitionChannel || undefined,
         paymentMethod: "MPESA",
         fulfillmentType: isTumaboda ? "TUMABODA_DELIVERY" : topChoice === "COURIER" ? "MANUAL_DELIVERY" : topChoice,
         deliveryAddress: topChoice === "PICKUP" ? undefined
@@ -686,6 +690,27 @@ export function AdminOrderCreateModal({ open, onClose, onCreated }: Props) {
                   )}
                 </div>
               )}
+            </Section>
+
+            <Section title="How did this customer find us?" collapsible defaultOpen={false}>
+              <select
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                value={acquisitionChannel}
+                onChange={(e) => setAcquisitionChannel(e.target.value)}
+                aria-label="How did this customer find us?"
+              >
+                <option value="">Not asked / walk-in</option>
+                <option value="META_PAID">Facebook / Instagram ad</option>
+                <option value="META_ORGANIC">Facebook / Instagram page (not an ad)</option>
+                <option value="GOOGLE_ADS">Google ad</option>
+                <option value="SEARCH_ORGANIC">Google search</option>
+                <option value="WHATSAPP">WhatsApp</option>
+                <option value="REFERRAL">Referred by someone</option>
+                <option value="DIRECT">Repeat customer / other</option>
+              </select>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Counts this sale towards that channel in Analytics → Marketing.
+              </p>
             </Section>
 
             <Section title="Notes" collapsible defaultOpen={false}>
