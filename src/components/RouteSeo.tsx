@@ -26,7 +26,10 @@ export function RouteSeo() {
   useLayoutEffect(() => {
     const isFirst = first.current;
     first.current = false;
-    if (isFirst && window.__mpkPrerendered) return;
+    // The homepage is the exception: its prerendered HTML carries no canonical (that file is also
+    // Render's fallback for unknown URLs — see renderPage in scripts/prerender-seo.mjs), so it gets
+    // one here once the app has confirmed the URL really is "/".
+    if (isFirst && window.__mpkPrerendered && pathname !== "/") return;
 
     document.head.querySelectorAll("script[data-prerender-ld]").forEach((n) => n.remove());
     const path = pathname.replace(/\/+$/, "") || "/";

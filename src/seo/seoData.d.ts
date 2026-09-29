@@ -15,6 +15,8 @@ export interface ProductSeoInput {
 }
 
 export declare const SITE_ORIGIN: string;
+export declare function productPath(slug: string): string;
+export declare function blogPath(slug: string): string;
 export declare const SITE_NAME: string;
 export declare const BUSINESS: {
   legalName: string;

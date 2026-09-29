@@ -84,7 +84,7 @@ function BlogIndexPage() {
             {visible.map((b) => (
               <Link
                 key={b.id}
-                to={`/blog/${b.slug}`}
+                to={`/blog/${b.slug}/`}
                 className="block rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <BlogCard blog={b} />

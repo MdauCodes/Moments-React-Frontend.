@@ -1047,7 +1047,7 @@ function PromoShowcaseCard({ product: p }: { product: Product }) {
 
   return (
     <Link
-      to={`/products/${p.slug}`}
+      to={`/products/${p.slug}/`}
       /* One fixed width at every breakpoint rather than growing at sm. The promo panel's card
          column measures 773px on a maxed-out desktop, so with the 20px gap the widest a card can
          be and still leave four in a single row is 178px — anything larger (the old sm:w-48, or

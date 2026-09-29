@@ -11,6 +11,23 @@
 export const SITE_ORIGIN = "https://momentspackaging.com";
 export const SITE_NAME = "Moments Packaging Kenya";
 
+/**
+ * Official (canonical) URL paths for product and blog detail pages — WITH a trailing slash, on
+ * purpose. Render serves /products/<slug>/ straight from the prebuilt dist/products/<slug>/
+ * folder, and when no folder exists (a product added after the last deploy, a deleted product, a
+ * typo) it falls through to the SPA like any other unknown path. The slash-less form can't be
+ * mapped to those folders safely: a Render rewrite returns an empty 200 for a missing folder, and a
+ * redirect loops forever (both verified on staging, 2026-09-29). Static pages keep slash-less
+ * URLs — their files always exist, so a plain rewrite rule per page is safe.
+ */
+export function productPath(slug) {
+  return `/products/${slug}/`;
+}
+
+export function blogPath(slug) {
+  return `/blog/${slug}/`;
+}
+
 export const BUSINESS = {
   legalName: "Moments Packaging (K) Ltd",
   streetAddress: "Weithaga Building, along Ukwala Road, OTC",

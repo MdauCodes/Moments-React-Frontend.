@@ -154,7 +154,7 @@ function productLine(p: EnquiryProductRef): string {
 
 function absoluteUrl(slug: string): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/products/${slug}`;
+  return `${origin}/products/${slug}/`;
 }
 
 /**
