@@ -17,6 +17,7 @@ import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { RouteSeo } from "@/components/RouteSeo";
+import { MetaPixel } from "@/components/MetaPixel";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
 
@@ -209,6 +210,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <RouteSeo />
+      <MetaPixel />
       <PageViewTracker />
       <ReferralCapture />
       <SiteConfigProvider>
