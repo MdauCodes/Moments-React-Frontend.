@@ -353,6 +353,11 @@ export const orderStore = {
         material: it.material,
         finish: it.finish,
         tierId: it.tierId ?? undefined,
+        // Same reasoning as CartContext's addItem POST: a cart line with no tierId already means
+        // "the customer chose the single unit", by construction of every place a CartItem gets
+        // created — the server needs that said explicitly once a product has more than one way to
+        // buy (CheckoutService.resolveInlineItem -> CartService.validateTierSelection).
+        individual: it.tierId ? undefined : true,
         unitPrice: it.unitPrice,
         // The Confirm-items checkout step's optional colour/style note — see CheckoutRequest.
         // InlineItem.variantNote server-side. Omitted entirely rather than sent as "" so an

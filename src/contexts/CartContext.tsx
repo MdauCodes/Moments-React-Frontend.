@@ -264,6 +264,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         productId: input.productId,
         variantId: input.variantId,
         tierId: input.tierId ?? null,
+        // A null tierId on a line that actually reached addItem is always a deliberate "buy the
+        // single unit" choice — every caller (PDP, configurator, quick-add) already picks between
+        // the visible options before calling this, never falls back to it silently. The backend
+        // needs that said explicitly (individual: true) to accept it on a product that also has
+        // tiers — see CartService.validateTierSelection; previously a null tierId there was
+        // rejected outright once a product had more than one way to buy (85 live products).
+        individual: input.tierId ? undefined : true,
         quantity: input.quantity,
         size: input.size,
         material: input.material,

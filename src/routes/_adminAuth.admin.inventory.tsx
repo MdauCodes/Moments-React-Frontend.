@@ -4,7 +4,7 @@ import { CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import { AdminLayout } from "@/layouts/AdminLayout";
-import { adminResources, type ProductDto } from "@/services/adminResources";
+import { adminResources, type ProductDto, type RisellerUomWarning } from "@/services/adminResources";
 
 
 
@@ -30,9 +30,14 @@ interface AdjustState {
   busy: boolean;
 }
 
+type Tab = "low" | "out" | "warnings";
+
 function AdminInventoryPage() {
+  const [tab, setTab] = useState<Tab>("low");
   const [low, setLow] = useState<ProductDto[]>([]);
   const [out, setOut] = useState<ProductDto[]>([]);
+  const [warnings, setWarnings] = useState<RisellerUomWarning[]>([]);
+  const [warningsGeneratedAt, setWarningsGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [adjust, setAdjust] = useState<AdjustState | null>(null);
   const [setStockState, setSetStockState] = useState<Record<string, string>>({});
@@ -40,12 +45,15 @@ function AdminInventoryPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [a, b] = await Promise.all([
+      const [a, b, w] = await Promise.all([
         adminResources.inventory.getLowStock().catch(() => []),
         adminResources.inventory.getOutOfStock().catch(() => []),
+        adminResources.inventory.getRisellerWarnings().catch(() => null),
       ]);
       setLow(a ?? []);
       setOut(b ?? []);
+      setWarnings(w?.warnings ?? []);
+      setWarningsGeneratedAt(w?.generatedAt ?? null);
     } finally {
       setLoading(false);
     }
@@ -196,6 +204,58 @@ function AdminInventoryPage() {
     </div>
   );
 
+  const tabs: { key: Tab; label: string; count: number }[] = [
+    { key: "low", label: "Low Stock", count: low.length },
+    { key: "out", label: "Out of Stock", count: out.length },
+    { key: "warnings", label: "Riseller Warnings", count: warnings.length },
+  ];
+
+  const renderWarnings = () => {
+    if (loading) return <p style={{ color: "var(--admin-muted)", fontSize: 13 }}>Loading…</p>;
+    if (warnings.length === 0)
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--admin-muted)", fontSize: 13, padding: "8px 2px" }}>
+          <CheckCircle2 size={16} color="#15803d" />
+          <span>No notes from the last Riseller catalog sync — its data lined up cleanly.</span>
+        </div>
+      );
+    return (
+      <div style={{ overflowX: "auto" }}>
+        <table className="admin-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--admin-border)" }}>
+              <th style={th}>Product</th>
+              <th style={th}>Riseller code</th>
+              <th style={th}>What Riseller's data says</th>
+            </tr>
+          </thead>
+          <tbody>
+            {warnings.map((w, i) => (
+              <tr key={i} style={{ borderBottom: "1px solid var(--admin-border)" }}>
+                <td style={{ ...td, fontWeight: 600 }}>{w.productName || "—"}</td>
+                <td style={{ ...td, color: "var(--admin-muted)" }}>{w.risellerCode || "—"}</td>
+                <td style={td}>
+                  <span
+                    style={{
+                      ...statusPill,
+                      marginRight: 8,
+                      background: w.severity === "WARN"
+                        ? "color-mix(in oklab,#dc2626 18%,var(--admin-surface))"
+                        : "var(--admin-border)",
+                    }}
+                  >
+                    {w.severity}
+                  </span>
+                  {w.detail}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   return (
     <AdminLayout title="Inventory Management" onReload={load}>
       <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -203,15 +263,59 @@ function AdminInventoryPage() {
           Monitor and adjust stock levels across all tracked products.
         </p>
 
-        <section className="admin-panel" style={panel}>
-          {sectionHeader("Low Stock", low.length)}
-          {renderTable(low, "No products are currently low on stock.")}
-        </section>
+        <div style={{ display: "flex", gap: 6, borderBottom: "1px solid var(--admin-border)" }}>
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "10px 14px", fontSize: 13, fontWeight: 600,
+                background: "none", border: "none", cursor: "pointer",
+                color: tab === t.key ? "var(--admin-text)" : "var(--admin-muted)",
+                borderBottom: tab === t.key ? "2px solid var(--admin-text)" : "2px solid transparent",
+                marginBottom: -1,
+              }}
+            >
+              {t.label}
+              <span style={countPill}>{t.count}</span>
+            </button>
+          ))}
+        </div>
 
-        <section className="admin-panel" style={panel}>
-          {sectionHeader("Out of Stock", out.length)}
-          {renderTable(out, "No products are out of stock.")}
-        </section>
+        {tab === "low" && (
+          <section className="admin-panel" style={panel}>
+            {sectionHeader("Low Stock", low.length)}
+            {renderTable(low, "No products are currently low on stock.")}
+          </section>
+        )}
+
+        {tab === "out" && (
+          <section className="admin-panel" style={panel}>
+            {sectionHeader("Out of Stock", out.length)}
+            {renderTable(out, "No products are out of stock.")}
+          </section>
+        )}
+
+        {tab === "warnings" && (
+          <section className="admin-panel" style={panel}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
+              {sectionHeader("Riseller Warnings", warnings.length)}
+              <span style={{ fontSize: 12, color: "var(--admin-muted)" }}>
+                {warningsGeneratedAt
+                  ? `From the catalog sync at ${new Date(warningsGeneratedAt).toLocaleString("en-KE")}`
+                  : "No catalog sync has run since this was added yet."}
+              </span>
+            </div>
+            <p style={{ margin: "0 0 12px", fontSize: 12, color: "var(--admin-muted)" }}>
+              Things about Riseller's own catalog data that the last sync had to work around — a missing unit,
+              a packaging row that contradicts itself, a pack with no price. Nothing here needs fixing in this
+              admin panel; it's Riseller's data to correct.
+            </p>
+            {renderWarnings()}
+          </section>
+        )}
       </div>
 
       {adjust && (

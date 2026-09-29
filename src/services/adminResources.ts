@@ -101,6 +101,12 @@ export type ProductDto = {
   updatedAt?: string;
 };
 export type ProductRequest = Omit<ProductDto, "id" | "slug" | "industries" | "monthlyClicks" | "monthlyEnquiries" | "curatedTags" | "curatedTagIds">;
+
+/** What the last Riseller catalog sync flagged about Riseller's OWN data — a unit missing from
+ *  the catalog, a self-contradicting packaging row, a pack with no price… — see the backend's
+ *  RisellerUomPlanner. generatedAt is null until the first sync after this feature shipped runs. */
+export type RisellerUomWarning = { code: string; severity: "WARN" | "INFO"; productName: string; risellerCode: string; detail: string };
+export type RisellerUomWarningsSnapshot = { generatedAt: string | null; warnings: RisellerUomWarning[] };
 export type BulkClassifyRequest = { productIds: string[]; subcategoryId?: string; clearSubcategory?: boolean; industryIds?: string[]; tagIds?: string[] };
 export type BulkClassifyResponse = { updatedCount: number; productIds: string[] };
 
@@ -662,6 +668,8 @@ export const adminResources = {
   inventory: {
     getLowStock: () => adminJson<ProductDto[]>("/api/v1/admin/products/inventory/low-stock"),
     getOutOfStock: () => adminJson<ProductDto[]>("/api/v1/admin/products/inventory/out-of-stock"),
+    getRisellerWarnings: () =>
+      adminJson<RisellerUomWarningsSnapshot>("/api/v1/admin/products/inventory/riseller-warnings"),
     adjustStock: (id: string, body: { type: string; delta: number; reason?: string }) =>
       adminJson<ProductDto>(`/api/v1/admin/products/${encodeURIComponent(id)}/stock/adjust`, {
         method: "POST",

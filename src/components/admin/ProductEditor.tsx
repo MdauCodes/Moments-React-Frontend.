@@ -74,6 +74,11 @@ export interface ProductFormValues {
   vatRate?: number;     // stored as 0..1 fraction (e.g. 0.16)
   vatExempt?: boolean;
   stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "MADE_TO_ORDER";
+  /** True when this product is linked to a Riseller item — Riseller then owns its units of
+   *  measure (2026-09-28 decision), so the single-unit toggle and pricing tiers below are
+   *  locked: the server ignores edits to either field on a linked product regardless. */
+  risellerLinked?: boolean;
+  risellerUomName?: string | null;
 }
 
 
@@ -114,6 +119,8 @@ export function emptyProductValues(): ProductFormValues {
     vatRate: 0.16,
     vatExempt: false,
     stockStatus: "MADE_TO_ORDER",
+    risellerLinked: false,
+    risellerUomName: null,
   };
 }
 
@@ -167,6 +174,8 @@ export function productToFormValues(p: Product): ProductFormValues {
     vatRate: typeof anyP.vatRate === "number" ? anyP.vatRate : 0.16,
     vatExempt: anyP.vatExempt ?? false,
     stockStatus: anyP.stockStatus ?? "MADE_TO_ORDER",
+    risellerLinked: anyP.risellerLinked ?? false,
+    risellerUomName: anyP.risellerUomName ?? null,
   };
 }
 
@@ -1239,10 +1248,25 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
 
             {/* Pricing tiers — INSIDE the same card, separated by a divider */}
             <div style={s.divider}>
-              <label style={s.switchRow}>
+              {values.risellerLinked && (
+                <div style={{
+                  padding: "10px 12px", marginBottom: 12, borderRadius: 8,
+                  border: "1px solid var(--admin-border)",
+                  background: "color-mix(in oklab,var(--admin-bg) 70%,transparent)",
+                  fontSize: 12, color: "var(--admin-muted)",
+                }}>
+                  Linked to Riseller{values.risellerUomName ? ` (base unit: ${values.risellerUomName})` : ""} — Riseller
+                  decides which units this product sells in and at what price (2026-09-28 policy). The toggle and
+                  tiers below show what Riseller currently offers and update on the next catalog sync; they can't be
+                  edited here.
+                </div>
+              )}
+              <label style={{ ...s.switchRow, opacity: values.risellerLinked ? 0.6 : 1 }}
+                     title={values.risellerLinked ? "Riseller-linked — set automatically" : undefined}>
                 <input
                   type="checkbox"
                   checked={values.individualSalesEnabled ?? true}
+                  disabled={values.risellerLinked}
                   onChange={(e) => set("individualSalesEnabled", e.target.checked)}
                 />
                 <span style={s.switchLabel}>Allow individual unit purchases</span>
@@ -1251,13 +1275,14 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                 Off means customers must buy a full tier (Packet, Carton…) below — no single-unit checkout.
               </span>
 
-              <div style={{ ...s.col, marginTop: 12 }}>
+              <div style={{ ...s.col, marginTop: 12, opacity: values.risellerLinked ? 0.6 : 1 }}>
                 <label style={s.label}>Pricing tiers (units of measure)</label>
                 <span style={s.helper}>
                   Pick a UOM (Packet, Carton, Bale…), set how many pieces and the price per unit. Disabled tiers are hidden from the storefront.
                 </span>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                <fieldset disabled={values.risellerLinked}
+                  style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8, border: "none", padding: 0, margin: 0 }}>
                   {pricingTiers.map((row, idx) => {
                     const total = (Number(row.quantity) || 0) * (Number(row.pricePerUnit) || 0);
                     const enabled = row.enabled !== false;
@@ -1488,14 +1513,18 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
                     >
                       + Add pricing tier
                     </button>
-                    <button
-                      type="button"
-                      style={s.ghostBtn}
-                      onClick={() => setShowUomDialog(true)}
-                    >
-                      Manage UOMs
-                    </button>
                   </div>
+                </fieldset>
+                {/* The shared UOM catalog (Packet/Carton/Bale…), not this product's own tiers —
+                    stays editable even when this product's own tiers are Riseller-locked. */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                  <button
+                    type="button"
+                    style={s.ghostBtn}
+                    onClick={() => setShowUomDialog(true)}
+                  >
+                    Manage UOMs
+                  </button>
                 </div>
               </div>
 
