@@ -8,7 +8,7 @@ import { whatsappLink } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
+import { cleanUomLabel, individualUnitLabel, unitCount, unitPlural } from "@/lib/uomLabel";
 import { getStockInfo } from "@/lib/stock";
 import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
@@ -265,8 +265,8 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
               </div>
               <p className="text-xs text-muted-foreground">
                 {hasCollections && collectionTiers[0]
-                  ? `Min. order: 1 ${cleanUomLabel((collectionTiers[0] as any).uomName ?? (collectionTiers[0] as any).collectionName, Number((collectionTiers[0] as any).quantity))} (${Number((collectionTiers[0] as any).quantity).toLocaleString()} pcs)`
-                  : `Min. ${product.moq.toLocaleString()} units`}
+                  ? `Min. order: 1 ${cleanUomLabel((collectionTiers[0] as any).uomName ?? (collectionTiers[0] as any).collectionName, Number((collectionTiers[0] as any).quantity))} (${unitCount(Number((collectionTiers[0] as any).quantity), product.risellerUomName)})`
+                  : `Min. ${unitCount(product.moq, product.risellerUomName)}`}
               </p>
             </div>
           </div>
@@ -334,7 +334,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                       )}
                       <span className="font-display text-sm text-foreground">{label}</span>
                       <span className="mt-0.5 text-[11px] text-muted-foreground">
-                        {Number(t.quantity).toLocaleString()} pieces
+                        {unitCount(Number(t.quantity), product.risellerUomName)}
                       </span>
                       {t.uomDescription && (
                         <span className="mt-0.5 text-[10px] italic text-muted-foreground line-clamp-2">
@@ -358,7 +358,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                         : "border-border bg-card hover:border-foreground/40"
                     }`}
                   >
-                    <span className="font-display text-sm text-foreground">Individual {individualUnitLabel(product.risellerUomName)}s</span>
+                    <span className="font-display text-sm text-foreground">Individual {unitPlural(product.risellerUomName)}</span>
                     <span className="mt-0.5 text-[11px] text-muted-foreground">Buy any quantity</span>
                     <span className="mt-1.5 text-sm font-semibold text-foreground">
                       KES {(product.basePrice ?? 0).toLocaleString()}
@@ -391,7 +391,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
             <div className="rounded-xl border border-forest/20 bg-forest/5 px-4 py-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-forest">Per-unit ordering</p>
               <p className="mt-1 text-sm text-foreground/80">
-                Order any quantity from {product.moq.toLocaleString()} units upward at{" "}
+                Order any quantity from {unitCount(product.moq, product.risellerUomName)} upward at{" "}
                 <span className="font-semibold">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>.
               </p>
             </div>
@@ -431,7 +431,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                   ? `Number of ${cleanUomLabel(selectedTier.uomName ?? selectedTier.collectionName, Number(selectedTier.quantity))}s`
                   : hasCollections
                     ? "Quantity"
-                    : "Number of pieces"
+                    : `Number of ${unitPlural(product.risellerUomName)}`
               }
               note={selectedTier ? undefined : `(Min. ${minQty.toLocaleString()})`}
             >
@@ -469,7 +469,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                 </p>
               ) : unitPrice > 0 ? (
                 <p className="text-sm">
-                  {quantity.toLocaleString()} pieces × KES {unitPrice.toLocaleString()} ={" "}
+                  {unitCount(quantity, product.risellerUomName)} × KES {unitPrice.toLocaleString()} ={" "}
                   <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
                 </p>
               ) : null}

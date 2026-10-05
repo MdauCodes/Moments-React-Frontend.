@@ -37,6 +37,7 @@ import {
   productPath,
   blogPath,
 } from "../src/seo/seoData.js";
+import { countUnits } from "../src/lib/uomWords.js";
 
 const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
@@ -275,7 +276,7 @@ function productPage(p, related) {
   ];
 
   const tierTable = tiers.length
-    ? `<h2>Pack sizes and prices</h2><table><thead><tr><th>Pack</th><th>Price</th><th>Per piece</th></tr></thead><tbody>${tiers
+    ? `<h2>Pack sizes and prices</h2><table><thead><tr><th>Pack</th><th>Price</th><th>Per ${esc(unit)}</th></tr></thead><tbody>${tiers
         .map(
           (t) =>
             `<tr><td>${esc(t.collectionName || t.uomName)}</td><td>${esc(formatKes(t.collectionPrice))}</td><td>${esc(formatKes(t.pricePerUnit))}</td></tr>`,
@@ -283,7 +284,7 @@ function productPage(p, related) {
         .join("")}</tbody></table>`
     : "";
   const minOrder = p.moq
-    ? `<p>Minimum order: ${esc(Number(p.moq).toLocaleString("en-KE"))} ${esc(unit)}.</p>`
+    ? `<p>Minimum order: ${esc(countUnits(p.moq, unit))}.</p>`
     : "";
 
   const body = `${breadcrumbHtml(crumbs)}

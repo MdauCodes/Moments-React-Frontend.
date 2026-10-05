@@ -8,6 +8,8 @@
 // contact.tsx, public/llms.txt) — keep it that way. This copy is what Google, Bing and AI
 // assistants quote back to shoppers, so nothing aspirational belongs in it.
 
+import { readableSoldPer, unitWord } from "../lib/uomWords.js";
+
 export const SITE_ORIGIN = "https://momentspackaging.com";
 export const SITE_NAME = "Moments Packaging Kenya";
 
@@ -216,10 +218,12 @@ export function displayProductName(name) {
 /** Mirrors src/lib/utils.ts sanitizeProductDescription — supplier names never go public. */
 export function cleanProductDescription(description) {
   if (!description) return "";
-  return String(description)
-    .replace(/\s*Supplied by [^.]*\.\s*/gi, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return readableSoldPer(
+    String(description)
+      .replace(/\s*Supplied by [^.]*\.\s*/gi, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim(),
+  );
 }
 
 function clip(text, max) {
@@ -235,10 +239,9 @@ export function formatKes(amount) {
   return `KES ${n.toLocaleString("en-KE", { maximumFractionDigits: 2 })}`;
 }
 
-/** The unit a product's base price is quoted per, e.g. "PKT" -> "pkt". */
+/** The unit a product's base price is quoted per, as a customer would say it: "PKT" -> "packet". */
 export function priceUnitLabel(product) {
-  const uom = product?.risellerUomName;
-  return uom ? String(uom).toLowerCase() : "unit";
+  return unitWord(product?.risellerUomName) ?? "unit";
 }
 
 /**

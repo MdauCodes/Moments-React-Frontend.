@@ -1,4 +1,5 @@
 import type { Product } from "@/data/products";
+import { unitCount } from "@/lib/uomLabel";
 
 export type StockState = "in_stock" | "low_stock" | "out_of_stock" | "untracked";
 
@@ -32,7 +33,7 @@ export interface StockInfo {
  * Pass a `variant` to get variant-specific availability.
  */
 export function getStockInfo(
-  product: Pick<Product, "stock" | "lowStockThreshold" | "trackInventory" | "stockStatus">,
+  product: Pick<Product, "stock" | "lowStockThreshold" | "trackInventory" | "stockStatus" | "risellerUomName">,
   variant?: { stock?: number } | null,
   requestedQty = 0,
 ): StockInfo {
@@ -73,7 +74,7 @@ export function getStockInfo(
       state: "low_stock",
       available,
       threshold,
-      label: `Only ${available.toLocaleString()} left`,
+      label: `Only ${unitCount(available, product.risellerUomName)} left`,
       exceedsAvailable: requestedQty > available,
       canOrder: true,
       isMadeToOrder: false,
@@ -85,7 +86,7 @@ export function getStockInfo(
       state: "in_stock",
       available,
       threshold,
-      label: `In stock — ${available.toLocaleString()} units`,
+      label: `In stock — ${unitCount(available, product.risellerUomName)}`,
       exceedsAvailable: false,
       canOrder: true,
       isMadeToOrder: false,

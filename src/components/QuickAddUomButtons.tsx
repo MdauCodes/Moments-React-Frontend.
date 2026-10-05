@@ -6,6 +6,7 @@ import type { Product } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
 import { getStockInfo } from "@/lib/stock";
 import { getQuickAddOptions, trackProductClick, type QuickAddOption } from "@/lib/quickAdd";
+import { pluralUnit } from "@/lib/uomWords";
 
 export interface QuickAddUomButtonsProps {
   product: Product;
@@ -183,8 +184,7 @@ export function QuickAddUomButtons({
                 }`}
               >
                 <span>
-                  Add {effQuantity.toLocaleString()} {opt.label}
-                  {effQuantity !== 1 ? "s" : ""}
+                  Add {effQuantity.toLocaleString()} {pluralUnit(opt.label, effQuantity)}
                   {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
                     <span className="ml-1.5 rounded-full bg-forest/15 px-1.5 py-px text-[9px] font-semibold text-forest">
                       Save {opt.savingsPct}%
@@ -192,7 +192,7 @@ export function QuickAddUomButtons({
                   )}
                 </span>
                 <small className="mt-0.5 block font-normal opacity-80">
-                  {effPackQty > 1 ? `${effPackQty.toLocaleString()} ${opt.unitNoun}s · ` : ""}
+                  {effPackQty > 1 ? `${effPackQty.toLocaleString()} ${pluralUnit(opt.unitNoun, effPackQty)} · ` : ""}
                   KES {effLineTotal.toLocaleString()}
                 </small>
               </button>
@@ -233,12 +233,11 @@ export function QuickAddUomButtons({
         >
           <span className="flex flex-col items-start">
             <span className="font-display text-base text-foreground">
-              Add {opt.quantity.toLocaleString()} {opt.label}
-              {opt.quantity !== 1 ? "s" : ""}
+              Add {opt.quantity.toLocaleString()} {pluralUnit(opt.label, opt.quantity)}
             </span>
             {opt.packQty > 1 && (
               <span className="mt-0.5 text-xs text-muted-foreground">
-                {opt.packQty.toLocaleString()} {opt.unitNoun}s
+                {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
               </span>
             )}
             <span className="mt-2 text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>

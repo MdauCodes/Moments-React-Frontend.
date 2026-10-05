@@ -21,7 +21,7 @@ import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
 import { reviewStore } from "@/services/reviewStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sanitizeProductDescription } from "@/lib/utils";
-import { individualUnitLabel } from "@/lib/uomLabel";
+import { individualUnitLabel, unitCount, unitPlural } from "@/lib/uomLabel";
 import { useSeo } from "@/hooks/useSeo";
 import { productSeo } from "@/seo/seoData";
 import { metaViewContent } from "@/lib/metaEvents";
@@ -392,17 +392,17 @@ export default function ProductDetail() {
                       <button key={key} type="button" onClick={() => handleSelectTier(key)}
                         className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${active ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
                         <span className="font-display text-base text-foreground">{t.uomName ?? t.collectionName}</span>
-                        <span className="mt-0.5 text-xs text-muted-foreground">{Number(t.quantity).toLocaleString()} pieces each</span>
+                        <span className="mt-0.5 text-xs text-muted-foreground">{unitCount(Number(t.quantity), product.risellerUomName)} each</span>
                         {t.uomDescription && <span className="mt-0.5 text-[11px] italic text-muted-foreground">{t.uomDescription}</span>}
                         <span className="mt-2 text-sm font-semibold text-foreground">KES {cPrice.toLocaleString()}</span>
-                        <span className="text-[11px] text-muted-foreground">KES {Number(t.pricePerUnit).toLocaleString()}/piece</span>
+                        <span className="text-[11px] text-muted-foreground">KES {Number(t.pricePerUnit).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                       </button>
                     );
                   })}
                   {individualEnabled && (
                     <button type="button" onClick={() => handleSelectTier(null)}
                       className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${selectedTierId === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
-                      <span className="font-display text-base text-foreground">Individual {individualUnitLabel(product.risellerUomName)}s</span>
+                      <span className="font-display text-base text-foreground">Individual {unitPlural(product.risellerUomName)}</span>
                       <span className="mt-0.5 text-xs text-muted-foreground">Buy any quantity</span>
                       <span className="mt-2 text-sm font-semibold text-foreground">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                     </button>
@@ -440,7 +440,7 @@ export default function ProductDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <StockBadge state={stock.state} label={stock.label} isMadeToOrder={stock.isMadeToOrder} />
               {stock.state !== "untracked" && stock.state !== "out_of_stock" && Number.isFinite(stock.available) && stock.available > 0 && (
-                <span className="text-xs text-muted-foreground/70">{stock.available.toLocaleString()} units available</span>
+                <span className="text-xs text-muted-foreground/70">{unitCount(stock.available, product.risellerUomName)} available</span>
               )}
             </div>
 
@@ -604,7 +604,8 @@ export default function ProductDetail() {
               {product.material && <DetailRow label="Material" value={product.material} />}
               {product.finish && <DetailRow label="Finish" value={product.finish} />}
               {product.tags && product.tags.length > 0 && <DetailRow label="Tags" value={product.tags.join(", ")} />}
-              {product.keywords && product.keywords.length > 0 && <DetailRow label="Keywords" value={product.keywords.join(", ")} />}
+              {/* Keywords are deliberately not shown: they hold Riseller's internal item codes and
+                  data-patch markers (e.g. "558, industry-patch-v1"), not words for customers. */}
             </dl>
           </TabsContent>
           <TabsContent value="sizes" className="mt-6">

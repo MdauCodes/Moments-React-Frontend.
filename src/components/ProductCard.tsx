@@ -5,7 +5,7 @@ import { Flame } from "lucide-react";
 import type { Product } from "@/data/products";
 import { useEnquiry } from "@/contexts/EnquiryContext";
 import { getStockInfo } from "@/lib/stock";
-import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
+import { cleanUomLabel, individualUnitLabel, unitCount } from "@/lib/uomLabel";
 import { sanitizeProductDescription } from "@/lib/utils";
 import { getQuickAddTiers, isIndividualBuyable, isQuickAddEligible, trackProductClick } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
@@ -199,7 +199,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                   }`}
                 >
                   <span>
-                    {label} · {qty.toLocaleString()} pcs
+                    {label} · {unitCount(qty, p.risellerUomName)}
                   </span>
                   {isTopTier && topSave > 0 && (
                     <span className="rounded-full bg-forest/15 px-1.5 py-px text-[9px] font-semibold text-forest">
@@ -231,9 +231,9 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
               return (
                 <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
                   KES {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ pc</span>
+                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ {individualUnitLabel(p.risellerUomName)}</span>
                   <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
-                    KES {tierPrice(activeTier).toLocaleString()} for {packLabel} ({qty.toLocaleString()} pcs)
+                    KES {tierPrice(activeTier).toLocaleString()} for {packLabel} ({unitCount(qty, p.risellerUomName)})
                     {activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > tierPrice(activeTier) && (
                       <span className="ml-1.5 line-through">
                         KES {Number(activeTier.originalCollectionPrice).toLocaleString()}
@@ -284,8 +284,8 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           {!eligible && (
             <p className="text-[10px] text-muted-foreground sm:text-xs">
               {hasTiers && smallestTier
-                ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${(Number(smallestTier.quantity) || 0).toLocaleString()} pcs)`
-                : `Min. ${p.moq.toLocaleString()} units`}
+                ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${unitCount(Number(smallestTier.quantity) || 0, p.risellerUomName)})`
+                : `Min. ${unitCount(p.moq, p.risellerUomName)}`}
             </p>
           )}
           {stock.canOrder ? (
