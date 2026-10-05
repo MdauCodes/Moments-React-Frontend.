@@ -355,6 +355,11 @@ export default function ProductDetail() {
             </div>
           )}
           <h1 className="font-display text-2xl font-medium text-foreground sm:text-3xl lg:text-[2rem]">{product.name}</h1>
+          {product.productCode && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Product code <span className="font-medium text-foreground">{product.productCode}</span>
+            </p>
+          )}
           <div className="mt-3">
             <p className={`text-sm text-muted-foreground sm:text-base ${descExpanded ? "" : "line-clamp-3"}`}>{sanitizeProductDescription(product.description)}</p>
             {product.description && product.description.length > 160 && (
