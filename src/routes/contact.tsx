@@ -168,10 +168,10 @@ function ContactPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Phone number *</label>
+                    <label className={labelClass}>Phone number {contactMethod === "email" ? "(optional)" : "*"}</label>
                     <input
                       type="tel"
-                      required
+                      required={contactMethod !== "email"}
                       pattern="[+0-9()\s\-]{7,30}"
                       title="Enter a valid phone number"
                       value={phone}
@@ -254,10 +254,10 @@ function ContactPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>Phone *</label>
+                    <label className={labelClass}>Phone {contactMethod === "email" ? "(optional)" : "*"}</label>
                     <input
                       type="tel"
-                      required
+                      required={contactMethod !== "email"}
                       pattern="[+0-9()\s\-]{7,30}"
                       title="Enter a valid phone number"
                       value={phone}

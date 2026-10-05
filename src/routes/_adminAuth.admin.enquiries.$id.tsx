@@ -520,6 +520,11 @@ function AdminEnquiryDetailPage() {
     if (!enquiry) return;
     const msg = buildWhatsAppMessage(enquiry);
     const phone = digitsOnly(enquiry.phone);
+    if (!phone) {
+      // An email-only enquiry has no number to message; a bare wa.me link opens nothing useful.
+      showToast("This customer gave an email only, so there is no WhatsApp number");
+      return;
+    }
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   };
@@ -565,7 +570,7 @@ function AdminEnquiryDetailPage() {
             <div style={{ marginTop: 12 }}>
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>Phone</span>
-                <span style={styles.infoValue}>{enquiry.phone}</span>
+                <span style={styles.infoValue}>{enquiry.phone || "—"}</span>
               </div>
               <div style={styles.infoRow}>
                 <span style={styles.infoLabel}>Email</span>

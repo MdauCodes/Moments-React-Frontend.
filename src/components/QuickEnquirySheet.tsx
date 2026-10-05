@@ -82,10 +82,13 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
   const [formState, setFormState] = useState<FormState>("idle");
   const [showErrors, setShowErrors] = useState(false);
 
+  // Only the way the customer chose to be answered is required; the other detail stays optional
+  // (but must still look right if they type it).
   const emailRequired = replyVia === "email";
+  const phoneRequired = !emailRequired;
   const problems = {
     name: name.trim().length < 2,
-    phone: !phoneLooksReal(phone),
+    phone: phone.trim() !== "" ? !phoneLooksReal(phone) : phoneRequired,
     email: email.trim() !== "" ? !EMAIL_PATTERN.test(email.trim()) : emailRequired,
     text: text.trim().length < 3,
     consent: !consent,
@@ -106,7 +109,7 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
         persona: persona ?? undefined,
         contact: {
           name: name.trim(),
-          phone: phone.trim(),
+          phone: phone.trim() || undefined,
           email: email.trim() || undefined,
         },
         message: buildMessage({ topic, options, replyVia, pagePath: location.pathname, text }),
@@ -185,40 +188,6 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
         {showErrors && problems.name && <p className={errorClass}>Please tell us your name.</p>}
       </div>
 
-      <div>
-        <label htmlFor="qe-phone" className={labelClass}>
-          Phone number *
-        </label>
-        <input
-          id="qe-phone"
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="e.g. 0712 345 678"
-          className={inputClass}
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-        />
-        {showErrors && problems.phone && <p className={errorClass}>Enter a phone number we can reach you on.</p>}
-      </div>
-
-      <div>
-        <label htmlFor="qe-email" className={labelClass}>
-          Email {emailRequired ? "*" : "(optional)"}
-        </label>
-        <input
-          id="qe-email"
-          type="email"
-          autoComplete="email"
-          className={inputClass}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        {showErrors && problems.email && (
-          <p className={errorClass}>{emailRequired && !email.trim() ? "Add an email to be answered by email." : "That email does not look right."}</p>
-        )}
-      </div>
-
       <fieldset>
         <legend className={labelClass}>How should we reply?</legend>
         <div className="grid grid-cols-3 gap-2">
@@ -239,6 +208,46 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
           ))}
         </div>
       </fieldset>
+
+      <div>
+        <label htmlFor="qe-phone" className={labelClass}>
+          Phone number {phoneRequired ? "*" : "(optional)"}
+        </label>
+        <input
+          id="qe-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="e.g. 0712 345 678"
+          className={inputClass}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+        {showErrors && problems.phone && (
+          <p className={errorClass}>
+            {phone.trim() === ""
+              ? "Add a phone number so we can reach you on WhatsApp or by call."
+              : "That phone number does not look right."}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="qe-email" className={labelClass}>
+          Email {emailRequired ? "*" : "(optional)"}
+        </label>
+        <input
+          id="qe-email"
+          type="email"
+          autoComplete="email"
+          className={inputClass}
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        {showErrors && problems.email && (
+          <p className={errorClass}>{emailRequired && !email.trim() ? "Add an email to be answered by email." : "That email does not look right."}</p>
+        )}
+      </div>
 
       <div>
         <label htmlFor="qe-message" className={labelClass}>
