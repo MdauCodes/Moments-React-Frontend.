@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminLayout } from "@/layouts/AdminLayout";
+import { formatKes } from "@/components/admin/commerceUi";
 import { reportAdminError } from "@/lib/adminErrorToast";
 import {
   adminResources,
@@ -24,8 +25,44 @@ const STATUS_COLORS: Record<RefundRequestStatus, { bg: string; fg: string }> = {
   RESOLVED: { bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d" },
 };
 
+const isCancellation = (r: RefundRequestAdminDto) => r.desiredAction === "CANCEL_ORDER";
+
+/** What staff can do next, by kind of request. A cancellation is a short loop — approve (the order is
+ *  cancelled), send the refund by M-Pesa, then record that it was sent — so it only offers the next
+ *  step; any other request is a free choice of decision, as before. */
+function decisionsFor(r: RefundRequestAdminDto): RefundRequestStatus[] {
+  if (!isCancellation(r)) return ["APPROVED", "REJECTED", "RESOLVED"];
+  switch (r.status) {
+    case "PENDING": return ["APPROVED", "REJECTED"];
+    case "APPROVED": return ["RESOLVED"];
+    case "REJECTED": return ["APPROVED"];
+    case "RESOLVED": return [];
+  }
+}
+
+function decisionLabel(r: RefundRequestAdminDto, s: RefundRequestStatus): string {
+  if (isCancellation(r)) {
+    if (s === "APPROVED") return r.status === "REJECTED" ? "Reconsider: approve & cancel order" : "Approve & cancel order";
+    if (s === "REJECTED") return "Reject";
+    return "Refund sent";
+  }
+  return s === "APPROVED" ? "Approve" : s === "REJECTED" ? "Reject" : "Mark resolved";
+}
+
+/** Says exactly what the chosen button will do, since for a cancellation it does real things. */
+function decisionHint(r: RefundRequestAdminDto, s: RefundRequestStatus): string | null {
+  if (!isCancellation(r)) return null;
+  if (s === "APPROVED") {
+    return "This cancels the order now: the stock goes back, any reward points are reversed and the customer is told. It does not send any money — send the M-Pesa refund yourself, then come back and choose Refund sent. You need the Manage Orders permission.";
+  }
+  if (s === "REJECTED") {
+    return "The order carries on as normal. The customer sees your note, so say why.";
+  }
+  return "Choose this only after you have sent the M-Pesa refund. It marks the payment Refunded and tells the customer — put the M-Pesa reference in the note. You need the refund permission.";
+}
+
 /**
- * Reviews requests a customer submitted digitally — either from their account order page or the
+ * Reviews requests a customer submitted digitally — either from their account's order page or the
  * OTP-verified guest track page. Deliberately a separate surface from the order detail modal's
  * own "Refund" card, which tracks a different, staff-initiated complaint log
  * (Order.refundRequestedAt) — the two aren't the same record and this page doesn't touch that one.
@@ -53,8 +90,9 @@ function AdminRefundRequestsPage() {
   useEffect(() => { void load(); }, []);
 
   function startReview(row: RefundRequestAdminDto) {
+    const options = decisionsFor(row);
     setReviewingId(row.id);
-    setDraftStatus(row.status === "PENDING" ? "APPROVED" : row.status);
+    setDraftStatus(isCancellation(row) ? (options[0] ?? row.status) : row.status === "PENDING" ? "APPROVED" : row.status);
     setDraftNote(row.adminNote ?? "");
   }
 
@@ -67,7 +105,13 @@ function AdminRefundRequestsPage() {
       });
       setRows((prev) => prev.map((r) => (r.id === id ? updated : r)));
       setReviewingId(null);
-      toast.success(`Refund request marked ${updated.status.toLowerCase()}`);
+      toast.success(
+        isCancellation(updated)
+          ? updated.status === "APPROVED" ? "Order cancelled — now send the refund, then mark it sent"
+            : updated.status === "RESOLVED" ? "Refund recorded as sent"
+            : "Cancellation request rejected — the order carries on"
+          : `Refund request marked ${updated.status.toLowerCase()}`,
+      );
     } catch (err) {
       reportAdminError(err, "Failed to update refund request");
     } finally {
@@ -82,10 +126,18 @@ function AdminRefundRequestsPage() {
       <div className="admin-page-stack">
         <div className="admin-panel" style={{ padding: 14, fontSize: 13, color: "var(--admin-muted)", lineHeight: 1.6 }}>
           <p>
-            <b>What this controls:</b> refund/return requests customers submit themselves — either from
-            their account's order page or the email-verified track-order page. Approving or rejecting here
-            only records your decision; it doesn't move money or touch inventory on its own — do that from
-            the order's own detail page once you've decided (Refund card there, or Mark payment refunded).
+            <b>What this controls:</b> requests customers submit themselves — from their account's order
+            page or the email-verified track-order page. There are two kinds.
+          </p>
+          <p style={{ marginTop: 6 }}>
+            <b>Refund / replacement / store credit</b> (after delivery): approving or rejecting only records
+            your decision; it doesn't move money or touch inventory on its own — do that from the order's own
+            detail page once you've decided (Refund card there, or Mark payment refunded).
+          </p>
+          <p style={{ marginTop: 6 }}>
+            <b>Cancel order</b> (a paid order the customer wants to cancel): <b>Approve &amp; cancel order</b> cancels
+            it now (stock back, reward points reversed, customer told). Send the refund by M-Pesa yourself, then choose{" "}
+            <b>Refund sent</b> — that is the only thing that marks the payment Refunded. Refunds are never automatic.
           </p>
         </div>
 
@@ -107,7 +159,7 @@ function AdminRefundRequestsPage() {
               <tr>
                 <th>Order</th>
                 <th>Customer</th>
-                <th>Desired action</th>
+                <th>Asked for</th>
                 <th>Reason</th>
                 <th>Status</th>
                 <th>Requested</th>
@@ -123,14 +175,33 @@ function AdminRefundRequestsPage() {
                 visible.map((r) => {
                   const colors = STATUS_COLORS[r.status];
                   const reviewing = reviewingId === r.id;
+                  const cancellation = isCancellation(r);
                   return (
                     <tr key={r.id}>
-                      <td><b>{r.orderReference}</b></td>
+                      <td>
+                        <b>{r.orderReference}</b>
+                        {r.orderStatus && (
+                          <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>
+                            Order {r.orderStatus.replace(/_/g, " ").toLowerCase()}
+                            {r.orderTotal != null ? ` · ${formatKes(r.orderTotal)}` : ""}
+                          </div>
+                        )}
+                      </td>
                       <td>
                         {r.customerName}
                         <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{r.customerEmail}</div>
+                        {r.customerPhone && (
+                          <div style={{ color: "var(--admin-muted)", fontSize: 11 }}>{r.customerPhone}</div>
+                        )}
                       </td>
-                      <td>{r.desiredAction.replace(/_/g, " ")}</td>
+                      <td>
+                        {cancellation ? <b>Cancel order</b> : r.desiredAction.replace(/_/g, " ")}
+                        {cancellation && r.status === "APPROVED" && (
+                          <div style={{ color: "#a16207", fontSize: 11, fontWeight: 600 }}>
+                            Cancelled — refund owed{r.orderTotal != null ? `: ${formatKes(r.orderTotal)}` : ""}
+                          </div>
+                        )}
+                      </td>
                       <td style={{ maxWidth: 260 }}>
                         <div style={{ fontSize: 12 }}>{r.reason}</div>
                         {r.adminNote && (
@@ -147,9 +218,9 @@ function AdminRefundRequestsPage() {
                       </td>
                       <td>{new Date(r.createdAt).toLocaleString("en-KE")}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
-                        {!reviewing && (
+                        {!reviewing && decisionsFor(r).length > 0 && (
                           <button className="admin-btn admin-btn-ghost" onClick={() => startReview(r)}>
-                            Review
+                            {cancellation && r.status === "APPROVED" ? "Record refund" : "Review"}
                           </button>
                         )}
                       </td>
@@ -164,25 +235,42 @@ function AdminRefundRequestsPage() {
         {reviewingId && (() => {
           const row = rows.find((r) => r.id === reviewingId);
           if (!row) return null;
+          const hint = decisionHint(row, draftStatus);
           return (
             <div className="admin-panel" style={{ padding: 16 }}>
-              <div className="admin-label">Review — {row.orderReference}</div>
+              <div className="admin-label">
+                {isCancellation(row) ? "Cancellation request" : "Review"} — {row.orderReference}
+              </div>
+              {isCancellation(row) && (
+                <p style={{ marginTop: 6, fontSize: 12, color: "var(--admin-muted)" }}>
+                  {row.customerName} paid {row.orderTotal != null ? formatKes(row.orderTotal) : "for this order"}
+                  {row.orderStatus ? ` · order is ${row.orderStatus.replace(/_/g, " ").toLowerCase()}` : ""}
+                  {row.customerPhone ? ` · phone on the order ${row.customerPhone}` : ""}. Refund to the M-Pesa number they paid with.
+                </p>
+              )}
               <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {(["APPROVED", "REJECTED", "RESOLVED"] as RefundRequestStatus[]).map((s) => (
+                {decisionsFor(row).map((s) => (
                   <button
                     key={s}
                     className={`admin-btn ${draftStatus === s ? "admin-btn-primary" : "admin-btn-ghost"}`}
                     onClick={() => setDraftStatus(s)}
                   >
-                    {s === "APPROVED" ? "Approve" : s === "REJECTED" ? "Reject" : "Mark resolved"}
+                    {decisionLabel(row, s)}
                   </button>
                 ))}
               </div>
+              {hint && (
+                <p style={{ marginTop: 8, fontSize: 12, color: "var(--admin-muted)", lineHeight: 1.5 }}>{hint}</p>
+              )}
               <textarea
                 rows={3}
                 value={draftNote}
                 onChange={(e) => setDraftNote(e.target.value)}
-                placeholder="Note visible to the customer (optional)…"
+                placeholder={
+                  isCancellation(row) && draftStatus === "RESOLVED"
+                    ? "M-Pesa reference of the refund (shown to the customer)…"
+                    : "Note visible to the customer (optional)…"
+                }
                 style={{
                   marginTop: 10, width: "100%", borderRadius: 8, border: "1px solid var(--admin-border)",
                   padding: "8px 10px", fontSize: 13,

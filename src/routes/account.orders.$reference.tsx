@@ -1,15 +1,17 @@
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Package, MapPin, Phone, Mail, RotateCcw, ShoppingBag, CheckCircle2, Clock, Truck, AlertCircle, Undo2 } from "lucide-react";
+import { ArrowLeft, Package, MapPin, Phone, Mail, RotateCcw, ShoppingBag, CheckCircle2, Clock, Truck, AlertCircle, Undo2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { DashboardPageShell } from "@/components/dashboard/DashboardPageShell";
 import { PrintReceipt } from "@/components/PrintReceipt";
 import { RefundForm } from "@/components/RefundForm";
+import { CancelOrderForm } from "@/components/CancelOrderForm";
+import { RefundRequestCard } from "@/components/RefundRequestCard";
 import { OrderReviewForm } from "@/components/OrderReviewForm";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
-import { refundStore, refundEligibility, type RefundRequest } from "@/services/refundStore";
+import { refundStore, refundEligibility, cancelOption, type RefundRequest } from "@/services/refundStore";
 import { orderReviewStore, type OrderReview } from "@/services/orderReviewStore";
 import { useCart } from "@/contexts/CartContext";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
@@ -40,6 +42,8 @@ function OrderDetailPage() {
   const [order, setOrder] = useState<CustomerOrder | null | undefined>(undefined);
   const [refund, setRefund] = useState<RefundRequest | null>(null);
   const [showRefundForm, setShowRefundForm] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [reordering, setReordering] = useState(false);
   const [orderReview, setOrderReview] = useState<OrderReview | null>(null);
   const [showReviewForm, setShowReviewForm] = useState(false);
@@ -52,6 +56,7 @@ function OrderDetailPage() {
 
   const StatusIcon = useMemo(() => statusIcon(order?.status ?? ""), [order?.status]);
   const eligibility = useMemo(() => order ? refundEligibility(order) : { eligible: false }, [order]);
+  const cancel = useMemo(() => (order ? cancelOption(order) : ({ kind: "none" } as const)), [order]);
 
   if (order === undefined) {
     return (
@@ -92,6 +97,23 @@ function OrderDetailPage() {
     setReordering(false);
   }
 
+  /** Only offered while nothing has been paid — a paid order is cancelled by asking us instead. */
+  async function handleCancelNow() {
+    if (!order) return;
+    if (!window.confirm(`Cancel order ${order.reference}? You haven't paid for it yet, so there's nothing to refund. This can't be undone.`)) return;
+    setCancelling(true);
+    try {
+      await orderStore.cancelUnpaid(order.reference);
+      toast.success("Order cancelled");
+      const res = await orderStore.getMine(order.reference);
+      if (res.order) setOrder(res.order);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Couldn't cancel this order.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   return (
     <DashboardPageShell>
       <section className="mx-auto max-w-5xl px-5 py-12 lg:px-8 lg:py-16">
@@ -119,13 +141,38 @@ function OrderDetailPage() {
           </div>
         </div>
 
-        {refund && (
-          <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
-            <p className="font-semibold">Refund request: {refund.status}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Reason: {refund.reason}</p>
-            <p className="text-xs text-muted-foreground">Action: {refund.desiredAction.replace(/_/g, " ")}</p>
-            {refund.adminNote && <p className="mt-2 text-xs">Admin note: {refund.adminNote}</p>}
-          </div>
+        {refund && <RefundRequestCard request={refund} total={order.total} />}
+
+        {/* Same understated treatment as the refund link below. Unpaid: cancelled on the spot.
+            Paid: a request our team answers, since refunds are always sent by hand. */}
+        {cancel.kind === "direct" && (
+          <button
+            onClick={() => void handleCancelNow()}
+            disabled={cancelling}
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground disabled:opacity-60"
+          >
+            <XCircle className="h-3 w-3" /> {cancelling ? "Cancelling…" : "Changed your mind? Cancel this order"}
+          </button>
+        )}
+        {cancel.kind === "request" && (!refund || refund.status === "REJECTED") && !showCancelForm && (
+          <button
+            onClick={() => setShowCancelForm(true)}
+            className="mt-3 inline-flex items-center gap-1 text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            <XCircle className="h-3 w-3" /> Need to cancel? Ask us to cancel this order and refund you
+          </button>
+        )}
+        {showCancelForm && (
+          <CancelOrderForm
+            total={order.total}
+            onCancel={() => setShowCancelForm(false)}
+            onSubmit={async (reason) => {
+              const request = await refundStore.submitCancellation(order, reason);
+              setRefund(request);
+              setShowCancelForm(false);
+              toast.success("Cancellation request sent — we'll reply within 2 business days.");
+            }}
+          />
         )}
 
         {/* Deliberately understated — findable, not a bold header action. Most orders never need

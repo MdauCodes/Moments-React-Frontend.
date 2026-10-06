@@ -6,16 +6,22 @@ export type EnquiryStatus = "NEW" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 export type BlogStatus = "DRAFT" | "PUBLISHED";
 
 export type RefundRequestStatus = "PENDING" | "APPROVED" | "REJECTED" | "RESOLVED";
-export type RefundDesiredAction = "REFUND" | "REPLACE" | "STORE_CREDIT";
+/** CANCEL_ORDER: a customer asking us to cancel an order they have already paid for. */
+export type RefundDesiredAction = "REFUND" | "REPLACE" | "STORE_CREDIT" | "CANCEL_ORDER";
 export type RefundRequestAdminDto = {
   id: string;
   orderReference: string;
   customerEmail: string;
   customerName: string;
+  customerPhone?: string | null;
   reason: string;
   desiredAction: RefundDesiredAction;
   status: RefundRequestStatus;
   adminNote?: string | null;
+  /** The order's own state right now — how far it got, whether it is paid, and how much. */
+  orderStatus?: string | null;
+  paymentStatus?: string | null;
+  orderTotal?: number | null;
   createdAt: string;
   updatedAt: string;
 };

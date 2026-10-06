@@ -856,6 +856,28 @@ export const orderStore = {
     return { order: found, source: "mock" };
   },
 
+  /**
+   * Cancels an order nothing has been paid for, on the spot. A paid order is cancelled by asking
+   * our team instead (refundStore.submitCancellation) — refunds are always sent by hand, so the
+   * server refuses to cancel one here and says why; that message is thrown as-is.
+   */
+  async cancelUnpaid(reference: string): Promise<void> {
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/v1/customer/orders/${encodeURIComponent(reference)}/cancel`, {
+        method: "POST",
+        auth: true,
+        session: true,
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as { message?: string }).message ?? `Couldn't cancel this order (${res.status})`);
+    }
+  },
+
   /** Reorder: re-add past order items to cart. */
   async reorder(reference: string): Promise<{ ok: boolean; message?: string }> {
     try {

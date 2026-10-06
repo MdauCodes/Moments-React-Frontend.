@@ -11,7 +11,9 @@ import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { TumaBodaTrackingWidget } from "@/components/TumaBodaTrackingWidget";
 import { resolveStatusDisplay, isCustomerSelfConfirmMode } from "@/lib/orderStatusV2";
 import { RefundForm } from "@/components/RefundForm";
-import { refundEligibility, type RefundRequest } from "@/services/refundStore";
+import { CancelOrderForm } from "@/components/CancelOrderForm";
+import { RefundRequestCard } from "@/components/RefundRequestCard";
+import { refundEligibility, cancelOption, type RefundRequest } from "@/services/refundStore";
 import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
 import { getPublicVapidPublicKey, subscribeCustomerPush } from "@/services/pushApi";
 import { Bell } from "lucide-react";
@@ -613,8 +615,11 @@ function RefundSection({
 }: { reference: string; email: string; accessToken: string; order: CustomerOrder }) {
   const [refund, setRefund] = useState<RefundRequest | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showCancelForm, setShowCancelForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const eligibility = refundEligibility(order);
+  // A guest has no account to cancel an unpaid order from, so only the paid-order request applies.
+  const cancel = cancelOption(order);
 
   useEffect(() => {
     let cancelled = false;
@@ -628,13 +633,27 @@ function RefundSection({
 
   return (
     <>
-      {refund && (
-        <div className="mt-4 rounded-xl border border-border bg-card p-4 text-sm">
-          <p className="font-semibold">Refund request: {refund.status}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Reason: {refund.reason}</p>
-          <p className="text-xs text-muted-foreground">Action: {refund.desiredAction.replace(/_/g, " ")}</p>
-          {refund.adminNote && <p className="mt-2 text-xs">Admin note: {refund.adminNote}</p>}
-        </div>
+      {refund && <RefundRequestCard request={refund} total={order.total} />}
+      {/* A paid order is cancelled by asking our team — refunds are always sent by hand. */}
+      {cancel.kind === "request" && (!refund || refund.status === "REJECTED") && !showCancelForm && (
+        <button
+          onClick={() => setShowCancelForm(true)}
+          className="mt-3 block text-xs text-muted-foreground underline hover:text-foreground"
+        >
+          Need to cancel? Ask us to cancel this order and refund you
+        </button>
+      )}
+      {showCancelForm && (
+        <CancelOrderForm
+          total={order.total}
+          onCancel={() => setShowCancelForm(false)}
+          onSubmit={async (reason) => {
+            const request = await orderStore.submitTrackRefundRequest(reference, email, accessToken, { reason, desiredAction: "CANCEL_ORDER" });
+            setRefund(request);
+            setShowCancelForm(false);
+            toast.success("Cancellation request sent — we'll reply within 2 business days.");
+          }}
+        />
       )}
       {/* Deliberately understated — findable, not a bold call-to-action. Most orders never need
           this, and the ones that do are already looking for it (via the policy note below). */}
