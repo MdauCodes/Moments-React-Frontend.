@@ -22,6 +22,7 @@ import { RouteSeo } from "@/components/RouteSeo";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { EngagementPrompts } from "@/components/engagement/EngagementPrompts";
+import { QrVisitDialog } from "@/components/QrVisitDialog";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 // The homepage alone stays a static import: it is the one route that must be in the initial
@@ -391,6 +392,8 @@ export default function App() {
                       needs to — and so the provider's own lazily-mounted QuickEnquirySheet stays
                       the single instance of that panel for the whole app. */}
                   <EngagementPrompts />
+                  {/* What a customer sees after scanning our printed QR code (?qr=1). */}
+                  <QrVisitDialog />
                 </EnquiryProvider>
                 </PersonaProvider>
               </AdminAuthProvider>

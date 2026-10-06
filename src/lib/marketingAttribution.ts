@@ -187,7 +187,12 @@ export function captureMarketingTouch(
     /* storage unavailable — worst case a duplicate touch row, never a lost order */
   }
 
-  if (hasTag) {
+  // A printed QR code (utm_source=qr) is still recorded as a touch, but it is not an ad campaign:
+  // it reaches someone already dealing with us (shop counter, parcel insert), not an audience Meta
+  // needs to learn from, so it must not trigger the immediate cookie ask meant for tagged ad
+  // traffic. Its welcome window (QrVisitDialog) gets the screen to itself; the banner then follows
+  // on its ordinary delay.
+  if (hasTag && tagged.source?.toLowerCase() !== "qr") {
     try {
       window.sessionStorage.setItem(TAGGED_SESSION_KEY, "1");
     } catch {
