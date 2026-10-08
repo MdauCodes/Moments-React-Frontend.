@@ -690,6 +690,33 @@ export interface SuccessfulPayment {
   isTestOrder: boolean;
 }
 
+/** A payment attempt that failed — see PaymentService.getFailedPayments / FailedPaymentDto.
+ *  orderPaymentStatus is the order's CURRENT status (PAID if the customer retried successfully). */
+export interface FailedPayment {
+  paymentRecordId: string;
+  orderId: string;
+  orderReference: string;
+  contactName: string;
+  phone: string;
+  amount: number;
+  method: string | null;
+  purpose: string | null;
+  failureReason: string | null;
+  failedAt: string;
+  fulfillmentType: string | null;
+  courierServiceName: string | null;
+  deliveryAddress: string | null;
+  orderTotal: number;
+  orderPaymentStatus: string | null;
+  isTestOrder: boolean;
+  items: { productName: string; size: string | null; collectionName: string | null; quantity: number | null }[];
+}
+
+export async function listFailedPayments(page = 0, size = 25): Promise<{ rows: FailedPayment[]; total: number; totalPages: number }> {
+  const data = await getJson<any>(`/api/v1/admin/orders/payments/failed?${qs({ page, size })}`);
+  return unwrapPage<FailedPayment>(data);
+}
+
 export async function listSuccessfulPayments(page = 0, size = 25): Promise<{ rows: SuccessfulPayment[]; total: number; totalPages: number }> {
   const data = await getJson<any>(`/api/v1/admin/orders/payments/successful?${qs({ page, size })}`);
   return unwrapPage<SuccessfulPayment>(data);
