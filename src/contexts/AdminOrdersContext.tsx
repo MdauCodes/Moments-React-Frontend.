@@ -13,6 +13,11 @@ import { listOrders, subscribeToAdminOrderEvents } from "@/services/commerceApi"
 import type { OrderRecord } from "@/services/commerceMock";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
+import { primeOrderAlertSound } from "@/lib/orderAlertSound";
+
+// Only orders placed this recently trigger the alert, so an old order surfacing through paging or
+// a reconnect never rings the bell.
+const ALERT_MAX_AGE_MS = 15 * 60_000;
 
 interface AdminOrdersContextValue {
   orders: OrderRecord[];
@@ -26,6 +31,9 @@ interface AdminOrdersContextValue {
   refresh: () => Promise<void>;
   /** Optimistically patch a single order in the in-memory cache. */
   applyOrderPatch: (id: string, patch: Partial<OrderRecord>) => void;
+  /** Orders that arrived since the admin last acknowledged — drives the interrupting alert modal. */
+  newOrderAlerts: OrderRecord[];
+  acknowledgeNewOrders: () => void;
 }
 
 const AdminOrdersContext = createContext<AdminOrdersContextValue | undefined>(undefined);
@@ -49,6 +57,8 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const inflight = useRef<Promise<void> | null>(null);
   const hasLoadedRef = useRef(false);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const [newOrderAlerts, setNewOrderAlerts] = useState<OrderRecord[]>([]);
 
   const refresh = useCallback(async () => {
     if (!isAuthenticated) return;
@@ -62,6 +72,15 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
         const sorted = [...res.rows].sort(
           (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
         );
+        if (hasLoadedRef.current) {
+          const fresh = sorted.filter(
+            (o) =>
+              !knownIdsRef.current.has(o.id) &&
+              Date.now() - new Date(o.createdAt).getTime() < ALERT_MAX_AGE_MS,
+          );
+          if (fresh.length > 0) setNewOrderAlerts((prev) => [...prev, ...fresh]);
+        }
+        knownIdsRef.current = new Set(sorted.map((o) => o.id));
         setOrders(sorted);
         setLastUpdatedAt(Date.now());
         setError(null);
@@ -87,6 +106,8 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
       setOrders([]);
       setInitialLoading(true);
       hasLoadedRef.current = false;
+      knownIdsRef.current = new Set();
+      setNewOrderAlerts([]);
       return;
     }
     void refresh();
@@ -128,13 +149,39 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [isAuthenticated, refresh]);
 
+  useEffect(() => {
+    primeOrderAlertSound();
+  }, []);
+
+  const acknowledgeNewOrders = useCallback(() => setNewOrderAlerts([]), []);
+
   const applyOrderPatch = useCallback((id: string, patch: Partial<OrderRecord>) => {
     setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)));
   }, []);
 
   const value = useMemo<AdminOrdersContextValue>(
-    () => ({ orders, initialLoading, refreshing, lastUpdatedAt, error, refresh, applyOrderPatch }),
-    [orders, initialLoading, refreshing, lastUpdatedAt, error, refresh, applyOrderPatch],
+    () => ({
+      orders,
+      initialLoading,
+      refreshing,
+      lastUpdatedAt,
+      error,
+      refresh,
+      applyOrderPatch,
+      newOrderAlerts,
+      acknowledgeNewOrders,
+    }),
+    [
+      orders,
+      initialLoading,
+      refreshing,
+      lastUpdatedAt,
+      error,
+      refresh,
+      applyOrderPatch,
+      newOrderAlerts,
+      acknowledgeNewOrders,
+    ],
   );
 
   return <AdminOrdersContext.Provider value={value}>{children}</AdminOrdersContext.Provider>;
