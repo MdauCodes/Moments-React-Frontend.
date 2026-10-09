@@ -51,6 +51,7 @@ const IndustriesPage = lazy(() => import("@/routes/industries"));
 const LoginPage = lazy(() => import("@/routes/login"));
 const OrderConfirmationPage = lazy(() => import("@/routes/order-confirmation"));
 const OrdersTrackPage = lazy(() => import("@/routes/orders.track"));
+const ReviewPage = lazy(() => import("@/routes/review"));
 const PrivacyPage = lazy(() => import("@/routes/privacy"));
 const TermsPage = lazy(() => import("@/routes/terms"));
 const RewardsTermsPage = lazy(() => import("@/routes/rewards-terms"));
@@ -248,6 +249,7 @@ export default function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
                     <Route path="/orders/track" element={<OrdersTrackPage />} />
+                    <Route path="/review/:reference" element={<ReviewPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/rewards-terms" element={<RewardsTermsPage />} />

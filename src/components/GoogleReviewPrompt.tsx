@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -23,6 +23,10 @@ export function GoogleReviewPrompt({
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState(initialComment);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (open) setComment(initialComment);
+  }, [open, initialComment]);
 
   async function handleOpen() {
     setBusy(true);
