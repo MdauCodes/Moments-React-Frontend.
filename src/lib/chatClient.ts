@@ -74,6 +74,7 @@ export function chatErrorText(err: unknown): string {
   if (status === 429) return "That was a bit fast. Please wait a moment and try again.";
   if (status === 409) return "This chat has ended. Please start a new one.";
   if (status === 400 && err instanceof ChatApiError && err.message) return err.message;
+  if (status === 400 || status === 422) return "Please check what you typed and try again.";
   return "We could not reach our team just now. Please try again, or message us on WhatsApp.";
 }
 
@@ -114,6 +115,7 @@ export type StartChatInput = {
   phone: string;
   message: string;
   pageUrl: string;
+  consentPolicyVersion: string;
   honeypot: string;
   formRenderedAt: number;
   turnstileToken: string;
@@ -135,6 +137,7 @@ export async function startChat(
       phone: input.phone.trim() || undefined,
       message: input.message.trim(),
       pageUrl: input.pageUrl,
+      consentPolicyVersion: input.consentPolicyVersion,
       honeypot: input.honeypot,
       formRenderedAt: input.formRenderedAt,
       turnstileToken: input.turnstileToken,

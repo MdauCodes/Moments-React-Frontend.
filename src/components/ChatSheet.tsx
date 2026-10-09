@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { Send } from "lucide-react";
 
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
@@ -30,6 +30,7 @@ import {
   type ChatSession,
 } from "@/lib/chatClient";
 import { emailLooksReal, phoneLooksReachable, phoneForSubmission } from "@/lib/enquiryMessage";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 
 const POLL_MS = 3000;
 const MAX_LENGTH = 1000;
@@ -81,6 +82,12 @@ function ChatPanel() {
     setMode("chat");
   }
 
+  // A chat that has ended also forgets its secret, so the next person at a shared device cannot read or continue it.
+  const handleEnded = useCallback(() => {
+    clearSession();
+    setMode("ended");
+  }, []);
+
   function startAgain() {
     clearSession();
     setSession(null);
@@ -96,7 +103,7 @@ function ChatPanel() {
         setMessages={setMessages}
         staffOnline={staffOnline}
         setStaffOnline={setStaffOnline}
-        onEnded={() => setMode("ended")}
+        onEnded={handleEnded}
       />
     );
   }
@@ -135,6 +142,7 @@ function StartForm({
   const [message, setMessage] = useState("");
   const [consent, setConsent] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileKey, setTurnstileKey] = useState(0);
   const [showErrors, setShowErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -182,12 +190,17 @@ function StartForm({
         email,
         phone: phoneGiven ? phoneForSubmission(phone) : "",
         message,
-        pageUrl: window.location.href.split("#")[0] ?? "",
+        // Only where they were (no query string: it can carry an email, a token or an order reference).
+        pageUrl: window.location.origin + window.location.pathname,
+        consentPolicyVersion: PRIVACY_POLICY_VERSION,
         ...toPayload(turnstileToken),
       });
       onStarted(started.session, started.first, started.staffOnline);
     } catch (err) {
       setError(chatErrorText(err));
+      // A security-check token works once; ask for a fresh one so a retry is not refused for reusing it.
+      setTurnstileToken("");
+      setTurnstileKey((k) => k + 1);
       setBusy(false);
     }
   }
@@ -207,6 +220,7 @@ function StartForm({
           <input
             {...aria}
             name="name"
+            maxLength={120}
             autoComplete="name"
             className={`${inputClass} ${errors.name ? invalidInputClass : ""}`}
             value={name}
@@ -226,6 +240,7 @@ function StartForm({
             {...aria}
             type="email"
             name="email"
+            maxLength={255}
             autoComplete="email"
             inputMode="email"
             className={`${inputClass} ${errors.email || errors.reach ? invalidInputClass : ""}`}
@@ -246,6 +261,7 @@ function StartForm({
             {...aria}
             type="tel"
             name="phone"
+            maxLength={30}
             autoComplete="tel"
             inputMode="tel"
             className={`${inputClass} ${errors.phone ? invalidInputClass : ""}`}
@@ -270,14 +286,14 @@ function StartForm({
       </Field>
 
       <HoneypotField value={honeypot} onChange={setHoneypot} />
-      <TurnstileWidget onToken={setTurnstileToken} />
+      <TurnstileWidget key={turnstileKey} onToken={setTurnstileToken} />
 
       <div>
         <ConsentCheckbox
           id="chat-consent"
           checked={consent}
           onCheckedChange={setConsent}
-          purpose="answer this chat"
+          purpose="answer this chat and follow up with you about your enquiry"
         />
         {errors.consent && (
           <p className="mt-1.5 text-xs font-medium text-destructive">{errors.consent}</p>
