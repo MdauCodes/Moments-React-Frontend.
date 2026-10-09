@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { PaymentFailedFeedback } from "@/components/CheckoutFeedbackCards";
+import { SoftNote } from "@/components/SoftNote";
+import { CheckoutCouponUnlock, type UnlockedCoupons } from "@/components/CheckoutCouponUnlock";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -354,6 +356,8 @@ function CheckoutModal() {
   const [promoChecking, setPromoChecking] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState<{ code: string; discount: number } | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
+  // A guest who proved they own their email (code sent to it) can use that account's coupons/points.
+  const [couponPass, setCouponPass] = useState<UnlockedCoupons | null>(null);
   const [autoApplied, setAutoApplied] = useState(false);
   // Business Account welcome code — auto-tried once the cart crosses its
   // minimum, but never overrides a code the customer typed in themselves,
@@ -402,6 +406,38 @@ function CheckoutModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [welcomeCode, cartTotal]);
 
+  // The email + pass that unlock someone else's saved coupons, only while the typed email still matches it.
+  function passFields(): { email?: string; couponToken?: string } {
+    if (isAuthenticated || !couponPass) return {};
+    if (email.trim().toLowerCase() !== couponPass.email) return {};
+    return { email: couponPass.email, couponToken: couponPass.token };
+  }
+
+  // One preview call for both kinds of shopper: logged in, or holding an emailed-code pass.
+  async function previewRedeem(points: number, orderTotal: number): Promise<any> {
+    const pass = passFields();
+    const res = pass.couponToken
+      ? await fetch(apiUrl("/api/v1/public/checkout-coupons/redeem-preview"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: pass.email, token: pass.couponToken, points, orderTotal }),
+        })
+      : await authFetch(apiUrl("/api/v1/customer/referral/redeem/preview"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ points, orderTotal }),
+        });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, message: data?.message ?? "We couldn't check that just now.", appliedDiscountKes: 0 };
+    return data;
+  }
+
+  function handleUnlocked(d: UnlockedCoupons) {
+    setCouponPass(d);
+    setPointsBalance(d.pointsBalance);
+    toast.success("Your rewards are unlocked");
+  }
+
   async function tryApplyPromoCode(code: string, opts: { silent?: boolean } = {}): Promise<boolean> {
     if (!code) return false;
     setPromoChecking(true);
@@ -410,7 +446,7 @@ function CheckoutModal() {
       const res = await authFetch(apiUrl("/api/v1/checkout/validate-promo"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, subtotal: cartTotal }),
+        body: JSON.stringify({ code, subtotal: cartTotal, ...passFields() }),
       });
       const data = await res.json();
       if (data.valid) {
@@ -424,7 +460,7 @@ function CheckoutModal() {
       }
       return false;
     } catch {
-      if (!opts.silent) setPromoError("Couldn't check that code right now — try again");
+      if (!opts.silent) setPromoError("We couldn't check that code just now. Please try again in a moment.");
       return false;
     } finally {
       setPromoChecking(false);
@@ -472,16 +508,11 @@ function CheckoutModal() {
     const t = setTimeout(async () => {
       try {
         const preliminaryTotal = cartTotal + shippingFee - (appliedPromo?.discount ?? 0);
-        const res = await authFetch(apiUrl("/api/v1/customer/referral/redeem/preview"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ points, orderTotal: preliminaryTotal }),
-        });
-        if (!res.ok) {
+        const data = await previewRedeem(points, preliminaryTotal);
+        if (data.ok === false) {
           setPreviewDiscount(null);
           return;
         }
-        const data = await res.json();
         setPreviewDiscount(data.appliedDiscountKes ?? null);
         setPreviewCapped(!!data.capped);
       } catch {
@@ -530,6 +561,18 @@ function CheckoutModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appliedPromo?.code]);
 
+  // The pass belongs to one email: if the shopper changes it, drop what it unlocked.
+  useEffect(() => {
+    if (!couponPass || isAuthenticated) return;
+    if (email.trim().toLowerCase() === couponPass.email) return;
+    setCouponPass(null);
+    setAppliedPromo(null);
+    setAppliedRedemption(null);
+    setRedeemInput("");
+    setPointsBalance(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [email]);
+
   async function applyPointsRedemption(pointsOverride?: number) {
     const points = pointsOverride ?? parseInt(redeemInput, 10);
     if (!points || points <= 0) {
@@ -540,24 +583,19 @@ function CheckoutModal() {
     setRedeemError(null);
     try {
       const preliminaryTotal = cartTotal + shippingFee - (appliedPromo?.discount ?? 0);
-      const res = await authFetch(apiUrl("/api/v1/customer/referral/redeem/preview"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points, orderTotal: preliminaryTotal }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setRedeemError(data.message ?? "Couldn't redeem those Reward Coupons");
+      const data = await previewRedeem(points, preliminaryTotal);
+      if (data.ok === false) {
+        setRedeemError(data.message ?? "Those Reward Coupons can't be used on this order.");
         return;
       }
       setAppliedRedemption({ points, discount: data.appliedDiscountKes ?? 0 });
       if (data.capped) {
-        toast.info(`Capped at the maximum redeemable for this order: KES ${data.appliedDiscountKes}`);
+        setRedeemError(data.message || `Rewards can cover up to KES ${data.appliedDiscountKes} of this order, so we used that much.`);
       } else {
         toast.success("Reward Coupons applied");
       }
     } catch {
-      setRedeemError("Couldn't check that right now — try again");
+      setRedeemError("We couldn't check that just now. Please try again in a moment.");
     } finally {
       setRedeemChecking(false);
     }
@@ -1108,6 +1146,7 @@ function CheckoutModal() {
           consentPolicyVersion: PRIVACY_POLICY_VERSION,
           promoCode: appliedPromo?.code,
           redeemPoints: appliedRedemption?.points,
+          couponToken: passFields().couponToken,
           etrRequested,
           documentsEmail: etrRequested ? documentsEmail.trim() : undefined,
           taxInvoiceKraPin: taxInvoiceKraPin.trim() || undefined,
@@ -2488,6 +2527,8 @@ function CheckoutModal() {
                       ))}
                     </ul>
 
+                    {!isAuthenticated && !couponPass && <CheckoutCouponUnlock email={email} onUnlocked={handleUnlocked} />}
+
                     <div className="mt-4 border-t border-border pt-3">
                       {appliedPromo ? (
                         <div className="flex items-center justify-between gap-2 rounded-lg bg-accent/10 px-3 py-2 text-xs">
@@ -2520,7 +2561,21 @@ function CheckoutModal() {
                           </button>
                         </div>
                       )}
-                      {promoError && <p className="mt-1.5 text-[11px] text-destructive">{promoError}</p>}
+                      {promoError && <SoftNote message={promoError} onDismiss={() => setPromoError(null)} />}
+                      {couponPass && couponPass.codes.length > 0 && !appliedPromo && !appliedRedemption && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {couponPass.codes.map((c) => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              onClick={() => void tryApplyPromoCode(c.code)}
+                              className="rounded-full border border-accent/50 bg-accent/10 px-3 py-1 text-[11px] font-semibold hover:bg-accent/20"
+                            >
+                              {c.code} · {c.type === "PERCENT" ? `${c.value}% off` : fmt(c.value)} — Apply
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {pointsBalance !== null && pointsBalance > 0 && (
@@ -2573,7 +2628,7 @@ function CheckoutModal() {
                             ≈ {fmt(previewDiscount)} off{previewCapped ? " (capped at the maximum for this order)" : ""}
                           </p>
                         )}
-                        {redeemError && <p className="mt-1.5 text-[11px] text-destructive">{redeemError}</p>}
+                        {redeemError && <SoftNote message={redeemError} onDismiss={() => setRedeemError(null)} />}
                       </div>
                     )}
 

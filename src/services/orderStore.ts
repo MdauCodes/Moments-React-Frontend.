@@ -155,6 +155,8 @@ export interface PlaceOrderInput {
   promoCode?: string;
   /** Individual Shopper rewards points to redeem against this order. */
   redeemPoints?: number;
+  /** Pass from the emailed-code check at checkout; lets a logged-out shopper use that email's coupons. */
+  couponToken?: string;
   sessionId?: string;
   fulfillmentType?: FulfillmentType;
   courierType?: CourierType;
@@ -382,6 +384,7 @@ export const orderStore = {
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;
     if (input.redeemPoints) body.redeemPoints = input.redeemPoints;
+    if (input.couponToken) body.couponToken = input.couponToken;
     if (input.sessionId) body.sessionId = input.sessionId;
     // How this visitor arrived (ad, search, ...). Optional server-side; recorded after the order commits.
     body.attribution = getCheckoutAttribution();
