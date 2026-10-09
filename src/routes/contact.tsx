@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
-import { Check, MessageCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode, type Ref } from "react";
+import { Check, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { ChatWithUsButton } from "@/components/ChatWithUsButton";
@@ -9,9 +9,22 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { SiteLayout } from "@/components/SiteLayout";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useCart, type CartItem } from "@/contexts/CartContext";
-import { ENQUIRY_TOPICS, type ChatPrefill, type EnquiryTopic } from "@/contexts/EnquiryContext";
+import {
+  ENQUIRY_TOPICS,
+  type ChatPrefill,
+  type EnquiryOpenOptions,
+  type EnquiryTopic,
+} from "@/contexts/EnquiryContext";
 import { usePersona } from "@/contexts/PersonaContext";
-import { randomWhatsAppLink } from "@/data/products";
+import {
+  COMPANY_ADDRESS,
+  COMPANY_EMAIL,
+  COMPANY_PHONE,
+  COMPANY_PHONE_ALT,
+  COMPANY_PHONE_ALT_INTL,
+  COMPANY_PHONE_INTL,
+  randomWhatsAppLink,
+} from "@/data/products";
 import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
 import { focusFirstError } from "@/lib/formFocus";
 import {
@@ -33,6 +46,8 @@ type FormState = "idle" | "submitting" | "success" | "error";
 
 interface LocationState {
   basketItems?: CartItem[];
+  /** What the "Enquire" button that brought the visitor here already knew. */
+  enquiry?: EnquiryOpenOptions;
 }
 
 /** Topics where quantity/date/where-to help us answer in one go instead of three. */
@@ -57,15 +72,18 @@ function ContactPage() {
   const incoming = state.basketItems;
   const basketProducts: CartItem[] = items.length === 0 && incoming ? incoming : items;
 
+  const startingMessage = (e?: EnquiryOpenOptions) =>
+    e?.message ?? (e?.product ? `Hi, I'd like to ask about ${e.product.name}.` : "");
+
   const [topic, setTopic] = useState<EnquiryTopic>(
-    basketProducts.length > 0 ? "product" : isCorp ? "bulk" : "other",
+    state.enquiry?.topic ?? (basketProducts.length > 0 ? "product" : isCorp ? "bulk" : "other"),
   );
   const [replyVia, setReplyVia] = useState<ReplyVia>("whatsapp");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(startingMessage(state.enquiry));
   const [quantity, setQuantity] = useState("");
   const [neededBy, setNeededBy] = useState("");
   const [deliverTo, setDeliverTo] = useState("");
@@ -82,6 +100,21 @@ function ContactPage() {
   const successRef = useRef<HTMLDivElement | null>(null);
 
   const showDetails = DETAIL_TOPICS.includes(topic);
+
+  // Tapping "Enquire" again while already on this page brings a new starting point.
+  useEffect(() => {
+    const e = state.enquiry;
+    if (!e) return;
+    if (e.topic) setTopic(e.topic);
+    const m = startingMessage(e);
+    if (m) setMessage(m);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
+  const generalWhatsApp = useMemo(
+    () => randomWhatsAppLink("Hi Moments Packaging, I have a question about your packaging."),
+    [],
+  );
 
   // What the visitor has typed so far, as a chat opening: the same labelled block staff already read on enquiries.
   const chatPrefill: ChatPrefill = {
@@ -207,23 +240,45 @@ function ContactPage() {
           <div className="text-center">
             <p className="text-xs uppercase tracking-widest text-accent">Get in touch</p>
             <h1 className="mt-3 font-display text-3xl font-medium text-balance text-foreground sm:text-4xl">
-              Want to ask us something?
+              Talk to us your way
             </h1>
             <p className="mx-auto mt-4 max-w-md text-muted-foreground">
-              Tell us what you need and a real person will get back to you — usually the same day.
+              Call, message, email or drop by, or leave us a note below. A real person replies, usually the same day.
             </p>
           </div>
 
+          <ul className="mt-8 grid grid-cols-2 gap-3 sm:gap-4">
+            <WayCard
+              href={`tel:${COMPANY_PHONE_INTL.replace(/\s/g, "")}`}
+              icon={<Phone className="h-5 w-5" aria-hidden="true" />}
+              title="Call us"
+              detail={COMPANY_PHONE}
+              extra={{ href: `tel:${COMPANY_PHONE_ALT_INTL.replace(/\s/g, "")}`, label: COMPANY_PHONE_ALT }}
+            />
+            <WayCard
+              href={generalWhatsApp}
+              external
+              icon={<MessageCircle className="h-5 w-5" aria-hidden="true" />}
+              title="WhatsApp"
+              detail="Message us now"
+            />
+            <WayCard
+              href={`mailto:${COMPANY_EMAIL}`}
+              icon={<Mail className="h-5 w-5" aria-hidden="true" />}
+              title="Email"
+              detail={COMPANY_EMAIL}
+            />
+            <WayCard
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(COMPANY_ADDRESS)}`}
+              external
+              icon={<MapPin className="h-5 w-5" aria-hidden="true" />}
+              title="Visit us"
+              detail={COMPANY_ADDRESS}
+            />
+          </ul>
+
           {formState !== "success" && (
-            <div className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-accent/30 bg-accent/10 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
-              <div>
-                <p className="font-medium text-foreground">Need an answer now?</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Chat with our team. Anything you have already filled in below goes into the chat for you.
-                </p>
-              </div>
-              <ChatWithUsButton primary prefill={chatPrefill} className="w-full shrink-0 sm:w-auto" />
-            </div>
+            <h2 className="mt-10 text-center font-display text-xl text-foreground">Or send us a message</h2>
           )}
 
           {formState === "success" ? (
@@ -240,7 +295,7 @@ function ContactPage() {
             <form
               onSubmit={handleSubmit}
               noValidate
-              className="mt-10 space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-8"
+              className="mt-4 space-y-5 rounded-2xl border border-border bg-card p-4 sm:p-8"
             >
               <ChoiceGroup
                 legend="What is this about?"
@@ -444,18 +499,56 @@ function ContactPage() {
                 )}
               </button>
 
-              <div className="flex flex-col items-center gap-3 text-center text-xs text-muted-foreground">
-                <p>Would rather talk now? Your answers above go into the chat.</p>
-                <ChatWithUsButton prefill={chatPrefill} label="Send this as a chat instead" className="w-full sm:w-auto" />
-                <a href={whatsappFallback} target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
-                  Chat on WhatsApp
-                </a>
-              </div>
             </form>
           )}
+
+          <div className="mt-10 flex flex-col items-center gap-4 rounded-2xl border border-accent/30 bg-accent/10 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
+            <div>
+              <p className="font-medium text-foreground">Prefer to chat live?</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Chat with our team right here. Anything you have filled in above goes into the chat for you.
+              </p>
+            </div>
+            <ChatWithUsButton primary prefill={chatPrefill} className="w-full shrink-0 sm:w-auto" />
+          </div>
         </div>
       </section>
     </SiteLayout>
+  );
+}
+
+function WayCard({
+  href,
+  icon,
+  title,
+  detail,
+  external = false,
+  extra,
+}: {
+  href: string;
+  icon: ReactNode;
+  title: string;
+  detail: string;
+  external?: boolean;
+  extra?: { href: string; label: string };
+}) {
+  return (
+    <li className="flex min-w-0 flex-col rounded-2xl border border-border bg-card p-3.5 sm:p-5">
+      <a
+        href={href}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        className="flex min-h-[72px] min-w-0 flex-1 flex-col gap-2 rounded-xl text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+      >
+        <span className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-full bg-accent/15 text-accent">{icon}</span>
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <span className="break-words text-xs leading-snug text-muted-foreground [overflow-wrap:anywhere]">{detail}</span>
+      </a>
+      {extra && (
+        <a href={extra.href} className="mt-2 inline-flex min-h-[40px] items-center text-xs font-medium text-accent underline">
+          {extra.label}
+        </a>
+      )}
+    </li>
   );
 }
 
