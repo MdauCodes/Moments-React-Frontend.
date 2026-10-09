@@ -31,6 +31,15 @@ export interface EnquiryOpenOptions {
   message?: string;
 }
 
+/** What the visitor already typed into an enquiry form, handed to the chat so they do not type it twice. */
+export interface ChatPrefill {
+  name?: string;
+  email?: string;
+  phone?: string;
+  /** A ready-made opening message (see composeChatMessage). */
+  message?: string;
+}
+
 interface EnquiryContextValue {
   isOpen: boolean;
   options: EnquiryOpenOptions;
@@ -38,7 +47,9 @@ interface EnquiryContextValue {
   closeEnquiry: () => void;
   /** The "Chat with us" panel (website chat), opened from the contact page, the enquiry panel or anywhere else. */
   isChatOpen: boolean;
-  openChat: () => void;
+  openChat: (prefill?: ChatPrefill) => void;
+  /** What the chat panel starts with; changes on every open, so the panel re-reads it. */
+  chatPrefill: ChatPrefill;
   closeChat: () => void;
 }
 
@@ -103,6 +114,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatEverOpened, setChatEverOpened] = useState(false);
   const [chatOpenCount, setChatOpenCount] = useState(0);
+  const [chatPrefill, setChatPrefill] = useState<ChatPrefill>({});
 
   const openEnquiry = useCallback((next: EnquiryOpenOptions = {}) => {
     setOptions(next);
@@ -111,7 +123,8 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
   }, []);
   const closeEnquiry = useCallback(() => setIsOpen(false), []);
-  const openChat = useCallback(() => {
+  const openChat = useCallback((prefill?: ChatPrefill) => {
+    setChatPrefill(prefill ?? {});
     // One panel at a time: opening chat from inside the enquiry panel closes that panel.
     setIsOpen(false);
     setChatEverOpened(true);
@@ -121,8 +134,8 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
   const closeChat = useCallback(() => setIsChatOpen(false), []);
 
   const value = useMemo(
-    () => ({ isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat }),
-    [isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat],
+    () => ({ isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat, chatPrefill }),
+    [isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat, chatPrefill],
   );
 
   return (

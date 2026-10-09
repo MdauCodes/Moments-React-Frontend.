@@ -8,13 +8,14 @@ import { ChoiceGroup, Field, PhoneField, inputClass, invalidInputClass } from "@
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
-import { ENQUIRY_TOPICS, useEnquiry, type EnquiryOpenOptions, type EnquiryTopic } from "@/contexts/EnquiryContext";
+import { ENQUIRY_TOPICS, useEnquiry, type ChatPrefill, type EnquiryOpenOptions, type EnquiryTopic } from "@/contexts/EnquiryContext";
 import { usePersona } from "@/contexts/PersonaContext";
 import { whatsappLink } from "@/data/products";
 import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
 import { focusFirstError } from "@/lib/formFocus";
 import {
   REPLY_OPTIONS,
+  composeChatMessage,
   composeEnquiryMessage,
   emailLooksReal,
   enquirySource,
@@ -87,6 +88,22 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
   const renderedAt = useRef(Date.now()).current;
 
   const showDetails = DETAIL_TOPICS.includes(topic);
+
+  const chatPrefill: ChatPrefill = {
+    name: name.trim() || undefined,
+    email: email.trim() || undefined,
+    phone: phone.trim() ? phoneForSubmission(phone) : undefined,
+    message: composeChatMessage({
+      topic,
+      replyVia,
+      pagePath: location.pathname,
+      product: options.product ? { name: options.product.name, slug: options.product.slug } : undefined,
+      quantity: showDetails ? quantity : undefined,
+      neededBy: showDetails ? neededBy : undefined,
+      deliverTo: showDetails ? deliverTo : undefined,
+      text,
+    }),
+  };
 
   const errors: Record<string, string | undefined> = {
     "qe-name": showErrors && name.trim().length < 2 ? "Please tell us your name." : undefined,
@@ -214,6 +231,13 @@ function EnquiryForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-6 space-y-5 pb-4">
+      <div className="flex flex-col gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-4">
+        <p className="text-sm text-foreground">
+          <span className="font-medium">Need an answer now?</span> Chat with our team. What you fill in below goes into the chat for you.
+        </p>
+        <ChatWithUsButton primary prefill={chatPrefill} className="w-full" />
+      </div>
+
       <ChoiceGroup legend="What is this about?" options={ENQUIRY_TOPICS} value={topic} onChange={setTopic} />
 
       {options.product && (
@@ -409,10 +433,6 @@ export function QuickEnquirySheet() {
             here and a real person will get back to you.
           </SheetDescription>
         </SheetHeader>
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-          <span>Rather talk now?</span>
-          <ChatWithUsButton />
-        </div>
         <EnquiryForm onDone={closeEnquiry} />
       </SheetContent>
     </Sheet>

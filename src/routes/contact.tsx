@@ -9,13 +9,14 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { SiteLayout } from "@/components/SiteLayout";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useCart, type CartItem } from "@/contexts/CartContext";
-import { ENQUIRY_TOPICS, type EnquiryTopic } from "@/contexts/EnquiryContext";
+import { ENQUIRY_TOPICS, type ChatPrefill, type EnquiryTopic } from "@/contexts/EnquiryContext";
 import { usePersona } from "@/contexts/PersonaContext";
 import { randomWhatsAppLink } from "@/data/products";
 import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
 import { focusFirstError } from "@/lib/formFocus";
 import {
   REPLY_OPTIONS,
+  composeChatMessage,
   composeEnquiryMessage,
   emailLooksReal,
   enquirySource,
@@ -81,6 +82,25 @@ function ContactPage() {
   const successRef = useRef<HTMLDivElement | null>(null);
 
   const showDetails = DETAIL_TOPICS.includes(topic);
+
+  // What the visitor has typed so far, as a chat opening: the same labelled block staff already read on enquiries.
+  const chatPrefill: ChatPrefill = {
+    name: name.trim() || undefined,
+    email: email.trim() || undefined,
+    phone: phone.trim() ? phoneForSubmission(phone) : undefined,
+    message: composeChatMessage({
+      topic,
+      replyVia,
+      pagePath: location.pathname,
+      products: basketProducts.map((i) => ({ name: i.productName, quantity: i.quantity, size: i.size })),
+      quantity: showDetails ? quantity : undefined,
+      neededBy: showDetails ? neededBy : undefined,
+      deliverTo: showDetails ? deliverTo : undefined,
+      company: companyName,
+      heardFrom,
+      text: message,
+    }),
+  };
 
   const bad = {
     "ct-name": name.trim().length < 2,
@@ -193,6 +213,18 @@ function ContactPage() {
               Tell us what you need and a real person will get back to you — usually the same day.
             </p>
           </div>
+
+          {formState !== "success" && (
+            <div className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-accent/30 bg-accent/10 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
+              <div>
+                <p className="font-medium text-foreground">Need an answer now?</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Chat with our team. Anything you have already filled in below goes into the chat for you.
+                </p>
+              </div>
+              <ChatWithUsButton primary prefill={chatPrefill} className="w-full shrink-0 sm:w-auto" />
+            </div>
+          )}
 
           {formState === "success" ? (
             <div className="mt-10">
@@ -413,8 +445,8 @@ function ContactPage() {
               </button>
 
               <div className="flex flex-col items-center gap-3 text-center text-xs text-muted-foreground">
-                <p>Would rather talk now?</p>
-                <ChatWithUsButton className="w-full sm:w-auto" />
+                <p>Would rather talk now? Your answers above go into the chat.</p>
+                <ChatWithUsButton prefill={chatPrefill} label="Send this as a chat instead" className="w-full sm:w-auto" />
                 <a href={whatsappFallback} target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
                   Chat on WhatsApp
                 </a>

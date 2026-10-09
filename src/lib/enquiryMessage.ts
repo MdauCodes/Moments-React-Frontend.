@@ -196,6 +196,25 @@ export function composeEnquiryMessage(args: ComposeArgs): string {
   return lines.join("\n");
 }
 
+/** The longest message chat accepts. */
+export const CHAT_MESSAGE_MAX = 1000;
+
+/**
+ * The same labelled block as an enquiry (Topic, Product, Preferred contact, Quantity ...), so staff read one familiar
+ * format whether it came from the form or the chat, followed by the visitor's own words. Chat has a length limit the
+ * form does not: when the whole thing is too long it is the visitor's own words that are shortened (with an ellipsis),
+ * never the labelled facts.
+ */
+export function composeChatMessage(args: ComposeArgs, max: number = CHAT_MESSAGE_MAX): string {
+  const full = composeEnquiryMessage(args);
+  if (full.length <= max) return full;
+  const head = composeEnquiryMessage({ ...args, text: "" });
+  const room = max - head.length - 3; // blank line and the ellipsis
+  const words = args.text.trim();
+  if (room <= 0 || !words) return head.slice(0, max);
+  return `${head}\n\n${words.slice(0, room).trimEnd()}…`;
+}
+
 /**
  * The `source` column (varchar(100)) doubles as the CRM's primary topic signal: it keys on the
  * `quick-enquiry:` prefix and the topic code that follows. Keep both intact.

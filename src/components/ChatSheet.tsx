@@ -136,10 +136,13 @@ function StartForm({
 }) {
   const { user } = useAuth();
   const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
-  const [name, setName] = useState(user ? `${user.firstName} ${user.lastName}`.trim() : "");
-  const [email, setEmail] = useState(user?.email ?? "");
-  const [phone, setPhone] = useState("");
-  const [message, setMessage] = useState("");
+  // What the visitor already typed into an enquiry form (if they came from one) is the starting point.
+  const { chatPrefill } = useEnquiry();
+  const [name, setName] = useState(chatPrefill.name ?? (user ? `${user.firstName} ${user.lastName}`.trim() : ""));
+  const [email, setEmail] = useState(chatPrefill.email ?? user?.email ?? "");
+  const [phone, setPhone] = useState(chatPrefill.phone ?? "");
+  const [message, setMessage] = useState(chatPrefill.message ?? "");
+  const prefilled = Boolean(chatPrefill.message);
   const [consent, setConsent] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileKey, setTurnstileKey] = useState(0);
@@ -270,11 +273,16 @@ function StartForm({
           />
         )}
       </Field>
-      <Field id="chat-message" label="Your question" error={errors.message}>
+      <Field
+        id="chat-message"
+        label={prefilled ? "Your message (you can edit it)" : "Your question"}
+        error={errors.message}
+        hint={prefilled ? "We copied this from your form so our team has everything. It is what they will read." : undefined}
+      >
         {(aria) => (
           <textarea
             {...aria}
-            rows={3}
+            rows={prefilled ? 9 : 3}
             name="message"
             maxLength={MAX_LENGTH}
             className={`${inputClass} ${errors.message ? invalidInputClass : ""}`}
@@ -344,7 +352,9 @@ function Conversation({
   setStaffOnline: (online: boolean) => void;
   onEnded: () => void;
 }) {
-  const [text, setText] = useState("");
+  // Opened from an enquiry form while a chat is already going: the form's answers wait in the reply box instead of being lost.
+  const { chatPrefill } = useEnquiry();
+  const [text, setText] = useState(chatPrefill.message ?? "");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const lastId = useRef(0);
