@@ -7,6 +7,7 @@ import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
 import { useCart } from "@/contexts/CartContext";
 import { WHATSAPP_NUMBER } from "@/data/products";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
+import { LidSuggestions } from "@/components/LidSuggestions";
 
 
 
@@ -16,6 +17,7 @@ function fmt(n: number) {
 
 function CartPage() {
   const { items, updateQuantity, removeItem, cartTotal, cartLoading } = useCart();
+  const cartProductIds = new Set(items.map((i) => i.productId));
   const navigate = useNavigate();
 
   function handleWhatsApp() {
@@ -172,6 +174,7 @@ function CartPage() {
                       </div>
                       <p className="font-display text-base">{fmt(it.lineTotal)}</p>
                     </div>
+                    <LidSuggestions productName={it.productName} compact inCartProductIds={cartProductIds} />
                   </div>
                 </li>
               ))}

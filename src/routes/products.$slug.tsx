@@ -18,6 +18,7 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { getStockInfo } from "@/lib/stock";
 import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
+import { LidSuggestions } from "@/components/LidSuggestions";
 import { reviewStore } from "@/services/reviewStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sanitizeProductDescription } from "@/lib/utils";
@@ -536,6 +537,7 @@ export default function ProductDetail() {
               </div>
             )}
 
+            {stock.canOrder && <LidSuggestions productName={product.name} />}
             {!stock.canOrder ? (
               <a
                 href={whatsappLink(
