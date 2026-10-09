@@ -21,6 +21,8 @@ import {
   clearSession,
   fetchAvailability,
   loadSession,
+  saveSeen,
+  subscribeChatPush,
   mergeMessages,
   pollMessages,
   postMessage,
@@ -31,6 +33,8 @@ import {
 } from "@/lib/chatClient";
 import { emailLooksReal, phoneLooksReachable, phoneForSubmission } from "@/lib/enquiryMessage";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
+import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
+import { getPublicVapidPublicKey } from "@/services/pushApi";
 
 const POLL_MS = 3000;
 const MAX_LENGTH = 1000;
@@ -361,6 +365,11 @@ function Conversation({
   const bottom = useRef<HTMLDivElement>(null);
   lastId.current = messages.length ? messages[messages.length - 1]!.id : 0;
 
+  // Everything on screen counts as read, so the "Chat" pill on other pages only counts what arrives after this.
+  useEffect(() => {
+    if (lastId.current > 0) saveSeen(lastId.current);
+  }, [messages]);
+
   // Check for replies while the panel is open and the tab is in front. A stale or unknown chat ends cleanly.
   useEffect(() => {
     let stopped = false;
@@ -425,6 +434,7 @@ function Conversation({
           ? "We are online."
           : "We are not online right now. We will answer here, or by email if you gave one."}
       </p>
+      <NotifyMe session={session} />
       <div
         role="log"
         aria-live="polite"
@@ -495,5 +505,65 @@ function Transcript({ messages }: { messages: ChatMessage[] }) {
         );
       })}
     </>
+  );
+}
+
+const NOTIFY_FLAG = (id: string) => `mpk_chat_notify_${id}`;
+
+/**
+ * "Tell me when you reply": an opt-in browser notification for this chat, sent from our own server (no account or app
+ * needed). It asks the browser for permission only when pressed. On an iPhone the browser can only do this once the
+ * site has been added to the Home Screen, so that is said instead of offering a button that cannot work.
+ */
+function NotifyMe({ session }: { session: ChatSession }) {
+  const [state, setState] = useState<"idle" | "working" | "on" | "error">(() => {
+    try {
+      return window.localStorage.getItem(NOTIFY_FLAG(session.id)) === "1" ? "on" : "idle";
+    } catch {
+      return "idle";
+    }
+  });
+  const permission = getPushPermissionState();
+  const iosNeedsInstall =
+    permission === "unsupported" &&
+    /iPhone|iPad|iPod/.test(navigator.userAgent) &&
+    !(window.matchMedia?.("(display-mode: standalone)").matches ?? false);
+
+  async function turnOn() {
+    setState("working");
+    try {
+      const keys = await subscribeToPush(await getPublicVapidPublicKey());
+      await subscribeChatPush(session, keys);
+      try {
+        window.localStorage.setItem(NOTIFY_FLAG(session.id), "1");
+      } catch {
+        // the notification still works; the button just shows again next time
+      }
+      setState("on");
+    } catch {
+      setState("error");
+    }
+  }
+
+  if (iosNeedsInstall) {
+    return <p className="mb-2 text-xs text-muted-foreground">On an iPhone, add this site to your Home Screen to get a notification when we reply.</p>;
+  }
+  if (permission === "unsupported") return null;
+  if (state === "on") return <p className="mb-2 text-xs text-muted-foreground">You will get a notification on this device when we reply.</p>;
+  if (permission === "denied") {
+    return <p className="mb-2 text-xs text-muted-foreground">Notifications are blocked for this site in your browser settings.</p>;
+  }
+  return (
+    <div className="mb-2">
+      <button
+        type="button"
+        onClick={() => void turnOn()}
+        disabled={state === "working"}
+        className="text-xs font-medium text-accent underline underline-offset-2 disabled:opacity-60"
+      >
+        {state === "working" ? "Turning on…" : "Notify me on this device when you reply"}
+      </button>
+      {state === "error" && <span className="ml-2 text-xs text-destructive">Could not turn that on. You can try again.</span>}
+    </div>
   );
 }

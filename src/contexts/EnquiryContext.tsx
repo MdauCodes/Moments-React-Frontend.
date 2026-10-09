@@ -1,4 +1,6 @@
-import { Component, createContext, lazy, Suspense, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { Component, createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ChatPill } from "@/components/ChatPill";
+import { takeResumeFromUrl } from "@/lib/chatClient";
 import { whatsappLink } from "@/data/products";
 
 /**
@@ -133,6 +135,11 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
   }, []);
   const closeChat = useCallback(() => setIsChatOpen(false), []);
 
+  // A link from a reply email or notification (/?chat=<id>#r=<secret>) reopens that chat on this device.
+  useEffect(() => {
+    if (takeResumeFromUrl()) openChat();
+  }, [openChat]);
+
   const value = useMemo(
     () => ({ isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat, chatPrefill }),
     [isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat, chatPrefill],
@@ -141,6 +148,7 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
   return (
     <EnquiryContext.Provider value={value}>
       {children}
+      <ChatPill />
       {everOpened && (
         <SheetErrorBoundary key={openCount} onClose={closeEnquiry}>
           <Suspense fallback={<OpeningIndicator />}>

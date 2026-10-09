@@ -42,19 +42,74 @@ export function loadSession(): ChatSession | null {
   }
 }
 
+/** Tells the "Chat" pill (and anything else listening) that a chat was started or forgotten. */
+const CHANGED_EVENT = "mpk-chat-changed";
+export function onSessionChanged(listener: () => void): () => void {
+  window.addEventListener(CHANGED_EVENT, listener);
+  return () => window.removeEventListener(CHANGED_EVENT, listener);
+}
+
 export function saveSession(session: ChatSession): void {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
   } catch {
     // Private mode or blocked storage: the chat still works until the page is closed.
   }
+  window.dispatchEvent(new Event(CHANGED_EVENT));
 }
 
 export function clearSession(): void {
   try {
     window.localStorage.removeItem(STORAGE_KEY);
+    window.localStorage.removeItem(SEEN_KEY);
   } catch {
     // nothing to clear
+  }
+  window.dispatchEvent(new Event(CHANGED_EVENT));
+}
+
+const SEEN_KEY = "mpk_chat_seen_v1";
+
+/** The last message the visitor has had on screen; replies after it count as unread. */
+export function loadSeen(): number {
+  try {
+    const n = Number(window.localStorage.getItem(SEEN_KEY));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function saveSeen(messageId: number): void {
+  try {
+    if (messageId > loadSeen()) window.localStorage.setItem(SEEN_KEY, String(messageId));
+  } catch {
+    // unread counts just stay as they were
+  }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A reply email or notification links back here as `/?chat=<id>#r=<secret>`. Takes the chat from the address (the secret
+ * is in the #fragment, which the browser never sends to any server), keeps it as this device's chat, and cleans the
+ * address bar so the secret is not left on screen or in history. Returns null when the address carries no chat link.
+ */
+export function takeResumeFromUrl(): ChatSession | null {
+  try {
+    const id = new URLSearchParams(window.location.search).get("chat");
+    const secret = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("r");
+    if (!id || !secret || !UUID.test(id) || secret.length < 20 || secret.length > 100) return null;
+    const session = { id, token: secret };
+    window.localStorage.removeItem(SEEN_KEY);
+    saveSession(session);
+    const params = new URLSearchParams(window.location.search);
+    params.delete("chat");
+    const rest = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    return session;
+  } catch {
+    return null;
   }
 }
 
@@ -97,6 +152,7 @@ async function call<T>(path: string, init: RequestInit = {}, session?: ChatSessi
     }
     throw new ChatApiError(res.status, message);
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -164,4 +220,17 @@ export function pollMessages(session: ChatSession, after: number): Promise<ChatP
     {},
     session,
   );
+}
+
+export type PushKeys = { endpoint: string; p256dh: string; auth: string };
+
+/** "Tell me when they reply": ties this browser's notification subscription to the chat. */
+export async function subscribeChatPush(session: ChatSession, keys: PushKeys): Promise<void> {
+  await call<void>(`/api/v1/public/chat/conversations/${session.id}/push`, { method: "POST", body: JSON.stringify(keys) }, session);
+}
+
+/** How many replies from the team the visitor has not seen yet, and whether the chat is still open. */
+export async function checkUnread(session: ChatSession): Promise<{ unread: number; status: "OPEN" | "CLOSED" }> {
+  const poll = await pollMessages(session, loadSeen());
+  return { unread: poll.messages.filter((m) => m.sender === "STAFF").length, status: poll.status };
 }
