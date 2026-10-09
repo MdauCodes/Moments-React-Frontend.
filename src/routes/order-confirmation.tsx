@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from "react-router-dom";
+import { GoogleReviewPrompt } from "@/components/GoogleReviewPrompt";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileDown } from "lucide-react";
@@ -195,6 +196,9 @@ function OrderConfirmationPage() {
             >
               Continue shopping
             </Link>
+          </div>
+          <div className="mt-4 text-center">
+            <GoogleReviewPrompt variant="link" />
           </div>
         </div>
       </section>

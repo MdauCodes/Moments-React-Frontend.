@@ -18,6 +18,7 @@ import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications
 import { getPublicVapidPublicKey, subscribeCustomerPush } from "@/services/pushApi";
 import { Bell } from "lucide-react";
 import { apiUrl } from "@/config/api";
+import { GoogleReviewPrompt } from "@/components/GoogleReviewPrompt";
 
 const searchSchema = z.object({ ref: z.string().optional() });
 
@@ -989,6 +990,8 @@ function OrderCard({
         )}
         {order.tumabodaTrackingCode && <div><dt className="text-muted-foreground">Tracking #</dt><dd>{order.tumabodaTrackingCode}</dd></div>}
       </dl>
+
+      {order.status === "DELIVERED" && <GoogleReviewPrompt />}
 
       {order.status === "PENDING_PAYMENT" && email && accessToken && (
         <div className="mt-4 rounded-xl border border-border bg-background/60 p-3">

@@ -15,6 +15,7 @@ import { refundStore, refundEligibility, cancelOption, type RefundRequest } from
 import { orderReviewStore, type OrderReview } from "@/services/orderReviewStore";
 import { useCart } from "@/contexts/CartContext";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
+import { GoogleReviewPrompt } from "@/components/GoogleReviewPrompt";
 
 
 
@@ -219,6 +220,10 @@ function OrderDetailPage() {
           >
             Rate your order & delivery experience
           </button>
+        )}
+
+        {order.status === "DELIVERED" && (
+          <GoogleReviewPrompt initialComment={orderReview?.comment ?? ""} />
         )}
 
         {showReviewForm && (
