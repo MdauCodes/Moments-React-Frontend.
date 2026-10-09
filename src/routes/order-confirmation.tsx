@@ -1,5 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { GoogleReviewPrompt } from "@/components/GoogleReviewPrompt";
+import { CheckoutRatingCard } from "@/components/CheckoutFeedbackCards";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileDown } from "lucide-react";
@@ -138,6 +139,9 @@ function OrderConfirmationPage() {
             </div>
           )}
 
+          <GoogleReviewPrompt variant="hero" />
+          {ref && <CheckoutRatingCard reference={ref} />}
+
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
               to={ref ? `/orders/track?ref=${ref}` : "/orders/track"}
@@ -196,9 +200,6 @@ function OrderConfirmationPage() {
             >
               Continue shopping
             </Link>
-          </div>
-          <div className="mt-4 text-center">
-            <GoogleReviewPrompt variant="link" />
           </div>
         </div>
       </section>

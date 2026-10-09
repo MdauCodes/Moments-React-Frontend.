@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { PaymentFailedFeedback } from "@/components/CheckoutFeedbackCards";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -2677,6 +2678,7 @@ function CheckoutModal() {
                   <p className="mt-2 max-w-md text-sm text-muted-foreground">
                     {errorMsg ?? "Your M-Pesa payment was not completed."}
                   </p>
+                  {orderRef && <PaymentFailedFeedback reference={orderRef} />}
                   <div className="mt-6 flex flex-wrap justify-center gap-3">
                     <button
                       type="button"
@@ -2714,6 +2716,7 @@ function CheckoutModal() {
                       Order reference: <span className="font-mono font-semibold text-foreground">{orderRef}</span>
                     </p>
                   )}
+                  {orderRef && <PaymentFailedFeedback reference={orderRef} />}
                   <div className="mt-6 flex flex-wrap justify-center gap-3">
                     <button
                       type="button"

@@ -18,7 +18,7 @@ export function GoogleReviewPrompt({
   variant = "card",
 }: {
   initialComment?: string;
-  variant?: "card" | "link";
+  variant?: "card" | "link" | "hero";
 }) {
   const [open, setOpen] = useState(false);
   const [comment, setComment] = useState(initialComment);
@@ -45,7 +45,26 @@ export function GoogleReviewPrompt({
 
   return (
     <>
-      {variant === "card" ? (
+      {variant === "hero" ? (
+        <div className="mt-6 rounded-3xl border-2 border-accent/40 bg-accent/10 p-6 text-center">
+          <div className="flex justify-center gap-1" aria-hidden>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star key={n} className="h-7 w-7 fill-accent text-accent" />
+            ))}
+          </div>
+          <h2 className="mt-3 font-display text-xl">Happy with Moments Packaging?</h2>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+            A 30-second Google review is the biggest favour you can do a small Kenyan business.
+          </p>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="mt-4 w-full max-w-xs rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90"
+          >
+            Review us on Google
+          </button>
+        </div>
+      ) : variant === "card" ? (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/15">
