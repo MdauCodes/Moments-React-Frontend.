@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent, type Ref } from "react";
 import { Check, MessageCircle } from "lucide-react";
 
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
+import { ChatWithUsButton } from "@/components/ChatWithUsButton";
 import { ChoiceGroup, Field, PhoneField, inputClass, invalidInputClass } from "@/components/EnquiryFields";
 import { InlineProgress } from "@/components/InlineProgress";
 import { SiteLayout } from "@/components/SiteLayout";
@@ -411,12 +412,13 @@ function ContactPage() {
                 )}
               </button>
 
-              <p className="text-center text-xs text-muted-foreground">
-                Would rather chat?{" "}
+              <div className="flex flex-col items-center gap-3 text-center text-xs text-muted-foreground">
+                <p>Would rather talk now?</p>
+                <ChatWithUsButton className="w-full sm:w-auto" />
                 <a href={whatsappFallback} target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
-                  Message us on WhatsApp
+                  Chat on WhatsApp
                 </a>
-              </p>
+              </div>
             </form>
           )}
         </div>

@@ -36,6 +36,10 @@ interface EnquiryContextValue {
   options: EnquiryOpenOptions;
   openEnquiry: (options?: EnquiryOpenOptions) => void;
   closeEnquiry: () => void;
+  /** The "Chat with us" panel (website chat), opened from the contact page, the enquiry panel or anywhere else. */
+  isChatOpen: boolean;
+  openChat: () => void;
+  closeChat: () => void;
 }
 
 const EnquiryContext = createContext<EnquiryContextValue | null>(null);
@@ -43,6 +47,8 @@ const EnquiryContext = createContext<EnquiryContextValue | null>(null);
 const QuickEnquirySheet = lazy(() =>
   import("@/components/QuickEnquirySheet").then((m) => ({ default: m.QuickEnquirySheet })),
 );
+
+const ChatSheet = lazy(() => import("@/components/ChatSheet").then((m) => ({ default: m.ChatSheet })));
 
 /** If the panel's code cannot be downloaded (offline, or the site was updated while this tab was open),
  *  show a small WhatsApp fallback here instead of letting the error replace the whole page. */
@@ -94,6 +100,9 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
   const [everOpened, setEverOpened] = useState(false);
   const [options, setOptions] = useState<EnquiryOpenOptions>({});
   const [openCount, setOpenCount] = useState(0);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [chatEverOpened, setChatEverOpened] = useState(false);
+  const [chatOpenCount, setChatOpenCount] = useState(0);
 
   const openEnquiry = useCallback((next: EnquiryOpenOptions = {}) => {
     setOptions(next);
@@ -102,10 +111,18 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     setIsOpen(true);
   }, []);
   const closeEnquiry = useCallback(() => setIsOpen(false), []);
+  const openChat = useCallback(() => {
+    // One panel at a time: opening chat from inside the enquiry panel closes that panel.
+    setIsOpen(false);
+    setChatEverOpened(true);
+    setChatOpenCount((n) => n + 1);
+    setIsChatOpen(true);
+  }, []);
+  const closeChat = useCallback(() => setIsChatOpen(false), []);
 
   const value = useMemo(
-    () => ({ isOpen, options, openEnquiry, closeEnquiry }),
-    [isOpen, options, openEnquiry, closeEnquiry],
+    () => ({ isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat }),
+    [isOpen, options, openEnquiry, closeEnquiry, isChatOpen, openChat, closeChat],
   );
 
   return (
@@ -115,6 +132,13 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
         <SheetErrorBoundary key={openCount} onClose={closeEnquiry}>
           <Suspense fallback={<OpeningIndicator />}>
             <QuickEnquirySheet />
+          </Suspense>
+        </SheetErrorBoundary>
+      )}
+      {chatEverOpened && (
+        <SheetErrorBoundary key={`chat-${chatOpenCount}`} onClose={closeChat}>
+          <Suspense fallback={<OpeningIndicator />}>
+            <ChatSheet />
           </Suspense>
         </SheetErrorBoundary>
       )}

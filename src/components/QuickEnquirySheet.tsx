@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocation } from "react-router-dom";
 import { Check, MessageCircle } from "lucide-react";
 
+import { ChatWithUsButton } from "@/components/ChatWithUsButton";
 import { ConsentCheckbox } from "@/components/ConsentCheckbox";
 import { ChoiceGroup, Field, PhoneField, inputClass, invalidInputClass } from "@/components/EnquiryFields";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
@@ -408,6 +409,10 @@ export function QuickEnquirySheet() {
             here and a real person will get back to you.
           </SheetDescription>
         </SheetHeader>
+        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          <span>Rather talk now?</span>
+          <ChatWithUsButton />
+        </div>
         <EnquiryForm onDone={closeEnquiry} />
       </SheetContent>
     </Sheet>
