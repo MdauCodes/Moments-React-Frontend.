@@ -88,6 +88,13 @@ export function lidFitScore(containerName: string, lidName: string): number {
   }
   if (!fit) return 0;
 
+  // A PET (clear plastic) cup does not take a paper / ice-cream-cup lid, even at the same volume.
+  const cText = normalise(containerName);
+  const lText = normalise(lidName);
+  const cIsPet = /\bpet\b/.test(cText);
+  if (cIsPet && /\b(ice cream|paper|kraft)\b/.test(lText) && !/\bpet\b/.test(lText)) return 0;
+  if (cIsPet && /\bpet\b/.test(lText)) score += 2;
+
   const cCol = colours(containerName);
   const lCol = colours(lidName);
   if (cCol.size > 0 && lCol.size > 0) score += sharesAny(cCol, lCol) ? 2 : -1;
