@@ -144,7 +144,7 @@ function CartPage() {
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
                       <div className="flex flex-col gap-1">
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           {it.collectionName ? `${it.collectionName}s` : "Qty"}
@@ -172,9 +172,9 @@ function CartPage() {
                           <p className="text-[11px] text-muted-foreground">Minimum order: 1 unit</p>
                         )}
                       </div>
+                      <LidSuggestions productName={it.productName} variant="inline" inCartProductIds={cartProductIds} />
                       <p className="font-display text-base">{fmt(it.lineTotal)}</p>
                     </div>
-                    <LidSuggestions productName={it.productName} compact inCartProductIds={cartProductIds} />
                   </div>
                 </li>
               ))}
