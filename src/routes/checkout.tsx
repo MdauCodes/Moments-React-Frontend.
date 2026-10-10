@@ -338,6 +338,9 @@ function CheckoutModal() {
   } | null>(null);
   const [quoteChecking, setQuoteChecking] = useState(false);
   const [quoteUnavailable, setQuoteUnavailable] = useState(false);
+  // Shown (dismissibly) when TumaBoda can't take the delivery because its credit is short: the
+  // customer keeps their pinned address and simply sees the other options.
+  const [tumabodaNote, setTumabodaNote] = useState<string | null>(null);
 
   // Gates the two sub-views of the "delivery" step: fulfillment/courier details form, then (once
   // confirmed) the payment screen — kept as its own separate step for clarity (found live:
@@ -796,7 +799,14 @@ function CheckoutModal() {
           setQuotePreview(null);
           setQuoteUnavailable(true);
           setFulfillment("MANUAL_DELIVERY");
-          toast.error(data.message || "TumaBoda delivery isn't available right now — switched to Manual Delivery.");
+          if (data.reason === "CREDIT") {
+            setTumabodaNote(
+              data.message ||
+                "TumaBoda delivery can't take new orders right now. Manual Delivery and Pickup are both available.",
+            );
+          } else {
+            toast.error(data.message || "TumaBoda delivery isn't available right now — switched to Manual Delivery.");
+          }
         }
       } catch {
         if (cancelled) return;
@@ -1769,6 +1779,10 @@ function CheckoutModal() {
                             </div>
                           </div>
                         </div>
+                      )}
+
+                      {tumabodaNote && fulfillment !== "TUMABODA_DELIVERY" && (
+                        <SoftNote message={tumabodaNote} onDismiss={() => setTumabodaNote(null)} />
                       )}
 
                       {/* Resolved TumaBoda path — branded per the client's explicit call. Covered

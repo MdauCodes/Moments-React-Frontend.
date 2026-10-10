@@ -6,6 +6,7 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { formatKes, formatDateShort } from "@/components/admin/commerceUi";
 import { useRequirePermission } from "@/lib/useRequirePermission";
 import { PERM } from "@/lib/permissions";
+import { TumaBodaDisagreements } from "@/components/admin/TumaBodaDisagreements";
 import {
   tumaBodaSettlementApi,
   type TumaBodaBalance,
@@ -303,6 +304,20 @@ function AdminTumaBodaSettlementsPage() {
                         of {formatKes(liveCreditLine.creditLimit)} limit{pct != null ? ` (${pct.toFixed(0)}%)` : ""}
                       </div>
                     )}
+                    {liveCreditLine && (() => {
+                      const delivered = balance?.deliveredOrderCount ?? 0;
+                      const avg = delivered > 0 ? (balance?.totalOwed ?? 0) / delivered : 0;
+                      const more = avg > 0 ? Math.floor(liveCreditLine.available / avg) : null;
+                      return (
+                        <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 6, lineHeight: 1.4 }}>
+                          {more != null
+                            ? `Room for about ${more} more deliver${more === 1 ? "y" : "ies"} at the usual ${formatKes(avg)} each. `
+                            : ""}
+                          Credit pays TumaBoda's delivery fees only, not the goods. Below this, TumaBoda delivery is
+                          hidden at checkout and customers see Manual Delivery or Pickup.
+                        </div>
+                      );
+                    })()}
                   </>
                 );
               })()}
@@ -354,6 +369,8 @@ function AdminTumaBodaSettlementsPage() {
               </div>
             )}
           </div>
+
+          <TumaBodaDisagreements />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14 }}>
             <div className="admin-panel" style={{ padding: 16 }}>
