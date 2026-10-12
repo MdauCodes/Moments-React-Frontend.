@@ -44,3 +44,9 @@ export declare function productSeo(product: ProductSeoInput | null | undefined):
   description: string;
   name: string;
 };
+
+export type FaqItem = { q: string; a: string };
+export type FaqGroup = { heading: string; items: FaqItem[] };
+export declare const FAQ_GROUPS: FaqGroup[];
+export declare const NOINDEX_PATH_PREFIXES: string[];
+export declare function isNoindexPath(pathname: string): boolean;

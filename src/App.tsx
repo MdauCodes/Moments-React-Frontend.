@@ -48,6 +48,9 @@ const CompanyProfilePage = lazy(() => import("@/routes/company-profile"));
 const SustainabilityPage = lazy(() => import("@/routes/sustainability"));
 const EnterpriseQuotePage = lazy(() => import("@/routes/enterprise-quote"));
 const IndustriesPage = lazy(() => import("@/routes/industries"));
+const IndustryHubPage = lazy(() => import("@/routes/industries.$slug"));
+const ShopLandingPage = lazy(() => import("@/routes/shop.$slug"));
+const NotFoundPage = lazy(() => import("@/routes/not-found"));
 const LoginPage = lazy(() => import("@/routes/login"));
 const OrderConfirmationPage = lazy(() => import("@/routes/order-confirmation"));
 const OrdersTrackPage = lazy(() => import("@/routes/orders.track"));
@@ -243,6 +246,8 @@ export default function App() {
                     <Route path="/sustainability" element={<SustainabilityPage />} />
                     <Route path="/enterprise-quote" element={<EnterpriseQuotePage />} />
                     <Route path="/industries" element={<IndustriesPage />} />
+                    <Route path="/industries/:slug" element={<IndustryHubPage />} />
+                    <Route path="/shop/:slug" element={<ShopLandingPage />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
                     <Route path="/orders/track" element={<OrdersTrackPage />} />
@@ -364,16 +369,7 @@ export default function App() {
                     </Route>
 
                     {/* Fallback */}
-                    <Route path="*" element={
-                      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-                        <div className="max-w-md text-center">
-                          <h1 className="text-7xl font-bold text-foreground">404</h1>
-                          <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-                          <p className="mt-2 text-sm text-muted-foreground">The page you're looking for doesn't exist.</p>
-                          <a href="/" className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">Go home</a>
-                        </div>
-                      </div>
-                    } />
+                    <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                   </Suspense>
                   <Toaster />

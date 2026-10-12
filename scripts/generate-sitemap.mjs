@@ -20,6 +20,13 @@ const API_BASE = "https://moments-packaging-latest-backend-production.up.railway
 // Product/blog URLs carry a trailing slash — the canonical form (see productPath's comment in
 // src/seo/seoData.js for why Render needs it).
 import { productPath, blogPath } from "../src/seo/seoData.js";
+import {
+  SHOP_PAGES,
+  INDUSTRY_PAGES,
+  shopPath,
+  industryPath,
+  shopPageIncludes,
+} from "../src/seo/landingPages.js";
 
 // The four original in-repo blog posts (src/data/blogs.ts) — not in the backend `blogs` table,
 // but they render on /blog (see api.ts mergeStaticBlogs), so they belong in the sitemap too.
@@ -71,6 +78,7 @@ function escapeXml(s) {
 
 async function fetchAllProducts() {
   const urls = [];
+  const names = [];
   let page = 0;
   for (;;) {
     const res = await fetch(`${API_BASE}/api/v1/public/products?page=${page}&size=100`);
@@ -85,6 +93,7 @@ async function fetchAllProducts() {
       const isObviousTestProduct =
         /test.product/i.test(p.slug ?? "") || /test product/i.test(p.name ?? "");
       if (p.slug && !isObviousTestProduct) {
+        names.push({ name: p.name });
         urls.push({
           loc: productPath(p.slug),
           lastmod: p.updatedAt,
@@ -96,7 +105,24 @@ async function fetchAllProducts() {
     if (data.last || !data.content?.length) break;
     page += 1;
   }
-  return urls;
+  return { urls, names };
+}
+
+/**
+ * Buyer-intent hubs (src/seo/landingPages.js) — only those the catalogue has products for, the
+ * same rule scripts/prerender-seo.mjs uses to decide which hub pages to write. Industry hubs
+ * always exist.
+ */
+function landingUrls(products) {
+  const shops = SHOP_PAGES.filter((page) => products.some((p) => shopPageIncludes(page, p))).map(
+    (page) => ({ loc: shopPath(page.slug), changefreq: "weekly", priority: "0.8" }),
+  );
+  const industries = INDUSTRY_PAGES.map((page) => ({
+    loc: industryPath(page.slug),
+    changefreq: "monthly",
+    priority: "0.7",
+  }));
+  return [...shops, ...industries];
 }
 
 async function fetchAllBlogPosts() {
@@ -151,7 +177,7 @@ async function main() {
   let dynamicUrls = [];
   try {
     const [products, posts] = await Promise.all([fetchAllProducts(), fetchAllBlogPosts()]);
-    dynamicUrls = [...products, ...posts];
+    dynamicUrls = [...landingUrls(products.names), ...products.urls, ...posts];
   } catch (err) {
     // Never fail the whole build over a transient API hiccup — keep whatever sitemap.xml already
     // exists on disk (committed from the last successful run) rather than overwriting it with an

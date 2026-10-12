@@ -273,3 +273,118 @@ export function productSeo(product) {
   const description = clip(`${name} — ${price}${desc ? `${desc} ` : ""}${tail}`, 158);
   return { title, description, name };
 }
+
+/**
+ * FAQ shown on /faq — shared with the prerender so the raw HTML carries every question and answer
+ * plus FAQPage schema (it used to carry only the page heading, since the answers lived in faq.tsx).
+ * Answers originally drafted from what terms.tsx, refunds.tsx and contact.tsx already state.
+ */
+export const FAQ_GROUPS = [
+  {
+    heading: "Ordering",
+    items: [
+      {
+        q: "Is there a minimum order quantity?",
+        a: "Most products can be ordered from 100 units. Some items are sold by the packet or carton — the minimum is shown on each product page before you add it to cart.",
+      },
+      {
+        q: "Can I order without an account?",
+        a: "Yes. You can browse and check out as a guest. Creating an account lets you track past orders and re-order faster.",
+      },
+      {
+        q: "Can I get custom branding or printing on my packaging?",
+        a: "Yes — branding is available on request. Use the Enterprise Quote form or WhatsApp us with your logo/artwork and the products you're interested in.",
+      },
+      {
+        q: "How do I know if a product is in stock?",
+        a: "Every product card shows an in-stock or out-of-stock badge. Out-of-stock items can usually still be ordered — we'll confirm a restock or production timeline with you before shipping.",
+      },
+    ],
+  },
+  {
+    heading: "Payment",
+    items: [
+      {
+        q: "What payment methods do you accept?",
+        a: "M-Pesa, bank transfer, and cash on delivery for select customers. Large enterprise orders may require a 50% deposit before production starts.",
+      },
+      {
+        q: "Is my M-Pesa payment secure?",
+        a: "Payments are processed directly through Safaricom's M-Pesa STK push — we never see or store your PIN.",
+      },
+      {
+        q: "Do your prices include VAT?",
+        a: "Where stated, listed prices include VAT. This is shown at checkout before you confirm your order.",
+      },
+    ],
+  },
+  {
+    heading: "Delivery",
+    items: [
+      {
+        q: "How fast is delivery in Nairobi?",
+        a: "Same-day delivery within Nairobi for orders placed before the daily cutoff — check your cart at checkout for the exact delivery estimate.",
+      },
+      {
+        q: "Do you deliver outside Nairobi?",
+        a: "Yes, countrywide — typically within 3 business days depending on your location.",
+      },
+      {
+        q: "Can I track my order?",
+        a: "Yes — use the Track Order page with your order reference, or check your account dashboard if you're signed in.",
+      },
+    ],
+  },
+  {
+    heading: "Returns & quality",
+    items: [
+      {
+        q: "What if my order arrives damaged or wrong?",
+        a: "Contact us within 48 hours of delivery with photos of the issue and we'll arrange a replacement or refund — see our Refunds & Returns policy for full terms.",
+      },
+      {
+        q: "Do you offer samples before a bulk order?",
+        a: "For enterprise and custom-branded orders, ask your account manager about samples before committing to a full production run.",
+      },
+    ],
+  },
+  {
+    heading: "Visiting the shop",
+    items: [
+      {
+        q: "Where is the Moments Packaging shop?",
+        a: "Weithaga Building, along Ukwala Road, OTC, Nairobi CBD. It's open Monday to Friday, 8am to 5pm, and on Saturday mornings.",
+      },
+      {
+        q: "Can I buy packaging in person instead of online?",
+        a: "Yes — come to the shop on Ukwala Road, see the stock and buy over the counter. The prices are the same ones shown on this website.",
+      },
+    ],
+  },
+];
+
+/**
+ * Paths that must never appear in search results: carts, checkout, accounts, order lookups, admin.
+ * /checkout was the top Google result for "Moments Packaging Kenya" in the 2026-10-12 audit. Render
+ * serves these from the SPA fallback (dist/index.html), so the noindex can't be in a file of their
+ * own — the prerender guard script and RouteSeo add a robots meta tag instead (Google renders JS
+ * and honours it). A prefix also covers everything below it ("/account" covers /account/orders).
+ */
+export const NOINDEX_PATH_PREFIXES = [
+  "/cart",
+  "/checkout",
+  "/login",
+  "/order-confirmation",
+  "/orders",
+  "/review",
+  "/account",
+  "/admin",
+  "/manage-my-data",
+  "/style-guide",
+  "/launch",
+];
+
+export function isNoindexPath(pathname) {
+  const p = String(pathname ?? "").replace(/\/+$/, "") || "/";
+  return NOINDEX_PATH_PREFIXES.some((x) => p === x || p.startsWith(`${x}/`));
+}

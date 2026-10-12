@@ -10,10 +10,23 @@ import {
   INSTAGRAM_URL,
   TIKTOK_URL,
   FACEBOOK_URL,
-  categories,
 } from "@/data/products";
+import { findShopPage, shopPath } from "@/seo/landingPages";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import logoUrl from "@/assets/moments_logo_without_background.png";
+
+// Real, indexable buyer-intent pages (src/seo/landingPages.js). These replaced links to
+// /products?category=bags|cups|boxes|mailers|labels|gifting — placeholder slugs from the original
+// mock catalogue that matched nothing (or nothing much) in the live one. A link to these from every
+// page is also how search engines learn they're the site's main shopping pages.
+const FOOTER_SHOP_LINKS = [
+  ["takeaway-food-containers", "Takeaway containers"],
+  ["disposable-cups-and-lids", "Cups & lids"],
+  ["khaki-and-paper-bags", "Khaki & paper bags"],
+  ["cake-boxes-and-dessert-packaging", "Cake boxes"],
+  ["paper-plates-and-party-supplies", "Party supplies"],
+  ["aluminium-foil-and-cling-film", "Foil & cling film"],
+].filter(([slug]) => findShopPage(slug));
 
 export function SiteFooter() {
   return (
@@ -63,10 +76,10 @@ export function SiteFooter() {
                 All products
               </Link>
             </li>
-            {categories.map((c) => (
-              <li key={c.slug}>
-                <Link to={`/products?category=${c.slug}`} className="hover:text-accent">
-                  {c.name}
+            {FOOTER_SHOP_LINKS.map(([slug, label]) => (
+              <li key={slug}>
+                <Link to={shopPath(slug)} className="hover:text-accent">
+                  {label}
                 </Link>
               </li>
             ))}

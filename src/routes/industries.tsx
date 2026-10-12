@@ -5,6 +5,7 @@ import { SiteLayout } from "@/components/SiteLayout";
 import { ArrowRight } from "lucide-react";
 import { api } from "@/services/api";
 import { filterVisibleIndustries, type Industry } from "@/data/products";
+import { findIndustryPage, industryPath } from "@/seo/landingPages";
 
 
 
@@ -47,7 +48,7 @@ function IndustriesPage() {
               <Link
                 key={ind.id}
                 
-                to={`/products?industry=${ind.slug}`}
+                to={findIndustryPage(ind.slug) ? industryPath(ind.slug) : `/products?industry=${ind.slug}`}
                 className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-1 hover:border-accent/40 hover:shadow-xl"
               >
                 <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
