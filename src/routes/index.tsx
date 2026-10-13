@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
-import { EnquireFab } from "@/components/EnquireFab";
 import { useEnquiry } from "@/contexts/EnquiryContext";
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -1455,9 +1454,6 @@ function HomePage() {
         </main>
         <SiteFooter />
         <WhatsAppFloat />
-        {/* This page renders its own layout rather than SiteLayout, and that layout has no
-            SignUpFab — so the Enquire button takes the lower slot here, always. */}
-        <EnquireFab withSignUpFab={false} />
         <BottomNav />
       </div>
       <CartAddedSheet />

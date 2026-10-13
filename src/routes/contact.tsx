@@ -9,7 +9,12 @@ import { InlineProgress } from "@/components/InlineProgress";
 import { SiteLayout } from "@/components/SiteLayout";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { useCart, type CartItem } from "@/contexts/CartContext";
-import { ENQUIRY_TOPICS, type ChatPrefill, type EnquiryTopic } from "@/contexts/EnquiryContext";
+import {
+  ENQUIRY_TOPICS,
+  type ChatPrefill,
+  type EnquiryOpenOptions,
+  type EnquiryTopic,
+} from "@/contexts/EnquiryContext";
 import { usePersona } from "@/contexts/PersonaContext";
 import { randomWhatsAppLink } from "@/data/products";
 import { HoneypotField, useBotDefenseFields } from "@/hooks/useBotDefense";
@@ -27,12 +32,22 @@ import {
 } from "@/lib/enquiryMessage";
 import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 import { metaLead } from "@/lib/metaEvents";
+import { WEBSITE_CHAT_ENABLED } from "@/lib/siteFeatures";
 import { api } from "@/services/api";
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
 interface LocationState {
   basketItems?: CartItem[];
+  /** What the "Enquire" / "Ask us about it" button that brought the visitor here already knew. */
+  enquiry?: EnquiryOpenOptions;
+}
+
+/** The message the form starts with when an Enquire button knew what the visitor was looking at. */
+function startingMessage(opts?: EnquiryOpenOptions): string {
+  if (opts?.message) return opts.message;
+  if (opts?.product?.name) return `I would like to ask about ${opts.product.name}. `;
+  return "";
 }
 
 /** Topics where quantity/date/where-to help us answer in one go instead of three. */
@@ -56,16 +71,17 @@ function ContactPage() {
   const state = (location.state as LocationState | undefined) ?? {};
   const incoming = state.basketItems;
   const basketProducts: CartItem[] = items.length === 0 && incoming ? incoming : items;
+  const incomingEnquiry = state.enquiry;
 
   const [topic, setTopic] = useState<EnquiryTopic>(
-    basketProducts.length > 0 ? "product" : isCorp ? "bulk" : "other",
+    incomingEnquiry?.topic ?? (basketProducts.length > 0 ? "product" : isCorp ? "bulk" : "other"),
   );
   const [replyVia, setReplyVia] = useState<ReplyVia>("whatsapp");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [companyName, setCompanyName] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(() => startingMessage(incomingEnquiry));
   const [quantity, setQuantity] = useState("");
   const [neededBy, setNeededBy] = useState("");
   const [deliverTo, setDeliverTo] = useState("");
@@ -82,6 +98,22 @@ function ContactPage() {
   const successRef = useRef<HTMLDivElement | null>(null);
 
   const showDetails = DETAIL_TOPICS.includes(topic);
+
+  // Tapping "Enquire" again while already on this page brings a new starting point.
+  useEffect(() => {
+    const opts = (location.state as LocationState | undefined)?.enquiry;
+    if (!opts) return;
+    if (opts.topic) setTopic(opts.topic);
+    const starting = startingMessage(opts);
+    if (starting) setMessage(starting);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
+  // Which contact detail the form insists on follows how the visitor wants to be answered: a phone
+  // number for WhatsApp or a call, an email for email. The other stays optional, but if it is filled
+  // in it must still look real. (The form demanded both from 2026-09-21 until 2026-10-13.)
+  const phoneRequired = replyVia !== "email";
+  const emailRequired = replyVia === "email";
 
   // What the visitor has typed so far, as a chat opening: the same labelled block staff already read on enquiries.
   const chatPrefill: ChatPrefill = {
@@ -104,8 +136,8 @@ function ContactPage() {
 
   const bad = {
     "ct-name": name.trim().length < 2,
-    "ct-phone": !phoneLooksReachable(phone),
-    "ct-email": !emailLooksReal(email),
+    "ct-phone": phoneRequired ? !phoneLooksReachable(phone) : phone.trim() !== "" && !phoneLooksReachable(phone),
+    "ct-email": emailRequired ? !emailLooksReal(email) : email.trim() !== "" && !emailLooksReal(email),
     "ct-message": message.trim().length < 3,
     "ct-consent": !consent,
   };
@@ -123,7 +155,7 @@ function ContactPage() {
       showErrors && bad["ct-email"]
         ? email.trim()
           ? "That email address looks incomplete."
-          : "We need an email for your confirmation."
+          : "We need an email address to reply to."
         : undefined,
     "ct-message": showErrors && bad["ct-message"] ? "Add a line or two so we can help." : undefined,
     "ct-consent": showErrors && bad["ct-consent"] ? "Please tick this so we are allowed to reply." : undefined,
@@ -157,8 +189,9 @@ function ContactPage() {
         persona: persona ?? undefined,
         contact: {
           name: name.trim(),
-          email: email.trim(),
-          phone: phoneForSubmission(phone),
+          // Only what the visitor gave: the server needs one of the two, not both.
+          email: email.trim() || undefined,
+          phone: phone.trim() ? phoneForSubmission(phone) : undefined,
           company: companyName.trim() || undefined,
         },
         message: composeEnquiryMessage({
@@ -214,7 +247,7 @@ function ContactPage() {
             </p>
           </div>
 
-          {formState !== "success" && (
+          {WEBSITE_CHAT_ENABLED && formState !== "success" && (
             <div className="mt-8 flex flex-col items-center gap-4 rounded-2xl border border-accent/30 bg-accent/10 p-5 text-center sm:flex-row sm:justify-between sm:text-left">
               <div>
                 <p className="font-medium text-foreground">Need an answer now?</p>
@@ -263,6 +296,15 @@ function ContactPage() {
                 </div>
               )}
 
+              {/* First, because it decides which contact detail below is required. */}
+              <ChoiceGroup
+                legend="How should we get back to you?"
+                options={REPLY_OPTIONS}
+                value={replyVia}
+                onChange={setReplyVia}
+                columns={3}
+              />
+
               <Field id="ct-name" label="Your name" error={errors["ct-name"]}>
                 {(aria) => (
                   <input
@@ -277,12 +319,30 @@ function ContactPage() {
                 )}
               </Field>
 
-              <PhoneField id="ct-phone" value={phone} onChange={setPhone} error={errors["ct-phone"]} />
+              <PhoneField
+                id="ct-phone"
+                value={phone}
+                onChange={setPhone}
+                error={errors["ct-phone"]}
+                optional={!phoneRequired}
+                hint={
+                  phoneRequired
+                    ? replyVia === "call"
+                      ? "The number we should call you on. 0712 345 678 is fine."
+                      : "We reply on WhatsApp, so use the number you WhatsApp on. 0712 345 678 is fine."
+                    : "Only if you would also like a call or a WhatsApp message."
+                }
+              />
 
               <Field
                 id="ct-email"
                 label="Email"
-                hint="For your confirmation and anything we need to put in writing."
+                optional={!emailRequired}
+                hint={
+                  emailRequired
+                    ? "We will reply to this address."
+                    : "For a copy of your enquiry, if you would like one."
+                }
                 error={errors["ct-email"]}
               >
                 {(aria) => (
@@ -313,14 +373,6 @@ function ContactPage() {
                   />
                 )}
               </Field>
-
-              <ChoiceGroup
-                legend="How should we get back to you?"
-                options={REPLY_OPTIONS}
-                value={replyVia}
-                onChange={setReplyVia}
-                columns={3}
-              />
 
               {showDetails && (
                 <div className="space-y-4 rounded-xl border border-border/70 bg-secondary/30 p-4">
@@ -445,8 +497,14 @@ function ContactPage() {
               </button>
 
               <div className="flex flex-col items-center gap-3 text-center text-xs text-muted-foreground">
-                <p>Would rather talk now? Your answers above go into the chat.</p>
-                <ChatWithUsButton prefill={chatPrefill} label="Send this as a chat instead" className="w-full sm:w-auto" />
+                {WEBSITE_CHAT_ENABLED ? (
+                  <>
+                    <p>Would rather talk now? Your answers above go into the chat.</p>
+                    <ChatWithUsButton prefill={chatPrefill} label="Send this as a chat instead" className="w-full sm:w-auto" />
+                  </>
+                ) : (
+                  <p>Would rather talk now?</p>
+                )}
                 <a href={whatsappFallback} target="_blank" rel="noopener noreferrer" className="font-medium text-accent underline">
                   Chat on WhatsApp
                 </a>
@@ -488,9 +546,11 @@ function SuccessPanel({
         Your message is with our team and we will get back to you {how} within one working day. We are
         here Monday to Friday, 8am to 5pm, and Saturday mornings.
       </p>
-      <p className="mt-2 text-sm text-muted-foreground">
-        A copy is on its way to <span className="font-medium text-foreground">{email.trim()}</span>.
-      </p>
+      {email.trim() && (
+        <p className="mt-2 text-sm text-muted-foreground">
+          A copy is on its way to <span className="font-medium text-foreground">{email.trim()}</span>.
+        </p>
+      )}
       <a
         href={whatsappHref}
         target="_blank"

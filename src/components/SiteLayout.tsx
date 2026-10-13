@@ -3,7 +3,6 @@ import { SiteHeader } from "./SiteHeader";
 import { SiteFooter } from "./SiteFooter";
 import { WhatsAppFloat } from "./WhatsAppFloat";
 import { SignUpFab } from "./SignUpFab";
-import { EnquireFab } from "./EnquireFab";
 import { PageProgressBar } from "./PageProgressBar";
 import { AppSplash } from "./AppSplash";
 import { BottomNav } from "./BottomNav";
@@ -11,8 +10,6 @@ import { CookieConsent } from "./CookieConsent";
 import { AddToHomeScreenPrompt } from "./AddToHomeScreenPrompt";
 import { CelebratoryRewardBanner } from "./CelebratoryRewardBanner";
 import { CartAddedSheet } from "./CartAddedSheet";
-import { useRevealAfterActiveMs } from "@/hooks/useEngagementClock";
-import { SIGNUP_FAB_REVEAL_MS } from "@/lib/engagementSignals";
 
 // The welcome starter offer and the insider email prompt used to be mounted here (and again in
 // the homepage's own copy of this layout). Both now live behind the single engagement gate
@@ -35,10 +32,9 @@ function FirstVisitSplash() {
 }
 
 function LayoutShell({ children }: { children: ReactNode }) {
-  // Same reveal clock SignUpFab itself reads, so the two floating buttons agree about whether the
-  // lower slot is taken. (SignUpFab also hides for signed-in visitors; EnquireFab checks that for
-  // itself.)
-  const signUpFabPresent = useRevealAfterActiveMs(SIGNUP_FAB_REVEAL_MS);
+  // There is deliberately no floating "Enquire" button here: it was added on 2026-09-21 and taken
+  // out again on 2026-10-13 at the owner's request, who wanted the earlier way of enquiring back
+  // (WhatsApp button and the Contact page form).
   return (
     <>
       <FirstVisitSplash />
@@ -51,12 +47,6 @@ function LayoutShell({ children }: { children: ReactNode }) {
         <SiteFooter />
         <WhatsAppFloat />
         <SignUpFab />
-        {/* EnquireFab stacks above SignUpFab when both are on screen, and drops into the lower
-            slot when only it is. It has to be told which, because SignUpFab is no longer there
-            from the first frame — it now waits until the visitor has actually spent time on the
-            site (see SignUpFab's own comment), so assuming its presence would leave the Enquire
-            button hovering above an empty gap for the first twenty seconds of every visit. */}
-        <EnquireFab withSignUpFab={signUpFabPresent} />
         <CookieConsent />
         <BottomNav />
       </div>

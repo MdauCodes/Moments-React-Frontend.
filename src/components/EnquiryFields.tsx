@@ -76,6 +76,7 @@ export function PhoneField({
   error,
   label = "Phone number",
   hint = "We reply on WhatsApp, so use the number you WhatsApp on. 0712 345 678 is fine.",
+  optional,
 }: {
   id: string;
   value: string;
@@ -83,9 +84,11 @@ export function PhoneField({
   error?: string;
   label?: string;
   hint?: string;
+  /** Shown as "(optional)" — for a form where the visitor asked to be answered by email. */
+  optional?: boolean;
 }) {
   return (
-    <Field id={id} label={label} hint={hint} error={error}>
+    <Field id={id} label={label} hint={hint} error={error} optional={optional}>
       {(aria) => (
         <input
           {...aria}

@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Component, createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChatPill } from "@/components/ChatPill";
 import { takeResumeFromUrl } from "@/lib/chatClient";
@@ -57,10 +58,6 @@ interface EnquiryContextValue {
 
 const EnquiryContext = createContext<EnquiryContextValue | null>(null);
 
-const QuickEnquirySheet = lazy(() =>
-  import("@/components/QuickEnquirySheet").then((m) => ({ default: m.QuickEnquirySheet })),
-);
-
 const ChatSheet = lazy(() => import("@/components/ChatSheet").then((m) => ({ default: m.ChatSheet })));
 
 /** If the panel's code cannot be downloaded (offline, or the site was updated while this tab was open),
@@ -110,20 +107,23 @@ function OpeningIndicator() {
 
 export function EnquiryProvider({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [everOpened, setEverOpened] = useState(false);
   const [options, setOptions] = useState<EnquiryOpenOptions>({});
-  const [openCount, setOpenCount] = useState(0);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatEverOpened, setChatEverOpened] = useState(false);
   const [chatOpenCount, setChatOpenCount] = useState(0);
   const [chatPrefill, setChatPrefill] = useState<ChatPrefill>({});
 
-  const openEnquiry = useCallback((next: EnquiryOpenOptions = {}) => {
-    setOptions(next);
-    setEverOpened(true);
-    setOpenCount((n) => n + 1);
-    setIsOpen(true);
-  }, []);
+  const navigate = useNavigate();
+  // "Enquire" buttons all land on the Contact page, which lists every way to reach us (chat is the
+  // last one), instead of jumping straight into a panel or the chat. What the button knew (a product,
+  // a topic, a starting message) travels with the visit so the form there starts filled in.
+  const openEnquiry = useCallback(
+    (next: EnquiryOpenOptions = {}) => {
+      setOptions(next);
+      navigate("/contact", { state: { enquiry: next } });
+    },
+    [navigate],
+  );
   const closeEnquiry = useCallback(() => setIsOpen(false), []);
   const openChat = useCallback((prefill?: ChatPrefill) => {
     setChatPrefill(prefill ?? {});
@@ -149,13 +149,6 @@ export function EnquiryProvider({ children }: { children: ReactNode }) {
     <EnquiryContext.Provider value={value}>
       {children}
       <ChatPill />
-      {everOpened && (
-        <SheetErrorBoundary key={openCount} onClose={closeEnquiry}>
-          <Suspense fallback={<OpeningIndicator />}>
-            <QuickEnquirySheet />
-          </Suspense>
-        </SheetErrorBoundary>
-      )}
       {chatEverOpened && (
         <SheetErrorBoundary key={`chat-${chatOpenCount}`} onClose={closeChat}>
           <Suspense fallback={<OpeningIndicator />}>
