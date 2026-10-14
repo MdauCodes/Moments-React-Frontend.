@@ -66,3 +66,27 @@ export function stopOrderAlertSound(): void {
   if (timer) clearInterval(timer);
   timer = null;
 }
+
+/** One soft two-note chime — for reminders that matter but are not an emergency (Riseller entries). */
+export function playReminderChime(): void {
+  try {
+    const c = getCtx();
+    if (!c) return;
+    void c.resume();
+    const t = c.currentTime;
+    for (const [freq, at] of [[660, 0], [880, 0.28]] as const) {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t + at);
+      gain.gain.exponentialRampToValueAtTime(0.12, t + at + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.6);
+      osc.connect(gain).connect(c.destination);
+      osc.start(t + at);
+      osc.stop(t + at + 0.65);
+    }
+  } catch {
+    /* audio unavailable — the overlay still shows */
+  }
+}

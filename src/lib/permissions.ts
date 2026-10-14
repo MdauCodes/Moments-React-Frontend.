@@ -40,6 +40,8 @@ export const PERM = {
   CUSTOMER_VIEW: "CUSTOMER_VIEW",
   // Audit
   AUDIT_VIEW: "AUDIT_VIEW",
+  // Riseller: see and tick online sales still to be entered in Riseller
+  RISELLER_RECORD: "RISELLER_RECORD",
 } as const;
 
 export type PermissionCode = (typeof PERM)[keyof typeof PERM];
@@ -57,7 +59,7 @@ export const PERMISSION_GROUPS: { label: string; perms: PermissionCode[] }[] = [
       PERM.ORDER_DISPATCH,
     ],
   },
-  { label: "Products", perms: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE] },
+  { label: "Products", perms: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE, PERM.RISELLER_RECORD] },
   { label: "Payments", perms: [PERM.PAYMENT_VIEW, PERM.PAYMENT_REFUND] },
   { label: "Users & roles", perms: [PERM.USER_VIEW, PERM.USER_CREATE, PERM.USER_MANAGE_ROLES] },
   {
