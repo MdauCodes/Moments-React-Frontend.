@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { CRM_URL } from "@/config/crm";
 import { Bell, BellRing, Globe, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, X } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -266,7 +267,8 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const runHeaderSearch = () => {
     const q = headerSearch.trim();
     if (!q) return;
-    navigate(`/admin/enquiries?q=${encodeURIComponent(q)}`);
+    // Phase 7: enquiries are leads in the CRM now, so this searches there (a new tab, the dashboard stays open).
+    window.open(`${CRM_URL}/leads?q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer");
   };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -641,7 +643,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
               <Search size={14} style={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search enquiries..."
+                placeholder="Search leads in the CRM..."
                 style={styles.searchInput}
                 value={headerSearch}
                 onChange={(e) => setHeaderSearch(e.target.value)}

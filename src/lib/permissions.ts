@@ -68,7 +68,7 @@ export const PERMISSION_GROUPS: { label: string; perms: PermissionCode[] }[] = [
       PERM.ANALYTICS_VIEW,
       PERM.SETTINGS_MANAGE,
       PERM.BLOG_MANAGE,
-      PERM.ENQUIRY_VIEW,
+      // ENQUIRY_VIEW retired (phase 7, 2026-10-14): enquiries are worked in the CRM. Kept in PERM for old tokens/rows.
       PERM.REVIEW_MODERATE,
       PERM.CUSTOMER_VIEW,
     ],
@@ -84,7 +84,6 @@ const STAFF_BUNDLE: PermissionCode[] = [
   PERM.ORDER_PREPARE,
   PERM.ORDER_DISPATCH,
   PERM.PRODUCT_VIEW,
-  PERM.ENQUIRY_VIEW,
   PERM.CUSTOMER_VIEW,
   PERM.REVIEW_MODERATE,
 ];

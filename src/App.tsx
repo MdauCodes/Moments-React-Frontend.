@@ -105,9 +105,7 @@ const AdminResetPasswordPage = lazy(() => import("@/routes/admin.reset-password"
 const AdminDashboardPage = lazy(() =>
   import("@/routes/_adminAuth.admin.index").then((m) => ({ default: m.AdminDashboardPage })));
 const AdminAnalyticsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics"));
-const AdminAnalyticsCustomersPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.customers"));
 const AdminAnalyticsNeedsAttentionPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.needs-attention"));
-const AdminAnalyticsSignupsDemographicsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.signups-demographics"));
 const AdminAnalyticsGeographicPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.geographic"));
 const AdminAnalyticsDeliveryPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.delivery"));
 const AdminAnalyticsProductsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.products"));
@@ -128,9 +126,8 @@ const AdminBusinessAccountsPage = lazy(() => import("@/routes/_adminAuth.admin.b
 const AdminBusinessAccountDetailPage = lazy(() => import("@/routes/_adminAuth.admin.business-accounts.$id"));
 const AdminCreditAccountsPage = lazy(() => import("@/routes/_adminAuth.admin.credit-accounts"));
 const AdminDeliveryZonesPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-zones"));
-const AdminEnquiriesPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries"));
-const AdminEnquiriesNewPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries.new"));
-const AdminEnquiryDetailPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries.$id"));
+// Phase 7: enquiries and customer analytics moved to the CRM; old addresses show where they went.
+const AdminMovedToCrmPage = lazy(() => import("@/routes/_adminAuth.admin.moved-to-crm"));
 const AdminInventoryPage = lazy(() => import("@/routes/_adminAuth.admin.inventory"));
 const AdminOrdersPage = lazy(() => import("@/routes/_adminAuth.admin.orders"));
 const AdminOrderNewPage = lazy(() => import("@/routes/_adminAuth.admin.orders_.new"));
@@ -301,9 +298,9 @@ export default function App() {
                       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                       <Route path="/admin/dashboard" element={<Suspense fallback={<AdminRouteFallback />}><AdminDashboardPage /></Suspense>} />
                       <Route path="/admin/analytics" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsPage /></Suspense>} />
-                      <Route path="/admin/analytics/customers" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsCustomersPage /></Suspense>} />
+                      <Route path="/admin/analytics/customers" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
                       <Route path="/admin/analytics/needs-attention" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsNeedsAttentionPage /></Suspense>} />
-                      <Route path="/admin/analytics/signups-demographics" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsSignupsDemographicsPage /></Suspense>} />
+                      <Route path="/admin/analytics/signups-demographics" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
                       <Route path="/admin/analytics/geographic" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsGeographicPage /></Suspense>} />
                       <Route path="/admin/analytics/delivery" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsDeliveryPage /></Suspense>} />
                       <Route path="/admin/analytics/products" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsProductsPage /></Suspense>} />
@@ -313,7 +310,7 @@ export default function App() {
                       <Route path="/admin/analytics/data-visualization" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsDataVisualizationPage /></Suspense>} />
                       {/* Retired composite pages from the prior analytics restructuring — redirect old
                           bookmarks/links to a sensible standalone tab rather than 404ing. */}
-                      <Route path="/admin/analytics/sales" element={<Navigate to="/admin/analytics/customers" replace />} />
+                      <Route path="/admin/analytics/sales" element={<Navigate to="/admin/analytics" replace />} />
                       <Route path="/admin/analytics/finance" element={<Navigate to="/admin/analytics/profitability" replace />} />
                       <Route path="/admin/audit-logs" element={<Suspense fallback={<AdminRouteFallback />}><AdminAuditLogsPage /></Suspense>} />
                       <Route path="/admin/blogs" element={<Suspense fallback={<AdminRouteFallback />}><AdminBlogsPage /></Suspense>} />
@@ -328,9 +325,9 @@ export default function App() {
                       <Route path="/admin/business-accounts/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminBusinessAccountDetailPage /></Suspense>} />
                       <Route path="/admin/credit-accounts" element={<Suspense fallback={<AdminRouteFallback />}><AdminCreditAccountsPage /></Suspense>} />
                       <Route path="/admin/delivery-zones" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeliveryZonesPage /></Suspense>} />
-                      <Route path="/admin/enquiries" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiriesPage /></Suspense>} />
-                      <Route path="/admin/enquiries/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiriesNewPage /></Suspense>} />
-                      <Route path="/admin/enquiries/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiryDetailPage /></Suspense>} />
+                      <Route path="/admin/enquiries" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
+                      <Route path="/admin/enquiries/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
+                      <Route path="/admin/enquiries/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
                       <Route path="/admin/inventory" element={<Suspense fallback={<AdminRouteFallback />}><AdminInventoryPage /></Suspense>} />
                       <Route path="/admin/orders" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrdersPage /></Suspense>} />
                       <Route path="/admin/orders/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrderNewPage /></Suspense>} />

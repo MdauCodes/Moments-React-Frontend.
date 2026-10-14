@@ -56,8 +56,8 @@ export function Forbidden({ resource }: ForbiddenProps) {
           ? `Your STAFF account does not have permission to view ${resource}. Ask an administrator if you need access.`
           : "Your STAFF account does not have permission to view this page. Ask an administrator if you need access."}
       </div>
-      <Link to="/admin/enquiries" style={back}>
-        Back to Enquiries
+      <Link to="/admin/dashboard" style={back}>
+        Back to the dashboard
       </Link>
     </div>
   );
