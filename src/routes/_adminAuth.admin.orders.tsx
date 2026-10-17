@@ -73,6 +73,9 @@ interface ClientFilterParams {
   paymentStatus: string;
   hideTestOrders: boolean;
   needle: string;
+  /** Board view shows every stage including Completed/Closed and awaiting-payment, so it must not
+   *  apply the table's "active orders only" default. */
+  includeFinished?: boolean;
 }
 
 // Every filter dimension this page applies beyond what the backend's list endpoint can express
@@ -112,7 +115,7 @@ function applyClientFilters(list: OrderRecord[], p: ClientFilterParams): OrderRe
       // without this, filtering by paymentStatus=FAILED with status left on "ALL" would hit
       // this default and silently show zero rows — exactly the case the "Failed payments"
       // dashboard alert deep-links into.
-      if (p.status === "ALL" && p.paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
+      if (!p.includeFinished && p.status === "ALL" && p.paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
     }
 
     if (p.status !== "ALL" && o.status !== p.status) return false;
@@ -245,9 +248,9 @@ function AdminOrdersPage() {
   const filteredRows = useMemo(
     () => applyClientFilters(sourceOrders, {
       isAssignedOnly, currentUserId, scope, deliveryTab, status, paymentStatus, hideTestOrders,
-      needle: debouncedQ.toLowerCase(),
+      needle: debouncedQ.toLowerCase(), includeFinished: view === "board",
     }),
-    [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab],
+    [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab, view],
   );
 
   // Export needs every matching order, not just what's in the shared 500-row cache. The search
@@ -276,6 +279,7 @@ function AdminOrdersPage() {
     }
     return applyClientFilters(all, {
       isAssignedOnly, currentUserId, scope, deliveryTab, status, paymentStatus, hideTestOrders, needle: "",
+      includeFinished: view === "board",
     });
   }
 
