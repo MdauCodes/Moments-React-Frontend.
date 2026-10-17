@@ -25,6 +25,15 @@ export const ALL_ORDERS_BOARD_COLUMNS: AllOrdersBoardColumn[] = [
   { key: "closed", label: "Closed", matches: ["CANCELLED", "REFUNDED"] },
 ];
 
+/** The extra lane the "Show awaiting payment" toggle reveals: orders that were placed and saved at
+ *  the back but never got paid (abandoned or still-waiting checkouts). Off by default so the
+ *  working board stays clean. */
+export const AWAITING_PAYMENT_COLUMN: AllOrdersBoardColumn = {
+  key: "awaiting_payment",
+  label: "Awaiting payment",
+  matches: ["PENDING_PAYMENT"],
+};
+
 /** statusV2 values that mean an order is effectively done even though the legacy Order.status
  *  it's otherwise grouped by hasn't caught up to DELIVERED yet — currently just TumaBoda's
  *  DELIVERED_PENDING_CONFIRMATION (see fulfillmentBoardColumns.ts's own reclassification of the
@@ -43,20 +52,27 @@ const STATUS_V2_MEANS_COMPLETED_DESPITE_LEGACY_STATUS = new Set(["DELIVERED_PEND
  *  AUTO_CLOSE_COMPLETED_AFTER_MS): there's no reason for a finished order to keep occupying
  *  "Completed" indefinitely, and CANCELLED/REFUNDED orders already share "Closed" with nothing
  *  further needed from staff either. */
-export function resolveAllOrdersColumnKey(order: {
-  status?: string | null;
-  statusV2?: string | null;
-  completedAt?: string | null;
-}): string | null {
+export function resolveAllOrdersColumnKey(
+  order: {
+    status?: string | null;
+    statusV2?: string | null;
+    completedAt?: string | null;
+  },
+  opts: { showAwaitingPayment?: boolean } = {},
+): string | null {
   const status = order.status;
-  if (!status || status === "PENDING_PAYMENT") return null;
+  if (!status) return null;
+  if (status === "PENDING_PAYMENT") return opts.showAwaitingPayment ? AWAITING_PAYMENT_COLUMN.key : null;
 
   const key = order.statusV2 && STATUS_V2_MEANS_COMPLETED_DESPITE_LEGACY_STATUS.has(order.statusV2)
     ? "completed"
     : ALL_ORDERS_BOARD_COLUMNS.find((c) => c.matches.includes(status))?.key ?? null;
 
-  if (key === "completed" && isCompletedOldEnoughToClose(order.completedAt)) {
-    return "closed";
+  if (key === "completed") {
+    // An order delivered before completedAt was recorded has no timestamp to age: it is long done,
+    // so it belongs with the closed ones rather than sitting in Completed forever.
+    if (!order.completedAt && order.status === "DELIVERED") return "closed";
+    if (isCompletedOldEnoughToClose(order.completedAt)) return "closed";
   }
   return key;
 }
