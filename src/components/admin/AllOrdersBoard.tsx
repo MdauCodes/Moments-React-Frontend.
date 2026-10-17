@@ -114,6 +114,7 @@ export function AllOrdersBoard({
   canAssign = false,
   selectedIds,
   onToggleSelect,
+  showAwaitingPayment = false,
 }: {
   orders: (OrderRecord & Record<string, any>)[];
   onOpenOrder: (id: string) => void;
@@ -121,26 +122,10 @@ export function AllOrdersBoard({
   canAssign?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  /** Adds the lane of placed-but-unpaid orders; off by default and switched from the page's filters. */
+  showAwaitingPayment?: boolean;
 }) {
-  const awaitingPaymentCount = orders.filter((o) => o.status === "PENDING_PAYMENT").length;
-
-  // Orders that were placed and saved but never paid. Hidden by default (they are mostly abandoned
-  // checkouts, not work); the toggle reveals them as their own lane. Remembered per browser.
-  const [showAwaiting, setShowAwaiting] = useState<boolean>(() => {
-    try {
-      return window.localStorage.getItem("allOrdersBoard.showAwaiting") === "1";
-    } catch {
-      return false;
-    }
-  });
-  const toggleAwaiting = (on: boolean) => {
-    setShowAwaiting(on);
-    try {
-      window.localStorage.setItem("allOrdersBoard.showAwaiting", on ? "1" : "0");
-    } catch {
-      /* storage unavailable: the toggle simply is not remembered */
-    }
-  };
+  const showAwaiting = showAwaitingPayment;
   const columns = showAwaiting ? [AWAITING_PAYMENT_COLUMN, ...ALL_ORDERS_BOARD_COLUMNS] : ALL_ORDERS_BOARD_COLUMNS;
 
   const byColumn = new Map<string, (OrderRecord & Record<string, any>)[]>();
@@ -185,14 +170,6 @@ export function AllOrdersBoard({
 
   return (
     <div>
-      <label
-        className="admin-section-heading"
-        style={{ padding: "0 4px 10px", display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
-      >
-        <input type="checkbox" checked={showAwaiting} onChange={(e) => toggleAwaiting(e.target.checked)} />
-        <span>Show orders awaiting payment (placed, not yet paid)</span>
-        <span className="admin-badge admin-badge-muted">{awaitingPaymentCount}</span>
-      </label>
       <div className="admin-board-columns-wrap">
         {canScrollLeft && (
           <button

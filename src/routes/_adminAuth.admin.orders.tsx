@@ -167,6 +167,8 @@ function AdminOrdersPage() {
   const [page, setPage] = useState(0);
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
   const [hideTestOrders, setHideTestOrders] = useState(false);
+  // Placed-but-unpaid orders (mostly abandoned checkouts) stay out of the board unless asked for here.
+  const [showAwaitingPayment, setShowAwaitingPayment] = useState(false);
   const [deliveryTab, setDeliveryTab] = useState<DeliveryTab>("ALL");
   // Board (the same card/column design every per-mode tab already uses — see AllOrdersBoard) is
   // now the default view here too, per explicit request. Table stays available as a toggle for
@@ -177,7 +179,7 @@ function AdminOrdersPage() {
   // collapsed by default so the search/status row and the table below get the space instead. Any
   // of the three being non-default auto-opens the panel so an active filter is never hidden.
   const effectiveShowMoreFilters = showMoreFilters
-    || paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL");
+    || paymentStatus !== "ALL" || hideTestOrders || showAwaitingPayment || scope !== (isAssignedOnly ? "MINE" : "ALL");
 
   // Bulk assign — the only bulk action for now; reuses the same eligibility rules and endpoint
   // AssignSelect already applies per-row (must be PAID, not in a terminal status).
@@ -443,7 +445,7 @@ function AdminOrdersPage() {
                   style={{ fontSize: 12 }}
                 >
                   {effectiveShowMoreFilters ? "Fewer filters" : "More filters"}
-                  {!effectiveShowMoreFilters && (paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL")) ? " •" : ""}
+                  {!effectiveShowMoreFilters && (paymentStatus !== "ALL" || hideTestOrders || showAwaitingPayment || scope !== (isAssignedOnly ? "MINE" : "ALL")) ? " •" : ""}
                 </button>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
@@ -531,6 +533,16 @@ function AdminOrdersPage() {
                   />
                   Hide test orders
                 </label>
+                {view === "board" && (
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--admin-muted)", whiteSpace: "nowrap" }}>
+                    <input
+                      type="checkbox"
+                      checked={showAwaitingPayment}
+                      onChange={(e) => setShowAwaitingPayment(e.target.checked)}
+                    />
+                    Show unpaid orders on the board
+                  </label>
+                )}
                 {canAssign && currentUserId && (
                   <div role="tablist" aria-label="Assignment scope" style={{ display: "inline-flex", border: "1px solid var(--admin-border)", borderRadius: 8, overflow: "hidden" }}>
                     {/* "MINE" deliberately left out for now, per explicit request — keep this
@@ -612,6 +624,7 @@ function AdminOrdersPage() {
                     onOpenOrder={setOpenId}
                     onOrderUpdated={(o) => applyOrderPatch(o.id, o)}
                     canAssign={canAssign}
+                    showAwaitingPayment={showAwaitingPayment}
                     selectedIds={selectedIds}
                     onToggleSelect={(id) => setSelectedIds((prev) => {
                       const next = new Set(prev);
