@@ -28,6 +28,13 @@ const FOOTER_SHOP_LINKS = [
   ["aluminium-foil-and-cling-film", "Foil & cling film"],
 ].filter(([slug]) => findShopPage(slug));
 
+// Guide pages (src/seo/guidePages.js), linked from every page for the same reason.
+const FOOTER_GUIDE_LINKS = [
+  ["/packaging-suppliers-nairobi/", "Packaging suppliers Nairobi"],
+  ["/packaging/eco-friendly-packaging-kenya/", "Eco-friendly packaging"],
+  ["/custom-packaging-nairobi/", "Custom packaging"],
+] as const;
+
 export function SiteFooter() {
   return (
     <footer
@@ -95,6 +102,13 @@ export function SiteFooter() {
         <div>
           <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Explore</h4>
           <ul className="mt-4 space-y-2 text-sm">
+            {FOOTER_GUIDE_LINKS.map(([to, label]) => (
+              <li key={to}>
+                <Link to={to} className="hover:text-accent">
+                  {label}
+                </Link>
+              </li>
+            ))}
             <li>
               <Link to="/industries" className="hover:text-accent">
                 Industries

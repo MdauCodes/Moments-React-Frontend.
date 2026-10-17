@@ -27,6 +27,7 @@ import {
   industryPath,
   shopPageIncludes,
 } from "../src/seo/landingPages.js";
+import { GUIDE_PAGES, GUIDE_UPDATED } from "../src/seo/guidePages.js";
 
 // The four original in-repo blog posts (src/data/blogs.ts) — not in the backend `blogs` table,
 // but they render on /blog (see api.ts mergeStaticBlogs), so they belong in the sitemap too.
@@ -44,6 +45,13 @@ const SITE_ORIGIN = "https://momentspackaging.com";
 const STATIC_PAGES = [
   { loc: "/", changefreq: "weekly", priority: "1.0" },
   { loc: "/products", changefreq: "weekly", priority: "0.9" },
+  // Guide pages (src/seo/guidePages.js): canonical with a trailing slash, like the hubs.
+  ...GUIDE_PAGES.map((g) => ({
+    loc: g.path,
+    lastmod: GUIDE_UPDATED,
+    changefreq: "weekly",
+    priority: "0.9",
+  })),
   { loc: "/company-profile", changefreq: "monthly", priority: "0.8" },
   { loc: "/industries", changefreq: "monthly", priority: "0.7" },
   { loc: "/sustainability", changefreq: "monthly", priority: "0.6" },

@@ -50,6 +50,7 @@ const EnterpriseQuotePage = lazy(() => import("@/routes/enterprise-quote"));
 const IndustriesPage = lazy(() => import("@/routes/industries"));
 const IndustryHubPage = lazy(() => import("@/routes/industries.$slug"));
 const ShopLandingPage = lazy(() => import("@/routes/shop.$slug"));
+const GuidePage = lazy(() => import("@/routes/guide"));
 const NotFoundPage = lazy(() => import("@/routes/not-found"));
 const LoginPage = lazy(() => import("@/routes/login"));
 const OrderConfirmationPage = lazy(() => import("@/routes/order-confirmation"));
@@ -248,6 +249,9 @@ export default function App() {
                     <Route path="/industries" element={<IndustriesPage />} />
                     <Route path="/industries/:slug" element={<IndustryHubPage />} />
                     <Route path="/shop/:slug" element={<ShopLandingPage />} />
+                    <Route path="/packaging-suppliers-nairobi" element={<GuidePage slug="packaging-suppliers-nairobi" />} />
+                    <Route path="/packaging/eco-friendly-packaging-kenya" element={<GuidePage slug="eco-friendly-packaging-kenya" />} />
+                    <Route path="/custom-packaging-nairobi" element={<GuidePage slug="custom-packaging-nairobi" />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
                     <Route path="/orders/track" element={<OrdersTrackPage />} />

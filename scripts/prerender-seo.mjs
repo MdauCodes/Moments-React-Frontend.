@@ -49,6 +49,15 @@ import {
   shopPagesForProduct,
   landingFaqs,
 } from "../src/seo/landingPages.js";
+import {
+  GUIDE_PAGES,
+  GUIDE_DATA_PATH,
+  GUIDE_SLASHLESS_PATHS,
+  ECO_GROUPS,
+  buildGuideData,
+  findGuidePage,
+  whatsappCustomUrl,
+} from "../src/seo/guidePages.js";
 import { countUnits } from "../src/lib/uomWords.js";
 
 const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
@@ -142,7 +151,7 @@ function footer() {
     BUSINESS.locality,
   )} · <a href="tel:${BUSINESS.phoneIntl}">${esc(BUSINESS.phoneDisplay)}</a> · <a href="mailto:${BUSINESS.email}">${esc(
     BUSINESS.email,
-  )}</a></p><p><a href="/company-profile">About us</a> · <a href="/payment-methods">Payment methods</a> · <a href="/how-it-works">How it works</a> · <a href="/refunds">Returns & refunds</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p></footer>`;
+  )}</a></p><p><a href="/company-profile">About us</a> · <a href="/packaging-suppliers-nairobi/">Packaging suppliers in Nairobi</a> · <a href="/packaging/eco-friendly-packaging-kenya/">Eco-friendly packaging</a> · <a href="/custom-packaging-nairobi/">Custom packaging</a> · <a href="/payment-methods">Payment methods</a> · <a href="/how-it-works">How it works</a> · <a href="/refunds">Returns & refunds</a> · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p></footer>`;
 }
 
 function breadcrumbHtml(items) {
@@ -199,7 +208,8 @@ const PRERENDER_STYLE = `<style id="mpk-pr-style">
 </style>`;
 
 // Runs synchronously while the HTML parses, before the app bundle (a deferred module) executes.
-//  1. A slash-less detail URL (/products/x, /blog/x, /shop/x, /industries/x) gets Render's SPA
+//  1. A slash-less detail URL (/products/x, /blog/x, /shop/x, /industries/x, or a guide page such
+//     as /packaging-suppliers-nairobi) gets Render's SPA
 //     fallback — the homepage file — so send it to the official slash form, whose own prerendered
 //     file exists. Search engines treat this as a redirect. (A server-side redirect isn't possible
 //     on Render's static hosting without looping — see productPath in src/seo/seoData.js.)
@@ -210,9 +220,9 @@ const PRERENDER_STYLE = `<style id="mpk-pr-style">
 // regexes can't lose their backslashes to template-literal escaping (an earlier string version
 // shipped /^/(products... — a syntax error that silently disabled the whole guard). ES5 only: it
 // runs as-is in every browser, untranspiled.
-function guard(noindexPrefixes) {
+function guard(noindexPrefixes, slashPaths) {
   var raw = location.pathname;
-  if (/^\/(products|blog|shop|industries)\/[^/]+$/.test(raw)) {
+  if (/^\/(products|blog|shop|industries)\/[^/]+$/.test(raw) || slashPaths.indexOf(raw) !== -1) {
     location.replace(raw + "/" + location.search + location.hash);
     return;
   }
@@ -243,7 +253,7 @@ function guard(noindexPrefixes) {
 }
 
 function guardScript() {
-  return `<script>(${guard.toString()})(${JSON.stringify(NOINDEX_PATH_PREFIXES)});</script>`;
+  return `<script>(${guard.toString()})(${JSON.stringify(NOINDEX_PATH_PREFIXES)}, ${JSON.stringify(GUIDE_SLASHLESS_PATHS)});</script>`;
 }
 
 // ── head rewriting ───────────────────────────────────────────────────────────
@@ -463,6 +473,96 @@ ${storeSection()}`;
   };
 }
 
+/**
+ * A guide page (src/seo/guidePages.js): the direct answer first, then the live catalogue block
+ * (hub table or eco product groups), the sections, the material table, Q&A and related links.
+ */
+function guidePage(page, data) {
+  const urlPath = page.path.replace(/\/$/, "");
+  const crumbs = [
+    ["/", "Home"],
+    [page.path, page.h1],
+  ];
+  let live = "";
+  if (page.kind === "suppliers" && data.hubs.length) {
+    live = `<section><h2>What we stock</h2><table><thead><tr><th>Packaging</th><th>Products</th><th>From</th></tr></thead><tbody>${data.hubs
+      .map(
+        (h) =>
+          `<tr><td><a href="${shopPath(h.slug)}">${esc(h.name)}</a></td><td>${h.count}</td><td>${esc(h.from ?? "-")}</td></tr>`,
+      )
+      .join("")}</tbody></table></section>`;
+  }
+  if (page.kind === "eco") {
+    live = ECO_GROUPS.map((g) => {
+      const list = data.eco.find((e) => e.key === g.key)?.products ?? [];
+      if (!list.length) return "";
+      return `<section><h2>${esc(g.heading)}</h2><p>${esc(g.blurb)}</p><ul class="mpk-pr-list">${list
+        .map(
+          (p) =>
+            `<li><a href="${productPath(p.slug)}">${esc(p.name)}</a>${p.basePrice != null ? ` — ${formatKes(p.basePrice)} per ${esc(p.unit)}` : ""}</li>`,
+        )
+        .join("")}</ul></section>`;
+    }).join("\n");
+  }
+  if (page.kind === "custom") {
+    live = `<p><a href="${esc(whatsappCustomUrl())}">WhatsApp us your logo</a> · <a href="tel:${BUSINESS.phoneIntl}">Call ${esc(BUSINESS.phoneDisplay)}</a></p>`;
+  }
+  const sections = page.sections
+    .map(
+      (s) =>
+        `<section><h2>${esc(s.heading)}</h2>${(s.paras ?? []).map((t) => `<p>${esc(t)}</p>`).join("")}${
+          s.bullets ? `<ul>${s.bullets.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>` : ""
+        }</section>`,
+    )
+    .join("\n");
+  const table = page.table
+    ? `<section><h2>${esc(page.table.caption)}</h2><table><thead><tr>${page.table.head
+        .map((h) => `<th>${esc(h)}</th>`)
+        .join("")}</tr></thead><tbody>${page.table.rows
+        .map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`)
+        .join("")}</tbody></table></section>`
+    : "";
+  const related = [
+    ...(page.links.shop ?? []).map(findShopPage).filter(Boolean).map((s) => [shopPath(s.slug), s.h1]),
+    ...(page.links.industries ? INDUSTRY_PAGES.map((i) => [industryPath(i.slug), i.h1]) : []),
+    ...(page.links.guides ?? []).map(findGuidePage).filter(Boolean).map((g) => [g.path, g.h1]),
+    ...(page.links.extra ?? []),
+  ];
+  const body = `${breadcrumbHtml(crumbs)}
+<h1>${esc(page.h1)}</h1>
+<p>${esc(page.answer)}</p>
+${live}
+${sections}
+${table}
+<section><h2>Questions</h2>${faqHtml(page.faqs)}</section>
+${related.length ? `<section><h2>Related</h2><ul>${related.map(([href, label]) => `<li><a href="${esc(href)}">${esc(label)}</a></li>`).join("")}</ul></section>` : ""}
+${storeSection()}`;
+  return {
+    urlPath,
+    canonicalPath: page.path,
+    title: page.title,
+    description: page.description,
+    jsonLd: [breadcrumbSchema(crumbs), faqSchema(page.faqs)],
+    body,
+  };
+}
+
+/**
+ * llms.txt gets a dated section with the live from-prices, so an assistant reading it has real
+ * numbers to quote. The hand-written part stays in public/llms.txt.
+ */
+function llmsPriceSection(data) {
+  if (!data.hubs.length) return "";
+  const day = new Date().toISOString().slice(0, 10);
+  return `
+## Prices (from the live catalogue, ${day})
+
+Lowest current price per kind of packaging. Check the linked page for today's prices and stock.
+
+${data.hubs.map((h) => `- [${h.name}](${shopPath(h.slug)}): ${h.count} products${h.from ? `, from ${h.from}` : ""}`).join("\n")}
+`;
+}
+
 // ── page builders ────────────────────────────────────────────────────────────
 
 function productPage(p, related) {
@@ -646,6 +746,17 @@ async function main() {
     (pg) => `<li><a href="${industryPath(pg.slug)}">${esc(pg.h1)}</a></li>`,
   ).join("")}</ul></section>`;
 
+  // Guide pages, and the data file their browser pages read (same numbers as the HTML).
+  const guideData = buildGuideData(products);
+  for (const page of GUIDE_PAGES) pages.push(guidePage(page, guideData));
+  await writeFile(path.join(DIST, GUIDE_DATA_PATH.replace(/^\//, "")), JSON.stringify(guideData), "utf8");
+  const llmsFile = path.join(DIST, "llms.txt");
+  const llms = await readFile(llmsFile, "utf8").catch(() => null);
+  if (llms != null) await writeFile(llmsFile, llms.trimEnd() + "\n" + llmsPriceSection(guideData), "utf8");
+  const guides = `<section><h2>Guides</h2><ul>${GUIDE_PAGES.map(
+    (g) => `<li><a href="${g.path}">${esc(g.h1)}</a></li>`,
+  ).join("")}</ul></section>`;
+
   pages.push(staticPage("/products", shopByNeed + catalogue + howToBuy()));
   pages.push(staticPage("/industries", shopByBusiness + shopByNeed));
 
@@ -668,6 +779,7 @@ async function main() {
     }
 ${shopByNeed}
 ${shopByBusiness}
+${guides}
 ${products.length ? `<section><h2>Popular right now</h2>${productLinkList(popular(products, 16))}</section>` : ""}
 ${howToBuy()}
 ${storeSection()}`,
