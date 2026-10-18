@@ -2,14 +2,14 @@ import { useState } from "react";
 import { Check, Star } from "lucide-react";
 import { checkoutFeedbackStore, FAILED_REASONS } from "@/services/checkoutFeedbackStore";
 
-/** One-tap star rating of the checkout itself, shown under the Google review card. */
-export function CheckoutRatingCard({ reference }: { reference: string }) {
+/** The checkout rating's state, so the after-payment pop-up and the card left on the page show the
+ *  same stars: rating in one, close it, and the other already has the answer. */
+export function useCheckoutRating(reference: string) {
   const [rating, setRating] = useState(0);
   const [hover, setHover] = useState<number | null>(null);
   const [comment, setComment] = useState("");
   const [commentSaved, setCommentSaved] = useState(false);
   const [error, setError] = useState(false);
-  const shown = hover ?? rating;
 
   async function save(n: number, text?: string) {
     setError(false);
@@ -22,8 +22,32 @@ export function CheckoutRatingCard({ reference }: { reference: string }) {
     }
   }
 
+  return {
+    rating, setRating, hover, setHover, comment, setComment, commentSaved, setCommentSaved, error, save,
+  };
+}
+
+export type CheckoutRatingState = ReturnType<typeof useCheckoutRating>;
+
+/** One-tap star rating of the checkout itself. Pass `state` to share it with another copy of the
+ *  card; `bare` drops the card frame for use inside a dialog. */
+export function CheckoutRatingCard({
+  reference,
+  state,
+  bare = false,
+}: {
+  reference: string;
+  state?: CheckoutRatingState;
+  bare?: boolean;
+}) {
+  const own = useCheckoutRating(reference);
+  const {
+    rating, setRating, hover, setHover, comment, setComment, commentSaved, setCommentSaved, error, save,
+  } = state ?? own;
+  const shown = hover ?? rating;
+
   return (
-    <div className="mt-4 rounded-2xl border border-border bg-card p-4 text-center">
+    <div className={bare ? "text-center" : "mt-4 rounded-2xl border border-border bg-card p-4 text-center"}>
       <p className="text-sm font-semibold">How was checking out today?</p>
       <div className="mt-2 flex justify-center gap-1" onMouseLeave={() => setHover(null)}>
         {[1, 2, 3, 4, 5].map((n) => (
