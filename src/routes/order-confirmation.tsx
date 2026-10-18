@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { GoogleReviewPrompt } from "@/components/GoogleReviewPrompt";
-import { CheckoutRatingCard } from "@/components/CheckoutFeedbackCards";
+import { CheckoutRatingCard, useCheckoutRating } from "@/components/CheckoutFeedbackCards";
+import { AfterPaymentReviewDialog } from "@/components/AfterPaymentReviewDialog";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileDown } from "lucide-react";
@@ -30,6 +31,8 @@ function OrderConfirmationPage() {
   const { businessKraPin } = useSiteConfig();
 
   const [order, setOrder] = useState<CustomerOrder | null>(null);
+  // Shared by the after-payment pop-up and the card that stays on the page after it closes.
+  const checkoutRating = useCheckoutRating(ref ?? "");
 
   useEffect(() => {
     orderStore.getFullOrder(ref ?? "").then((res) => setOrder(res.order));
@@ -139,8 +142,11 @@ function OrderConfirmationPage() {
             </div>
           )}
 
-          <GoogleReviewPrompt variant="hero" />
-          {ref && <CheckoutRatingCard reference={ref} />}
+          {ref && <CheckoutRatingCard reference={ref} state={checkoutRating} />}
+          <GoogleReviewPrompt variant="card" />
+          {ref && (
+            <AfterPaymentReviewDialog reference={ref} ready={order !== null} rating={checkoutRating} />
+          )}
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link

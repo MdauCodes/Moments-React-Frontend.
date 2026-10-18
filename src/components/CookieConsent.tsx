@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { CONSENT_KEY } from "@/lib/cookieConsent";
+import { CONSENT_KEY, cookieBannerHeld, subscribeCookieBannerHold } from "@/lib/cookieConsent";
 import { isTaggedCampaignSession } from "@/lib/marketingAttribution";
 
 import { Cookie, X } from "lucide-react";
@@ -51,6 +51,9 @@ export function CookieConsent() {
   // banner until it closes so it never covers the window's buttons on a phone.
   const { search } = useLocation();
   const qrWindowOpen = new URLSearchParams(search).has("qr");
+  // Our own review/rating pop-ups hold it the same way while they are open (see holdCookieBanner).
+  const [held, setHeld] = useState(cookieBannerHeld);
+  useEffect(() => subscribeCookieBannerHold(() => setHeld(cookieBannerHeld())), []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -79,7 +82,7 @@ export function CookieConsent() {
     }
   };
 
-  if (!visible || qrWindowOpen) return null;
+  if (!visible || qrWindowOpen || held) return null;
 
   return (
     <div
