@@ -20,6 +20,9 @@ import { COMPANY_PHONE, COMPANY_PHONE_INTL } from "@/data/products";
  * thanks them and puts the Google review first, with shopping online second and a number to call if
  * something went wrong (offered to everyone, after the review, so nobody is filtered out of asking).
  *   https://momentspackaging.com/?qr=review&utm_source=qr&utm_medium=print&utm_campaign=counter
+ * The card packed inside web-order parcels uses `?qr=parcel`: the same review-first window, worded
+ * for someone who has just opened their delivery, with tracking/reordering as the second option.
+ *   https://momentspackaging.com/?qr=parcel&utm_source=qr&utm_medium=print&utm_campaign=parcel-insert
  * The utm tags are picked up by MarketingAttributionCapture as usual, so visits and any order that
  * follows are credited to the QR code; `qr` itself only means "open this window".
  *
@@ -42,8 +45,10 @@ export function QrVisitDialog() {
 
   const qr = new URLSearchParams(search).get("qr");
   const flagged = qr !== null;
-  // `qr=review` (the shop counter card) puts the Google review first; `qr=1` keeps shop first.
-  const reviewFirst = qr === "review";
+  // `qr=review` (shop counter card) and `qr=parcel` (parcel insert card) put the Google review
+  // first; `qr=1` keeps shop first.
+  const parcel = qr === "parcel";
+  const reviewFirst = qr === "review" || parcel;
   const allowedHere = !SKIP_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const shouldOpen = flagged && allowedHere;
 
@@ -70,7 +75,7 @@ export function QrVisitDialog() {
 
   function shop() {
     setOpen(false);
-    navigate("/products");
+    navigate(parcel ? "/orders/track" : "/products");
   }
 
   const reviewLink = (
@@ -122,16 +127,22 @@ export function QrVisitDialog() {
       />
       <span>
         <span className="block text-base font-medium">
-          {reviewFirst ? "Order online next time" : "Shop online"}
+          {parcel
+            ? "Track an order or reorder"
+            : reviewFirst
+              ? "Order online next time"
+              : "Shop online"}
         </span>
         <span
           className={
             reviewFirst ? "block text-sm text-muted-foreground" : "block text-sm opacity-80"
           }
         >
-          {reviewFirst
-            ? "Delivered across Kenya, or ready for you to collect"
-            : "Packaging delivered across Kenya"}
+          {parcel
+            ? "Delivery updates and your past orders"
+            : reviewFirst
+              ? "Delivered across Kenya, or ready for you to collect"
+              : "Packaging delivered across Kenya"}
         </span>
       </span>
     </button>
@@ -142,12 +153,18 @@ export function QrVisitDialog() {
       <DialogContent className="max-w-md rounded-2xl border-border bg-background p-6 sm:p-8">
         <DialogHeader className="text-left">
           <DialogTitle className="font-display text-2xl font-medium text-foreground">
-            {reviewFirst ? "Thank you for shopping with us" : "Welcome to Moments Packaging"}
+            {parcel
+              ? "Your order has arrived"
+              : reviewFirst
+                ? "Thank you for shopping with us"
+                : "Welcome to Moments Packaging"}
           </DialogTitle>
           <DialogDescription>
-            {reviewFirst
-              ? "Have a minute? Tell other businesses how we did today. An honest Google review, good or bad, helps people find us and helps us improve."
-              : "Thank you for stopping by. What would you like to do?"}
+            {parcel
+              ? "Once you have checked everything, would you share your honest experience on Google? Good or bad, it helps other businesses find us and helps us improve."
+              : reviewFirst
+                ? "Have a minute? Tell other businesses how we did today. An honest Google review, good or bad, helps people find us and helps us improve."
+                : "Thank you for stopping by. What would you like to do?"}
           </DialogDescription>
         </DialogHeader>
 
@@ -167,7 +184,7 @@ export function QrVisitDialog() {
 
         {reviewFirst && (
           <p className="mt-1 text-sm text-muted-foreground">
-            Something not right? Call or WhatsApp{" "}
+            {parcel ? "Something missing or damaged?" : "Something not right?"} Call or WhatsApp{" "}
             <a
               href={`tel:${COMPANY_PHONE_INTL.replace(/\s/g, "")}`}
               className="font-medium text-foreground underline"
