@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { CONSENT_KEY } from "@/lib/cookieConsent";
 import { isTaggedCampaignSession } from "@/lib/marketingAttribution";
@@ -47,6 +47,10 @@ function msUntilShow(): number {
  */
 export function CookieConsent() {
   const [visible, setVisible] = useState(false);
+  // The printed-QR welcome window (QrVisitDialog) is open while `qr` is in the address. Hold the
+  // banner until it closes so it never covers the window's buttons on a phone.
+  const { search } = useLocation();
+  const qrWindowOpen = new URLSearchParams(search).has("qr");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -75,7 +79,7 @@ export function CookieConsent() {
     }
   };
 
-  if (!visible) return null;
+  if (!visible || qrWindowOpen) return null;
 
   return (
     <div
