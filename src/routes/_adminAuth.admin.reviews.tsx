@@ -13,6 +13,7 @@ import { MockBanner } from "@/components/admin/commerceUi";
 import { reviewStore, type ProductReview } from "@/services/reviewStore";
 import { orderReviewStore, type AdminOrderReview } from "@/services/orderReviewStore";
 import { checkoutFeedbackStore, FAILED_REASONS, type AdminCheckoutFeedback } from "@/services/checkoutFeedbackStore";
+import { signupFeedbackStore, type AdminSignupFeedback } from "@/services/signupFeedbackStore";
 
 
 
@@ -39,6 +40,7 @@ function AdminReviewsPage() {
   const [orderReviews, setOrderReviews] = useState<AdminOrderReview[]>([]);
   const [orderReviewsLoading, setOrderReviewsLoading] = useState(true);
   const [checkoutFeedback, setCheckoutFeedback] = useState<AdminCheckoutFeedback[]>([]);
+  const [signupFeedback, setSignupFeedback] = useState<AdminSignupFeedback[]>([]);
 
   useEffect(() => { document.title = "Reviews · Moments admin"; }, []);
 
@@ -71,6 +73,7 @@ function AdminReviewsPage() {
     void load();
     void loadOrderReviews();
     checkoutFeedbackStore.listAll().then(setCheckoutFeedback).catch(() => setCheckoutFeedback([]));
+    signupFeedbackStore.listAll().then(setSignupFeedback).catch(() => setSignupFeedback([]));
   }, []);
 
   const filtered = useMemo(() => {
@@ -278,6 +281,35 @@ function AdminReviewsPage() {
                       ? <Stars value={f.rating as 1 | 2 | 3 | 4 | 5} />
                       : (FAILED_REASONS.find((r) => r.value === f.reason)?.label ?? "—")}
                   </td>
+                  <td style={{ maxWidth: 360, color: "var(--admin-muted)", fontSize: 12, whiteSpace: "pre-wrap" }}>{f.comment || "—"}</td>
+                  <td style={{ fontSize: 12 }}>{new Date(f.updatedAt).toLocaleString("en-KE")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="admin-label" style={{ marginTop: 8 }}>Signup feedback (private, asked once after creating an account)</div>
+        <div className="admin-panel" data-admin-table-scroll>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Rating</th>
+                <th>Comment</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {signupFeedback.length === 0 ? (
+                <tr><td colSpan={4}><div className="admin-empty">No signup feedback yet.</div></td></tr>
+              ) : signupFeedback.map((f) => (
+                <tr key={f.id}>
+                  <td>
+                    <div>{f.customerName || "—"}</div>
+                    <div style={{ fontSize: 12, color: "var(--admin-muted)" }}>{f.customerEmail || ""}</div>
+                  </td>
+                  <td><Stars value={f.rating as 1 | 2 | 3 | 4 | 5} /></td>
                   <td style={{ maxWidth: 360, color: "var(--admin-muted)", fontSize: 12, whiteSpace: "pre-wrap" }}>{f.comment || "—"}</td>
                   <td style={{ fontSize: 12 }}>{new Date(f.updatedAt).toLocaleString("en-KE")}</td>
                 </tr>
