@@ -23,6 +23,7 @@ import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { EngagementPrompts } from "@/components/engagement/EngagementPrompts";
 import { QrVisitDialog } from "@/components/QrVisitDialog";
+import { SignupRatingPrompt } from "@/components/SignupRatingPrompt";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 // The homepage alone stays a static import: it is the one route that must be in the initial
@@ -395,6 +396,8 @@ export default function App() {
                   <EngagementPrompts />
                   {/* What a customer sees after scanning our printed QR code (?qr=1). */}
                   <QrVisitDialog />
+                  {/* "How easy was creating your account?" once, just after signup (private, no Google). */}
+                  <SignupRatingPrompt />
                 </EnquiryProvider>
                 </PersonaProvider>
               </AdminAuthProvider>
