@@ -220,26 +220,54 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
         {hasTiers && activeTier ? (
           <div>
             {(() => {
-              // The smallest unit of measurement — a single piece — is deliberately the bold,
-              // attention-grabbing figure (client decision 2026-09-04): "KES 5.50" reads far more
-              // attractively at a glance than "KES 5,500", even though they describe the exact
-              // same Carton-of-1000 tier. The pack total/label moves to a smaller secondary line
-              // right underneath, so nothing that was on the card before is actually lost.
+              // Owner's decision 2026-10-19 (replaces the 2026-09-04 rule that made the per-unit
+              // price of the selected pack the bold figure): staff and customers read that figure
+              // as the price of one unit, so a carton's KES 530/packet looked like the wrong price
+              // next to the real KES 550 single packet. Now the bold figure is always something the
+              // customer can actually buy at that price:
+              //  - one unit can be bought -> its own price leads; the pack offer sits underneath;
+              //  - only packs can be bought -> the pack price leads; what that works out to per unit
+              //    is just a small mention.
               const qty = Number(activeTier.quantity) || 1;
-              const unitPrice = tierPrice(activeTier) / qty;
+              const packTotal = tierPrice(activeTier);
+              const unitPrice = packTotal / qty;
+              const unitWord = individualUnitLabel(p.risellerUomName);
               const packLabel = cleanUomLabel(activeTier.uomName ?? activeTier.collectionName, qty);
-              return (
-                <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
-                  KES {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ {individualUnitLabel(p.risellerUomName)}</span>
-                  <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
-                    KES {tierPrice(activeTier).toLocaleString()} for {packLabel} ({unitCount(qty, p.risellerUomName)})
-                    {activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > tierPrice(activeTier) && (
-                      <span className="ml-1.5 line-through">
-                        KES {Number(activeTier.originalCollectionPrice).toLocaleString()}
+              const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+              const wasPack =
+                activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > packTotal ? (
+                  <span className="ml-1.5 line-through">KES {Number(activeTier.originalCollectionPrice).toLocaleString()}</span>
+                ) : null;
+              if (individualEnabled && Number(p.basePrice) > 0) {
+                return (
+                  <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
+                    KES {Number(p.basePrice).toLocaleString()}
+                    {p.originalBasePrice && p.originalBasePrice > Number(p.basePrice) && (
+                      <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through sm:text-xs">
+                        KES {p.originalBasePrice.toLocaleString()}
                       </span>
                     )}
+                    <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ {unitWord}</span>
+                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
+                      {packLabel} ({unitCount(qty, p.risellerUomName)}): KES {packTotal.toLocaleString()}
+                      {qty > 1 && <> · KES {fmt(unitPrice)} each</>}
+                      {wasPack}
+                    </span>
+                  </p>
+                );
+              }
+              return (
+                <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
+                  KES {packTotal.toLocaleString()}
+                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">
+                    / {packLabel ? packLabel.toLowerCase() : unitWord}
                   </span>
+                  {wasPack && <span className="text-[11px] font-normal text-muted-foreground sm:text-xs">{wasPack}</span>}
+                  {qty > 1 && (
+                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
+                      {unitCount(qty, p.risellerUomName)} · KES {fmt(unitPrice)} per {unitWord}
+                    </span>
+                  )}
                 </p>
               );
             })()}
