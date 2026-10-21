@@ -17,6 +17,7 @@ import { navSections, NAV_PATH_TO_FULFILLMENT_TYPE, visibleSectionsFor, type Nav
 import { AdminSidebarNav, type SidebarBadge } from "@/components/admin/AdminSidebarNav";
 import { readSidebarPrefs, writeSidebarCollapsed } from "@/lib/adminSidebarPrefs";
 import logoUrl from "@/assets/moments_logo_without_background.png";
+import { nairobiParts } from "@/lib/serverTime";
 
 // Frontend-only, mirrors DashboardHeader.tsx's own tiny greeting helper (customer-facing side) —
 // small enough that sharing it isn't worth a cross-context import; purely a display string, never
@@ -501,7 +502,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   // comment on why), so a tour running while the sidebar happened to be collapsed would find none
   // of its targets — forced back to the full accordion for the tour's duration, same as isMobile.
   const sidebarCollapsed = sidebarCollapsedPref && !isMobile && !tourOpen;
-  const greeting = timeOfDayGreeting(new Date().getHours());
+  const greeting = timeOfDayGreeting(nairobiParts().hour);
 
   // Auto-launch on first login (once per user, per browser)
   useEffect(() => {

@@ -9,6 +9,7 @@ import { listCustomers, exportCustomers, type ListCustomersResult } from "@/serv
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { Download } from "lucide-react";
 import type { CustomerRecord } from "@/services/commerceMock";
+import { nairobiDateStamp } from "@/lib/serverTime";
 
 
 
@@ -112,7 +113,7 @@ function AdminCustomersPage() {
             </div>
             <button className="admin-btn admin-btn-ghost" onClick={async () => {
               const { rows } = await exportCustomers({ q, status, segment });
-              downloadCsv(`customers-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((c) => ({
+              downloadCsv(`customers-${nairobiDateStamp()}.csv`, toCsv(rows.map((c) => ({
                 name: c.name, email: c.email, phone: c.phone, city: c.city, segment: c.segment, status: c.status,
                 orders: c.ordersCount, lifetimeValue: c.lifetimeValue, aov: c.averageOrderValue,
                 referrals: c.referralCount ?? 0,

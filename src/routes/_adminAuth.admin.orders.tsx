@@ -34,6 +34,7 @@ import { downloadOrdersListPdf } from "@/lib/pdf";
 import { Download, FileText, LayoutGrid, Rows3 } from "lucide-react";
 import { FULFILLMENT_MODE_KEYS, FULFILLMENT_MODES, stageSortIndex } from "@/lib/fulfillmentModes";
 import { AllOrdersBoard } from "@/components/admin/AllOrdersBoard";
+import { nairobiDateStamp } from "@/lib/serverTime";
 
 
 
@@ -478,7 +479,7 @@ function AdminOrdersPage() {
                       setExporting(true);
                       try {
                         const rows = await fetchExportRows();
-                        downloadCsv(`orders-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((o) => ({
+                        downloadCsv(`orders-${nairobiDateStamp()}.csv`, toCsv(rows.map((o) => ({
                           reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
                           customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
                           items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,

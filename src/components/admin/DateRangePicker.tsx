@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+import {
+  nairobiEndOf,
+  nairobiMidnight,
+  nairobiParts,
+  nairobiStartOf,
+  serverNow,
+} from "@/lib/serverTime";
 
 export type DateRangePreset = "today" | "7d" | "month" | "year" | "custom";
 
@@ -16,34 +23,25 @@ const PRESET_LABELS: { value: DateRangePreset; label: string }[] = [
   { value: "custom", label: "Custom" },
 ];
 
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-function computeRange(preset: DateRangePreset, customFrom?: Date, customTo?: Date): { from: Date; to: Date } {
-  const now = new Date();
+// Days are Nairobi days and "now" is the server's time, whatever this computer's clock or time zone says.
+function computeRange(
+  preset: DateRangePreset,
+  customFrom?: Date,
+  customTo?: Date,
+): { from: Date; to: Date } {
+  const now = new Date(serverNow());
+  const { year, month, day } = nairobiParts(now.getTime());
   switch (preset) {
     case "today":
-      return { from: startOfDay(now), to: now };
-    case "7d": {
-      const from = startOfDay(now);
-      from.setDate(from.getDate() - 6);
-      return { from, to: now };
-    }
-    case "month": {
-      const from = startOfDay(now);
-      from.setDate(1);
-      return { from, to: now };
-    }
-    case "year": {
-      const from = startOfDay(now);
-      from.setMonth(0, 1);
-      return { from, to: now };
-    }
+      return { from: nairobiMidnight(year, month, day), to: now };
+    case "7d":
+      return { from: nairobiMidnight(year, month, day - 6), to: now };
+    case "month":
+      return { from: nairobiMidnight(year, month, 1), to: now };
+    case "year":
+      return { from: nairobiMidnight(year, 0, 1), to: now };
     case "custom":
-      return { from: customFrom ?? startOfDay(now), to: customTo ?? now };
+      return { from: customFrom ?? nairobiMidnight(year, month, day), to: customTo ?? now };
   }
 }
 
@@ -65,8 +63,8 @@ export function DateRangePicker({ onChange }: { onChange: (range: DateRange) => 
 
   function apply(nextPreset: DateRangePreset, fromStr?: string, toStr?: string) {
     setPreset(nextPreset);
-    const customFromDate = fromStr ? new Date(fromStr) : undefined;
-    const customToDate = toStr ? new Date(`${toStr}T23:59:59`) : undefined;
+    const customFromDate = fromStr ? nairobiStartOf(fromStr) : undefined;
+    const customToDate = toStr ? nairobiEndOf(toStr) : undefined;
     const { from, to } = computeRange(nextPreset, customFromDate, customToDate);
     onChange({ preset: nextPreset, from, to });
   }

@@ -14,6 +14,7 @@ import type { OrderRecord } from "@/services/commerceMock";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
 import { primeOrderAlertSound } from "@/lib/orderAlertSound";
+import { serverNow } from "@/lib/serverTime";
 
 // Only orders placed this recently trigger the alert, so an old order surfacing through paging or
 // a reconnect never rings the bell.
@@ -76,7 +77,7 @@ export function AdminOrdersProvider({ children }: { children: ReactNode }) {
           const fresh = sorted.filter(
             (o) =>
               !knownIdsRef.current.has(o.id) &&
-              Date.now() - new Date(o.createdAt).getTime() < ALERT_MAX_AGE_MS,
+              serverNow() - new Date(o.createdAt).getTime() < ALERT_MAX_AGE_MS,
           );
           if (fresh.length > 0) setNewOrderAlerts((prev) => [...prev, ...fresh]);
         }

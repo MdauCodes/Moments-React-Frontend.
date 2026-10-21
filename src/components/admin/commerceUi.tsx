@@ -4,6 +4,7 @@
 // ----------------------------------------------------------------------------
 import type { OrderStatus, PaymentStatus, PaymentGateway } from "@/services/commerceMock";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
+import { serverNow } from "@/lib/serverTime";
 
 export function formatKes(amount: number | string | null | undefined): string {
   const n = Number(amount ?? 0);
@@ -27,7 +28,11 @@ const ORDER_TONE: Record<OrderStatus, { bg: string; fg: string; label: string }>
   PAID: { bg: "rgba(34, 197, 94, 0.15)", fg: "#15803d", label: "Paid" },
   PAYMENT_VERIFIED: { bg: "rgba(13, 148, 136, 0.18)", fg: "#0f766e", label: "Payment verified" },
   IN_PRODUCTION: { bg: "rgba(59, 130, 246, 0.15)", fg: "#1d4ed8", label: "In production" },
-  READY_FOR_DISPATCH: { bg: "rgba(99, 102, 241, 0.15)", fg: "#4338ca", label: "Ready for dispatch" },
+  READY_FOR_DISPATCH: {
+    bg: "rgba(99, 102, 241, 0.15)",
+    fg: "#4338ca",
+    label: "Ready for dispatch",
+  },
   DISPATCHED: { bg: "rgba(168, 85, 247, 0.15)", fg: "#7e22ce", label: "Dispatched" },
   DELIVERED: { bg: "rgba(20, 184, 166, 0.18)", fg: "#0f766e", label: "Delivered" },
   CANCELLED: { bg: "rgba(107, 114, 128, 0.18)", fg: "#374151", label: "Cancelled" },
@@ -63,7 +68,8 @@ export function OrderStatusBadge({
   statusV2?: string | null;
 }) {
   const resolved = resolveStatusDisplay(fulfillmentType, statusV2);
-  const tone = resolved ?? ORDER_TONE[status] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: status };
+  const tone = resolved ??
+    ORDER_TONE[status] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: status };
   return (
     <span
       // Hover tooltip in tables/cards, where there's no room for the hint as visible text — the
@@ -104,7 +110,7 @@ export function AgeBadge({
   urgentAfterHours?: number;
 }) {
   if (!since) return null;
-  const ms = Date.now() - new Date(since).getTime();
+  const ms = serverNow() - new Date(since).getTime();
   if (!Number.isFinite(ms) || ms < 0) return null;
   const hours = ms / (1000 * 60 * 60);
 
@@ -176,7 +182,11 @@ const FULFILLMENT_TONE: Record<string, { bg: string; fg: string; label: string }
  *  visual hint of Pickup vs Manual vs TumaBoda at a glance. */
 export function FulfillmentBadge({ fulfillmentType }: { fulfillmentType: string | undefined }) {
   if (!fulfillmentType) return null;
-  const tone = FULFILLMENT_TONE[fulfillmentType] ?? { bg: "rgba(107,114,128,0.15)", fg: "#374151", label: fulfillmentType };
+  const tone = FULFILLMENT_TONE[fulfillmentType] ?? {
+    bg: "rgba(107,114,128,0.15)",
+    fg: "#374151",
+    label: fulfillmentType,
+  };
   return (
     <span
       style={{
@@ -342,7 +352,9 @@ const NEXT_ACTION_LABEL: Partial<Record<OrderStatus, string>> = {
   DISPATCHED: "Mark delivered",
 };
 
-export function getNextAction(status: OrderStatus): { nextStatus: OrderStatus; label: string } | null {
+export function getNextAction(
+  status: OrderStatus,
+): { nextStatus: OrderStatus; label: string } | null {
   const idx = FORWARD_FLOW.indexOf(status);
   if (idx === -1 || idx === FORWARD_FLOW.length - 1) return null;
   const nextStatus = FORWARD_FLOW[idx + 1];
