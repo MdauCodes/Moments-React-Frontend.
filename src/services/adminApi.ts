@@ -27,9 +27,9 @@ export interface AdminSession {
   refreshToken?: string;
   // ── Extended claims (Section 1 of admin overhaul) ──
   isStaff?: boolean;
-  staffRole?: string;          // e.g. "SUPER_ADMIN", "DISPATCHER"
-  staffRoleDisplay?: string;   // human label e.g. "Dispatcher"
-  permissions?: string[];      // permission codes (PERM.*)
+  staffRole?: string; // e.g. "SUPER_ADMIN", "DISPATCHER"
+  staffRoleDisplay?: string; // human label e.g. "Dispatcher"
+  permissions?: string[]; // permission codes (PERM.*)
   mustChangePassword?: boolean;
 }
 
@@ -89,6 +89,39 @@ type AuthResponse = {
 };
 
 let accessTokenMemory: string | null = null;
+
+// How far this computer's clock is from the server's, learned from each freshly issued token (its "iat" is the
+// server's time at issue). A shop PC was found 12 hours off (AM/PM swapped, 21 Oct 2026): judged by that clock, a
+// 15-minute token looked valid for 12 more hours, so it was never renewed and every action after the first 15
+// minutes was refused as "You don't have permission". Every expiry check uses serverNow() instead of Date.now().
+const CLOCK_OFFSET_KEY = "moments_admin_clock_offset_ms";
+let clockOffsetMs = (() => {
+  try {
+    return (
+      Number(typeof window !== "undefined" ? window.localStorage.getItem(CLOCK_OFFSET_KEY) : 0) || 0
+    );
+  } catch {
+    return 0;
+  }
+})();
+
+/** The server's idea of now, corrected for this computer's clock. */
+export function serverNow(): number {
+  return Date.now() + clockOffsetMs;
+}
+
+function learnClockOffset(freshToken: string | undefined): void {
+  const iat = freshToken ? decodeJwtPayload(freshToken)?.iat : undefined;
+  if (typeof iat !== "number") return;
+  const offset = iat * 1000 - Date.now();
+  // Network delay and small drift are not worth correcting; a real misset clock is minutes or hours out.
+  clockOffsetMs = Math.abs(offset) < 60_000 ? 0 : offset;
+  try {
+    window.localStorage.setItem(CLOCK_OFFSET_KEY, String(clockOffsetMs));
+  } catch {
+    /* kept for this tab only */
+  }
+}
 let refreshPromise: Promise<AdminSession | null> | null = null;
 
 function isBrowser(): boolean {
@@ -110,7 +143,7 @@ function hasCompactJwtShape(token: string): boolean {
   return periodCount === 2 || periodCount === 4;
 }
 
-function decodeJwtPayload(token: string): { exp?: number } | null {
+function decodeJwtPayload(token: string): { exp?: number; iat?: number } | null {
   try {
     if (!hasCompactJwtShape(token) || !isBrowser()) return null;
     const [, payload] = token.split(".");
@@ -128,7 +161,7 @@ export function isJwtExpired(token: string | undefined, skewMs = 30_000): boolea
   if (!hasCompactJwtShape(token)) return true;
   const payload = decodeJwtPayload(token);
   if (!payload?.exp) return false;
-  return payload.exp * 1000 <= Date.now() + skewMs;
+  return payload.exp * 1000 <= serverNow() + skewMs;
 }
 
 export function getJwtExpiresAt(token: string | undefined): number | null {
@@ -151,7 +184,13 @@ export function normalizeRoleValue(role: unknown): AdminRole | null {
 }
 
 function normalizeRoles(data: AuthResponse, fallback?: AdminSession): BackendRole[] {
-  const rawRoles = [data.user?.role, data.role, ...(data.user?.roles ?? []), ...(data.roles ?? []), ...(fallback?.roles ?? [])];
+  const rawRoles = [
+    data.user?.role,
+    data.role,
+    ...(data.user?.roles ?? []),
+    ...(data.roles ?? []),
+    ...(fallback?.roles ?? []),
+  ];
   const roles = rawRoles
     .map(normalizeRoleValue)
     .filter((role): role is AdminRole => !!role)
@@ -165,7 +204,10 @@ function primaryRole(roles: BackendRole[], fallback?: AdminRole): AdminRole | nu
   return fallback ?? null;
 }
 
-export function mapApiErrorMessage(payload: ApiErrorShape, fallback = "Something went wrong, try again"): string {
+export function mapApiErrorMessage(
+  payload: ApiErrorShape,
+  fallback = "Something went wrong, try again",
+): string {
   switch (payload.code) {
     case "BAD_CREDENTIALS":
       return "Invalid email or password";
@@ -193,7 +235,10 @@ async function parseApiError(res: Response): Promise<ApiError> {
   }
 }
 
-export function normalizeAdminSession(data: AuthResponse, fallback?: Partial<AdminSession>): AdminSession {
+export function normalizeAdminSession(
+  data: AuthResponse,
+  fallback?: Partial<AdminSession>,
+): AdminSession {
   const token = (data.accessToken ?? data.token ?? fallback?.token)?.replace(/^Bearer\s+/i, "");
   const refreshToken = (data.refreshToken ?? fallback?.refreshToken)?.replace(/^Bearer\s+/i, "");
   const email = data.user?.email ?? data.email ?? fallback?.email;
@@ -203,7 +248,8 @@ export function normalizeAdminSession(data: AuthResponse, fallback?: Partial<Adm
   const roles = normalizeRoles(data, fallback as AdminSession | undefined);
   const role = primaryRole(roles, fallback?.role);
 
-  if (!token || !email) throw new Error("Authentication response was missing required session details");
+  if (!token || !email)
+    throw new Error("Authentication response was missing required session details");
   if (!role) throw new Error("This account is not authorised for the admin dashboard");
 
   // Decode extended JWT claims (or fall back to top-level / user.* fields).
@@ -222,7 +268,11 @@ export function normalizeAdminSession(data: AuthResponse, fallback?: Partial<Adm
   };
 
   return {
-    id: data.user?.id ?? fallback?.id ?? (jwt?.userId as string | undefined) ?? (jwt?.sub as string | undefined),
+    id:
+      data.user?.id ??
+      fallback?.id ??
+      (jwt?.userId as string | undefined) ??
+      (jwt?.sub as string | undefined),
     token,
     refreshToken,
     roles: roles.length ? roles : [toBackendRole(role)],
@@ -231,16 +281,25 @@ export function normalizeAdminSession(data: AuthResponse, fallback?: Partial<Adm
     role,
     isStaff: pickBool(data.isStaff, data.user?.isStaff, jwt?.isStaff) ?? true,
     staffRole: pickStr(data.staffRole, data.user?.staffRole, jwt?.staffRole),
-    staffRoleDisplay: pickStr(data.staffRoleDisplay, data.user?.staffRoleDisplay, jwt?.staffRoleDisplay),
+    staffRoleDisplay: pickStr(
+      data.staffRoleDisplay,
+      data.user?.staffRoleDisplay,
+      jwt?.staffRoleDisplay,
+    ),
     permissions: pickArr(data.permissions, data.user?.permissions, jwt?.permissions),
-    mustChangePassword: pickBool(data.mustChangePassword, data.user?.mustChangePassword, jwt?.mustChangePassword) ?? false,
+    mustChangePassword:
+      pickBool(data.mustChangePassword, data.user?.mustChangePassword, jwt?.mustChangePassword) ??
+      false,
   };
 }
 
 // PATCH /api/v1/auth/staff/change-password — body { currentPassword, newPassword }.
 // Returns refreshed session if backend issues new tokens; otherwise clears the
 // mustChangePassword flag locally so the user can proceed.
-export async function changeAdminPassword(currentPassword: string, newPassword: string): Promise<AdminSession | null> {
+export async function changeAdminPassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AdminSession | null> {
   const current = readAdminSession();
   if (!current) return null;
   const res = await fetch(apiUrl("/api/v1/auth/staff/change-password"), {
@@ -277,6 +336,8 @@ export function readAdminSession(): AdminSession | null {
 }
 
 export function writeAdminSession(session: AdminSession): void {
+  // Only a token we have not seen before was just issued, so only then does its iat tell the server's time.
+  if (session.token && session.token !== accessTokenMemory) learnClockOffset(session.token);
   accessTokenMemory = session.token;
   if (!isBrowser()) return;
   try {
@@ -311,7 +372,9 @@ export async function loginAdmin(email: string, password: string): Promise<Admin
   return next;
 }
 
-export async function refreshAdminSession(session = readAdminSession()): Promise<AdminSession | null> {
+export async function refreshAdminSession(
+  session = readAdminSession(),
+): Promise<AdminSession | null> {
   if (!session?.refreshToken) return null;
   if (refreshPromise) return refreshPromise;
 
@@ -351,7 +414,8 @@ export async function logoutAdmin(): Promise<void> {
 export async function getValidAdminSession(): Promise<AdminSession | null> {
   const session = readAdminSession();
   if (!session) return null;
-  if (accessTokenMemory && !isJwtExpired(accessTokenMemory)) return { ...session, token: accessTokenMemory };
+  if (accessTokenMemory && !isJwtExpired(accessTokenMemory))
+    return { ...session, token: accessTokenMemory };
   const refreshed = await refreshAdminSession(session);
   if (!refreshed) clearAdminSession();
   return refreshed;
@@ -362,7 +426,11 @@ export async function adminFetch(path: string, init?: RequestInit): Promise<Resp
   if (!session) {
     clearAdminSession();
     notifyLoggedOut();
-    throw new ApiError({ status: 401, code: "BAD_CREDENTIALS", message: "Admin session expired. Please sign in again." });
+    throw new ApiError({
+      status: 401,
+      code: "BAD_CREDENTIALS",
+      message: "Admin session expired. Please sign in again.",
+    });
   }
 
   const makeRequest = (token: string) => {
@@ -393,6 +461,12 @@ export async function adminFetch(path: string, init?: RequestInit): Promise<Resp
     clearAdminSession();
     notifyLoggedOut();
     throw await parseApiError(res);
+  }
+  // The store answers a request it could not sign in (expired or unreadable token) with 403, not 401. Before telling
+  // someone they lack permission, renew the sign-in once and try again: if that works, it was only an old token.
+  if (res.status === 403) {
+    const refreshed = await refreshAdminSession(session);
+    if (refreshed) res = await makeRequest(refreshed.token);
   }
   if (res.status === 403) throw new ApiError({ status: 403, code: "ACCESS_DENIED" });
   return res;

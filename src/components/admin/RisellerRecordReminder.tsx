@@ -14,7 +14,7 @@ import { PERM } from "@/lib/permissions";
 import { resolveStaffRole } from "@/lib/roles";
 import { playReminderChime } from "@/lib/orderAlertSound";
 import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
-import { ApiError } from "@/services/adminApi";
+import { ApiError, serverNow } from "@/services/adminApi";
 import {
   getRisellerRecordSummary,
   listRisellerPending,
@@ -54,7 +54,8 @@ function failureReason(error: unknown): string {
 }
 
 /** Nairobi has no daylight saving: always UTC+3. */
-function nairobiNow(now = new Date()): { day: string; hour: number } {
+/** Uses the server's time, not this computer's clock (a shop PC 12 hours off showed the 5 pm must-do in the morning). */
+function nairobiNow(now = new Date(serverNow())): { day: string; hour: number } {
   const shifted = new Date(now.getTime() + 3 * 3_600_000);
   return { day: shifted.toISOString().slice(0, 10), hour: shifted.getUTCHours() };
 }
@@ -120,7 +121,7 @@ export function RisellerRecordReminder() {
   }, POLL_MS);
 
   const dueBySlot = !!slot && (slot.mustDo || dismissedSlot !== slot.key);
-  const parked = Date.now() < parkedUntil;
+  const parked = serverNow() < parkedUntil;
   const open = allowed && pendingCount > 0 && (openedByHand || (dueBySlot && !parked));
   const mustDo = open && !!slot?.mustDo;
 
@@ -187,7 +188,7 @@ export function RisellerRecordReminder() {
   };
 
   const parkForNow = () => {
-    const until = Date.now() + PARK_MS;
+    const until = serverNow() + PARK_MS;
     try {
       window.localStorage.setItem(PARK_KEY, String(until));
     } catch {
