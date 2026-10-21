@@ -14,6 +14,7 @@ import { PERM } from "@/lib/permissions";
 import { resolveStaffRole } from "@/lib/roles";
 import { playReminderChime } from "@/lib/orderAlertSound";
 import { useVisibilityInterval } from "@/lib/useVisibilityInterval";
+import { ApiError } from "@/services/adminApi";
 import {
   getRisellerRecordSummary,
   listRisellerPending,
@@ -28,6 +29,29 @@ const REMINDER_HOURS = [9, 11, 13, 15];
 const MUST_DO_HOUR = 17;
 const POLL_MS = 5 * 60_000;
 const DISMISS_KEY = "riseller-record-dismissed-slot";
+/** When ticking fails, the 5 pm must-do can be put away for this long, so a server problem never locks the dashboard. */
+const PARK_MS = 30 * 60_000;
+const PARK_KEY = "riseller-record-parked-until";
+
+function readParkedUntil(): number {
+  try {
+    return Number(window.localStorage.getItem(PARK_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Why a tick failed, in words an admin can pass on: the server's own message and its code, or no connection. */
+function failureReason(error: unknown): string {
+  if (error instanceof ApiError) {
+    const code = error.status
+      ? ` (error ${error.status}${error.traceId ? `, ref ${error.traceId}` : ""})`
+      : "";
+    return `${error.message}${code}`;
+  }
+  if (error instanceof TypeError) return "the server could not be reached";
+  return error instanceof Error ? error.message : "unknown problem";
+}
 
 /** Nairobi has no daylight saving: always UTC+3. */
 function nairobiNow(now = new Date()): { day: string; hour: number } {
@@ -74,6 +98,8 @@ export function RisellerRecordReminder() {
   const [openedByHand, setOpenedByHand] = useState(false);
   const [items, setItems] = useState<RisellerPendingProduct[] | null>(null);
   const [ticking, setTicking] = useState<string | null>(null);
+  const [tickError, setTickError] = useState<string | null>(null);
+  const [parkedUntil, setParkedUntil] = useState<number>(readParkedUntil);
   const chimedFor = useRef<string | null>(null);
 
   const check = useCallback(async () => {
@@ -94,7 +120,8 @@ export function RisellerRecordReminder() {
   }, POLL_MS);
 
   const dueBySlot = !!slot && (slot.mustDo || dismissedSlot !== slot.key);
-  const open = allowed && pendingCount > 0 && (dueBySlot || openedByHand);
+  const parked = Date.now() < parkedUntil;
+  const open = allowed && pendingCount > 0 && (openedByHand || (dueBySlot && !parked));
   const mustDo = open && !!slot?.mustDo;
 
   const loadItems = useCallback(async () => {
@@ -139,9 +166,13 @@ export function RisellerRecordReminder() {
         toast.success("All online sales are entered in Riseller.");
       }
       // Anything that sold while the list was open shows up on the next load.
+      setTickError(null);
       void loadItems();
-    } catch {
-      toast.error(`Couldn't tick ${p.productName}. Try again.`);
+    } catch (error) {
+      const reason = failureReason(error);
+      console.error("Riseller tick failed", { productId: p.productId, lineIds: p.lineIds, error });
+      setTickError(`${p.productName}: ${reason}`);
+      toast.error(`Couldn't tick ${p.productName}: ${reason}`);
     } finally {
       setTicking(null);
     }
@@ -153,6 +184,18 @@ export function RisellerRecordReminder() {
       setDismissedSlot(slot.key);
     }
     setOpenedByHand(false);
+  };
+
+  const parkForNow = () => {
+    const until = Date.now() + PARK_MS;
+    try {
+      window.localStorage.setItem(PARK_KEY, String(until));
+    } catch {
+      /* private mode: parked for this page only */
+    }
+    setParkedUntil(until);
+    setOpenedByHand(false);
+    setTickError(null);
   };
 
   if (!allowed || pendingCount === 0) return null;
@@ -254,6 +297,22 @@ export function RisellerRecordReminder() {
           )}
         </div>
 
+        {tickError && (
+          <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+            <p className="font-medium">Couldn't save the tick for {tickError}</p>
+            <p className="mt-0.5 text-xs">
+              Nothing was lost: it stays on this list. Try again, or close this for 30 minutes and
+              send the message above to support.
+            </p>
+          </div>
+        )}
+        {mustDo && tickError && (
+          <AlertDialogFooter>
+            <Button variant="outline" onClick={parkForNow}>
+              Close for 30 minutes
+            </Button>
+          </AlertDialogFooter>
+        )}
         {!mustDo && (
           <AlertDialogFooter>
             <Button variant="outline" onClick={later}>
