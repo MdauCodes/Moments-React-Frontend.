@@ -308,7 +308,14 @@ function AdminOrdersPage() {
 
   const totals = useMemo(
     () => ({
-      revenue: filteredRows.reduce((s, o) => s + Number(o.total ?? 0), 0),
+      // Only money actually received counts as revenue (owner, 22 Oct 2026: this tile used to add up every listed
+      // order, unpaid, cancelled and failed included, so it disagreed with the Dashboard's paid-only figures).
+      revenue: filteredRows
+        .filter((o) => o.paymentStatus === "PAID")
+        .reduce((s, o) => s + Number(o.total ?? 0), 0),
+      awaitingPayment: filteredRows
+        .filter((o) => o.paymentStatus === "PENDING" && o.status !== "CANCELLED" && o.status !== "REFUNDED")
+        .reduce((s, o) => s + Number(o.total ?? 0), 0),
       orders: filteredRows.length,
     }),
     [filteredRows],
@@ -384,8 +391,11 @@ function AdminOrdersPage() {
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : totals.orders}</div>
             </div>
             <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
-              <div className="admin-label" style={{ marginBottom: 0 }}>Revenue</div>
+              <div className="admin-label" style={{ marginBottom: 0 }} title="Paid orders in this view. Unpaid, cancelled and failed orders are not counted.">Paid revenue</div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : formatKes(totals.revenue)}</div>
+              {!initialLoading && !searching && totals.awaitingPayment > 0 && (
+                <div style={{ fontSize: 12, color: "var(--admin-muted, #6b6b6b)" }}>+ {formatKes(totals.awaitingPayment)} awaiting payment</div>
+              )}
             </div>
             <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
               <div className="admin-label" style={{ marginBottom: 0 }}>Filtered</div>
