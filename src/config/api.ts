@@ -11,15 +11,13 @@
 // a dev/preview convenience for pointing a local or preview build at a specific backend; it's
 // simply never consulted on the real production host, so it losing its value there can't matter.
 //
-// Interim state (2026-09-04): api.momentspackaging.com's DNS verification with Railway is still
-// pending, so PROD_API_BASE below is temporarily the raw *.up.railway.app host while that
-// propagates. This ONLY works because AuthCookieService's cookie is temporarily SameSite=None
-// (env var app.auth.cookie-samesite=None on the production Railway service) — see that file's
-// comment for why a raw railway.app host otherwise silently breaks every authenticated request.
-// Once api.momentspackaging.com verifies: point PROD_API_BASE back at it, and flip
-// app.auth.cookie-samesite back to Lax (or just unset it) on production — None is the weaker,
-// temporary setting.
-const PROD_API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+// Production API host (2026-10-23): store-api.momentspackaging.com, a domain we control, instead of
+// the raw *.up.railway.app host used since 2026-09-04 (api.momentspackaging.com never finished
+// verifying with Railway). Moving the backend off Railway is then a DNS change on store-api, with
+// no frontend release. The auth cookie is still SameSite=None (app.auth.cookie-samesite on the
+// production backend); now that this host is same-site with the storefront, Lax is enough, so flip
+// it back once the move has settled — None is the weaker setting.
+const PROD_API_BASE = "https://store-api.momentspackaging.com";
 const STAGING_API_BASE = "https://api-staging.momentspackaging.com";
 
 function isProductionHost(): boolean {

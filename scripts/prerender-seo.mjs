@@ -60,7 +60,7 @@ import {
 } from "../src/seo/guidePages.js";
 import { countUnits } from "../src/lib/uomWords.js";
 
-const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+const API_BASE = "https://store-api.momentspackaging.com";
 const DIST = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "dist");
 
 // ── helpers ──────────────────────────────────────────────────────────────────

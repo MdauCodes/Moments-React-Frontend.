@@ -15,7 +15,7 @@
 // Points at the PRODUCTION backend (matches PROD_API_BASE in src/config/api.ts): the sitemap is
 // only ever submitted for momentspackaging.com, so it must reflect what's live there — the
 // staging backend was also cost-paused, which left this fetch failing and the sitemap frozen.
-const API_BASE = "https://moments-packaging-latest-backend-production.up.railway.app";
+const API_BASE = "https://store-api.momentspackaging.com";
 
 // Product/blog URLs carry a trailing slash — the canonical form (see productPath's comment in
 // src/seo/seoData.js for why Render needs it).
