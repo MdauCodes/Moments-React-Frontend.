@@ -114,6 +114,7 @@ const AdminAnalyticsGeographicPage = lazy(() => import("@/routes/_adminAuth.admi
 const AdminAnalyticsDeliveryPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.delivery"));
 const AdminAnalyticsProductsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.products"));
 const AdminAnalyticsProfitabilityPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.profitability"));
+const AdminAnalyticsCostsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.costs"));
 const AdminAnalyticsTaxPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.tax"));
 const AdminAnalyticsRewardsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.rewards"));
 const AdminAnalyticsDataVisualizationPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.data-visualization"));
@@ -314,6 +315,7 @@ export default function App() {
                       <Route path="/admin/analytics/delivery" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsDeliveryPage /></Suspense>} />
                       <Route path="/admin/analytics/products" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsProductsPage /></Suspense>} />
                       <Route path="/admin/analytics/profitability" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsProfitabilityPage /></Suspense>} />
+                      <Route path="/admin/analytics/costs" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsCostsPage /></Suspense>} />
                       <Route path="/admin/analytics/tax" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsTaxPage /></Suspense>} />
                       <Route path="/admin/analytics/rewards" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsRewardsPage /></Suspense>} />
                       <Route path="/admin/analytics/data-visualization" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsDataVisualizationPage /></Suspense>} />
