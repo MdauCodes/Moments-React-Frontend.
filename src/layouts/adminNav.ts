@@ -1,4 +1,5 @@
 import {
+  Wallet,
   LayoutList,
   Package,
   Star,
@@ -143,6 +144,7 @@ export const navSections: NavSection[] = [
       { label: "Delivery", to: "/admin/analytics/delivery", icon: Truck, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Products & Inventory", to: "/admin/analytics/products", icon: Boxes, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Profitability", to: "/admin/analytics/profitability", icon: TrendingUp, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Website costs", to: "/admin/analytics/costs", icon: Wallet, requiresAny: [PERM.ANALYTICS_VIEW], adminOnly: true },
       { label: "Tax & Compliance", to: "/admin/analytics/tax", icon: Receipt, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Rewards & Referrals", to: "/admin/analytics/rewards", icon: Gift, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Data Visualization", to: "/admin/analytics/data-visualization", icon: LayoutGrid, requiresAny: [PERM.ANALYTICS_VIEW] },
