@@ -20,6 +20,12 @@ type ApiStats = DashboardResult & {
   topSellingProducts?: string[];
 };
 
+/** "1 Oct": the first day of the current month in Nairobi, where the backend starts the month-to-date sum. */
+function monthStartLabel(): string {
+  const month = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "Africa/Nairobi" }).format(new Date());
+  return `1 ${month}`;
+}
+
 export function AdminDashboardPage() {
   const { hasPermission, user } = useAuth();
   const { orders, refresh } = useAdminOrders();
@@ -77,7 +83,7 @@ export function AdminDashboardPage() {
       tone: "default" as const,
     },
     showRevenue && typeof stats.revenueMTD === "number" && {
-      label: "Revenue MTD", value: formatKes(stats.revenueMTD), sub: "Confirmed paid orders",
+      label: "Revenue this month", value: formatKes(stats.revenueMTD), sub: `Paid orders since ${monthStartLabel()}`,
       tone: "default" as const,
     },
     showOrderCounts && typeof stats.ordersPending === "number" && {
