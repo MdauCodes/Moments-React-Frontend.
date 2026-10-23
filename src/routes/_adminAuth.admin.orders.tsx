@@ -391,7 +391,9 @@ function AdminOrdersPage() {
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : totals.orders}</div>
             </div>
             <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
-              <div className="admin-label" style={{ marginBottom: 0 }} title="Paid orders in this view. Unpaid, cancelled and failed orders are not counted.">Paid revenue</div>
+              {/* All dates on purpose: the list has no date filter. The Dashboard's revenue tile is this month only,
+                  so both say their period to stop the two figures looking like they disagree (owner, 23 Oct 2026). */}
+              <div className="admin-label" style={{ marginBottom: 0 }} title="Every paid order in this list, from any date. The Dashboard's revenue covers this month only. Unpaid, cancelled and failed orders are not counted.">Paid revenue · all time</div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : formatKes(totals.revenue)}</div>
               {!initialLoading && !searching && totals.awaitingPayment > 0 && (
                 <div style={{ fontSize: 12, color: "var(--admin-muted, #6b6b6b)" }}>+ {formatKes(totals.awaitingPayment)} awaiting payment</div>
