@@ -10,11 +10,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { GOOGLE_REVIEW_URL } from "@/lib/businessLinks";
+import { COMPANY_PHONE, COMPANY_PHONE_INTL } from "@/data/products";
 
 /**
  * The window a customer lands on after scanning our printed QR code (shop counter, order inserts).
  * The code points at the homepage with `?qr=1` plus ordinary utm tags, for example
- *   https://momentspackaging.com/?qr=1&utm_source=qr&utm_medium=print&utm_campaign=counter
+ *   https://momentspackaging.com/?qr=1&utm_source=qr&utm_medium=print&utm_campaign=insert
+ * The shop counter card uses `?qr=review` instead: the customer has just been served, so the window
+ * thanks them and puts the Google review first, with shopping online second and a number to call if
+ * something went wrong (offered to everyone, after the review, so nobody is filtered out of asking).
+ *   https://momentspackaging.com/?qr=review&utm_source=qr&utm_medium=print&utm_campaign=counter
+ * The card packed inside web-order parcels uses `?qr=parcel`: the same review-first window, worded
+ * for someone who has just opened their delivery, with tracking/reordering as the second option.
+ *   https://momentspackaging.com/?qr=parcel&utm_source=qr&utm_medium=print&utm_campaign=parcel-insert
  * The utm tags are picked up by MarketingAttributionCapture as usual, so visits and any order that
  * follows are credited to the QR code; `qr` itself only means "open this window".
  *
@@ -35,7 +43,12 @@ export function QrVisitDialog() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  const flagged = new URLSearchParams(search).has("qr");
+  const qr = new URLSearchParams(search).get("qr");
+  const flagged = qr !== null;
+  // `qr=review` (shop counter card) and `qr=parcel` (parcel insert card) put the Google review
+  // first; `qr=1` keeps shop first.
+  const parcel = qr === "parcel";
+  const reviewFirst = qr === "review" || parcel;
   const allowedHere = !SKIP_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const shouldOpen = flagged && allowedHere;
 
@@ -62,49 +75,125 @@ export function QrVisitDialog() {
 
   function shop() {
     setOpen(false);
-    navigate("/products");
+    navigate(parcel ? "/orders/track" : "/products");
   }
+
+  const reviewLink = (
+    <a
+      href={GOOGLE_REVIEW_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={close}
+      className={
+        reviewFirst
+          ? "flex w-full items-center gap-4 rounded-2xl bg-primary px-5 py-4 text-left text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          : "flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-foreground transition-colors hover:border-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+      }
+    >
+      <Star
+        className={reviewFirst ? "h-6 w-6 shrink-0" : "h-6 w-6 shrink-0 text-accent"}
+        aria-hidden="true"
+      />
+      <span>
+        <span className="block text-base font-medium">
+          {reviewFirst ? "Leave a Google review" : "Leave us a Google review"}
+        </span>
+        <span
+          className={
+            reviewFirst ? "block text-sm opacity-80" : "block text-sm text-muted-foreground"
+          }
+        >
+          {reviewFirst
+            ? "Google opens. Pick your stars, add a line, tap Post"
+            : "It takes a minute and helps other businesses find us"}
+        </span>
+      </span>
+    </a>
+  );
+
+  const shopButton = (
+    <button
+      type="button"
+      onClick={shop}
+      className={
+        reviewFirst
+          ? "flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-foreground transition-colors hover:border-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          : "flex w-full items-center gap-4 rounded-2xl bg-primary px-5 py-4 text-left text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+      }
+    >
+      <ShoppingBag
+        className={reviewFirst ? "h-6 w-6 shrink-0 text-accent" : "h-6 w-6 shrink-0"}
+        aria-hidden="true"
+      />
+      <span>
+        <span className="block text-base font-medium">
+          {parcel
+            ? "Track an order or reorder"
+            : reviewFirst
+              ? "Order online next time"
+              : "Shop online"}
+        </span>
+        <span
+          className={
+            reviewFirst ? "block text-sm text-muted-foreground" : "block text-sm opacity-80"
+          }
+        >
+          {parcel
+            ? "Delivery updates and your past orders"
+            : reviewFirst
+              ? "Delivered across Kenya, or ready for you to collect"
+              : "Packaging delivered across Kenya"}
+        </span>
+      </span>
+    </button>
+  );
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && close()}>
       <DialogContent className="max-w-md rounded-2xl border-border bg-background p-6 sm:p-8">
         <DialogHeader className="text-left">
           <DialogTitle className="font-display text-2xl font-medium text-foreground">
-            Welcome to Moments Packaging
+            {parcel
+              ? "Your order has arrived"
+              : reviewFirst
+                ? "Thank you for shopping with us"
+                : "Welcome to Moments Packaging"}
           </DialogTitle>
           <DialogDescription>
-            Thank you for stopping by. What would you like to do?
+            {parcel
+              ? "Once you have checked everything, would you share your honest experience on Google? Good or bad, it helps other businesses find us and helps us improve."
+              : reviewFirst
+                ? "Have a minute? Tell other businesses how we did today. An honest Google review, good or bad, helps people find us and helps us improve."
+                : "Thank you for stopping by. What would you like to do?"}
           </DialogDescription>
         </DialogHeader>
 
         <div className="mt-2 space-y-3">
-          <button
-            type="button"
-            onClick={shop}
-            className="flex w-full items-center gap-4 rounded-2xl bg-primary px-5 py-4 text-left text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-          >
-            <ShoppingBag className="h-6 w-6 shrink-0" aria-hidden="true" />
-            <span>
-              <span className="block text-base font-medium">Shop online</span>
-              <span className="block text-sm opacity-80">Packaging delivered across Kenya</span>
-            </span>
-          </button>
-
-          <a
-            href={GOOGLE_REVIEW_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center gap-4 rounded-2xl border border-border bg-card px-5 py-4 text-left text-foreground transition-colors hover:border-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
-          >
-            <Star className="h-6 w-6 shrink-0 text-accent" aria-hidden="true" />
-            <span>
-              <span className="block text-base font-medium">Leave us a Google review</span>
-              <span className="block text-sm text-muted-foreground">
-                It takes a minute and helps other businesses find us
-              </span>
-            </span>
-          </a>
+          {reviewFirst ? (
+            <>
+              {reviewLink}
+              {shopButton}
+            </>
+          ) : (
+            <>
+              {shopButton}
+              {reviewLink}
+            </>
+          )}
         </div>
+
+        {reviewFirst && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            {parcel ? "Something missing or damaged?" : "Something not right?"} Call or WhatsApp{" "}
+            <a
+              href={`tel:${COMPANY_PHONE_INTL.replace(/\s/g, "")}`}
+              className="font-medium text-foreground underline"
+            >
+              {COMPANY_PHONE}
+            </a>{" "}
+            and we will put it right.
+          </p>
+        )}
       </DialogContent>
     </Dialog>
   );

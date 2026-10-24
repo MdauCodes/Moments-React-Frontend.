@@ -1,5 +1,4 @@
-export const GOOGLE_REVIEW_URL =
-  "https://search.google.com/local/writereview?placeid=ChIJUaca4EARLxgRwWPE9sEH2jg";
+import { GOOGLE_REVIEW_URL } from "@/lib/businessLinks";
 
 /** Copies the customer's words so they only have to paste on Google, then opens Google's review
  *  form in a small window over the site (Google blocks its page from being embedded in a frame,
