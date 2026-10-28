@@ -1,6 +1,6 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { GoogleReviewPrompt } from "@/components/GoogleReviewPrompt";
-import { CheckoutRatingCard } from "@/components/CheckoutFeedbackCards";
+import { RateAndReviewCard } from "@/components/RateAndReviewCard";
 
 import { useEffect, useState } from "react";
 import { CheckCircle2, FileDown } from "lucide-react";
@@ -139,8 +139,7 @@ function OrderConfirmationPage() {
             </div>
           )}
 
-          <GoogleReviewPrompt variant="hero" />
-          {ref && <CheckoutRatingCard reference={ref} />}
+          {ref ? <RateAndReviewCard reference={ref} /> : <GoogleReviewPrompt variant="hero" />}
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link
