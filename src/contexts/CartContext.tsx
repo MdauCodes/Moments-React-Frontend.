@@ -24,6 +24,11 @@ export interface CartItem {
   collectionQuantity?: number;
   /** quantity * collectionQuantity (or quantity for individual units). */
   totalUnits?: number;
+  /** Live from the server each time the cart is fetched, not from when the line was added. */
+  stockStatus?: string;
+  unitsInStock?: number | null;
+  /** False when checkout would refuse this line (out of stock, removed, or more than is in stock). */
+  purchasable?: boolean;
 }
 
 /** What to show in the just-added mini-cart (CartAddedSheet) — deliberately NOT the full merged
@@ -52,6 +57,8 @@ interface CartContextValue {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  /** Re-reads the cart from the server: current prices and stock, for the cart and checkout pages. */
+  refreshCart: () => Promise<void>;
 }
 
 const CART_ID_KEY = "mpk_cart";
@@ -117,6 +124,9 @@ function parseBackendCart(data: unknown): CartItem[] | null {
           : collectionQuantity != null
             ? quantity * collectionQuantity
             : quantity,
+      stockStatus: it.stockStatus ?? undefined,
+      unitsInStock: it.unitsInStock != null ? Number(it.unitsInStock) : null,
+      purchasable: it.purchasable !== false,
     });
   }
   return items;
@@ -376,6 +386,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // The cart loads once per visit, so a cart left open for a while would keep showing the price
+  // and stock it loaded with. The server re-prices and re-checks stock on every read.
+  const refreshCart = async () => {
+    try {
+      const res = await apiFetch("/api/v1/cart", { session: true, auth: true });
+      if (!res.ok) return;
+      const parsed = parseBackendCart(await res.json());
+      if (parsed && parsed.length > 0) setItems(parsed);
+    } catch {
+      /* keep local state */
+    }
+  };
+
   const { itemCount, cartTotal } = useMemo(() => {
     let count = 0;
     let total = 0;
@@ -388,7 +411,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, itemCount, cartTotal, cartId, cartLoading, lastAdded, addItem, removeItem, updateQuantity, clearCart }}
+      value={{
+        items,
+        itemCount,
+        cartTotal,
+        cartId,
+        cartLoading,
+        lastAdded,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        refreshCart,
+      }}
     >
       {children}
     </CartContext.Provider>

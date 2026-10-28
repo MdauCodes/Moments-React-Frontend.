@@ -248,9 +248,32 @@ function useScrollIntoViewOnComplete<T extends HTMLElement>(complete: boolean, r
 }
 
 function CheckoutModal() {
-  const { items, cartTotal, clearCart } = useCart();
+  const { items, cartTotal, clearCart, refreshCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // Re-read the cart on arrival so the customer pays today's prices, and send them back to the
+  // cart if something in it sold out since they added it (checkout would refuse it anyway).
+  const [cartChecked, setCartChecked] = useState(false);
+  const sentBackToCart = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    void refreshCart().finally(() => {
+      if (!cancelled) setCartChecked(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (!cartChecked || sentBackToCart.current) return;
+    if (items.some((it) => it.purchasable === false)) {
+      sentBackToCart.current = true;
+      toast.error("Some items in your cart have sold out or run low since you added them. Please check your cart.");
+      navigate("/cart");
+    }
+  }, [cartChecked, items, navigate]);
 
   const [step, setStep] = useState<Step>("contact");
 
