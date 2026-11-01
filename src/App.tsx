@@ -29,8 +29,10 @@ import { QrVisitDialog } from "@/components/QrVisitDialog";
 // bundle (a cold visitor almost always lands here, and it is what Lighthouse/PSI measures), so
 // splitting it would only add a network round-trip to the critical path. Every *other* public
 // page below is lazy() — see the note above the account block for why.
-import HomePage from "@/routes/index";
+import MarketHomePage from "@/routes/market-home";
 import { LAUNCH_PAGE_ENABLED } from "@/config/siteLock";
+// The full home page now lives at /discover ("Why Moments"), so it loads on demand like any other page.
+const HomePage = lazy(() => import("@/routes/index"));
 
 // Every public page other than the homepage is dynamically imported. Previously all of these were
 // static imports, so a visitor landing on `/` downloaded and parsed the JS for the entire
@@ -237,10 +239,10 @@ export default function App() {
                   <Suspense fallback={<PublicRouteFallback />}>
                   <Routes>
                     {/* Public */}
-                    <Route path="/" element={<HomePage />} />
-                    {/* The full home page (story, guarantees, accounts, testimonials, blogs) keeps
-                        its own address and nav item ("Why Moments") while "/" becomes the
-                        sales-first market page — plans/MARKET_HOME_PLAN_2026-11-01.md. */}
+                    {/* "/" is the sales-first market page; the full home page (story, guarantees,
+                        accounts, testimonials, blogs) keeps its own address and nav item ("Why
+                        Moments") — plans/MARKET_HOME_PLAN_2026-11-01.md. */}
+                    <Route path="/" element={<MarketHomePage />} />
                     <Route path="/discover" element={<HomePage />} />
                     {LAUNCH_PAGE_ENABLED && <Route path="/launch" element={<LaunchCountdownPage />} />}
                     <Route path="/about" element={<AboutPage />} />
