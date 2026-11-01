@@ -90,9 +90,10 @@ export function AccessibilityToolbar() {
         aria-label="Accessibility options"
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/20 transition-transform hover:scale-105 md:h-16 md:w-16"
+        className="flex h-14 w-14 flex-col items-center justify-center gap-0.5 rounded-full bg-primary text-[9px] font-semibold leading-none text-primary-foreground shadow-lg shadow-black/20 transition-transform hover:scale-105 md:h-16 md:w-16 md:text-[10px]"
       >
-        <Accessibility className="h-5 w-5 md:h-7 md:w-7" />
+        <Accessibility className="h-5 w-5 md:h-6 md:w-6" />
+        Text size
       </button>
 
       {open && (
@@ -113,9 +114,10 @@ export function AccessibilityToolbar() {
                 triggerRef.current?.focus();
               }}
               aria-label="Close accessibility settings"
-              className="grid h-10 w-10 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+              className="inline-flex h-10 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
             >
               <X className="h-5 w-5" />
+              Close
             </button>
           </div>
 
@@ -127,26 +129,29 @@ export function AccessibilityToolbar() {
                 onClick={decreaseFontSize}
                 disabled={prefs.fontScale <= FONT_SCALE_MIN}
                 aria-label="Decrease text size"
-                className="grid h-12 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Minus className="h-5 w-5" />
+                Smaller
               </button>
               <button
                 type="button"
                 onClick={resetFontSize}
                 aria-label="Reset text size"
-                className="grid h-12 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary"
+                className="flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-secondary"
               >
                 <RotateCcw className="h-5 w-5" />
+                Reset
               </button>
               <button
                 type="button"
                 onClick={increaseFontSize}
                 disabled={prefs.fontScale >= FONT_SCALE_MAX}
                 aria-label="Increase text size"
-                className="grid h-12 flex-1 place-items-center rounded-lg border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-12 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg text-xs font-medium border border-border text-foreground hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Plus className="h-5 w-5" />
+                Bigger
               </button>
             </div>
           </div>

@@ -159,10 +159,11 @@ function CartPage() {
                       <button
                         type="button"
                         onClick={() => removeItem(it.id)}
-                        className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
                         aria-label={`Remove ${it.productName}`}
                       >
                         <Trash2 className="h-4 w-4" />
+                        Remove
                       </button>
                     </div>
                     <div className="mt-3 flex flex-wrap items-start justify-between gap-3">

@@ -34,7 +34,7 @@ export function SignUpFab() {
       className="fixed bottom-20 right-4 z-50 flex min-h-[48px] animate-in fade-in duration-500 motion-reduce:animate-none items-center gap-2 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground shadow-lg shadow-black/20 transition-all hover:scale-105 hover:shadow-xl sm:bottom-6 sm:right-6 sm:px-5 sm:py-3.5"
     >
       <UserPlus className="h-5 w-5" aria-hidden="true" />
-      <span className="hidden sm:inline">Sign up</span>
+      <span>Sign up</span>
     </button>
   );
 }

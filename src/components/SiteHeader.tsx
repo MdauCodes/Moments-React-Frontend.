@@ -18,6 +18,11 @@ import { api, type Segment, type Category as TaxCategory, type Subcategory } fro
  */
 type SimpleNav = { to: string; label: string };
 
+/** An icon with its word underneath (owner, 2026-11-01): every header control says what it does,
+ *  so nobody has to guess what a picture means. Same look as the phone's bottom bar. */
+const LABELLED_ICON =
+  "flex h-12 min-w-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 text-[11px] font-medium leading-none transition-colors";
+
 // Order: [Shop dropdown], Why Moments, Company, Sustainability, Track Order, Deals.
 const navAfterShop: readonly SimpleNav[] = [
   { to: "/discover", label: "Why Moments" },
@@ -206,17 +211,14 @@ export function SiteHeader() {
             ))}
 
             <div className="ml-2 flex items-center gap-1">
-              <Link
-                to="/faq"
-                aria-label="Help"
-                className="grid h-10 w-10 place-items-center rounded-full text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground"
-              >
+              <Link to="/faq" className={`${LABELLED_ICON} text-foreground/80 hover:bg-secondary hover:text-foreground`}>
                 <HelpCircle className="h-5 w-5" />
+                Help
               </Link>
               <Link
                 to="/cart"
-                aria-label="Cart"
-                className={`relative grid h-10 w-10 place-items-center rounded-full transition-transform duration-500 ${
+                aria-label={itemCount > 0 ? `Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}` : "Cart"}
+                className={`${LABELLED_ICON} relative transition-transform duration-500 ${
                   itemCount > 0
                     ? "bg-primary/10 text-primary hover:bg-primary/15"
                     : "text-foreground/80 hover:bg-secondary hover:text-foreground"
@@ -231,18 +233,20 @@ export function SiteHeader() {
                     cartBump ? "opacity-100 ring-4 ring-accent/40" : "opacity-0 ring-4 ring-transparent"
                   }`}
                 />
-                <ShoppingCart className="h-5 w-5" />
-                {itemCount > 0 && (
-                  <span className="absolute -right-1 -top-1 grid min-w-[20px] h-[20px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
-                    {itemCount > 99 ? "99+" : itemCount}
-                  </span>
-                )}
+                <span className="relative">
+                  <ShoppingCart className="h-5 w-5" />
+                  {itemCount > 0 && (
+                    <span className="absolute -right-3 -top-2 grid min-w-[18px] h-[18px] place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
+                      {itemCount > 99 ? "99+" : itemCount}
+                    </span>
+                  )}
+                </span>
+                Cart
               </Link>
 
               <div ref={accountRef} className="relative">
                 <button
                   type="button"
-                  aria-label="Account"
                   onClick={() => {
                     if (!isAuthenticated) {
                       openLogin();
@@ -250,9 +254,10 @@ export function SiteHeader() {
                       setAccountOpen((v) => !v);
                     }
                   }}
-                  className="grid h-10 w-10 place-items-center rounded-full text-foreground/80 transition-colors hover:bg-secondary hover:text-foreground"
+                  className={`${LABELLED_ICON} text-foreground/80 hover:bg-secondary hover:text-foreground`}
                 >
                   <User className="h-5 w-5" />
+                  {isAuthenticated ? "Account" : "Sign in"}
                 </button>
                 {isAuthenticated && accountOpen && (
                   <div className="absolute right-0 top-full z-50 w-56 pt-2">
@@ -309,40 +314,46 @@ export function SiteHeader() {
 
           {/* Tablet/mobile cart + search + menu */}
           <div className="ml-auto flex items-center gap-1 md:hidden">
+            <button
+              type="button"
+              onClick={() => openSearch()}
+              aria-label="Search packaging"
+              className={`${LABELLED_ICON} text-foreground/80 hover:bg-secondary`}
+            >
+              <Search className="h-5 w-5" />
+              Search
+            </button>
             <Link
               to="/cart"
-              aria-label="Cart"
-              className={`relative grid h-10 w-10 place-items-center rounded-md transition-transform duration-500 ${
+              aria-label={itemCount > 0 ? `Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}` : "Cart"}
+              className={`${LABELLED_ICON} relative transition-transform duration-500 ${
                 itemCount > 0 ? "bg-primary/10 text-primary" : "text-foreground/80 hover:bg-secondary"
               } ${cartBump ? "scale-110" : "scale-100"}`}
             >
               <span
                 aria-hidden="true"
-                className={`pointer-events-none absolute inset-[-14px] rounded-full transition-opacity duration-500 ${
+                className={`pointer-events-none absolute inset-[-10px] rounded-full transition-opacity duration-500 ${
                   cartBump ? "opacity-100 ring-4 ring-accent/40" : "opacity-0 ring-4 ring-transparent"
                 }`}
               />
-              <ShoppingCart className="h-5 w-5" />
-              {itemCount > 0 && (
-                <span className="absolute -right-1 -top-1 grid min-w-[20px] h-[20px] place-items-center rounded-full bg-accent px-1 text-[11px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
-                  {itemCount > 99 ? "99+" : itemCount}
-                </span>
-              )}
+              <span className="relative">
+                <ShoppingCart className="h-5 w-5" />
+                {itemCount > 0 && (
+                  <span className="absolute -right-3 -top-2 grid min-w-[18px] h-[18px] place-items-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground shadow-sm ring-2 ring-background">
+                    {itemCount > 99 ? "99+" : itemCount}
+                  </span>
+                )}
+              </span>
+              Cart
             </Link>
             <button
               type="button"
-              onClick={() => openSearch()}
-              aria-label="Search packaging"
-              className="grid h-10 w-10 place-items-center rounded-md border border-border text-foreground/80 transition-colors hover:bg-secondary"
-            >
-              <Search className="h-5 w-5" />
-            </button>
-            <button
               onClick={() => setOpen((v) => !v)}
-              aria-label="Toggle menu"
-              className="grid h-10 w-10 place-items-center rounded-md border border-border"
+              aria-expanded={open}
+              className={`${LABELLED_ICON} text-foreground/80 hover:bg-secondary`}
             >
               {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {open ? "Close" : "Menu"}
             </button>
           </div>
 
@@ -351,9 +362,10 @@ export function SiteHeader() {
             type="button"
             onClick={() => openSearch()}
             aria-label="Search packaging"
-            className="hidden h-10 w-10 place-items-center rounded-md border border-border text-foreground/80 transition-colors hover:bg-secondary md:grid lg:hidden"
+            className={`${LABELLED_ICON} hidden text-foreground/80 hover:bg-secondary md:flex lg:hidden`}
           >
             <Search className="h-5 w-5" />
+            Search
           </button>
         </div>
 
@@ -372,9 +384,10 @@ export function SiteHeader() {
                   <button
                     type="button"
                     onClick={() => setMobileShopOpen((v) => !v)}
-                    aria-label="Toggle categories"
-                    className="grid h-10 w-10 place-items-center rounded-md text-foreground/60 hover:bg-secondary"
+                    aria-expanded={mobileShopOpen}
+                    className="inline-flex h-10 items-center gap-1 rounded-md px-3 text-sm font-medium text-foreground/70 hover:bg-secondary"
                   >
+                    {mobileShopOpen ? "Hide categories" : "Categories"}
                     <ChevronDown className={`h-4 w-4 transition-transform ${mobileShopOpen ? "rotate-180" : ""}`} />
                   </button>
                 </div>

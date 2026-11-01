@@ -209,10 +209,10 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
-            className="grid h-9 w-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+            className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground"
           >
             <X className="h-4 w-4" />
+            Close
           </button>
         </div>
 

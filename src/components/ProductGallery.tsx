@@ -117,10 +117,10 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
           <button
             type="button"
             onClick={() => setLightboxOpen(false)}
-            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
-            aria-label="Close"
+            className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/20"
           >
             <X size={20} />
+            Close
           </button>
           {images.length > 1 && (
             <>
