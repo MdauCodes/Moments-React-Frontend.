@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { useEnquiry } from "@/contexts/EnquiryContext";
 
 import { Phone, Mail, MapPin, Instagram, MessageCircle, Facebook } from "lucide-react";
 import {
@@ -11,13 +10,32 @@ import {
   INSTAGRAM_URL,
   TIKTOK_URL,
   FACEBOOK_URL,
-  categories,
 } from "@/data/products";
+import { findShopPage, shopPath } from "@/seo/landingPages";
 import { TikTokIcon } from "@/components/icons/TikTokIcon";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 
+// Real, indexable buyer-intent pages (src/seo/landingPages.js). These replaced links to
+// /products?category=bags|cups|boxes|mailers|labels|gifting — placeholder slugs from the original
+// mock catalogue that matched nothing (or nothing much) in the live one. A link to these from every
+// page is also how search engines learn they're the site's main shopping pages.
+const FOOTER_SHOP_LINKS = [
+  ["takeaway-food-containers", "Takeaway containers"],
+  ["disposable-cups-and-lids", "Cups & lids"],
+  ["khaki-and-paper-bags", "Khaki & paper bags"],
+  ["cake-boxes-and-dessert-packaging", "Cake boxes"],
+  ["paper-plates-and-party-supplies", "Party supplies"],
+  ["aluminium-foil-and-cling-film", "Foil & cling film"],
+].filter(([slug]) => findShopPage(slug));
+
+// Guide pages (src/seo/guidePages.js), linked from every page for the same reason.
+const FOOTER_GUIDE_LINKS = [
+  ["/packaging-suppliers-nairobi/", "Packaging suppliers Nairobi"],
+  ["/packaging/eco-friendly-packaging-kenya/", "Eco-friendly packaging"],
+  ["/custom-packaging-nairobi/", "Custom packaging"],
+] as const;
+
 export function SiteFooter() {
-  const { openEnquiry } = useEnquiry();
   return (
     <footer
       className="mt-16 border-t border-border text-primary-foreground sm:mt-24"
@@ -53,13 +71,6 @@ export function SiteFooter() {
             <Link to="/contact" className="text-sm font-medium text-primary-foreground hover:text-accent">
               Contact Us
             </Link>
-            <button
-              type="button"
-              onClick={() => openEnquiry()}
-              className="text-left text-sm font-medium text-primary-foreground hover:text-accent"
-            >
-              Ask a question
-            </button>
           </nav>
         </div>
 
@@ -72,10 +83,10 @@ export function SiteFooter() {
                 All products
               </Link>
             </li>
-            {categories.map((c) => (
-              <li key={c.slug}>
-                <Link to={`/products?category=${c.slug}`} className="hover:text-accent">
-                  {c.name}
+            {FOOTER_SHOP_LINKS.map(([slug, label]) => (
+              <li key={slug}>
+                <Link to={shopPath(slug)} className="hover:text-accent">
+                  {label}
                 </Link>
               </li>
             ))}
@@ -91,6 +102,13 @@ export function SiteFooter() {
         <div>
           <h4 className="font-display text-sm uppercase tracking-widest text-primary-foreground/80">Explore</h4>
           <ul className="mt-4 space-y-2 text-sm">
+            {FOOTER_GUIDE_LINKS.map(([to, label]) => (
+              <li key={to}>
+                <Link to={to} className="hover:text-accent">
+                  {label}
+                </Link>
+              </li>
+            ))}
             <li>
               <Link to="/industries" className="hover:text-accent">
                 Industries

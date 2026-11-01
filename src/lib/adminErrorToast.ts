@@ -1,15 +1,18 @@
 import { toast } from "sonner";
 import { ApiError } from "@/services/adminApi";
+import { nairobiTimestamp } from "@/lib/serverTime";
 
 // Mdau's WhatsApp — admins forward error reports here for triage.
 const DEVELOPER_WHATSAPP = "254796814154";
 
 function explainWhy(status: number | undefined, code: string | undefined): string {
-  if (code === "VALIDATION_FAILED") return "The data didn't pass a validation check — check the highlighted fields.";
+  if (code === "VALIDATION_FAILED")
+    return "The data didn't pass a validation check — check the highlighted fields.";
   if (status === 401) return "Your session has expired — sign in again.";
   if (status === 403) return "You don't have permission to do this.";
   if (status === 409) return "This conflicts with something that already exists.";
-  if (status && status >= 500) return "The server hit an internal error — this is a bug, not something you did wrong.";
+  if (status && status >= 500)
+    return "The server hit an internal error — this is a bug, not something you did wrong.";
   return "An unexpected error occurred.";
 }
 
@@ -33,7 +36,7 @@ export function reportAdminError(err: unknown, context: string): void {
     status ? `Status: ${status}` : null,
     code ? `Code: ${code}` : null,
     traceId ? `Trace ID: ${traceId}` : null,
-    `When: ${new Date().toLocaleString("en-KE")}`,
+    `When: ${nairobiTimestamp()} (Nairobi)`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -44,7 +47,11 @@ export function reportAdminError(err: unknown, context: string): void {
     action: {
       label: "Forward to Developer",
       onClick: () => {
-        window.open(`https://wa.me/${DEVELOPER_WHATSAPP}?text=${encodeURIComponent(whatsappText)}`, "_blank", "noopener,noreferrer");
+        window.open(
+          `https://wa.me/${DEVELOPER_WHATSAPP}?text=${encodeURIComponent(whatsappText)}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
       },
     },
   });
@@ -62,7 +69,7 @@ export function reportTumaBodaBookingFailure(reference: string, reason: string):
     "Moments admin dashboard error report",
     `Where: TumaBoda delivery booking — order ${reference}`,
     `What: ${reason}`,
-    `When: ${new Date().toLocaleString("en-KE")}`,
+    `When: ${nairobiTimestamp()} (Nairobi)`,
   ].join("\n");
 
   toast.error(`TumaBoda booking failed — ${reference}`, {
@@ -71,7 +78,11 @@ export function reportTumaBodaBookingFailure(reference: string, reason: string):
     action: {
       label: "Forward to Developer",
       onClick: () => {
-        window.open(`https://wa.me/${DEVELOPER_WHATSAPP}?text=${encodeURIComponent(whatsappText)}`, "_blank", "noopener,noreferrer");
+        window.open(
+          `https://wa.me/${DEVELOPER_WHATSAPP}?text=${encodeURIComponent(whatsappText)}`,
+          "_blank",
+          "noopener,noreferrer",
+        );
       },
     },
   });

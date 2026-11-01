@@ -19,6 +19,7 @@ import { downloadCsv, toCsv } from "@/lib/csv";
 import { DateRangePicker, type DateRange } from "@/components/admin/DateRangePicker";
 import { AnalyticsExportButtons } from "@/components/admin/AnalyticsExportButtons";
 import { formatRangeLabel } from "@/lib/analyticsExport";
+import { nairobiDateStamp } from "@/lib/serverTime";
 
 function AdminAnalyticsPage() {
   const [data, setData] = useState<AnalyticsResult | null>(null);
@@ -110,7 +111,7 @@ function AdminAnalyticsPage() {
   async function handleExport(kind: "orders" | "customers") {
     try {
       setExporting(kind);
-      const stamp = new Date().toISOString().slice(0, 10);
+      const stamp = nairobiDateStamp();
       if (kind === "orders") {
         const { rows } = await exportOrders();
         const flat = rows.map((o) => ({

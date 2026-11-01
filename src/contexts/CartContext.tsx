@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { toast } from "sonner";
 import { apiFetch } from "@/config/api";
+import { metaAddToCart } from "@/lib/metaEvents";
 
 export interface CartItem {
   id: string;
@@ -16,14 +18,17 @@ export interface CartItem {
   variantId?: string;
   variantLabel?: string;
   sku?: string;
-  /** True when the line was placed beyond available stock. */
-  isBackorder?: boolean;
   /** Pricing-tier (collection) selection. Null/undefined = individual units. */
   tierId?: string | null;
   collectionName?: string;
   collectionQuantity?: number;
   /** quantity * collectionQuantity (or quantity for individual units). */
   totalUnits?: number;
+  /** Live from the server each time the cart is fetched, not from when the line was added. */
+  stockStatus?: string;
+  unitsInStock?: number | null;
+  /** False when checkout would refuse this line (out of stock, removed, or more than is in stock). */
+  purchasable?: boolean;
 }
 
 /** What to show in the just-added mini-cart (CartAddedSheet) — deliberately NOT the full merged
@@ -38,7 +43,6 @@ export interface LastAddedInfo {
   quantity: number;
   unitLabel: string;
   lineTotal: number;
-  isBackorder?: boolean;
   nonce: number;
 }
 
@@ -53,6 +57,8 @@ interface CartContextValue {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  /** Re-reads the cart from the server: current prices and stock, for the cart and checkout pages. */
+  refreshCart: () => Promise<void>;
 }
 
 const CART_ID_KEY = "mpk_cart";
@@ -109,7 +115,6 @@ function parseBackendCart(data: unknown): CartItem[] | null {
       variantId: it.variantId ?? undefined,
       variantLabel: it.variantLabel ?? undefined,
       sku: it.sku ?? undefined,
-      isBackorder: it.isBackorder ?? undefined,
       tierId: it.tierId ?? null,
       collectionName: it.collectionName ?? undefined,
       collectionQuantity,
@@ -119,6 +124,9 @@ function parseBackendCart(data: unknown): CartItem[] | null {
           : collectionQuantity != null
             ? quantity * collectionQuantity
             : quantity,
+      stockStatus: it.stockStatus ?? undefined,
+      unitsInStock: it.unitsInStock != null ? Number(it.unitsInStock) : null,
+      purchasable: it.purchasable !== false,
     });
   }
   return items;
@@ -218,13 +226,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const collectionQuantity = input.collectionQuantity;
     const totalUnits =
       input.totalUnits ?? (collectionQuantity != null ? input.quantity * collectionQuantity : input.quantity);
+    // The one place every add-to-cart entry point passes through (product page, quick-add,
+    // configurator, wishlist, re-order) — so Meta's AddToCart is reported from here only.
+    metaAddToCart({
+      productId: input.productId,
+      name: input.productName,
+      units: totalUnits,
+      value: computeLineTotal(input.quantity, input.unitPrice, input.collectionQuantity),
+    });
     setLastAdded({
       productName: input.productName,
       primaryImageUrl: input.primaryImageUrl,
       quantity: input.quantity,
       unitLabel: input.collectionName || (input.quantity === 1 ? "unit" : "units"),
       lineTotal: computeLineTotal(input.quantity, input.unitPrice, input.collectionQuantity),
-      isBackorder: input.isBackorder,
       nonce: Date.now() + Math.random(),
     });
     setItems((prev) => {
@@ -268,6 +283,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         productId: input.productId,
         variantId: input.variantId,
         tierId: input.tierId ?? null,
+        // A null tierId on a line that actually reached addItem is always a deliberate "buy the
+        // single unit" choice — every caller (PDP, configurator, quick-add) already picks between
+        // the visible options before calling this, never falls back to it silently. The backend
+        // needs that said explicitly (individual: true) to accept it on a product that also has
+        // tiers — see CartService.validateTierSelection; previously a null tierId there was
+        // rejected outright once a product had more than one way to buy (85 live products).
+        individual: input.tierId ? undefined : true,
         quantity: input.quantity,
         size: input.size,
         material: input.material,
@@ -308,6 +330,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
   };
 
   const updateQuantity = (id: string, quantity: number) => {
+    // Unlike addItem (whose callers now all check stock before ever calling this), nothing
+    // upstream of the cart page's own stepper checks quantity against available stock -- this
+    // is genuinely the backend's call. Captured before the optimistic update so a rejection can
+    // roll back to it precisely, rather than leaving the UI showing a quantity the server never
+    // actually accepted (2026-09-27 fix -- this previously just gave up on !res.ok, silently
+    // diverging from the server's real cart).
+    const previous = items.find((it) => it.id === id)?.quantity;
     setItems((prev) =>
       prev.map((it) =>
         it.id === id ? { ...it, quantity, lineTotal: computeLineTotal(quantity, it.unitPrice, it.collectionQuantity) } : it,
@@ -323,12 +352,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
           auth: true,
           json: { quantity },
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          toast.error(data?.message || "Couldn't update that quantity.");
+          if (previous != null) {
+            setItems((prev) =>
+              prev.map((it) =>
+                it.id === id
+                  ? { ...it, quantity: previous, lineTotal: computeLineTotal(previous, it.unitPrice, it.collectionQuantity) }
+                  : it,
+              ),
+            );
+          }
+          return;
+        }
         const data = await res.json().catch(() => null);
         const parsed = parseBackendCart(data);
         if (parsed) setItems(parsed);
       } catch {
-        /* keep local state */
+        /* keep local state -- a network hiccup, not a real rejection */
       }
     })();
   };
@@ -344,6 +386,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  // The cart loads once per visit, so a cart left open for a while would keep showing the price
+  // and stock it loaded with. The server re-prices and re-checks stock on every read.
+  const refreshCart = async () => {
+    try {
+      const res = await apiFetch("/api/v1/cart", { session: true, auth: true });
+      if (!res.ok) return;
+      const parsed = parseBackendCart(await res.json());
+      if (parsed && parsed.length > 0) setItems(parsed);
+    } catch {
+      /* keep local state */
+    }
+  };
+
   const { itemCount, cartTotal } = useMemo(() => {
     let count = 0;
     let total = 0;
@@ -356,7 +411,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   return (
     <CartContext.Provider
-      value={{ items, itemCount, cartTotal, cartId, cartLoading, lastAdded, addItem, removeItem, updateQuantity, clearCart }}
+      value={{
+        items,
+        itemCount,
+        cartTotal,
+        cartId,
+        cartLoading,
+        lastAdded,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        refreshCart,
+      }}
     >
       {children}
     </CartContext.Provider>

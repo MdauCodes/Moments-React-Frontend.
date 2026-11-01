@@ -1,74 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Gift, Briefcase, ShoppingBag, Check, ArrowLeft, ArrowRight } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
+import { Gift, Briefcase, ShoppingBag, Check, ArrowLeft, ArrowRight, X } from "lucide-react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { RewardsTermsLink } from "@/components/RewardsTermsLink";
 import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
+import { markWelcomeOfferDeclined, markWelcomeOfferSnoozed } from "@/components/engagement/promptEligibility";
 import avatarLeft from "@/assets/avatars/avatar_1.png";
 import avatarRight from "@/assets/avatars/avatar_2.png";
 import avatarShrug from "@/assets/avatars/avatar_3.png";
 
-// Shows a few seconds after any page loads (mounted globally in SiteLayout) — long enough to
-// clear the branded splash. Two-screen flow: the main offer screen, and — only if the visitor
+// WHEN this appears is no longer this component's business. It used to arm its own 2.5-second
+// timer on every page load, which is precisely why a first-time visitor met a full-screen,
+// un-closable modal before they had seen a single product. It is now rendered only when the
+// engagement gate decides the moment has earned it — after real dwell time, or after an order —
+// see components/engagement/EngagementPrompts.tsx. The gate also owns the two long-standing
+// throttles this file used to own (per-session show cap, cross-session decline cooldown); they
+// live in components/engagement/promptEligibility.ts now, unchanged in substance.
+//
+// WHAT it says is unchanged. Two-screen flow: the main offer screen, and — only if the visitor
 // picks "no account" — a single second-thoughts screen explaining what they'd be skipping, with
 // an easy way back to either path or to explicitly continue anonymously.
 //
-// No X button and no backdrop-click dismiss, deliberately — either one let a visitor "soft
-// close" the modal without deciding anything, which just re-armed it to pop back up a short
-// while later and read as nagging. Every path out now requires an explicit choice: pick an
-// account type, sign in, or hit "Continue without an account" on the decline screen.
+// There is now an × and an Escape key. The original objection to them was sound at the time — a
+// "soft close" that decided nothing just re-armed the modal to pop back a few minutes later, which
+// is what made it read as nagging — so the fix is in the semantics, not in withholding the
+// control. Three distinct answers, three different cooldowns:
 //
-// Two independent throttles, on purpose:
-// - Per-SESSION soft cap (sessionStorage, MAX_SHOWS_PER_SESSION): if a visitor never decides
-//   either way and just keeps browsing/navigating within one browser session, they can still see
-//   it again on a later page load in that same session, capped at 3 — gives an undecided visitor
-//   a few chances without nagging every single page.
-// - Cross-session decline cooldown (localStorage, DECLINE_COOLDOWN_MS): once someone explicitly
-//   clicks "Continue without an account," don't show it again — even in a brand new browser
-//   session/tab — until the cooldown elapses. Before this, the decline flag lived in
-//   sessionStorage too, so it silently reset on every new tab/session and the modal kept nagging
-//   already-decided guests as if they'd never answered.
-const SHOW_DELAY_MS = 2500;
-const MAX_SHOWS_PER_SESSION = 3;
-const DECLINE_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-const DECLINED_AT_KEY = "moments_welcome_declined_at";
-const SHOWN_COUNT_KEY = "moments_welcome_shown_count";
-
-function isDeclineCoolingDown(): boolean {
-  try {
-    const raw = localStorage.getItem(DECLINED_AT_KEY);
-    if (!raw) return false;
-    const declinedAt = Number(raw);
-    return Number.isFinite(declinedAt) && Date.now() - declinedAt < DECLINE_COOLDOWN_MS;
-  } catch {
-    return false;
-  }
-}
-
-function getShownCount(): number {
-  try {
-    return Number(sessionStorage.getItem(SHOWN_COUNT_KEY) ?? "0");
-  } catch {
-    return 0;
-  }
-}
-
-function recordShown(): void {
-  try {
-    sessionStorage.setItem(SHOWN_COUNT_KEY, String(getShownCount() + 1));
-  } catch {
-    // sessionStorage unavailable (e.g. private browsing) — fail open, just skip the cap.
-  }
-}
-
-function recordDeclined(): void {
-  try {
-    localStorage.setItem(DECLINED_AT_KEY, String(Date.now()));
-  } catch {
-    // ignore
-  }
-}
+//   × or Escape ......... "not now". Counts against the per-session show cap (the gate consumes
+//                         that the moment it opens) AND sets a 1-day cross-session snooze, so it
+//                         does not greet the same person again on their next visit today.
+//   "Continue without
+//    an account" ........ a real no. Keeps the existing 3-day decline cooldown.
+//   Pick an account /
+//    sign in ............ answered; an authenticated visitor is never shown it again at all.
+//
+// Backdrop clicks still do NOT dismiss. A mis-aimed tap on a phone should not silently spend a
+// visitor's answer for them — × and Escape are deliberate, a stray tap is not.
 
 const FOREST_DEEP = "#08231a";
 const FOREST = "#0d3320";
@@ -80,10 +47,6 @@ const CARD_BG = "#f4f4f2";
 const GRAY_INK = "#57534e";
 
 type View = "main" | "decline";
-
-function shouldShow(): boolean {
-  return !isDeclineCoolingDown() && getShownCount() < MAX_SHOWS_PER_SESSION;
-}
 
 // Small CTA pill shown inside each option card so it's unmistakably a
 // button, even though the whole card is the real clickable target — clicks
@@ -103,27 +66,66 @@ function CtaPill({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function WelcomeStarterModal() {
-  const { isAuthenticated } = useAuth();
+export function WelcomeStarterModal({ onClose }: { onClose: () => void }) {
   const { openLogin, openRegister } = useAuthModal();
-  const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("main");
+  const panelRef = useRef<HTMLDivElement>(null);
+  const restoreFocusToRef = useRef<HTMLElement | null>(null);
 
+  // Move focus into the dialog on open and hand it back on close. Without this a keyboard or
+  // screen-reader user stayed parked wherever they were on the page underneath, tabbing through
+  // content they could no longer see — and a modal this app deliberately gives no close button
+  // to is the last place that should be hard to reach.
   useEffect(() => {
-    if (!shouldShow() || isAuthenticated) return;
-    const t = setTimeout(() => {
-      if (!shouldShow() || isAuthenticated) return;
-      recordShown();
-      setView("main");
-      setOpen(true);
-    }, SHOW_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [isAuthenticated]);
+    restoreFocusToRef.current = document.activeElement as HTMLElement | null;
+    const focusable = panelRef.current?.querySelector<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+    (focusable ?? panelRef.current)?.focus({ preventScroll: true });
+    return () => restoreFocusToRef.current?.focus?.({ preventScroll: true });
+  }, []);
+
+  /** × and Escape — "not now". See the semantics note at the top of this file. */
+  function snoozeAndClose() {
+    markWelcomeOfferSnoozed();
+    onClose();
+  }
+
+  // Keep Tab inside the panel while it is up — it covers the whole viewport, so anything the
+  // focus ring lands on behind it is, by definition, unreachable and invisible.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        snoozeAndClose();
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const items = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null);
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   // No non-final path anymore — every call site here represents an actual decision (pick an
   // account type, sign in, or explicitly decline), so this just closes, full stop.
   function dismiss() {
-    setOpen(false);
+    onClose();
   }
 
   function pick(action: () => void) {
@@ -131,28 +133,40 @@ export function WelcomeStarterModal() {
     action();
   }
 
-  /** The decline screen's "Continue without an account" — sets the permanent per-session
-   *  decline flag so the modal doesn't show again on a later page load either. */
+  /** The decline screen's "Continue without an account" — sets the cross-session decline flag so
+   *  the offer doesn't come back for three days, on this or any later visit. */
   function declineFinal() {
-    recordDeclined();
+    markWelcomeOfferDeclined();
     dismiss();
   }
-
-  if (!open) return null;
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="starter-modal-title"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300"
+      data-mpk-overlay="welcome"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4 backdrop-blur-md animate-in fade-in duration-300 motion-reduce:animate-none"
     >
       <div
-        className={`relative w-full rounded-3xl border shadow-2xl transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 ${
+        ref={panelRef}
+        tabIndex={-1}
+        className={`relative w-full rounded-3xl border shadow-2xl outline-none transition-[max-width] duration-300 animate-in zoom-in-95 slide-in-from-bottom-2 motion-reduce:animate-none motion-reduce:transition-none ${
           view === "main" ? "max-w-3xl" : "max-w-lg"
         }`}
         style={{ background: MODAL_BG, borderColor: MODAL_BORDER }}
       >
+        {/* Present on both screens, so "not now" never requires first walking into the decline
+            screen. Sits above the mascot artwork (z-[5]) and the scrolling content (z-10). */}
+        <button
+          type="button"
+          onClick={snoozeAndClose}
+          aria-label="Close — not now"
+          className="absolute right-2 top-2 z-20 grid h-9 w-9 place-items-center rounded-full border shadow-sm transition-colors hover:bg-black/5"
+          style={{ background: "#ffffff", borderColor: `${FOREST_DEEP}22`, color: FOREST_DEEP }}
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
         {view === "main" ? (
           <>
             {/* Avatar 1's job: introduce the offer copy — breaks the card's
@@ -180,7 +194,7 @@ export function WelcomeStarterModal() {
               className="pointer-events-none absolute -right-2 -bottom-2 z-[5] h-16 w-16 select-none object-contain object-bottom drop-shadow-xl sm:-right-8 sm:-bottom-6 sm:h-32 sm:w-32 sm:drop-shadow-2xl"
             />
 
-            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-20 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200">
+            <div key="main" className="relative z-10 max-h-[85vh] overflow-y-auto px-4 pb-5 pt-20 sm:px-8 sm:py-8 sm:pl-16 sm:pt-8 animate-in fade-in duration-200 motion-reduce:animate-none">
               <div className="flex flex-col items-center gap-2 text-center">
                 <div className="min-w-0">
                   <p id="starter-modal-title" className="font-display font-semibold text-lg leading-snug sm:text-2xl sm:leading-tight" style={{ color: FOREST_DEEP }}>
@@ -294,7 +308,7 @@ export function WelcomeStarterModal() {
               className="pointer-events-none absolute left-1/2 -top-10 hidden h-28 w-28 -translate-x-1/2 select-none object-contain sm:block"
             />
 
-            <div key="decline" className="relative z-10 max-h-[85vh] overflow-y-auto px-5 py-6 text-center sm:px-8 sm:py-8 animate-in fade-in duration-200">
+            <div key="decline" className="relative z-10 max-h-[85vh] overflow-y-auto px-5 py-6 text-center sm:px-8 sm:py-8 animate-in fade-in duration-200 motion-reduce:animate-none">
               <button
                 type="button"
                 onClick={() => setView("main")}

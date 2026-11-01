@@ -16,18 +16,23 @@ import { EnquiryProvider } from "@/contexts/EnquiryContext";
 import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
-import { RouteSeo } from "@/components/RouteSeo";
 import { MetaPixel } from "@/components/MetaPixel";
+import { MarketingAttributionCapture } from "@/components/MarketingAttributionCapture";
+import { RouteSeo } from "@/components/RouteSeo";
 import { PageViewTracker } from "@/components/PageViewTracker";
 import { ReferralCapture } from "@/components/ReferralCapture";
+import { EngagementPrompts } from "@/components/engagement/EngagementPrompts";
+import { QrVisitDialog } from "@/components/QrVisitDialog";
 
 // ── Public pages ────────────────────────────────────────────────────────────
 // The homepage alone stays a static import: it is the one route that must be in the initial
 // bundle (a cold visitor almost always lands here, and it is what Lighthouse/PSI measures), so
 // splitting it would only add a network round-trip to the critical path. Every *other* public
 // page below is lazy() — see the note above the account block for why.
-import HomePage from "@/routes/index";
+import MarketHomePage from "@/routes/market-home";
 import { LAUNCH_PAGE_ENABLED } from "@/config/siteLock";
+// The full home page now lives at /discover ("Why Moments"), so it loads on demand like any other page.
+const HomePage = lazy(() => import("@/routes/index"));
 
 // Every public page other than the homepage is dynamically imported. Previously all of these were
 // static imports, so a visitor landing on `/` downloaded and parsed the JS for the entire
@@ -45,9 +50,14 @@ const CompanyProfilePage = lazy(() => import("@/routes/company-profile"));
 const SustainabilityPage = lazy(() => import("@/routes/sustainability"));
 const EnterpriseQuotePage = lazy(() => import("@/routes/enterprise-quote"));
 const IndustriesPage = lazy(() => import("@/routes/industries"));
+const IndustryHubPage = lazy(() => import("@/routes/industries.$slug"));
+const ShopLandingPage = lazy(() => import("@/routes/shop.$slug"));
+const GuidePage = lazy(() => import("@/routes/guide"));
+const NotFoundPage = lazy(() => import("@/routes/not-found"));
 const LoginPage = lazy(() => import("@/routes/login"));
 const OrderConfirmationPage = lazy(() => import("@/routes/order-confirmation"));
 const OrdersTrackPage = lazy(() => import("@/routes/orders.track"));
+const ReviewPage = lazy(() => import("@/routes/review"));
 const PrivacyPage = lazy(() => import("@/routes/privacy"));
 const TermsPage = lazy(() => import("@/routes/terms"));
 const RewardsTermsPage = lazy(() => import("@/routes/rewards-terms"));
@@ -101,9 +111,7 @@ const AdminResetPasswordPage = lazy(() => import("@/routes/admin.reset-password"
 const AdminDashboardPage = lazy(() =>
   import("@/routes/_adminAuth.admin.index").then((m) => ({ default: m.AdminDashboardPage })));
 const AdminAnalyticsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics"));
-const AdminAnalyticsCustomersPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.customers"));
 const AdminAnalyticsNeedsAttentionPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.needs-attention"));
-const AdminAnalyticsSignupsDemographicsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.signups-demographics"));
 const AdminAnalyticsGeographicPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.geographic"));
 const AdminAnalyticsDeliveryPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.delivery"));
 const AdminAnalyticsProductsPage = lazy(() => import("@/routes/_adminAuth.admin.analytics.products"));
@@ -124,9 +132,8 @@ const AdminBusinessAccountsPage = lazy(() => import("@/routes/_adminAuth.admin.b
 const AdminBusinessAccountDetailPage = lazy(() => import("@/routes/_adminAuth.admin.business-accounts.$id"));
 const AdminCreditAccountsPage = lazy(() => import("@/routes/_adminAuth.admin.credit-accounts"));
 const AdminDeliveryZonesPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-zones"));
-const AdminEnquiriesPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries"));
-const AdminEnquiriesNewPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries.new"));
-const AdminEnquiryDetailPage = lazy(() => import("@/routes/_adminAuth.admin.enquiries.$id"));
+// Phase 7: enquiries and customer analytics moved to the CRM; old addresses show where they went.
+const AdminMovedToCrmPage = lazy(() => import("@/routes/_adminAuth.admin.moved-to-crm"));
 const AdminInventoryPage = lazy(() => import("@/routes/_adminAuth.admin.inventory"));
 const AdminOrdersPage = lazy(() => import("@/routes/_adminAuth.admin.orders"));
 const AdminOrderNewPage = lazy(() => import("@/routes/_adminAuth.admin.orders_.new"));
@@ -147,6 +154,7 @@ const AdminDeveloperPage = lazy(() => import("@/routes/_adminAuth.admin.develope
 const AdminProductImagesPage = lazy(() => import("@/routes/_adminAuth.admin.product-images"));
 const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"));
 const AdminPaymentsLogPage = lazy(() => import("@/routes/_adminAuth.admin.payments-log"));
+const AdminFailedPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.failed-payments"));
 const AdminDeliverySettingsPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-settings"));
 const AdminRefundRequestsPage = lazy(() => import("@/routes/_adminAuth.admin.refund-requests"));
 const AdminProductsIndexPage = lazy(() => import("@/routes/_adminAuth.admin.products.index"));
@@ -209,8 +217,9 @@ export default function App() {
     <ErrorBoundary>
     <BrowserRouter>
       <ScrollToTop />
-      <RouteSeo />
       <MetaPixel />
+      <MarketingAttributionCapture />
+      <RouteSeo />
       <PageViewTracker />
       <ReferralCapture />
       <SiteConfigProvider>
@@ -230,7 +239,11 @@ export default function App() {
                   <Suspense fallback={<PublicRouteFallback />}>
                   <Routes>
                     {/* Public */}
-                    <Route path="/" element={<HomePage />} />
+                    {/* "/" is the sales-first market page; the full home page (story, guarantees,
+                        accounts, testimonials, blogs) keeps its own address and nav item ("Why
+                        Moments") — plans/MARKET_HOME_PLAN_2026-11-01.md. */}
+                    <Route path="/" element={<MarketHomePage />} />
+                    <Route path="/discover" element={<HomePage />} />
                     {LAUNCH_PAGE_ENABLED && <Route path="/launch" element={<LaunchCountdownPage />} />}
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />
@@ -240,9 +253,15 @@ export default function App() {
                     <Route path="/sustainability" element={<SustainabilityPage />} />
                     <Route path="/enterprise-quote" element={<EnterpriseQuotePage />} />
                     <Route path="/industries" element={<IndustriesPage />} />
+                    <Route path="/industries/:slug" element={<IndustryHubPage />} />
+                    <Route path="/shop/:slug" element={<ShopLandingPage />} />
+                    <Route path="/packaging-suppliers-nairobi" element={<GuidePage slug="packaging-suppliers-nairobi" />} />
+                    <Route path="/packaging/eco-friendly-packaging-kenya" element={<GuidePage slug="eco-friendly-packaging-kenya" />} />
+                    <Route path="/custom-packaging-nairobi" element={<GuidePage slug="custom-packaging-nairobi" />} />
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/order-confirmation" element={<OrderConfirmationPage />} />
                     <Route path="/orders/track" element={<OrdersTrackPage />} />
+                    <Route path="/review/:reference" element={<ReviewPage />} />
                     <Route path="/privacy" element={<PrivacyPage />} />
                     <Route path="/terms" element={<TermsPage />} />
                     <Route path="/rewards-terms" element={<RewardsTermsPage />} />
@@ -294,9 +313,9 @@ export default function App() {
                       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
                       <Route path="/admin/dashboard" element={<Suspense fallback={<AdminRouteFallback />}><AdminDashboardPage /></Suspense>} />
                       <Route path="/admin/analytics" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsPage /></Suspense>} />
-                      <Route path="/admin/analytics/customers" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsCustomersPage /></Suspense>} />
+                      <Route path="/admin/analytics/customers" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
                       <Route path="/admin/analytics/needs-attention" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsNeedsAttentionPage /></Suspense>} />
-                      <Route path="/admin/analytics/signups-demographics" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsSignupsDemographicsPage /></Suspense>} />
+                      <Route path="/admin/analytics/signups-demographics" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
                       <Route path="/admin/analytics/geographic" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsGeographicPage /></Suspense>} />
                       <Route path="/admin/analytics/delivery" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsDeliveryPage /></Suspense>} />
                       <Route path="/admin/analytics/products" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsProductsPage /></Suspense>} />
@@ -306,7 +325,7 @@ export default function App() {
                       <Route path="/admin/analytics/data-visualization" element={<Suspense fallback={<AdminRouteFallback />}><AdminAnalyticsDataVisualizationPage /></Suspense>} />
                       {/* Retired composite pages from the prior analytics restructuring — redirect old
                           bookmarks/links to a sensible standalone tab rather than 404ing. */}
-                      <Route path="/admin/analytics/sales" element={<Navigate to="/admin/analytics/customers" replace />} />
+                      <Route path="/admin/analytics/sales" element={<Navigate to="/admin/analytics" replace />} />
                       <Route path="/admin/analytics/finance" element={<Navigate to="/admin/analytics/profitability" replace />} />
                       <Route path="/admin/audit-logs" element={<Suspense fallback={<AdminRouteFallback />}><AdminAuditLogsPage /></Suspense>} />
                       <Route path="/admin/blogs" element={<Suspense fallback={<AdminRouteFallback />}><AdminBlogsPage /></Suspense>} />
@@ -321,9 +340,9 @@ export default function App() {
                       <Route path="/admin/business-accounts/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminBusinessAccountDetailPage /></Suspense>} />
                       <Route path="/admin/credit-accounts" element={<Suspense fallback={<AdminRouteFallback />}><AdminCreditAccountsPage /></Suspense>} />
                       <Route path="/admin/delivery-zones" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeliveryZonesPage /></Suspense>} />
-                      <Route path="/admin/enquiries" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiriesPage /></Suspense>} />
-                      <Route path="/admin/enquiries/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiriesNewPage /></Suspense>} />
-                      <Route path="/admin/enquiries/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminEnquiryDetailPage /></Suspense>} />
+                      <Route path="/admin/enquiries" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
+                      <Route path="/admin/enquiries/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
+                      <Route path="/admin/enquiries/:id" element={<Suspense fallback={<AdminRouteFallback />}><AdminMovedToCrmPage /></Suspense>} />
                       <Route path="/admin/inventory" element={<Suspense fallback={<AdminRouteFallback />}><AdminInventoryPage /></Suspense>} />
                       <Route path="/admin/orders" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrdersPage /></Suspense>} />
                       <Route path="/admin/orders/new" element={<Suspense fallback={<AdminRouteFallback />}><AdminOrderNewPage /></Suspense>} />
@@ -344,6 +363,7 @@ export default function App() {
                       <Route path="/admin/architecture" element={<Suspense fallback={<AdminRouteFallback />}><AdminArchitecturePage /></Suspense>} />
                       <Route path="/admin/payments" element={<Suspense fallback={<AdminRouteFallback />}><AdminPaymentsPage /></Suspense>} />
                       <Route path="/admin/payments-log" element={<Suspense fallback={<AdminRouteFallback />}><AdminPaymentsLogPage /></Suspense>} />
+                      <Route path="/admin/failed-payments" element={<Suspense fallback={<AdminRouteFallback />}><AdminFailedPaymentsPage /></Suspense>} />
                       <Route path="/admin/delivery-settings" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeliverySettingsPage /></Suspense>} />
                       <Route path="/admin/refund-requests" element={<Suspense fallback={<AdminRouteFallback />}><AdminRefundRequestsPage /></Suspense>} />
                       <Route path="/admin/products" element={<Suspense fallback={<AdminRouteFallback />}><AdminProductsIndexPage /></Suspense>} />
@@ -359,22 +379,28 @@ export default function App() {
                     </Route>
 
                     {/* Fallback */}
-                    <Route path="*" element={
-                      <div className="flex min-h-screen items-center justify-center bg-background px-4">
-                        <div className="max-w-md text-center">
-                          <h1 className="text-7xl font-bold text-foreground">404</h1>
-                          <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-                          <p className="mt-2 text-sm text-muted-foreground">The page you're looking for doesn't exist.</p>
-                          <a href="/" className="mt-6 inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90">Go home</a>
-                        </div>
-                      </div>
-                    } />
+                    <Route path="*" element={<NotFoundPage />} />
                   </Routes>
                   </Suspense>
                   <Toaster />
                   <SiteLockOverlay />
                   <AuthModal />
                   <AccessibilityToolbar />
+                  {/* One mount, above the router outlet, for every optional engagement prompt
+                      (the welcome starter offer, the post-order account nudge and the insider
+                      email ask). Deliberately here rather than inside SiteLayout: SiteLayout is
+                      rendered *by* each route, so anything mounted in it is torn down and rebuilt
+                      on every navigation — and the homepage keeps its own copy of the layout,
+                      which is how both prompts ended up mounted twice over. Being outside the
+                      outlet also means the gate's own state survives navigation, which is the
+                      whole point of measuring how long someone has been browsing.
+
+                      Inside EnquiryProvider, so a prompt could open the enquiry panel if one ever
+                      needs to — and so the provider's own lazily-mounted QuickEnquirySheet stays
+                      the single instance of that panel for the whole app. */}
+                  <EngagementPrompts />
+                  {/* What a customer sees after scanning our printed QR code (?qr=1). */}
+                  <QrVisitDialog />
                 </EnquiryProvider>
                 </PersonaProvider>
               </AdminAuthProvider>

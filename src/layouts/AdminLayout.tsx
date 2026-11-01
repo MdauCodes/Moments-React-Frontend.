@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { CRM_URL } from "@/config/crm";
 import { Bell, BellRing, Globe, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, X } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -12,11 +13,11 @@ import { subscribeToAdminOrderEvents } from "@/services/commerceApi";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { getPushPermissionState, subscribeToPush } from "@/lib/pushNotifications";
-import { countVisibleItems, DENSE_ITEM_THRESHOLD, navSections, NAV_PATH_TO_FULFILLMENT_TYPE, visibleSectionsFor, type NavItem } from "@/layouts/adminNav";
+import { navSections, NAV_PATH_TO_FULFILLMENT_TYPE, visibleSectionsFor, type NavItem } from "@/layouts/adminNav";
 import { AdminSidebarNav, type SidebarBadge } from "@/components/admin/AdminSidebarNav";
-import { AdminCommandPalette } from "@/components/admin/AdminCommandPalette";
 import { readSidebarPrefs, writeSidebarCollapsed } from "@/lib/adminSidebarPrefs";
 import logoUrl from "@/assets/moments_logo_without_background.png";
+import { nairobiParts } from "@/lib/serverTime";
 
 // Frontend-only, mirrors DashboardHeader.tsx's own tiny greeting helper (customer-facing side) —
 // small enough that sharing it isn't worth a cross-context import; purely a display string, never
@@ -267,7 +268,8 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const runHeaderSearch = () => {
     const q = headerSearch.trim();
     if (!q) return;
-    navigate(`/admin/enquiries?q=${encodeURIComponent(q)}`);
+    // Phase 7: enquiries are leads in the CRM now, so this searches there (a new tab, the dashboard stays open).
+    window.open(`${CRM_URL}/leads?q=${encodeURIComponent(q)}`, "_blank", "noopener,noreferrer");
   };
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -307,11 +309,6 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
     () => visibleSections.some((s) => s.items.some((i) => i.to === "/admin/tax-documents")),
     [visibleSections],
   );
-  // Same threshold AdminSidebarNav uses internally to decide whether it has its own inline filter
-  // box at all — recomputed here (not exported/lifted state) since it's a cheap pure function over
-  // a value this component already has, and duplicating a one-line sum is simpler than plumbing it
-  // back out of a child.
-  const dense = useMemo(() => countVisibleItems(visibleSections) > DENSE_ITEM_THRESHOLD, [visibleSections]);
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -505,26 +502,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   // comment on why), so a tour running while the sidebar happened to be collapsed would find none
   // of its targets — forced back to the full accordion for the tour's duration, same as isMobile.
   const sidebarCollapsed = sidebarCollapsedPref && !isMobile && !tourOpen;
-  const greeting = timeOfDayGreeting(new Date().getHours());
-
-  // Global command palette — the rail/mobile fallback for AdminSidebarNav's own inline Ctrl+K
-  // filter, which only wires up its shortcut in expanded desktop mode with a dense-enough nav to
-  // even have a filter box (see that file's own comment). Anywhere that condition doesn't hold —
-  // collapsed rail, the mobile drawer, or a low-permission role with too few items for a filter
-  // box at all — this is what Ctrl/Cmd+K opens instead, so the shortcut always does *something*
-  // rather than silently no-op-ing depending on sidebar state.
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
-      const handledByInlineFilter = dense && !sidebarCollapsed && !isMobile;
-      if (handledByInlineFilter) return;
-      e.preventDefault();
-      setCommandPaletteOpen(true);
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [dense, sidebarCollapsed, isMobile]);
+  const greeting = timeOfDayGreeting(nairobiParts().hour);
 
   // Auto-launch on first login (once per user, per browser)
   useEffect(() => {
@@ -591,7 +569,6 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           forceExpandAll={tourOpen}
           collapsed={sidebarCollapsed}
           onNavigate={() => setSidebarOpen(false)}
-          onRequestSearch={() => setCommandPaletteOpen(true)}
         />
 
         {sidebarCollapsed ? (
@@ -667,7 +644,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
               <Search size={14} style={styles.searchIcon} />
               <input
                 type="text"
-                placeholder="Search enquiries..."
+                placeholder="Search leads in the CRM..."
                 style={styles.searchInput}
                 value={headerSearch}
                 onChange={(e) => setHeaderSearch(e.target.value)}
@@ -799,12 +776,6 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           onClose={() => { setTourOpen(false); setTourStepFilter(undefined); }}
         />
       )}
-      <AdminCommandPalette
-        open={commandPaletteOpen}
-        onClose={() => setCommandPaletteOpen(false)}
-        sections={visibleSections}
-        onNavigate={(to) => { navigate(to); setSidebarOpen(false); }}
-      />
     </div>
   );
 }

@@ -226,6 +226,8 @@ export interface CreateOrderItem {
 
 export interface CreateOrderParams {
   customerId?: string; // attach to an existing customer's account instead of a guest order
+  /** "How did this customer find us?" — a channel code (META_PAID, WHATSAPP, DIRECT ...). Lets phone/walk-in orders that came from an ad count towards that ad in the Marketing report. */
+  acquisitionChannel?: string;
   contactName: string;
   email: string;
   phone: string;
@@ -686,6 +688,33 @@ export interface SuccessfulPayment {
   createdAt: string;
   fulfillmentType: string | null;
   isTestOrder: boolean;
+}
+
+/** A payment attempt that failed — see PaymentService.getFailedPayments / FailedPaymentDto.
+ *  orderPaymentStatus is the order's CURRENT status (PAID if the customer retried successfully). */
+export interface FailedPayment {
+  paymentRecordId: string;
+  orderId: string;
+  orderReference: string;
+  contactName: string;
+  phone: string;
+  amount: number;
+  method: string | null;
+  purpose: string | null;
+  failureReason: string | null;
+  failedAt: string;
+  fulfillmentType: string | null;
+  courierServiceName: string | null;
+  deliveryAddress: string | null;
+  orderTotal: number;
+  orderPaymentStatus: string | null;
+  isTestOrder: boolean;
+  items: { productName: string; size: string | null; collectionName: string | null; quantity: number | null }[];
+}
+
+export async function listFailedPayments(page = 0, size = 25): Promise<{ rows: FailedPayment[]; total: number; totalPages: number }> {
+  const data = await getJson<any>(`/api/v1/admin/orders/payments/failed?${qs({ page, size })}`);
+  return unwrapPage<FailedPayment>(data);
 }
 
 export async function listSuccessfulPayments(page = 0, size = 25): Promise<{ rows: SuccessfulPayment[]; total: number; totalPages: number }> {

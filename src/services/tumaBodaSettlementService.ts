@@ -5,23 +5,6 @@ export interface TumaBodaBalance {
   totalPaid: number;
   outstandingBalance: number;
   deliveredOrderCount: number;
-  /** Deliberately excluded from totalOwed/outstandingBalance above — see the backend
-   *  TumaBodaBalanceDto's own doc comment. Shown as its own line so a deleted-order cost gap stays
-   *  visible until reconciled, instead of silently shrinking the headline balance. */
-  unmatchedDeliveryCost: number;
-  unmatchedDeliveryCount: number;
-}
-
-export interface TumaBodaUnmatchedDelivery {
-  tumabodaDeliveryId: string;
-  orderReference: string | null;
-  costKes: number | null;
-  lastStatus: string | null;
-  lastWebhookAt: string | null;
-  bookedAt: string;
-  bookedVia: string;
-  abandonedAt: string | null;
-  abandonedReason: string | null;
 }
 
 export interface TumaBodaOrderBreakdown {
@@ -69,6 +52,34 @@ export interface TumaBodaReconciliation {
   createdAt: string;
 }
 
+export interface TumaBodaDisagreement {
+  id: string;
+  orderReference: string;
+  kind: "COST_DIFFERS" | "STATUS_DIFFERS" | "MISSING_ON_THEIR_SIDE" | string;
+  ourValue: string | null;
+  theirValue: string | null;
+  status: "OPEN" | "QUERIED" | "RESOLVED" | string;
+  resolution: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolvedAt: string | null;
+}
+
+export interface TumaBodaDisagreementEvent {
+  at: string;
+  actor: string;
+  action: string;
+  note: string | null;
+}
+
+export interface TumaBodaLedgerSummary {
+  ourBalance: number | null;
+  theirBalance: number | null;
+  delta: number | null;
+  differingSince: string | null;
+  openDisagreements: number;
+}
+
 interface PageResult<T> {
   rows: T[];
   total: number;
@@ -101,9 +112,6 @@ export const tumaBodaSettlementApi = {
       body: JSON.stringify(body),
     }),
 
-  getUnmatchedDeliveries: async (page = 0, size = 25): Promise<PageResult<TumaBodaUnmatchedDelivery>> =>
-    unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/unmatched-deliveries?page=${page}&size=${size}`)),
-
   getReconciliations: async (page = 0, size = 20): Promise<PageResult<TumaBodaReconciliation>> =>
     unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/reconciliations?page=${page}&size=${size}`)),
 
@@ -116,6 +124,27 @@ export const tumaBodaSettlementApi = {
   recordAutoReconciliation: () =>
     adminJson<TumaBodaReconciliation>("/api/v1/admin/tumaboda-settlements/reconciliations/auto", {
       method: "POST",
+    }),
+
+  getDisagreements: () => adminJson<TumaBodaDisagreement[]>("/api/v1/admin/tumaboda-disagreements"),
+  getDisagreementSummary: () =>
+    adminJson<TumaBodaLedgerSummary>("/api/v1/admin/tumaboda-disagreements/summary"),
+  getDisagreementEvents: (id: string) =>
+    adminJson<TumaBodaDisagreementEvent[]>(`/api/v1/admin/tumaboda-disagreements/${id}/events`),
+  scanDisagreements: () =>
+    adminJson<{ checked: number; opened: number; closed: number; unreachable: number }>(
+      "/api/v1/admin/tumaboda-disagreements/scan",
+      { method: "POST" },
+    ),
+  queryDisagreement: (id: string, note: string) =>
+    adminJson<TumaBodaDisagreement>(`/api/v1/admin/tumaboda-disagreements/${id}/query`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  resolveDisagreement: (id: string, resolution: string, note: string) =>
+    adminJson<TumaBodaDisagreement>(`/api/v1/admin/tumaboda-disagreements/${id}/resolve`, {
+      method: "POST",
+      body: JSON.stringify({ resolution, note }),
     }),
 
   getLiveCreditLine: () =>

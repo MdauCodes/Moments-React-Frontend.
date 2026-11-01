@@ -1,18 +1,10 @@
 import { Link } from "react-router-dom";
 
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useEffect, useState } from "react";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { PageProgressBar } from "@/components/PageProgressBar";
-import { EmailInsiderPrompt } from "@/components/EmailInsiderPrompt";
-import { EnquireFab } from "@/components/EnquireFab";
-// Lazy — its two avatar images (~220KB combined) have no business competing with the hero image
-// and fonts during the critical render path for a component that doesn't even show for 2.5s (and
-// may never show at all for a logged-in visitor). Moving it into its own chunk keeps the main
-// bundle lighter to parse without changing when/whether the modal itself appears.
-const WelcomeStarterModal = lazy(() =>
-  import("@/components/WelcomeStarterModal").then((m) => ({ default: m.WelcomeStarterModal })),
-);
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { CookieConsent } from "@/components/CookieConsent";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,34 +25,12 @@ import { isQuickAddEligible } from "@/lib/quickAdd";
 import { getStockInfo } from "@/lib/stock";
 import { ShopMegaMenu } from "@/components/ShopMegaMenu";
 import { CartAddedSheet } from "@/components/CartAddedSheet";
-import catPaperBagsImg from "@/assets/categories/cat-paper-bags.webp";
-import catBoxesCartonsImg from "@/assets/categories/cat-boxes-cartons.webp";
-import catCupsSleevesImg from "@/assets/categories/cat-cups-sleeves.webp";
-import catMailersPouchesImg from "@/assets/categories/cat-mailers-pouches.webp";
-import catLabelsStickersImg from "@/assets/categories/cat-labels-stickers.webp";
-import catFoodContainersImg from "@/assets/categories/cat-food-containers.webp";
-import catGiftEventImg from "@/assets/categories/cat-gift-event.webp";
-import catBeautyPharmaImg from "@/assets/categories/cat-beauty-pharma.webp";
-// Segment photos — filenames match backend Segment.name exactly (see SEGMENT_IMAGES below).
-import segFoodPackagingImg from "@/assets/categories/food packaging segment photo.webp";
-import segDisposableTablewareImg from "@/assets/categories/disposable tablesware.webp";
-import segCutleryImg from "@/assets/categories/cutlery.webp";
-import segDrinksPackagingImg from "@/assets/categories/drinks packaging.webp";
-import segKitchenTableImg from "@/assets/categories/kitchen and table.webp";
-import segWoodenAccessoriesImg from "@/assets/categories/wooden accessories.webp";
-import segHygieneImg from "@/assets/categories/hygiene.webp";
-import segBagsSacksImg from "@/assets/categories/bags and sacks.webp";
-import segGeneralSuppliesImg from "@/assets/categories/general supplies.webp";
-import segCustomBrandingImg from "@/assets/categories/stickers and labels.webp";
-import segCosmeticsImg from "@/assets/categories/cosmetics.webp";
-import segAgricultureImg from "@/assets/categories/agriculture.webp";
-import segDairyImg from "@/assets/categories/Dairy.webp";
-import segPharmacyImg from "@/assets/categories/Pharmacy.webp";
-import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift, Tag, Sparkles, Flame } from "lucide-react";
+import { imageForSegment, altForSegment } from "@/lib/segmentImages";
+import { ArrowRight, Search, ShoppingBag, ChevronRight, Briefcase, Gift, Tag, Sparkles, Flame, MessageSquareText } from "lucide-react";
 import { PaperTexture, CornerLines, SignatureDivider } from "@/components/BrandDecor";
 import { api, type Segment } from "@/services/api";
 import type { Product, Industry } from "@/data/products";
-import { filterVisibleIndustries } from "@/data/products";
+import { filterVisibleIndustries, industries } from "@/data/products";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 import cloudV3 from "@/assets/packaging-cloud-hero-v3.webp";
 import cloudKraft from "@/assets/packaging-cloud-hero.webp";
@@ -141,6 +111,9 @@ function HomeNav() {
           />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
+          <Link to="/discover" className="hover:opacity-80">
+            Why Moments
+          </Link>
           <Link to="/company-profile" className="hover:opacity-80">
             About Us
           </Link>
@@ -300,15 +273,27 @@ function RotatingTagline() {
 }
 
 // ── Hero ──
+//
+// Rebuilt around one question a first-time visitor is actually asking: where are the products?
+// It previously answered that once, with a single "Browse all packaging" button, and then
+// immediately undercut it with two account-signup cards of similar size directly underneath —
+// while a 760px (mobile) / 680px (desktop) minimum height guaranteed that nothing resembling a
+// product was on screen until the visitor scrolled. Now the first screen carries the primary
+// browse CTA, a deals link, and six real category entry points, and the section is short enough
+// that the promo carousel underneath it peeks into view on both reference viewports.
+//
+// The account-signup cards are not gone — they moved down to AccountTypesCallout, which was
+// already the page's account section and which previously only linked to explanatory pages; it
+// now carries the "create one now" action those hero cards were for.
 function Hero() {
-  const { openRegister } = useAuthModal();
+  const { openEnquiry } = useEnquiry();
   return (
     <section
       className="relative overflow-hidden"
       style={{
         background:
           "linear-gradient(135deg, color-mix(in oklab, var(--forest) 82%, black) 0%, var(--forest) 55%, color-mix(in oklab, var(--forest) 70%, black) 100%)",
-        minHeight: "520px",
+        minHeight: "420px",
       }}
     >
       <style>{`
@@ -328,32 +313,54 @@ function Hero() {
         .mpk-hero-cursor { animation: mpk-cursor-blink 1s steps(1) infinite; margin-left: 1px; }
         @keyframes mpk-marquee { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
         .mpk-marquee-track { animation: mpk-marquee 18s linear infinite; }
-        @media (max-width: 767px) { .mpk-hero-section { min-height: 760px !important; } }
-        @media (min-width: 768px) { .mpk-hero-section { min-height: 680px !important; } }
+        /* Down from 760/680. Those floors alone were taller than the usable area of a 390x844
+           phone, so the hero *was* the first screen by construction and the catalogue could only
+           ever be below it. These are floors, not fixed heights — the mobile column is in normal
+           flow and still grows for long copy or a large accessibility font scale. */
+        @media (max-width: 767px) { .mpk-hero-section { min-height: 560px !important; } }
+        @media (min-width: 768px) { .mpk-hero-section { min-height: 600px !important; } }
+
+        /* Mobile only: the text column used to sit in normal flow, top-anchored, with nothing to
+           fill the section's min-height — the copy and CTAs bunched at the top and everything
+           below them, down to the wave, was dead space over the photo. A first attempt inserted a
+           single spacer between the description and the buttons, but that just moved the problem:
+           one big gap in the middle instead of one at the bottom, rather than an actually balanced
+           block. Centering the whole column as a group — same treatment desktop already gives it
+           via absolute + top:50% — is the real fix: the H1-to-M-Pesa-pill block sits in the middle
+           of the section with its own natural (unchanged) margins between each line, and the extra
+           height becomes even space above and below the whole group instead of one seam inside it. */
+        @media (max-width: 767px) {
+          .mpk-hero-content { display: flex; flex-direction: column; justify-content: center; min-height: 560px; }
+        }
 
         /* ── Hero image positioning ── */
         .mpk-hero-img-a,
         .mpk-hero-img-b,
         .mpk-hero-img-c {
-          /* Mobile: fixed to viewport-relative right side via the section's coordinate space */
-          right: -8vw;
-          top: 50%;
-          bottom: auto;
-          transform: translateY(-44%);
-          width: 92vw;
-          max-height: none;
+          /* Mobile: anchored bottom-right, scaled down to match the shorter section — at the old
+             92vw it would now be taller than the copy column it is meant to sit behind, and the
+             category chips (which run the full width of that column) would read over the middle
+             of a photograph. */
+          right: -6vw;
+          top: auto;
+          bottom: -1%;
+          transform: none;
+          width: 66vw;
+          max-height: 50%;
           object-fit: contain;
+          object-position: bottom right;
         }
         @media (min-width: 768px) {
           .mpk-hero-img-a,
           .mpk-hero-img-b,
           .mpk-hero-img-c {
             right: 2%;
-            top: calc(50% + 30px);
+            top: calc(50% + 20px);
             bottom: auto;
             transform: translateY(-50%);
             width: 46%;
-            max-height: 86%;
+            max-height: 84%;
+            object-position: center;
           }
         }
         @media (min-width: 1024px) {
@@ -374,7 +381,7 @@ function Hero() {
         }
       `}</style>
 
-      <div className="mpk-hero-section relative" style={{ minHeight: "560px" }}>
+      <div className="mpk-hero-section relative" style={{ minHeight: "460px" }}>
         {/* Hero images — positioned relative to the full section, not the padded container */}
         <img
           src={cloudV3}
@@ -424,13 +431,17 @@ function Hero() {
           No more full-coverage overlay that kills the image.
         */}
         {/* Mobile scrim: diagonal — top-left is opaque (text), bottom-right is open (image).
-            Single layer, no stacking, so the image is never double-darkened. */}
+            Single layer, no stacking, so the image is never double-darkened.
+            Re-tuned for the shorter hero: the copy column now runs nearly the full height of the
+            section and the photo sits bottom-right, so the opaque band has to hold further down
+            and further across than it did. Checked against the same WCAG AA floor the recent
+            contrast pass set — white and white/88% body copy over this stay above 4.5:1. */}
         <div
           className="absolute inset-0 md:hidden"
           style={{
             zIndex: 3,
             background:
-              "linear-gradient(125deg, color-mix(in oklab, var(--forest) 96%, black) 0%, color-mix(in oklab, var(--forest) 90%, black) 30%, color-mix(in oklab, var(--forest) 55%, black) 52%, color-mix(in oklab, var(--forest) 18%, transparent) 72%, transparent 100%)",
+              "linear-gradient(118deg, color-mix(in oklab, var(--forest) 97%, black) 0%, color-mix(in oklab, var(--forest) 93%, black) 40%, color-mix(in oklab, var(--forest) 72%, black) 60%, color-mix(in oklab, var(--forest) 30%, transparent) 80%, color-mix(in oklab, var(--forest) 8%, transparent) 100%)",
           }}
         />
 
@@ -493,55 +504,73 @@ function Hero() {
             On desktop: absolute centered left column. */}
         <div className="relative md:absolute md:inset-0 mx-auto max-w-7xl px-5 lg:px-8" style={{ zIndex: 4 }}>
           <div
-            className="md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%]"
-            /* paddingTop was 150px to clear the nav that used to overlay the
-               top of this section (absolute) — nav is now HomeNav, sticky
-               and external, so the hero starts right below it in normal
-               flow. Only the announcement bar (still overlaid, ~40px) needs
-               clearing now. Re-tune if the vertical balance looks off. */
-            style={{ paddingTop: "56px", paddingBottom: "48px" }}
+            /* Desktop padding is asymmetric on purpose: this column is vertically centred in the
+               section, so the padding is what holds it clear of the two things overlaid on that
+               section's edges — the announcement marquee at the top (~40px) and the decorative
+               wave at the bottom (60px). With even padding the last row of the column (the M-Pesa
+               pill) rendered underneath the wave. */
+            className="mpk-hero-content md:absolute md:top-1/2 md:-translate-y-1/2 md:left-8 lg:left-12 md:w-[50%] lg:w-[48%] pt-[52px] pb-[30px] md:pt-11 md:pb-[68px]"
           >
-            <p
-              className="uppercase font-medium"
-              style={{
-                fontSize: "calc(10px * var(--a11y-font-scale))",
-                letterSpacing: "0.18em",
-                color: "rgba(255,255,255,0.8)",
-                marginBottom: "18px",
-              }}
-            >
-              QUALITY PACKAGING · NAIROBI, KENYA
-            </p>
+            {/* The "QUALITY PACKAGING · NAIROBI, KENYA" eyebrow that used to sit here is gone —
+                it was the smallest, faintest line on the page, it said nothing the headline and
+                subhead underneath it do not already say, and on a phone it cost a row of the one
+                screen this section is fighting for. None of its keywords went with it, which was
+                checked rather than assumed: "Packaging" and "Kenyan" are in the <h1> below,
+                "Nairobi" is in the subhead below that, and index.html's title, meta description,
+                Open Graph/Twitter cards and Organization JSON-LD all still carry
+                "Nairobi, Kenya" and "packaging". */}
+            {/* The rotating tagline used to be the h1's third line. A headline that erases and
+                retypes itself is the least stable thing on the page in the exact spot the eye
+                lands first, it is a moving target for the LCP measurement, and it made the one
+                <h1> on the site read differently every four seconds for search engines and screen
+                readers alike. The line itself is kept — it is deliberate brand copy, Swahili and
+                all — and just moved one step down, where it can rotate without destabilising the
+                headline or the page's main heading. */}
             <h1
               className="font-display"
               style={{
-                fontSize: "calc(clamp(28px, 3.8vw, 42px) * var(--a11y-font-scale))",
+                fontSize: "calc(clamp(27px, 3.4vw, 40px) * var(--a11y-font-scale))",
                 lineHeight: 1.1,
                 letterSpacing: "-0.03em",
                 color: "white",
                 fontWeight: 500,
               }}
             >
-              Packaging Solutions for
-              <br />
-              Kenyan Businesses —<br />
-              <em className="italic" style={{ color: "#e8c878" }}>
-                <RotatingTagline />
-              </em>
+              Packaging Solutions for Kenyan Businesses
             </h1>
             <p
+              className="font-display italic"
               style={{
-                fontSize: "calc(14px * var(--a11y-font-scale))",
-                lineHeight: 1.7,
-                color: "rgba(255,255,255,0.88)",
-                maxWidth: "400px",
-                margin: "22px 0 30px",
+                fontSize: "calc(clamp(15px, 1.5vw, 18px) * var(--a11y-font-scale))",
+                lineHeight: 1.3,
+                color: "#e8c878",
+                marginTop: "8px",
+                minHeight: "1.3em",
               }}
             >
-              Cups, containers, bags, and more — order online and pay via M-Pesa. Enjoy same-day delivery within
-              Nairobi and delivery within 3 days countrywide.
+              <RotatingTagline />
             </p>
-            <div className="flex flex-col md:flex-row gap-3 max-w-sm md:max-w-none">
+            <p
+              style={{
+                fontSize: "calc(13.5px * var(--a11y-font-scale))",
+                lineHeight: 1.6,
+                color: "rgba(255,255,255,0.88)",
+                maxWidth: "400px",
+                margin: "14px 0 18px",
+              }}
+            >
+              Cups, containers, bags, labels and more — order online, pay with M-Pesa. Same-day delivery in
+              Nairobi, 3 days countrywide.
+            </p>
+
+            {/* Two calls to action, deliberately equal in weight: the visitor either knows what
+                they want and browses, or they have a question and asks. Those are the two real
+                journeys into this business, and the hero should not make one of them a footnote.
+                Stacked and full-width on a phone so neither is the small one; side by side from
+                sm up. The deals link that used to sit here is gone — a third button in the hero
+                was crowding, which is the whole complaint, and Deals already has its own place in
+                the top nav and its own promo panel immediately below this section. */}
+            <div className="flex max-w-sm flex-col items-stretch gap-2.5 sm:max-w-none sm:flex-row sm:items-center">
               <Link
                 to="/products"
                 className="inline-flex items-center justify-center gap-2 font-bold shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl"
@@ -549,81 +578,50 @@ function Hero() {
                   background: "#e8c878",
                   color: "#0d3320",
                   borderRadius: "10px",
-                  padding: "15px 30px",
+                  padding: "14px 20px",
                   fontSize: "calc(15px * var(--a11y-font-scale))",
                 }}
               >
                 Browse all packaging <ArrowRight className="h-4 w-4" />
               </Link>
-            </div>
-
-            {/* Account-type promo — deliberately secondary to "Browse all packaging" above:
-                translucent/outline treatment (same family as the "company profile" pill below),
-                not a competing solid-gold fill, so there's one clear primary action. */}
-            <div className="mt-4 grid max-w-sm grid-cols-1 gap-2.5 sm:grid-cols-2 md:max-w-[560px]">
               <button
                 type="button"
-                onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/25 bg-white/8 text-left backdrop-blur transition-colors hover:border-white/40 hover:bg-white/12"
-                style={{ padding: "12px 14px" }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10">
-                    <Gift className="h-4 w-4 text-white/85" />
-                  </span>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white/90">Individual Shopper Account</p>
-                    <p className="text-[11px] font-medium text-white/60">Welcome bonus + rewards</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/60" />
-              </button>
-              <button
-                type="button"
-                onClick={() => openRegister({ accountType: "BUSINESS" })}
-                className="flex items-center justify-between gap-2.5 rounded-xl border border-white/25 bg-white/8 text-left backdrop-blur transition-colors hover:border-white/40 hover:bg-white/12"
-                style={{ padding: "12px 14px" }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/10">
-                    <Briefcase className="h-4 w-4 text-white/85" />
-                  </span>
-                  <div>
-                    <p className="text-[13px] font-semibold text-white/90">Business Account</p>
-                    <p className="text-[11px] font-medium text-white/60">Welcome bonus + order history</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 text-white/60" />
-              </button>
-            </div>
-
-            {/* Secondary CTA row */}
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <Link
-                to="/company-profile"
-                className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/8 px-4 py-2.5 text-[13px] font-medium text-white/90 backdrop-blur transition-colors hover:border-accent/60 hover:bg-white/12 hover:text-white active:scale-95"
-                style={{ minHeight: "40px" }}
-              >
-                View our company profile <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-              <div
-                className="inline-flex items-center"
+                onClick={() => openEnquiry()}
+                className="inline-flex items-center justify-center gap-2 font-bold shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl"
+                /* Solid, not an outline: an outline button next to a filled gold one reads as the
+                   lesser option, and this one is not meant to be. Opens the site's real enquiry
+                   panel through EnquiryContext — the same single QuickEnquirySheet the floating
+                   Enquire button and the product pages open, never a second copy of that form. */
                 style={{
-                  gap: "8px",
-                  background: "rgba(255,255,255,0.09)",
-                  border: "1px solid rgba(141,201,106,0.28)",
-                  backdropFilter: "blur(8px)",
-                  borderRadius: "8px",
-                  padding: "8px 14px",
-                  minHeight: "40px",
+                  background: "#ffffff",
+                  color: "#0d3320",
+                  borderRadius: "10px",
+                  padding: "14px 20px",
+                  fontSize: "calc(15px * var(--a11y-font-scale))",
                 }}
               >
-                <span
-                  className="inline-block rounded-full"
-                  style={{ width: "6px", height: "6px", background: "#00A651" }}
-                />
-                <span style={{ fontSize: "calc(11px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
-              </div>
+                <MessageSquareText className="h-4 w-4" aria-hidden="true" /> Send us an enquiry
+              </button>
+            </div>
+
+
+            <div
+              className="mt-4 inline-flex items-center"
+              style={{
+                gap: "8px",
+                background: "rgba(255,255,255,0.09)",
+                border: "1px solid rgba(141,201,106,0.28)",
+                backdropFilter: "blur(8px)",
+                borderRadius: "8px",
+                padding: "7px 13px",
+                minHeight: "36px",
+              }}
+            >
+              <span
+                className="inline-block rounded-full"
+                style={{ width: "6px", height: "6px", background: "#00A651" }}
+              />
+              <span style={{ fontSize: "calc(11px * var(--a11y-font-scale))", color: "rgba(255,255,255,0.92)" }}>M-Pesa accepted at checkout</span>
             </div>
           </div>
         </div>
@@ -826,84 +824,6 @@ function ProductRow({ eyebrow, title, desc, seeAllHref = "/products", fetcher, b
       </div>
     </section>
   );
-}
-
-// ── Category image grid — dedicated photo per backend Segment, keyed by exact
-// segment name. Falls back to the old generic pool only for a segment the
-// backend adds later that doesn't have a named photo yet. ──
-const SEGMENT_IMAGES: Record<string, string> = {
-  "food packaging": segFoodPackagingImg,
-  "disposable tableware": segDisposableTablewareImg,
-  "cutlery": segCutleryImg,
-  "drinks packaging": segDrinksPackagingImg,
-  "kitchen and table accessories": segKitchenTableImg,
-  "wooden accessories": segWoodenAccessoriesImg,
-  "hygiene essentials": segHygieneImg,
-  "bags and sacks": segBagsSacksImg,
-  "general supplies and stationeries": segGeneralSuppliesImg,
-  "custom branding": segCustomBrandingImg,
-  "cosmetics": segCosmeticsImg,
-  "agriculture": segAgricultureImg,
-  "dairy": segDairyImg,
-  "pharmacy": segPharmacyImg,
-};
-
-const SEGMENT_IMAGE_FALLBACK_POOL = [
-  catPaperBagsImg, catBoxesCartonsImg, catCupsSleevesImg, catMailersPouchesImg,
-  catLabelsStickersImg, catFoodContainersImg, catGiftEventImg, catBeautyPharmaImg,
-];
-
-// What each segment photo actually shows, keyed the same way as SEGMENT_IMAGES above.
-//
-// These tiles used to pass `alt={seg.name}` — the exact same string as the caption rendered over
-// the photo inside the very same <Link>. Lighthouse flagged that as redundant alt text, and it is:
-// a screen reader announced every tile's name twice ("Food Packaging, Food Packaging, link"), and
-// the alt carried no information the caption didn't already give. Written from the photos
-// themselves, so they describe the real contents rather than restating the category name.
-const SEGMENT_IMAGE_ALTS: Record<string, string> = {
-  "food packaging":
-    "Kraft carrier bags, window pastry boxes, burger clamshells, dessert cups and printed greaseproof wraps",
-  "disposable tableware":
-    "Bagasse compartment plates and clamshells, foil trays, kraft soup cups, sushi trays and sauce pots",
-  "cutlery":
-    "Wooden, clear plastic and CPLA spoons, forks and knives, some standing in kraft cups",
-  "drinks packaging":
-    "Ripple-wall coffee cups, clear cold cups with domed lids, moulded pulp cup carriers, paper straws and wooden stirrers",
-  "kitchen and table accessories":
-    "Kitchen towel rolls, serviettes, tissue boxes, cleaning cloths and sachets of sugar, salt, ketchup and black pepper",
-  "wooden accessories":
-    "Bamboo skewers, cocktail picks, coffee stirrers, wooden serving boats and wooden forks",
-  "hygiene essentials":
-    "Boxed nitrile and vinyl gloves, disposable hair nets, face masks, hand towel rolls and facial tissue boxes",
-  "bags and sacks":
-    "Woven polypropylene shopping bags, coloured non-woven totes and vest-style carrier bags, some printed with full-colour designs",
-  "general supplies and stationeries":
-    "Rolls of packing tape, stretch film and thermal receipt paper, balls of twine and coloured mesh net sacks",
-  "custom branding":
-    "Rolls and sheets of branded stickers and thank-you labels printed with the Moments Packaging logo",
-  "cosmetics":
-    "Amber and frosted glass dropper bottles, pump and spray bottles, cream jars and squeeze tubes",
-  "agriculture":
-    "Moulded pulp egg trays, clear egg cartons, black nursery planting bags and seedling propagation trays",
-  "dairy":
-    "Clear PET bottles in a range of sizes, including handled jerrycan-style bottles, all with white caps",
-  "pharmacy":
-    "Clear tablet jars with white lids, kraft stand-up pouches and kraft dispensing envelopes holding capsules and tablets",
-};
-
-function imageForSegment(name: string, fallbackIndex: number): string {
-  const match = SEGMENT_IMAGES[name.trim().toLowerCase()];
-  if (match) return match;
-  return SEGMENT_IMAGE_FALLBACK_POOL[fallbackIndex % SEGMENT_IMAGE_FALLBACK_POOL.length];
-}
-
-/** Alt text for a segment tile's photo. A segment the backend adds later has no named photo and
- *  therefore falls back to a generic stock shot from the pool — there is nothing truthful to say
- *  about what that particular picture shows, and the tile's own caption already names the
- *  category, so the honest answer is the empty string: mark it decorative and let the caption be
- *  the link's accessible name, rather than inventing a description or repeating the caption. */
-function altForSegment(name: string): string {
-  return SEGMENT_IMAGE_ALTS[name.trim().toLowerCase()] ?? "";
 }
 
 function CategoryGrid() {
@@ -1300,8 +1220,16 @@ function PromoCarousel() {
 // ── Account types callout — compact CTA promoting both real account types
 // (Individual Shopper + Business), styled like the become-a-partner.tsx CTA box
 // rather than a new pattern. Guests are already served by the product grid
-// around this section, so this block is only about the two account paths. ──
+// around this section, so this block is only about the two account paths.
+//
+// This is also where the hero's two account-promo cards landed. They were competing for
+// attention with "Browse all packaging" in the first screen, which is the one place the site
+// should only be saying one thing; here they are in the section that was already about accounts,
+// and they close a real gap in it — this block used to offer nothing but links to explanatory
+// pages, so the shortest route to actually opening an account was to go and read about it first.
+// Same handler (openRegister with the same accountType), same promise, secondary placement. ──
 function AccountTypesCallout() {
+  const { openRegister } = useAuthModal();
   return (
     <section className="bg-background">
       <div className="mx-auto max-w-7xl px-5 py-10 lg:px-8">
@@ -1315,12 +1243,19 @@ function AccountTypesCallout() {
               Earn a welcome bonus, Reward Coupons on every order, and referral rewards — redeemable for
               real discounts at checkout.
             </p>
-            <div className="mt-5">
-              <Link
-                to="/individual-shopper-account"
+            <div className="mt-5 flex flex-col items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => openRegister({ accountType: "INDIVIDUAL_SHOPPER" })}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                See Shopper Account benefits <ArrowRight className="h-4 w-4" />
+                <Gift className="h-4 w-4" aria-hidden="true" /> Create a free Shopper Account
+              </button>
+              <Link
+                to="/individual-shopper-account"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:text-accent hover:underline"
+              >
+                See Shopper Account benefits <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
@@ -1333,12 +1268,19 @@ function AccountTypesCallout() {
               Earn a welcome bonus, build your order history, and be first in line when trade
               credit accounts launch.
             </p>
-            <div className="mt-5">
-              <Link
-                to="/business-account"
+            <div className="mt-5 flex flex-col items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => openRegister({ accountType: "BUSINESS" })}
                 className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
               >
-                See Business Account benefits <ArrowRight className="h-4 w-4" />
+                <Briefcase className="h-4 w-4" aria-hidden="true" /> Create a free Business Account
+              </button>
+              <Link
+                to="/business-account"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:text-accent hover:underline"
+              >
+                See Business Account benefits <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </div>
@@ -1363,9 +1305,10 @@ function HomePage() {
   return (
     <>
       <FirstVisitSplash />
-      <Suspense fallback={null}>
-        <WelcomeStarterModal />
-      </Suspense>
+      {/* The welcome offer and the insider email prompt used to be mounted here as well as in
+          SiteLayout. Both now go through the single engagement gate in App.tsx — see
+          components/engagement/EngagementPrompts.tsx. CookieConsent stays: this page does not use
+          SiteLayout, and it is the only reason the banner renders on the homepage at all. */}
       <CookieConsent />
       <PageProgressBar />
       <div className="flex min-h-screen flex-col" style={{ background: "var(--background)" }}>
@@ -1414,8 +1357,6 @@ function HomePage() {
         </main>
         <SiteFooter />
         <WhatsAppFloat />
-        <EnquireFab />
-        <EmailInsiderPrompt />
         <BottomNav />
       </div>
       <CartAddedSheet />

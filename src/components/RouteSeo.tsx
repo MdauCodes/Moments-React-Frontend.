@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
-import { STATIC_PAGES } from "@/seo/seoData";
-import { applyDefaultHead, applyHead } from "@/hooks/useSeo";
+import { STATIC_PAGES, isNoindexPath } from "@/seo/seoData";
+import { applyDefaultHead, applyHead, applyRobots } from "@/hooks/useSeo";
 
 declare global {
   interface Window {
@@ -26,6 +26,7 @@ export function RouteSeo() {
   useLayoutEffect(() => {
     const isFirst = first.current;
     first.current = false;
+    applyRobots(isNoindexPath(pathname));
     // The homepage is the exception: its prerendered HTML carries no canonical (that file is also
     // Render's fallback for unknown URLs — see renderPage in scripts/prerender-seo.mjs), so it gets
     // one here once the app has confirmed the URL really is "/".

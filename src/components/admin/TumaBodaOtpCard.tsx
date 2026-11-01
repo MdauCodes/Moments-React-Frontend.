@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
+import { serverNow } from "@/lib/serverTime";
 
 function formatCountdown(msRemaining: number): string {
   const totalSeconds = Math.max(0, Math.round(msRemaining / 1000));
@@ -13,11 +14,11 @@ function formatCountdown(msRemaining: number): string {
  *  rendered at different sizes. Stops ticking once verified or with no expiry to count down to. */
 function useOtpCountdown(expiresAt?: string | null, verifiedAt?: string | null) {
   const expiresAtMs = expiresAt ? new Date(expiresAt).getTime() : null;
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(() => serverNow());
 
   useEffect(() => {
     if (verifiedAt || !expiresAtMs) return;
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    const interval = window.setInterval(() => setNow(serverNow()), 1000);
     return () => window.clearInterval(interval);
   }, [verifiedAt, expiresAtMs]);
 
@@ -58,7 +59,8 @@ export function TumaBodaOtpCard({
     return (
       <div className="mt-2 flex items-center gap-2 rounded-md border border-green-600/30 bg-green-600/10 px-3 py-2 text-xs text-green-700">
         <CheckCircle2 size={14} className="shrink-0" />
-        Pickup OTP verified by rider at {new Date(verifiedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        Pickup OTP verified by rider at{" "}
+        {new Date(verifiedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
       </div>
     );
   }
@@ -88,13 +90,20 @@ export function TumaBodaOtpCard({
         <span className="font-mono text-2xl font-bold tracking-[0.15em]">{code}</span>
         {expiresAtMs != null && (
           <span className="text-[11px] text-muted-foreground">
-            (expires {new Date(expiresAtMs).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })})
+            (expires{" "}
+            {new Date(expiresAtMs).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
+            )
           </span>
         )}
       </div>
       {expired && (
         <p className="mt-1 text-[11px]">
-          This code has expired and can no longer be entered. If the rider still hasn't collected the parcel, check with TumaBoda directly.
+          This code has expired and can no longer be entered. If the rider still hasn't collected
+          the parcel, check with TumaBoda directly.
         </p>
       )}
     </div>

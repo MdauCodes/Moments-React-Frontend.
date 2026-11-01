@@ -1,4 +1,5 @@
 import { randomWhatsAppNumber } from "@/data/products";
+import { metaContact } from "@/lib/metaEvents";
 
 export function WhatsAppFloat() {
   const handleClick = () => {
@@ -6,6 +7,7 @@ export function WhatsAppFloat() {
     // Picked fresh on every click (not once per page load) so repeat
     // visitors don't all keep landing on the same line.
     const href = `https://wa.me/${randomWhatsAppNumber()}?text=${text}`;
+    metaContact("whatsapp");
     window.open(href, "_blank", "noopener,noreferrer");
   };
 

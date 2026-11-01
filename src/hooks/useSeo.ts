@@ -70,6 +70,21 @@ export function applyHead({
   canonical.setAttribute("href", `${SITE_ORIGIN}${path}`);
 }
 
+/**
+ * Adds or removes <meta name="robots" content="noindex">. Private pages (cart, checkout, account)
+ * and the 404 page set it; RouteSeo clears it on every navigation so it never leaks onto the next
+ * page. Google renders JavaScript and honours a robots tag added this way.
+ */
+export function applyRobots(noindex: boolean) {
+  const existing = document.head.querySelectorAll('meta[name="robots"]');
+  existing.forEach((n) => n.remove());
+  if (!noindex) return;
+  const el = document.createElement("meta");
+  el.setAttribute("name", "robots");
+  el.setAttribute("content", "noindex");
+  document.head.appendChild(el);
+}
+
 /** Resets the head to the site defaults — RouteSeo calls this on every in-app navigation. */
 export function applyDefaultHead() {
   applyHead({ title: DEFAULT_SEO.title, description: DEFAULT_SEO.description, path: null });

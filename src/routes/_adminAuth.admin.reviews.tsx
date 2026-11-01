@@ -12,6 +12,7 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { MockBanner } from "@/components/admin/commerceUi";
 import { reviewStore, type ProductReview } from "@/services/reviewStore";
 import { orderReviewStore, type AdminOrderReview } from "@/services/orderReviewStore";
+import { checkoutFeedbackStore, FAILED_REASONS, type AdminCheckoutFeedback } from "@/services/checkoutFeedbackStore";
 
 
 
@@ -37,6 +38,7 @@ function AdminReviewsPage() {
 
   const [orderReviews, setOrderReviews] = useState<AdminOrderReview[]>([]);
   const [orderReviewsLoading, setOrderReviewsLoading] = useState(true);
+  const [checkoutFeedback, setCheckoutFeedback] = useState<AdminCheckoutFeedback[]>([]);
 
   useEffect(() => { document.title = "Reviews · Moments admin"; }, []);
 
@@ -65,7 +67,11 @@ function AdminReviewsPage() {
     }
   };
 
-  useEffect(() => { void load(); void loadOrderReviews(); }, []);
+  useEffect(() => {
+    void load();
+    void loadOrderReviews();
+    checkoutFeedbackStore.listAll().then(setCheckoutFeedback).catch(() => setCheckoutFeedback([]));
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -242,6 +248,38 @@ function AdminReviewsPage() {
                   </td>
                   <td style={{ maxWidth: 360, color: "var(--admin-muted)", fontSize: 12, whiteSpace: "pre-wrap" }}>{r.comment || "—"}</td>
                   <td style={{ fontSize: 12 }}>{new Date(r.createdAt).toLocaleString("en-KE")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="admin-label" style={{ marginTop: 8 }}>Checkout & failed-payment feedback</div>
+        <div className="admin-panel" data-admin-table-scroll>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Order</th>
+                <th>Rating / reason</th>
+                <th>Comment</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              {checkoutFeedback.length === 0 ? (
+                <tr><td colSpan={5}><div className="admin-empty">No checkout feedback yet.</div></td></tr>
+              ) : checkoutFeedback.map((f) => (
+                <tr key={f.id}>
+                  <td>{f.kind === "CHECKOUT" ? "Checkout" : "Payment failed"}</td>
+                  <td><code style={{ fontSize: 12 }}>{f.orderReference}</code></td>
+                  <td>
+                    {f.kind === "CHECKOUT" && f.rating
+                      ? <Stars value={f.rating as 1 | 2 | 3 | 4 | 5} />
+                      : (FAILED_REASONS.find((r) => r.value === f.reason)?.label ?? "—")}
+                  </td>
+                  <td style={{ maxWidth: 360, color: "var(--admin-muted)", fontSize: 12, whiteSpace: "pre-wrap" }}>{f.comment || "—"}</td>
+                  <td style={{ fontSize: 12 }}>{new Date(f.updatedAt).toLocaleString("en-KE")}</td>
                 </tr>
               ))}
             </tbody>

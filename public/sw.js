@@ -16,6 +16,9 @@ self.addEventListener("push", (event) => {
       body: data.body,
       icon: "/favicon.ico",
       badge: "/favicon.ico",
+      // A tag makes a newer notification of the same kind replace the older one (several chat replies, one notification).
+      tag: data.tag || undefined,
+      renotify: Boolean(data.tag),
       data: { url: data.url || "/" },
     })
   );
@@ -26,8 +29,10 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url || "/";
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      // A chat link carries a secret in its #fragment and must be opened (not just focused) so the page reads it.
+      const isChatLink = url.includes("chat=");
       for (const client of clientList) {
-        if (client.url.includes(url) && "focus" in client) return client.focus();
+        if (!isChatLink && client.url.includes(url) && "focus" in client) return client.focus();
       }
       if (self.clients.openWindow) return self.clients.openWindow(url);
     })

@@ -177,6 +177,7 @@ function normalizeProduct(p: ProductApiDto): Product {
     monthlyEnquiries: p.monthlyEnquiries ?? 0,
     individualSalesEnabled: (p as any).individualSalesEnabled ?? true,
     risellerUomName: (p as any).risellerUomName ?? undefined,
+    productCode: (p as any).productCode ?? undefined,
     pricingTiers: normalizePricingTiers((p as any).pricingTiers),
     stock: (p as any).stockCount ?? (p as any).stock ?? 0,
     lowStockThreshold: (p as any).lowStockThreshold ?? 50,
@@ -235,6 +236,10 @@ function normalizeIndustry(industry: Partial<Industry> & { displayId?: number })
     keywords: industry.keywords ?? fallback?.keywords ?? [],
   };
 }
+
+/** In-flight/result cache for getSegments — see its comment below. Module-scoped, so it lives
+ *  for the page load and resets on a real reload. */
+let segmentsRequest: Promise<Segment[]> | null = null;
 
 export const api = {
   getConfig: async () => ({
@@ -416,7 +421,20 @@ export const api = {
   // re-queried per keystroke. "Other" free text is resolved server-side at submission.
   getPurchasePurposes: async () => getJson<Array<{ id: string; label: string }>>("/api/v1/public/purchase-purposes"),
 
-  getSegments: async () => getJson<Segment[]>("/api/v1/public/segments"),
+  // Deduped per page load. Segments are a small, slow-moving taxonomy that three independent
+  // components on the homepage alone now ask for (the Shop mega-menu in the nav, the hero's
+  // category chips, the "Shop by category" grid), plus the products page — previously that was
+  // three or four identical requests racing each other on the critical path. A failure is not
+  // cached, so a component that retries later still gets a real attempt.
+  getSegments: async () => {
+    if (!segmentsRequest) {
+      segmentsRequest = getJson<Segment[]>("/api/v1/public/segments").catch((err) => {
+        segmentsRequest = null;
+        throw err;
+      });
+    }
+    return segmentsRequest;
+  },
 
   getCategories: async (params?: { segmentId?: string; industryId?: string }) =>
     getJson<Category[]>(`/api/v1/public/categories${qs({ segmentId: params?.segmentId, industryId: params?.industryId })}`),
@@ -454,7 +472,14 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error(`Enquiry failed: ${res.status}`);
+    if (!res.ok) {
+      // The status rides along on the error so the form can tell a rate limit (wait and retry)
+      // apart from a rejected field (fix something) apart from a real outage (try WhatsApp) —
+      // all three used to surface as the same "something went wrong".
+      const err = new Error(`Enquiry failed: ${res.status}`) as Error & { status?: number };
+      err.status = res.status;
+      throw err;
+    }
     return res.json() as Promise<{ id: string; reference?: string; success?: boolean }>;
   },
 

@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NewOrderAlertModal } from "@/components/admin/NewOrderAlertModal";
+import { RisellerRecordReminder } from "@/components/admin/RisellerRecordReminder";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { AdminOrdersProvider } from "@/contexts/AdminOrdersContext";
@@ -48,6 +50,8 @@ export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
   return (
     <AdminOrdersProvider>
       <Outlet />
+      <NewOrderAlertModal />
+      <RisellerRecordReminder />
     </AdminOrdersProvider>
   );
 }

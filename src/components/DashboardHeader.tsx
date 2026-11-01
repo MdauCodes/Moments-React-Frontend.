@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { useDashboardSidebar } from "@/components/DashboardLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { nairobiParts } from "@/lib/serverTime";
 
 function timeOfDayGreeting(hour: number): string {
   if (hour < 12) return "Good morning";
@@ -23,7 +24,7 @@ function timeOfDayGreeting(hour: number): string {
 export function DashboardHeader() {
   const { setOpen } = useDashboardSidebar();
   const { user } = useAuth();
-  const greeting = timeOfDayGreeting(new Date().getHours());
+  const greeting = timeOfDayGreeting(nairobiParts().hour);
   return (
     <header className="sticky top-0 z-30 bg-[var(--forest-deep)]">
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">

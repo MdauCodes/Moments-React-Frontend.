@@ -48,16 +48,6 @@ export default function EditProductPage() {
         key={reloadKey}
         initial={productToFormValues(product as never)}
         productId={product.id}
-        verification={{
-          priceVerified: product.priceVerified,
-          priceVerifiedAt: product.priceVerifiedAt,
-          priceVerifiedBy: product.priceVerifiedBy,
-          stockVerified: product.stockVerified,
-          stockVerifiedAt: product.stockVerifiedAt,
-          stockVerifiedBy: product.stockVerifiedBy,
-          stockAnomaly: product.stockAnomaly,
-          stockAnomalyValue: product.stockAnomalyValue,
-        }}
         submitLabel="Save changes"
         onCancel={() => navigate("/admin/products")}
         onDelete={canDelete

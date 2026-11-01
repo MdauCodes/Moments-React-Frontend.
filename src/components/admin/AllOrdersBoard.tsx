@@ -6,6 +6,7 @@ import { TumaBodaOtpChip } from "@/components/admin/TumaBodaOtpCard";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
 import {
   ALL_ORDERS_BOARD_COLUMNS,
+  AWAITING_PAYMENT_COLUMN,
   resolveAllOrdersColumnKey,
   fulfillmentTypeShortLabel,
 } from "@/lib/allOrdersBoardColumns";
@@ -113,6 +114,7 @@ export function AllOrdersBoard({
   canAssign = false,
   selectedIds,
   onToggleSelect,
+  showAwaitingPayment = false,
 }: {
   orders: (OrderRecord & Record<string, any>)[];
   onOpenOrder: (id: string) => void;
@@ -120,13 +122,16 @@ export function AllOrdersBoard({
   canAssign?: boolean;
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
+  /** Adds the lane of placed-but-unpaid orders; off by default and switched from the page's filters. */
+  showAwaitingPayment?: boolean;
 }) {
-  const awaitingPaymentCount = orders.filter((o) => o.status === "PENDING_PAYMENT").length;
+  const showAwaiting = showAwaitingPayment;
+  const columns = showAwaiting ? [AWAITING_PAYMENT_COLUMN, ...ALL_ORDERS_BOARD_COLUMNS] : ALL_ORDERS_BOARD_COLUMNS;
 
   const byColumn = new Map<string, (OrderRecord & Record<string, any>)[]>();
-  for (const col of ALL_ORDERS_BOARD_COLUMNS) byColumn.set(col.key, []);
+  for (const col of columns) byColumn.set(col.key, []);
   for (const order of orders) {
-    const key = resolveAllOrdersColumnKey(order);
+    const key = resolveAllOrdersColumnKey(order, { showAwaitingPayment: showAwaiting });
     if (key && byColumn.has(key)) byColumn.get(key)!.push(order);
   }
 
@@ -165,12 +170,6 @@ export function AllOrdersBoard({
 
   return (
     <div>
-      {awaitingPaymentCount > 0 && (
-        <div className="admin-section-heading" style={{ padding: "0 4px 10px" }}>
-          <span>Awaiting payment (not yet actionable)</span>
-          <span className="admin-badge admin-badge-muted">{awaitingPaymentCount}</span>
-        </div>
-      )}
       <div className="admin-board-columns-wrap">
         {canScrollLeft && (
           <button
@@ -193,7 +192,7 @@ export function AllOrdersBoard({
           </button>
         )}
         <div className="admin-board-columns" ref={scrollRef}>
-          {ALL_ORDERS_BOARD_COLUMNS.map((col) => {
+          {columns.map((col) => {
             const items = byColumn.get(col.key) ?? [];
             if (col.key === "closed" && !closedExpanded) {
               return (

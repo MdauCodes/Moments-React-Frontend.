@@ -3,9 +3,9 @@ import { useState } from "react";
 import { Flame } from "lucide-react";
 
 import type { Product } from "@/data/products";
-import { whatsappLink } from "@/data/products";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { getStockInfo } from "@/lib/stock";
-import { cleanUomLabel, individualUnitLabel } from "@/lib/uomLabel";
+import { cleanUomLabel, individualUnitLabel, unitCount } from "@/lib/uomLabel";
 import { sanitizeProductDescription } from "@/lib/utils";
 import { getQuickAddTiers, isIndividualBuyable, isQuickAddEligible, trackProductClick } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
@@ -56,6 +56,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
   // otherwise this default silently rides along into ConfiguratorModal via onConfigure below.
   const [activeTierId, setActiveTierId] = useState<string | null>(tiers.length === 1 ? tierKey(tiers[0]) : null);
   const activeTier = hasTiers ? (tiers.find((t) => tierKey(t) === activeTierId) ?? tiers[0]) : null;
+  const { openEnquiry } = useEnquiry();
 
   const handlePillClick = (e: React.MouseEvent, id: string) => {
     // preventDefault is the important one here, not just stopPropagation: the card is now
@@ -198,7 +199,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                   }`}
                 >
                   <span>
-                    {label} · {qty.toLocaleString()} pcs
+                    {label} · {unitCount(qty, p.risellerUomName)}
                   </span>
                   {isTopTier && topSave > 0 && (
                     <span className="rounded-full bg-forest/15 px-1.5 py-px text-[9px] font-semibold text-forest">
@@ -219,26 +220,54 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
         {hasTiers && activeTier ? (
           <div>
             {(() => {
-              // The smallest unit of measurement — a single piece — is deliberately the bold,
-              // attention-grabbing figure (client decision 2026-09-04): "KES 5.50" reads far more
-              // attractively at a glance than "KES 5,500", even though they describe the exact
-              // same Carton-of-1000 tier. The pack total/label moves to a smaller secondary line
-              // right underneath, so nothing that was on the card before is actually lost.
+              // Owner's decision 2026-10-19 (replaces the 2026-09-04 rule that made the per-unit
+              // price of the selected pack the bold figure): staff and customers read that figure
+              // as the price of one unit, so a carton's KES 530/packet looked like the wrong price
+              // next to the real KES 550 single packet. Now the bold figure is always something the
+              // customer can actually buy at that price:
+              //  - one unit can be bought -> its own price leads; the pack offer sits underneath;
+              //  - only packs can be bought -> the pack price leads; what that works out to per unit
+              //    is just a small mention.
               const qty = Number(activeTier.quantity) || 1;
-              const unitPrice = tierPrice(activeTier) / qty;
+              const packTotal = tierPrice(activeTier);
+              const unitPrice = packTotal / qty;
+              const unitWord = individualUnitLabel(p.risellerUomName);
               const packLabel = cleanUomLabel(activeTier.uomName ?? activeTier.collectionName, qty);
-              return (
-                <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
-                  KES {unitPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ pc</span>
-                  <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
-                    KES {tierPrice(activeTier).toLocaleString()} for {packLabel} ({qty.toLocaleString()} pcs)
-                    {activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > tierPrice(activeTier) && (
-                      <span className="ml-1.5 line-through">
-                        KES {Number(activeTier.originalCollectionPrice).toLocaleString()}
+              const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+              const wasPack =
+                activeTier.originalCollectionPrice && activeTier.originalCollectionPrice > packTotal ? (
+                  <span className="ml-1.5 line-through">KES {Number(activeTier.originalCollectionPrice).toLocaleString()}</span>
+                ) : null;
+              if (individualEnabled && Number(p.basePrice) > 0) {
+                return (
+                  <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
+                    KES {Number(p.basePrice).toLocaleString()}
+                    {p.originalBasePrice && p.originalBasePrice > Number(p.basePrice) && (
+                      <span className="ml-1.5 text-[11px] font-normal text-muted-foreground line-through sm:text-xs">
+                        KES {p.originalBasePrice.toLocaleString()}
                       </span>
                     )}
+                    <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ {unitWord}</span>
+                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
+                      {packLabel} ({unitCount(qty, p.risellerUomName)}): KES {packTotal.toLocaleString()}
+                      {qty > 1 && <> · KES {fmt(unitPrice)} each</>}
+                      {wasPack}
+                    </span>
+                  </p>
+                );
+              }
+              return (
+                <p className="text-lg font-bold leading-tight text-primary sm:text-xl">
+                  KES {packTotal.toLocaleString()}
+                  <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">
+                    / {packLabel ? packLabel.toLowerCase() : unitWord}
                   </span>
+                  {wasPack && <span className="text-[11px] font-normal text-muted-foreground sm:text-xs">{wasPack}</span>}
+                  {qty > 1 && (
+                    <span className="mt-0.5 block text-[11px] font-normal text-muted-foreground sm:text-xs">
+                      {unitCount(qty, p.risellerUomName)} · KES {fmt(unitPrice)} per {unitWord}
+                    </span>
+                  )}
                 </p>
               );
             })()}
@@ -283,8 +312,8 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           {!eligible && (
             <p className="text-[10px] text-muted-foreground sm:text-xs">
               {hasTiers && smallestTier
-                ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${(Number(smallestTier.quantity) || 0).toLocaleString()} pcs)`
-                : `Min. ${p.moq.toLocaleString()} units`}
+                ? `Min. order: 1 ${cleanUomLabel(smallestTier.uomName ?? smallestTier.collectionName, Number(smallestTier.quantity))} (${unitCount(Number(smallestTier.quantity) || 0, p.risellerUomName)})`
+                : `Min. ${unitCount(p.moq, p.risellerUomName)}`}
             </p>
           )}
           {stock.canOrder ? (
@@ -312,20 +341,25 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
             // A plain <button> here, not an <a> — this card is already wrapped in its own <Link>
             // (a real <a href> for crawlability, see the component's top-level wrapper), and
             // nested <a> tags are invalid HTML with genuinely unreliable click behavior across
-            // browsers, not just a lint nitpick. window.open reproduces the same "open WhatsApp
-            // in a new tab" result without nesting an anchor inside one.
+            // browsers, not just a lint nitpick.
+            //
+            // This used to jump straight out to WhatsApp, which meant the single highest-intent
+            // enquiry we get — someone asking for a product we cannot currently sell them — left
+            // no record anywhere: no enquiry row, no CRM lead, nothing to follow up when the stock
+            // lands. It now opens the enquiry panel with the product already attached (the panel
+            // still offers WhatsApp for anyone who would rather just chat).
             <button
               type="button"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                window.open(
-                  whatsappLink(
-                    `Hi, I'd like to enquire about ${p.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
-                  ),
-                  "_blank",
-                  "noopener,noreferrer",
-                );
+                openEnquiry({
+                  topic: "product",
+                  product: { id: String(p.id), name: p.name, slug: p.slug },
+                  message: `Is ${p.name} available? It is showing as ${
+                    stock.isMadeToOrder ? "made to order" : "out of stock"
+                  }.`,
+                });
               }}
               className="w-full rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
             >

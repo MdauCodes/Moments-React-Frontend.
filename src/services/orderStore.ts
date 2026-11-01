@@ -18,6 +18,8 @@
 import { apiUrl, apiFetch } from "@/config/api";
 import { authFetch, getAccessToken } from "@/contexts/AuthContext";
 import type { CartItem } from "@/contexts/CartContext";
+import { getCheckoutAttribution } from "@/lib/marketingAttribution";
+import { metaPurchase } from "@/lib/metaEvents";
 import type { RefundRequest, RefundDesiredAction } from "@/services/refundStore";
 
 // Mirrors the backend's OrderStatus enum exactly (order/entity/OrderStatus.java) — these are
@@ -47,7 +49,6 @@ export interface CustomerOrderItem {
   lineTotal: number;
   variantLabel?: string;
   sku?: string;
-  isBackorder?: boolean;
 }
 
 export type CheckoutPaymentMethod = "CASH_ON_DELIVERY" | "BANK_TRANSFER" | "MPESA" | "CARD" | "BANK";
@@ -154,6 +155,8 @@ export interface PlaceOrderInput {
   promoCode?: string;
   /** Individual Shopper rewards points to redeem against this order. */
   redeemPoints?: number;
+  /** Pass from the emailed-code check at checkout; lets a logged-out shopper use that email's coupons. */
+  couponToken?: string;
   sessionId?: string;
   fulfillmentType?: FulfillmentType;
   courierType?: CourierType;
@@ -354,6 +357,11 @@ export const orderStore = {
         material: it.material,
         finish: it.finish,
         tierId: it.tierId ?? undefined,
+        // Same reasoning as CartContext's addItem POST: a cart line with no tierId already means
+        // "the customer chose the single unit", by construction of every place a CartItem gets
+        // created — the server needs that said explicitly once a product has more than one way to
+        // buy (CheckoutService.resolveInlineItem -> CartService.validateTierSelection).
+        individual: it.tierId ? undefined : true,
         unitPrice: it.unitPrice,
         // The Confirm-items checkout step's optional colour/style note — see CheckoutRequest.
         // InlineItem.variantNote server-side. Omitted entirely rather than sent as "" so an
@@ -376,7 +384,10 @@ export const orderStore = {
     if (input.customer.notes) body.notes = input.customer.notes;
     if (input.promoCode) body.promoCode = input.promoCode;
     if (input.redeemPoints) body.redeemPoints = input.redeemPoints;
+    if (input.couponToken) body.couponToken = input.couponToken;
     if (input.sessionId) body.sessionId = input.sessionId;
+    // How this visitor arrived (ad, search, ...). Optional server-side; recorded after the order commits.
+    body.attribution = getCheckoutAttribution();
     if (input.etrRequested) {
       body.etrRequested = true;
       body.documentsEmail = input.documentsEmail;
@@ -501,6 +512,13 @@ export const orderStore = {
             updatedAt: nowIso(),
           };
           writeAll(all);
+          // Tell Meta about the sale (browser side). Value excludes delivery — see metaEvents.ts.
+          const paid = all[idx];
+          metaPurchase({
+            reference: paid.reference,
+            value: (paid.total ?? 0) - (paid.shippingFee ?? 0),
+            lines: (paid.items ?? []).map((i) => ({ productId: i.productId, quantity: i.quantity })),
+          });
         }
       }
 
@@ -839,6 +857,28 @@ export const orderStore = {
     }
     const found = readAll().find((o) => o.reference === reference) ?? null;
     return { order: found, source: "mock" };
+  },
+
+  /**
+   * Cancels an order nothing has been paid for, on the spot. A paid order is cancelled by asking
+   * our team instead (refundStore.submitCancellation) — refunds are always sent by hand, so the
+   * server refuses to cancel one here and says why; that message is thrown as-is.
+   */
+  async cancelUnpaid(reference: string): Promise<void> {
+    let res: Response;
+    try {
+      res = await apiFetch(`/api/v1/customer/orders/${encodeURIComponent(reference)}/cancel`, {
+        method: "POST",
+        auth: true,
+        session: true,
+      });
+    } catch {
+      throw new Error("Cannot reach the server. Check your connection and try again.");
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}) as { message?: string });
+      throw new Error((err as { message?: string }).message ?? `Couldn't cancel this order (${res.status})`);
+    }
   },
 
   /** Reorder: re-add past order items to cart. */

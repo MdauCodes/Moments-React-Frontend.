@@ -1,27 +1,32 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { CONSENT_KEY } from "@/lib/cookieConsent";
+import { isTaggedCampaignSession } from "@/lib/marketingAttribution";
 
 import { Cookie, X } from "lucide-react";
 
-const STORAGE_KEY = "mpk_cookie_consent_v1";
+const STORAGE_KEY = CONSENT_KEY;
 const FIRST_VISIT_KEY = "mpk_first_visit_at";
 type Choice = "accepted" | "rejected";
 
 // Delay before the banner appears for a first-time visitor — long enough that it doesn't greet
-// someone the instant the page loads, short enough that it still shows up well before anything
-// non-essential would need consent. Doesn't weaken the compliance story: no cookie/analytics
-// call fires until "accepted" either way (see the mpk:cookies-accepted event below), so delaying
-// only when we ASK doesn't delay anything the asking is meant to gate.
-const SHOW_AFTER_MS = 3 * 60 * 1000;
+// someone the instant the page loads, short enough that it is seen before they leave. It was 3
+// minutes, which most visitors never reached, so the pixel almost never loaded and Meta could not
+// learn from the visits that came from ads. Visitors who arrive from a TAGGED link (an ad) are
+// asked immediately. Doesn't weaken the compliance story: no cookie/analytics call fires until
+// "accepted" either way (see the mpk:cookies-accepted event below), so this only changes when we
+// ASK, not what is allowed before the answer.
+const SHOW_AFTER_MS = 15 * 1000;
 
 /** This component is mounted separately by SiteLayout, DashboardLayout AND routes/index.tsx —
  *  three independent instances that unmount/remount as the visitor navigates between
  *  differently-laid-out pages. A plain per-mount setTimeout would reset every time that happens,
- *  so "3 minutes on the site" could never actually elapse for anyone who navigates. sessionStorage
+ *  so "15 seconds on the site" could never actually elapse for anyone who navigates. sessionStorage
  *  makes the elapsed time survive across those remounts (and tabs closing mid-session correctly
  *  restarts the clock on the next visit, since it's session-scoped, not persistent). */
 function msUntilShow(): number {
   if (typeof window === "undefined") return SHOW_AFTER_MS;
+  if (isTaggedCampaignSession()) return 0;
   try {
     const existing = window.sessionStorage.getItem(FIRST_VISIT_KEY);
     const firstVisitAt = existing ? Number(existing) : Date.now();
@@ -77,6 +82,12 @@ export function CookieConsent() {
       role="dialog"
       aria-live="polite"
       aria-label="Cookie consent"
+      /* Purely a marker for the engagement gate (components/engagement/EngagementPrompts.tsx):
+         while a consent choice is still outstanding, no optional marketing prompt may open on
+         top of it. Nothing about this banner's timing, wording, placement or behaviour changes —
+         it is a legal element and stays exactly as it is; it simply now takes precedence over
+         the things that are not. */
+      data-mpk-overlay="cookie-consent"
       className="fixed inset-x-0 bottom-0 z-[120] px-3 pb-3 sm:px-5 sm:pb-5 pointer-events-none"
     >
       <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-border bg-card/95 p-4 shadow-2xl backdrop-blur supports-[backdrop-filter]:bg-card/85 sm:p-5">

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Minus, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import type { Product } from "@/data/products";
 import { useCart } from "@/contexts/CartContext";
 import { getStockInfo } from "@/lib/stock";
 import { getQuickAddOptions, trackProductClick, type QuickAddOption } from "@/lib/quickAdd";
+import { pluralUnit } from "@/lib/uomWords";
 
 export interface QuickAddUomButtonsProps {
   product: Product;
@@ -78,11 +80,14 @@ export function QuickAddUomButtons({
     const effectiveTotalUnits = opt.totalUnits * mult;
     const effectiveLineTotal = opt.lineTotal * mult;
 
-    // Total pieces, not packs — the same probe totalUnits exists for, so quick-add doesn't
-    // inherit the PDP's pre-existing pack-vs-piece backorder mismatch (noted, not fixed, in the
-    // 2026-09-08 scoping doc).
+    // Total pieces, not packs — the same probe totalUnits exists for, so this checks the real
+    // piece-level stock cap regardless of which UOM was tapped.
     const stock = getStockInfo(product, null, effectiveTotalUnits);
     if (!stock.canOrder) return;
+    if (stock.exceedsAvailable) {
+      toast.error(`Only ${stock.available.toLocaleString()} left — reduce the quantity to add this.`);
+      return;
+    }
 
     addItem({
       productId: product.id,
@@ -94,7 +99,6 @@ export function QuickAddUomButtons({
       quantity: effectiveQuantity,
       unitPrice: opt.unitPrice,
       sku: product.sku,
-      isBackorder: stock.isBackorder,
       tierId: opt.tierId,
       collectionName: opt.tierId ? opt.rawTier?.collectionName : undefined,
       collectionQuantity: opt.tierId ? opt.packQty : undefined,
@@ -180,8 +184,7 @@ export function QuickAddUomButtons({
                 }`}
               >
                 <span>
-                  Add {effQuantity.toLocaleString()} {opt.label}
-                  {effQuantity !== 1 ? "s" : ""}
+                  Add {effQuantity.toLocaleString()} {pluralUnit(opt.label, effQuantity)}
                   {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
                     <span className="ml-1.5 rounded-full bg-forest/15 px-1.5 py-px text-[9px] font-semibold text-forest">
                       Save {opt.savingsPct}%
@@ -189,7 +192,7 @@ export function QuickAddUomButtons({
                   )}
                 </span>
                 <small className="mt-0.5 block font-normal opacity-80">
-                  {effPackQty > 1 ? `${effPackQty.toLocaleString()} ${opt.unitNoun}s · ` : ""}
+                  {effPackQty > 1 ? `${effPackQty.toLocaleString()} ${pluralUnit(opt.unitNoun, effPackQty)} · ` : ""}
                   KES {effLineTotal.toLocaleString()}
                 </small>
               </button>
@@ -217,23 +220,36 @@ export function QuickAddUomButtons({
           type="button"
           disabled={justAdded === opt.key}
           onClick={(e) => handleTap(e, opt)}
-          className="flex flex-col items-start rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors hover:border-foreground/40 disabled:opacity-60"
+          // Border-2 + shadow + an always-visible "+" badge (never hover-only — touch devices have
+          // no hover state to reveal it) so this reads as a tappable action card on sight, not a
+          // static price label. The cheapest-per-unit option gets the primary-color treatment —
+          // same isCheapestPerUnit signal ProductCard already computes, just applied to styling
+          // here instead of only to the savings badge.
+          className={`flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 ${
+            opt.isCheapestPerUnit
+              ? "border-primary bg-primary/5"
+              : "border-border bg-card hover:border-primary/40"
+          }`}
         >
-          <span className="font-display text-base text-foreground">
-            Add {opt.quantity.toLocaleString()} {opt.label}
-            {opt.quantity !== 1 ? "s" : ""}
+          <span className="flex flex-col items-start">
+            <span className="font-display text-base text-foreground">
+              Add {opt.quantity.toLocaleString()} {pluralUnit(opt.label, opt.quantity)}
+            </span>
+            {opt.packQty > 1 && (
+              <span className="mt-0.5 text-xs text-muted-foreground">
+                {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
+              </span>
+            )}
+            <span className="mt-2 text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
+            {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
+              <span className="mt-1 rounded-full bg-forest/15 px-1.5 py-px text-[10px] font-semibold text-forest">
+                Save {opt.savingsPct}%
+              </span>
+            )}
           </span>
-          {opt.packQty > 1 && (
-            <span className="mt-0.5 text-xs text-muted-foreground">
-              {opt.packQty.toLocaleString()} {opt.unitNoun}s
-            </span>
-          )}
-          <span className="mt-2 text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
-          {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
-            <span className="mt-1 rounded-full bg-forest/15 px-1.5 py-px text-[10px] font-semibold text-forest">
-              Save {opt.savingsPct}%
-            </span>
-          )}
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+            <Plus className="h-4 w-4" />
+          </span>
         </button>
       ))}
       {overflow && onMoreOptions && (

@@ -74,6 +74,11 @@ export interface ProductFormValues {
   vatRate?: number;     // stored as 0..1 fraction (e.g. 0.16)
   vatExempt?: boolean;
   stockStatus?: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "MADE_TO_ORDER";
+  /** True when this product is linked to a Riseller item — Riseller then owns its units of
+   *  measure (2026-09-28 decision), so the single-unit toggle and pricing tiers below are
+   *  locked: the server ignores edits to either field on a linked product regardless. */
+  risellerLinked?: boolean;
+  risellerUomName?: string | null;
 }
 
 
@@ -114,6 +119,8 @@ export function emptyProductValues(): ProductFormValues {
     vatRate: 0.16,
     vatExempt: false,
     stockStatus: "MADE_TO_ORDER",
+    risellerLinked: false,
+    risellerUomName: null,
   };
 }
 
@@ -167,6 +174,8 @@ export function productToFormValues(p: Product): ProductFormValues {
     vatRate: typeof anyP.vatRate === "number" ? anyP.vatRate : 0.16,
     vatExempt: anyP.vatExempt ?? false,
     stockStatus: anyP.stockStatus ?? "MADE_TO_ORDER",
+    risellerLinked: anyP.risellerLinked ?? false,
+    risellerUomName: anyP.risellerUomName ?? null,
   };
 }
 
@@ -751,24 +760,9 @@ function TokenInput({
 // Main editor
 // ---------------------------------------------------------------------------
 
-/** Separate from ProductFormValues deliberately — verifying is an immediate, standalone action
- *  against the already-saved product, not part of the draft this form's "Save" button submits. */
-export interface ProductVerificationInfo {
-  priceVerified?: boolean;
-  priceVerifiedAt?: string | null;
-  priceVerifiedBy?: string | null;
-  stockVerified?: boolean;
-  stockVerifiedAt?: string | null;
-  stockVerifiedBy?: string | null;
-  stockAnomaly?: boolean;
-  stockAnomalyValue?: number | null;
-}
-
 export interface ProductEditorProps {
   initial: ProductFormValues;
   productId?: string; // undefined = create, set = update
-  /** Only meaningful (and only ever passed) when editing an already-saved product. */
-  verification?: ProductVerificationInfo;
   submitLabel: string;
   onSubmit: (values: ProductFormValues) => Promise<void> | void;
   onDelete?: () => Promise<void> | void;
@@ -815,7 +809,7 @@ function draftKeyFor(productId?: string): string {
   return `admin-product-draft:${productId ?? "new"}`;
 }
 
-export function ProductEditor({ initial, productId, verification, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
+export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDelete, onCancel }: ProductEditorProps) {
   const draftKey = draftKeyFor(productId);
 
   const [values, setValues] = useState<ProductFormValues>(() => {
@@ -840,31 +834,6 @@ export function ProductEditor({ initial, productId, verification, submitLabel, o
   const [uoms, setUoms] = useState<Uom[]>([]);
   const [showUomDialog, setShowUomDialog] = useState(false);
   const [priceModes, setPriceModes] = useState<Record<number, "perUnit" | "total">>({});
-
-  const [verifyState, setVerifyState] = useState<ProductVerificationInfo | undefined>(verification);
-  const [verifying, setVerifying] = useState<"price" | "stock" | null>(null);
-  // Deliberately keyed on productId, not on `verification` itself — the parent route passes a
-  // fresh object literal on every render, which would otherwise re-sync (and wipe out a just-
-  // confirmed optimistic update from confirmVerified below) on any unrelated parent re-render.
-  // Only actually re-sync when navigating to a genuinely different product.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => setVerifyState(verification), [productId]);
-
-  const confirmVerified = async (field: "price" | "stock") => {
-    if (!productId) return;
-    setVerifying(field);
-    try {
-      const updated = await adminResources.products.verify(productId, {
-        price: field === "price",
-        stock: field === "stock",
-      });
-      setVerifyState((prev) => ({ ...prev, ...updated }));
-    } catch (err) {
-      reportAdminError(err, `Confirming ${field}`);
-    } finally {
-      setVerifying(null);
-    }
-  };
 
   const loadUoms = () => fetchPublicUoms().then(setUoms).catch(() => {});
   useEffect(() => {
@@ -1126,46 +1095,6 @@ export function ProductEditor({ initial, productId, verification, submitLabel, o
             <div style={s.cardTitle}>Pricing &amp; inventory</div>
             <span style={s.helper}>All prices in KES.</span>
           </div>
-
-          {productId && (
-            <div style={{
-              display: "flex", flexWrap: "wrap", gap: 16, padding: "10px 12px", marginBottom: 4,
-              background: "var(--admin-bg-subtle, #f8f8f6)", borderRadius: 8, fontSize: 12.5,
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>
-                  {verifyState?.priceVerified
-                    ? `Price confirmed correct${verifyState.priceVerifiedBy ? ` by ${verifyState.priceVerifiedBy}` : ""}`
-                    : "Price never confirmed"}
-                </span>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost"
-                  disabled={verifying === "price"}
-                  onClick={() => void confirmVerified("price")}
-                >
-                  Confirm price is correct
-                </button>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span>
-                  {verifyState?.stockAnomaly
-                    ? `Riseller reported an implausible count (${verifyState.stockAnomalyValue}) — held off, stock figure below is the last known-good value`
-                    : verifyState?.stockVerified
-                      ? `Stock confirmed correct${verifyState.stockVerifiedBy ? ` by ${verifyState.stockVerifiedBy}` : ""}`
-                      : "Stock never confirmed"}
-                </span>
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-ghost"
-                  disabled={verifying === "stock"}
-                  onClick={() => void confirmVerified("stock")}
-                >
-                  Confirm stock is correct
-                </button>
-              </div>
-            </div>
-          )}
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* SKU / base price / compare-at */}
             <div style={s.row3} data-admin-row>
@@ -1319,10 +1248,25 @@ export function ProductEditor({ initial, productId, verification, submitLabel, o
 
             {/* Pricing tiers — INSIDE the same card, separated by a divider */}
             <div style={s.divider}>
-              <label style={s.switchRow}>
+              {values.risellerLinked && (
+                <div style={{
+                  padding: "10px 12px", marginBottom: 12, borderRadius: 8,
+                  border: "1px solid var(--admin-border)",
+                  background: "color-mix(in oklab,var(--admin-bg) 70%,transparent)",
+                  fontSize: 12, color: "var(--admin-muted)",
+                }}>
+                  Linked to Riseller{values.risellerUomName ? ` (base unit: ${values.risellerUomName})` : ""} — Riseller
+                  decides which units this product sells in and at what price (2026-09-28 policy). The toggle and
+                  tiers below show what Riseller currently offers and update on the next catalog sync; they can't be
+                  edited here.
+                </div>
+              )}
+              <label style={{ ...s.switchRow, opacity: values.risellerLinked ? 0.6 : 1 }}
+                     title={values.risellerLinked ? "Riseller-linked — set automatically" : undefined}>
                 <input
                   type="checkbox"
                   checked={values.individualSalesEnabled ?? true}
+                  disabled={values.risellerLinked}
                   onChange={(e) => set("individualSalesEnabled", e.target.checked)}
                 />
                 <span style={s.switchLabel}>Allow individual unit purchases</span>
@@ -1331,13 +1275,14 @@ export function ProductEditor({ initial, productId, verification, submitLabel, o
                 Off means customers must buy a full tier (Packet, Carton…) below — no single-unit checkout.
               </span>
 
-              <div style={{ ...s.col, marginTop: 12 }}>
+              <div style={{ ...s.col, marginTop: 12, opacity: values.risellerLinked ? 0.6 : 1 }}>
                 <label style={s.label}>Pricing tiers (units of measure)</label>
                 <span style={s.helper}>
                   Pick a UOM (Packet, Carton, Bale…), set how many pieces and the price per unit. Disabled tiers are hidden from the storefront.
                 </span>
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+                <fieldset disabled={values.risellerLinked}
+                  style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8, border: "none", padding: 0, margin: 0 }}>
                   {pricingTiers.map((row, idx) => {
                     const total = (Number(row.quantity) || 0) * (Number(row.pricePerUnit) || 0);
                     const enabled = row.enabled !== false;
@@ -1568,14 +1513,18 @@ export function ProductEditor({ initial, productId, verification, submitLabel, o
                     >
                       + Add pricing tier
                     </button>
-                    <button
-                      type="button"
-                      style={s.ghostBtn}
-                      onClick={() => setShowUomDialog(true)}
-                    >
-                      Manage UOMs
-                    </button>
                   </div>
+                </fieldset>
+                {/* The shared UOM catalog (Packet/Carton/Bale…), not this product's own tiers —
+                    stays editable even when this product's own tiers are Riseller-locked. */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                  <button
+                    type="button"
+                    style={s.ghostBtn}
+                    onClick={() => setShowUomDialog(true)}
+                  >
+                    Manage UOMs
+                  </button>
                 </div>
               </div>
 

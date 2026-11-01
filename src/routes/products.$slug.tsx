@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEnquiry } from "@/contexts/EnquiryContext";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, ArrowLeft, Heart, Share2 } from "lucide-react";
+import { ArrowLeft, Heart, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { SiteLayout } from "@/components/SiteLayout";
 import { ProductDetailSkeleton } from "@/components/ProductDetailSkeleton";
@@ -18,12 +18,14 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { getStockInfo } from "@/lib/stock";
 import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
+import { LidSuggestions } from "@/components/LidSuggestions";
 import { reviewStore } from "@/services/reviewStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { sanitizeProductDescription } from "@/lib/utils";
-import { individualUnitLabel } from "@/lib/uomLabel";
+import { individualUnitLabel, unitCount, unitPlural } from "@/lib/uomLabel";
 import { useSeo } from "@/hooks/useSeo";
 import { productSeo } from "@/seo/seoData";
+import { metaViewContent } from "@/lib/metaEvents";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -118,12 +120,17 @@ export default function ProductDetail() {
   const collectionPrice = selectedTier ? Number(selectedTier.collectionPrice ?? unitPrice * collectionQty) || 0 : 0;
   const lineTotal = selectedTier ? qty * collectionPrice : qty * unitPrice;
 
+  // Total pieces, not packs — qty counts tiers (e.g. cartons) when a tier is selected, but stock
+  // is tracked in pieces. Passing bare qty here previously under-counted by a factor of
+  // collectionQty for any tiered product (the "pack-vs-piece backorder mismatch" QuickAddUomButtons
+  // already worked around) — fixed 2026-09-27 alongside removing backorders altogether.
+  const totalUnitsRequested = qty * (selectedTier ? collectionQty : 1);
   const stock = useMemo(
     () =>
       product
-        ? getStockInfo(product, activeVariant, qty)
-        : { state: "untracked" as const, label: "", available: 0, threshold: 0, isBackorder: false, canOrder: true, isMadeToOrder: false },
-    [product, activeVariant, qty],
+        ? getStockInfo(product, activeVariant, totalUnitsRequested)
+        : { state: "untracked" as const, label: "", available: 0, threshold: 0, exceedsAvailable: false, canOrder: true, isMadeToOrder: false },
+    [product, activeVariant, totalUnitsRequested],
   );
   // Quick-add is eligible only when UOM/tier is this product's sole choice — see
   // isQuickAddEligible's own comment for the full reasoning and the 2026-09-08 widening.
@@ -162,7 +169,14 @@ export default function ProductDetail() {
     const n = Number(v);
     if (Number.isNaN(n)) return;
     setQty(n);
-    setQtyError(n < minQty ? `Minimum: ${minQty.toLocaleString()}` : null);
+    const requested = n * (selectedTier ? collectionQty : 1);
+    setQtyError(
+      n < minQty
+        ? `Minimum: ${minQty.toLocaleString()}`
+        : stock.state === "low_stock" && requested > stock.available
+          ? `Only ${stock.available.toLocaleString()} left`
+          : null,
+    );
   };
 
   const handleSelectTier = (tierKey: string | null) => {
@@ -186,6 +200,7 @@ export default function ProductDetail() {
     if (!stock.canOrder) return; // UI already hides this control — guard in case that ever changes
     if (enterprise) { navigate("/enterprise-quote"); return; }
     if (qty < minQty) { setQtyError(`Minimum: ${minQty.toLocaleString()}`); return; }
+    if (stock.exceedsAvailable) { setQtyError(`Only ${stock.available.toLocaleString()} left`); return; }
     if (sizeMissing) return; // the Size field's own inline prompt (sizeMissing) is already visible
     if (tierMissing) return; // ditto for the tier prompt near "Choose how to buy"
     addItem({
@@ -203,13 +218,12 @@ export default function ProductDetail() {
       variantId: activeVariant?.id ?? activeVariant?.label,
       variantLabel: activeVariant?.label,
       sku: activeVariant?.sku ?? product.sku,
-      isBackorder: stock.isBackorder,
       tierId: selectedTier ? selectedTierId : null,
       collectionName: selectedTier?.collectionName,
       collectionQuantity: selectedTier ? collectionQty : undefined,
       totalUnits: selectedTier ? qty * collectionQty : qty,
     });
-    toast.success(stock.isBackorder ? "Added — backorder (extended lead time)" : "Added to cart", { duration: 2400 });
+    toast.success("Added to cart", { duration: 2400 });
   };
 
   const handleWishlist = async () => {
@@ -268,6 +282,19 @@ export default function ProductDetail() {
         }
       : undefined,
   });
+
+  // Meta ViewContent — once per product viewed (keyed on the id, not the object, so state
+  // changes like picking a size don't re-report it).
+  useEffect(() => {
+    if (!product) return;
+    metaViewContent({
+      id: product.id,
+      name: productHead.name,
+      category: product.categoryName ?? product.category,
+      price: product.basePrice,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
 
   // ── early return AFTER all hooks ─────────────────────────────────────────
   if (loading || !product) return <SiteLayout><ProductDetailSkeleton /></SiteLayout>;
@@ -329,6 +356,11 @@ export default function ProductDetail() {
             </div>
           )}
           <h1 className="font-display text-2xl font-medium text-foreground sm:text-3xl lg:text-[2rem]">{product.name}</h1>
+          {product.productCode && (
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              Product code <span className="font-medium text-foreground">{product.productCode}</span>
+            </p>
+          )}
           <div className="mt-3">
             <p className={`text-sm text-muted-foreground sm:text-base ${descExpanded ? "" : "line-clamp-3"}`}>{sanitizeProductDescription(product.description)}</p>
             {product.description && product.description.length > 160 && (
@@ -366,17 +398,17 @@ export default function ProductDetail() {
                       <button key={key} type="button" onClick={() => handleSelectTier(key)}
                         className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${active ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
                         <span className="font-display text-base text-foreground">{t.uomName ?? t.collectionName}</span>
-                        <span className="mt-0.5 text-xs text-muted-foreground">{Number(t.quantity).toLocaleString()} pieces each</span>
+                        <span className="mt-0.5 text-xs text-muted-foreground">{unitCount(Number(t.quantity), product.risellerUomName)} each</span>
                         {t.uomDescription && <span className="mt-0.5 text-[11px] italic text-muted-foreground">{t.uomDescription}</span>}
                         <span className="mt-2 text-sm font-semibold text-foreground">KES {cPrice.toLocaleString()}</span>
-                        <span className="text-[11px] text-muted-foreground">KES {Number(t.pricePerUnit).toLocaleString()}/piece</span>
+                        <span className="text-[11px] text-muted-foreground">KES {Number(t.pricePerUnit).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                       </button>
                     );
                   })}
                   {individualEnabled && (
                     <button type="button" onClick={() => handleSelectTier(null)}
                       className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${selectedTierId === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
-                      <span className="font-display text-base text-foreground">Individual {individualUnitLabel(product.risellerUomName)}s</span>
+                      <span className="font-display text-base text-foreground">Individual {unitPlural(product.risellerUomName)}</span>
                       <span className="mt-0.5 text-xs text-muted-foreground">Buy any quantity</span>
                       <span className="mt-2 text-sm font-semibold text-foreground">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                     </button>
@@ -414,7 +446,7 @@ export default function ProductDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <StockBadge state={stock.state} label={stock.label} isMadeToOrder={stock.isMadeToOrder} />
               {stock.state !== "untracked" && stock.state !== "out_of_stock" && Number.isFinite(stock.available) && stock.available > 0 && (
-                <span className="text-xs text-muted-foreground/70">{stock.available.toLocaleString()} units available</span>
+                <span className="text-xs text-muted-foreground/70">{unitCount(stock.available, product.risellerUomName)} available</span>
               )}
             </div>
 
@@ -469,9 +501,18 @@ export default function ProductDetail() {
               <ConfigField
                 label={eligible ? "Add more?" : selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
                 note={eligible ? undefined : selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
-                <input type="number" min={minQty} step={1} value={qty}
+                <input type="number" min={minQty}
+                  max={stock.state === "low_stock" ? Math.floor(stock.available / (selectedTier ? collectionQty : 1)) : undefined}
+                  step={1} value={qty}
                   onChange={(e) => handleQty(e.target.value)}
-                  onBlur={() => { if (qty < minQty) setQty(minQty); setQtyError(null); }}
+                  onBlur={() => {
+                    if (qty < minQty) setQty(minQty);
+                    else if (stock.state === "low_stock") {
+                      const maxQty = Math.floor(stock.available / (selectedTier ? collectionQty : 1));
+                      if (qty > maxQty) setQty(Math.max(minQty, maxQty));
+                    }
+                    setQtyError(null);
+                  }}
                   className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
                 {qtyError && <p className="mt-1.5 text-xs text-accent">{qtyError}</p>}
               </ConfigField>
@@ -496,13 +537,7 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {stock.canOrder && stock.isBackorder && !enterprise && (
-              <div className="flex items-start gap-2 rounded-xl border border-accent/40 bg-accent/5 px-4 py-3 text-xs text-foreground">
-                <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent" />
-                <p><strong>Backorder:</strong> requested quantity may exceed current stock. Contact us to confirm availability.</p>
-              </div>
-            )}
-
+            {stock.canOrder && <LidSuggestions productName={product.name} />}
             {!stock.canOrder ? (
               <a
                 href={whatsappLink(
@@ -519,16 +554,20 @@ export default function ProductDetail() {
                 Request enterprise quote →
               </button>
             ) : showQuantityPanel ? (
-              <button type="button" onClick={handleAddToCart} disabled={sizeMissing || tierMissing}
-                title={sizeMissing ? "Please choose a size first" : tierMissing ? "Please choose how you'd like to buy first" : undefined}
+              <button type="button" onClick={handleAddToCart}
+                disabled={sizeMissing || tierMissing || stock.exceedsAvailable}
+                title={
+                  sizeMissing ? "Please choose a size first"
+                    : tierMissing ? "Please choose how you'd like to buy first"
+                    : stock.exceedsAvailable ? `Only ${stock.available.toLocaleString()} left — reduce the quantity`
+                    : undefined
+                }
                 className={`h-[52px] w-full rounded-full text-sm font-semibold shadow-sm transition-opacity ${
-                  sizeMissing || tierMissing
+                  sizeMissing || tierMissing || stock.exceedsAvailable
                     ? "cursor-not-allowed bg-accent/40 text-accent-foreground/60"
                     : "bg-accent text-accent-foreground hover:opacity-90"
                 }`}>
-                {eligible
-                  ? `Add ${qty.toLocaleString()} more`
-                  : stock.isBackorder ? "Add to cart (backorder)" : "Add to cart"}
+                {eligible ? `Add ${qty.toLocaleString()} more` : "Add to cart"}
               </button>
             ) : null}
 
@@ -572,7 +611,8 @@ export default function ProductDetail() {
               {product.material && <DetailRow label="Material" value={product.material} />}
               {product.finish && <DetailRow label="Finish" value={product.finish} />}
               {product.tags && product.tags.length > 0 && <DetailRow label="Tags" value={product.tags.join(", ")} />}
-              {product.keywords && product.keywords.length > 0 && <DetailRow label="Keywords" value={product.keywords.join(", ")} />}
+              {/* Keywords are deliberately not shown: they hold Riseller's internal item codes and
+                  data-patch markers (e.g. "558, industry-patch-v1"), not words for customers. */}
             </dl>
           </TabsContent>
           <TabsContent value="sizes" className="mt-6">

@@ -34,6 +34,7 @@ import { downloadOrdersListPdf } from "@/lib/pdf";
 import { Download, FileText, LayoutGrid, Rows3 } from "lucide-react";
 import { FULFILLMENT_MODE_KEYS, FULFILLMENT_MODES, stageSortIndex } from "@/lib/fulfillmentModes";
 import { AllOrdersBoard } from "@/components/admin/AllOrdersBoard";
+import { nairobiDateStamp } from "@/lib/serverTime";
 
 
 
@@ -73,6 +74,9 @@ interface ClientFilterParams {
   paymentStatus: string;
   hideTestOrders: boolean;
   needle: string;
+  /** Board view shows every stage including Completed/Closed and awaiting-payment, so it must not
+   *  apply the table's "active orders only" default. */
+  includeFinished?: boolean;
 }
 
 // Every filter dimension this page applies beyond what the backend's list endpoint can express
@@ -112,7 +116,7 @@ function applyClientFilters(list: OrderRecord[], p: ClientFilterParams): OrderRe
       // without this, filtering by paymentStatus=FAILED with status left on "ALL" would hit
       // this default and silently show zero rows — exactly the case the "Failed payments"
       // dashboard alert deep-links into.
-      if (p.status === "ALL" && p.paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
+      if (!p.includeFinished && p.status === "ALL" && p.paymentStatus === "ALL" && (NON_SUCCESSFUL_STATUSES.has(o.status) || DONE_STATUSES.has(o.status))) return false;
     }
 
     if (p.status !== "ALL" && o.status !== p.status) return false;
@@ -164,6 +168,8 @@ function AdminOrdersPage() {
   const [page, setPage] = useState(0);
   const [scope, setScope] = useState<Scope>(isAssignedOnly ? "MINE" : "ALL");
   const [hideTestOrders, setHideTestOrders] = useState(false);
+  // Placed-but-unpaid orders (mostly abandoned checkouts) stay out of the board unless asked for here.
+  const [showAwaitingPayment, setShowAwaitingPayment] = useState(false);
   const [deliveryTab, setDeliveryTab] = useState<DeliveryTab>("ALL");
   // Board (the same card/column design every per-mode tab already uses — see AllOrdersBoard) is
   // now the default view here too, per explicit request. Table stays available as a toggle for
@@ -174,7 +180,7 @@ function AdminOrdersPage() {
   // collapsed by default so the search/status row and the table below get the space instead. Any
   // of the three being non-default auto-opens the panel so an active filter is never hidden.
   const effectiveShowMoreFilters = showMoreFilters
-    || paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL");
+    || paymentStatus !== "ALL" || hideTestOrders || showAwaitingPayment || scope !== (isAssignedOnly ? "MINE" : "ALL");
 
   // Bulk assign — the only bulk action for now; reuses the same eligibility rules and endpoint
   // AssignSelect already applies per-row (must be PAID, not in a terminal status).
@@ -245,9 +251,9 @@ function AdminOrdersPage() {
   const filteredRows = useMemo(
     () => applyClientFilters(sourceOrders, {
       isAssignedOnly, currentUserId, scope, deliveryTab, status, paymentStatus, hideTestOrders,
-      needle: debouncedQ.toLowerCase(),
+      needle: debouncedQ.toLowerCase(), includeFinished: view === "board",
     }),
-    [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab],
+    [sourceOrders, isAssignedOnly, scope, currentUserId, status, paymentStatus, debouncedQ, hideTestOrders, deliveryTab, view],
   );
 
   // Export needs every matching order, not just what's in the shared 500-row cache. The search
@@ -276,6 +282,7 @@ function AdminOrdersPage() {
     }
     return applyClientFilters(all, {
       isAssignedOnly, currentUserId, scope, deliveryTab, status, paymentStatus, hideTestOrders, needle: "",
+      includeFinished: view === "board",
     });
   }
 
@@ -301,7 +308,14 @@ function AdminOrdersPage() {
 
   const totals = useMemo(
     () => ({
-      revenue: filteredRows.reduce((s, o) => s + Number(o.total ?? 0), 0),
+      // Only money actually received counts as revenue (owner, 22 Oct 2026: this tile used to add up every listed
+      // order, unpaid, cancelled and failed included, so it disagreed with the Dashboard's paid-only figures).
+      revenue: filteredRows
+        .filter((o) => o.paymentStatus === "PAID")
+        .reduce((s, o) => s + Number(o.total ?? 0), 0),
+      awaitingPayment: filteredRows
+        .filter((o) => o.paymentStatus === "PENDING" && o.status !== "CANCELLED" && o.status !== "REFUNDED")
+        .reduce((s, o) => s + Number(o.total ?? 0), 0),
       orders: filteredRows.length,
     }),
     [filteredRows],
@@ -377,8 +391,11 @@ function AdminOrdersPage() {
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : totals.orders}</div>
             </div>
             <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
-              <div className="admin-label" style={{ marginBottom: 0 }}>Revenue</div>
+              <div className="admin-label" style={{ marginBottom: 0 }} title="Paid orders in this view. Unpaid, cancelled and failed orders are not counted.">Paid revenue</div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 18, fontWeight: 600 }}>{initialLoading || searching ? "—" : formatKes(totals.revenue)}</div>
+              {!initialLoading && !searching && totals.awaitingPayment > 0 && (
+                <div style={{ fontSize: 12, color: "var(--admin-muted, #6b6b6b)" }}>+ {formatKes(totals.awaitingPayment)} awaiting payment</div>
+              )}
             </div>
             <div className="admin-panel" style={{ padding: "10px 14px", display: "flex", alignItems: "baseline", gap: 8 }}>
               <div className="admin-label" style={{ marginBottom: 0 }}>Filtered</div>
@@ -439,7 +456,7 @@ function AdminOrdersPage() {
                   style={{ fontSize: 12 }}
                 >
                   {effectiveShowMoreFilters ? "Fewer filters" : "More filters"}
-                  {!effectiveShowMoreFilters && (paymentStatus !== "ALL" || hideTestOrders || scope !== (isAssignedOnly ? "MINE" : "ALL")) ? " •" : ""}
+                  {!effectiveShowMoreFilters && (paymentStatus !== "ALL" || hideTestOrders || showAwaitingPayment || scope !== (isAssignedOnly ? "MINE" : "ALL")) ? " •" : ""}
                 </button>
               </div>
               <div style={{ display: "flex", gap: 4 }}>
@@ -472,7 +489,7 @@ function AdminOrdersPage() {
                       setExporting(true);
                       try {
                         const rows = await fetchExportRows();
-                        downloadCsv(`orders-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows.map((o) => ({
+                        downloadCsv(`orders-${nairobiDateStamp()}.csv`, toCsv(rows.map((o) => ({
                           reference: o.reference, status: o.status, payment: o.paymentStatus, gateway: o.paymentGateway,
                           customer: o.customerName, email: o.customerEmail, phone: o.customerPhone, city: o.city,
                           items: o.items.length, subtotal: o.subtotal, shipping: o.shippingFee, total: o.total,
@@ -527,6 +544,16 @@ function AdminOrdersPage() {
                   />
                   Hide test orders
                 </label>
+                {view === "board" && (
+                  <label style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--admin-muted)", whiteSpace: "nowrap" }}>
+                    <input
+                      type="checkbox"
+                      checked={showAwaitingPayment}
+                      onChange={(e) => setShowAwaitingPayment(e.target.checked)}
+                    />
+                    Show unpaid orders on the board
+                  </label>
+                )}
                 {canAssign && currentUserId && (
                   <div role="tablist" aria-label="Assignment scope" style={{ display: "inline-flex", border: "1px solid var(--admin-border)", borderRadius: 8, overflow: "hidden" }}>
                     {/* "MINE" deliberately left out for now, per explicit request — keep this
@@ -608,6 +635,7 @@ function AdminOrdersPage() {
                     onOpenOrder={setOpenId}
                     onOrderUpdated={(o) => applyOrderPatch(o.id, o)}
                     canAssign={canAssign}
+                    showAwaitingPayment={showAwaitingPayment}
                     selectedIds={selectedIds}
                     onToggleSelect={(id) => setSelectedIds((prev) => {
                       const next = new Set(prev);

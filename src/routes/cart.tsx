@@ -1,12 +1,14 @@
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { ArrowRight, MessageCircle, Trash2, ShoppingBag } from "lucide-react";
 import { SiteLayout } from "@/components/SiteLayout";
 import { RewardDeliveryBanners, REWARD_BANNER_SPACER_CLASS } from "@/components/RewardDeliveryBanners";
 import { QuickAddProductStrip } from "@/components/QuickAddProductStrip";
-import { useCart } from "@/contexts/CartContext";
+import { useCart, type CartItem } from "@/contexts/CartContext";
 import { WHATSAPP_NUMBER } from "@/data/products";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
+import { LidSuggestions } from "@/components/LidSuggestions";
 
 
 
@@ -14,9 +16,27 @@ function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
 }
 
+/** Why checkout would refuse this line right now, or null when it's fine. */
+function unavailableReason(it: CartItem): string | null {
+  if (it.purchasable !== false) return null;
+  if (it.stockStatus === "OUT_OF_STOCK" || it.stockStatus === "MADE_TO_ORDER" || !it.unitsInStock) {
+    return "Out of stock now — please remove it to continue.";
+  }
+  return `Only ${it.unitsInStock.toLocaleString()} unit${it.unitsInStock === 1 ? "" : "s"} left — lower the quantity to continue.`;
+}
+
 function CartPage() {
-  const { items, updateQuantity, removeItem, cartTotal, cartLoading } = useCart();
+  const { items, updateQuantity, removeItem, cartTotal, cartLoading, refreshCart } = useCart();
+  const cartProductIds = new Set(items.map((i) => i.productId));
   const navigate = useNavigate();
+  const blocked = items.filter((it) => unavailableReason(it) !== null).length;
+
+  // Stock and prices move every few minutes; show what's true now, not what was true when the
+  // site first loaded.
+  useEffect(() => {
+    void refreshCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleWhatsApp() {
     const lines = items.map((it, i) =>
@@ -117,10 +137,8 @@ function CartPage() {
                             </p>
                           );
                         })()}
-                        {it.isBackorder && (
-                          <p className="mt-1 inline-flex rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent">
-                            Backorder · ~21 days
-                          </p>
+                        {unavailableReason(it) && (
+                          <p className="mt-1 text-xs font-semibold text-destructive">{unavailableReason(it)}</p>
                         )}
                         {/* Clear price breakdown */}
                         <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
@@ -147,7 +165,7 @@ function CartPage() {
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                    <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
                       <div className="flex flex-col gap-1">
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
                           {it.collectionName ? `${it.collectionName}s` : "Qty"}
@@ -175,6 +193,7 @@ function CartPage() {
                           <p className="text-[11px] text-muted-foreground">Minimum order: 1 unit</p>
                         )}
                       </div>
+                      <LidSuggestions productName={it.productName} variant="inline" inCartProductIds={cartProductIds} />
                       <p className="font-display text-base">{fmt(it.lineTotal)}</p>
                     </div>
                   </div>
@@ -203,11 +222,18 @@ function CartPage() {
                 </dl>
                 <button
                   type="button"
+                  disabled={blocked > 0}
                   onClick={() => navigate("/checkout")}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90"
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Proceed to checkout <ArrowRight className="h-4 w-4" />
                 </button>
+                {blocked > 0 && (
+                  <p className="mt-2 text-xs text-destructive">
+                    {blocked === 1 ? "One item is" : `${blocked} items are`} no longer available as listed. Remove or
+                    adjust {blocked === 1 ? "it" : "them"} above to continue.
+                  </p>
+                )}
 
                 <div className="mt-5 rounded-xl border border-kraft/25 bg-kraft/[0.06] p-3">
                   <p className="text-xs text-muted-foreground">

@@ -17,6 +17,7 @@ import autoTable, { type RowInput, type UserOptions } from "jspdf-autotable";
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import type { AnalyticsExportPayload } from "@/lib/analyticsExport";
 import { resolveStatusDisplay } from "@/lib/orderStatusV2";
+import { nairobiDateStamp } from "@/lib/serverTime";
 
 // ── Logo — loaded once, converted to a PNG data URL so jsPDF can embed it ──────
 interface LogoData {
@@ -833,7 +834,7 @@ export async function downloadOrdersListPdf(
 
   save(
     doc,
-    `orders-report-${new Date().toISOString().slice(0, 10)}.pdf`,
+    `orders-report-${nairobiDateStamp()}.pdf`,
     `${BRAND.name}  ·  Orders Report  ·  ${rows.length} orders  ·  ` + `${fmt(revenue)} revenue  ·  ${paidCt} paid`,
   );
 }

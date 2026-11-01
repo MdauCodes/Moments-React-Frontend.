@@ -1,4 +1,5 @@
 import type { Product } from "@/data/products";
+import { unitCount } from "@/lib/uomLabel";
 
 export type StockState = "in_stock" | "low_stock" | "out_of_stock" | "untracked";
 
@@ -7,10 +8,15 @@ export interface StockInfo {
   available: number;
   threshold: number;
   label: string;
-  /** True when an order would exceed available units (backorder mode) — still allowed, distinct
-   *  from canOrder below. Only ever true for LOW_STOCK; OUT_OF_STOCK/MADE_TO_ORDER always report
-   *  isBackorder: false since there's no cart path left for them to modify. */
-  isBackorder: boolean;
+  /** True when the requested quantity is more than what's actually in stock. Distinct from
+   *  canOrder below: canOrder says whether the PRODUCT is orderable at all (false only for
+   *  OUT_OF_STOCK/MADE_TO_ORDER); this says whether the QUANTITY currently asked for fits within
+   *  it. Only ever true for LOW_STOCK — 2026-09-27 policy change: ordering more than what's
+   *  available is no longer allowed at any quantity, full stop (no more backorders/extended lead
+   *  times) — callers must block the add and prompt to reduce quantity when this is true, not
+   *  just note it. OUT_OF_STOCK/MADE_TO_ORDER always report false since there's no cart path left
+   *  for them to modify. */
+  exceedsAvailable: boolean;
   /** False for OUT_OF_STOCK and MADE_TO_ORDER — direct purchase is disabled for both (2026-09-03
    *  policy change: stop selling what isn't actually ready, however briefly, rather than
    *  auto-accepting backorders/on-demand production through checkout). Callers should swap the
@@ -27,7 +33,7 @@ export interface StockInfo {
  * Pass a `variant` to get variant-specific availability.
  */
 export function getStockInfo(
-  product: Pick<Product, "stock" | "lowStockThreshold" | "trackInventory" | "stockStatus">,
+  product: Pick<Product, "stock" | "lowStockThreshold" | "trackInventory" | "stockStatus" | "risellerUomName">,
   variant?: { stock?: number } | null,
   requestedQty = 0,
 ): StockInfo {
@@ -45,7 +51,7 @@ export function getStockInfo(
       available: 0,
       threshold,
       label: "Made to order — not available for direct purchase",
-      isBackorder: false,
+      exceedsAvailable: false,
       canOrder: false,
       isMadeToOrder: true,
     };
@@ -57,7 +63,7 @@ export function getStockInfo(
       available: 0,
       threshold,
       label: "Out of stock",
-      isBackorder: false,
+      exceedsAvailable: false,
       canOrder: false,
       isMadeToOrder: false,
     };
@@ -68,8 +74,8 @@ export function getStockInfo(
       state: "low_stock",
       available,
       threshold,
-      label: `Only ${available.toLocaleString()} left`,
-      isBackorder: requestedQty > available,
+      label: `Only ${unitCount(available, product.risellerUomName)} left`,
+      exceedsAvailable: requestedQty > available,
       canOrder: true,
       isMadeToOrder: false,
     };
@@ -80,8 +86,8 @@ export function getStockInfo(
       state: "in_stock",
       available,
       threshold,
-      label: `In stock — ${available.toLocaleString()} units`,
-      isBackorder: false,
+      label: `In stock — ${unitCount(available, product.risellerUomName)}`,
+      exceedsAvailable: false,
       canOrder: true,
       isMadeToOrder: false,
     };
@@ -92,7 +98,7 @@ export function getStockInfo(
     available: Number.POSITIVE_INFINITY,
     threshold,
     label: "In stock",
-    isBackorder: false,
+    exceedsAvailable: false,
     canOrder: true,
     isMadeToOrder: false,
   };
