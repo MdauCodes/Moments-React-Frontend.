@@ -155,9 +155,9 @@ export function QuickAddUomButtons({
                   aria-label={`Decrease quantity of ${opt.label}`}
                   onClick={(e) => stepperTap(e, opt.key, -1)}
                   disabled={mult <= 1}
-                  className="grid h-full w-6 place-items-center text-foreground/60 transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                  className="grid h-full min-h-[32px] w-8 place-items-center text-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
                 >
-                  <Minus className="h-2.5 w-2.5" />
+                  <Minus className="h-3.5 w-3.5" />
                 </button>
                 <span className="min-w-[1.1rem] text-center text-[11px] font-semibold tabular-nums sm:text-xs">
                   {mult}
@@ -166,9 +166,9 @@ export function QuickAddUomButtons({
                   type="button"
                   aria-label={`Increase quantity of ${opt.label}`}
                   onClick={(e) => stepperTap(e, opt.key, 1)}
-                  className="grid h-full w-6 place-items-center text-foreground/60 transition-colors hover:bg-secondary"
+                  className="grid h-full min-h-[32px] w-8 place-items-center text-foreground transition-colors hover:bg-secondary"
                 >
-                  <Plus className="h-2.5 w-2.5" />
+                  <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
               )}
@@ -247,8 +247,9 @@ export function QuickAddUomButtons({
               </span>
             )}
           </span>
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+          <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground">
             <Plus className="h-4 w-4" />
+            Add
           </span>
         </button>
       ))}

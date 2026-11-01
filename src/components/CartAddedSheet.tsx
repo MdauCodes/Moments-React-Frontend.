@@ -154,10 +154,9 @@ export function CartAddedSheet() {
           <button
             type="button"
             onClick={close}
-            aria-label="Dismiss"
-            className="shrink-0 rounded-full p-1 text-foreground/30 transition-colors hover:bg-secondary hover:text-foreground"
+            className="shrink-0 rounded-full px-2 py-1 text-xs font-medium text-foreground/60 transition-colors hover:bg-secondary hover:text-foreground"
           >
-            ×
+            × Close
           </button>
         </div>
 

@@ -5,6 +5,7 @@ import {
   BadgeCheck,
   Briefcase,
   Flame,
+  Info,
   PackageCheck,
   Search,
   ShieldCheck,
@@ -54,6 +55,10 @@ const SPLASH_KEY = "moments_splash_shown";
 const GOLD = "#e8c878";
 const FEED_BATCH = 12;
 const FEED_MAX = 96;
+
+/** An icon with its word underneath (owner, 2026-11-01), as in the site header and the bottom bar. */
+const LABELLED_ICON =
+  "flex h-12 min-w-[48px] flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 text-[11px] font-medium leading-none hover:bg-white/10";
 
 const kes = (n: number) =>
   `KES ${n.toLocaleString("en-KE", { minimumFractionDigits: 0, maximumFractionDigits: n < 10 ? 2 : 0 })}`;
@@ -205,45 +210,40 @@ function MarketHeader() {
           </Link>
         </nav>
         <div className="ml-auto flex items-center gap-1 text-white lg:ml-0">
-          <Link
-            to="/discover"
-            className="rounded-full px-2.5 py-1.5 text-xs font-medium hover:bg-white/10 lg:hidden"
-          >
+          <Link to="/discover" className={`${LABELLED_ICON} lg:hidden`}>
+            <Info className="h-5 w-5" />
             Why Moments
           </Link>
           {isAuthenticated ? (
-            <Link
-              to="/account/dashboard"
-              aria-label="My account"
-              className="grid h-10 w-10 place-items-center rounded-full hover:bg-white/10"
-            >
+            <Link to="/account/dashboard" className={LABELLED_ICON}>
               <User className="h-5 w-5" />
+              Account
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={() => openLogin()}
-              className="hidden rounded-full px-3 py-1.5 text-sm hover:bg-white/10 sm:inline"
-            >
+            <button type="button" onClick={() => openLogin()} className={LABELLED_ICON}>
+              <User className="h-5 w-5" />
               Sign in
             </button>
           )}
           <Link
             to="/cart"
-            aria-label="Cart"
-            className={`relative grid h-10 w-10 place-items-center rounded-full transition-transform duration-500 hover:bg-white/10 ${
-              cartBump ? "scale-110" : "scale-100"
-            }`}
+            aria-label={
+              itemCount > 0 ? `Cart, ${itemCount} item${itemCount === 1 ? "" : "s"}` : "Cart"
+            }
+            className={`${LABELLED_ICON} transition-transform duration-500 ${cartBump ? "scale-110" : "scale-100"}`}
           >
-            <ShoppingBag className="h-5 w-5" />
-            {itemCount > 0 && (
-              <span
-                className="absolute right-0.5 top-0.5 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-forest"
-                style={{ background: GOLD }}
-              >
-                {itemCount > 99 ? "99+" : itemCount}
-              </span>
-            )}
+            <span className="relative">
+              <ShoppingBag className="h-5 w-5" />
+              {itemCount > 0 && (
+                <span
+                  className="absolute -right-3 -top-2 grid h-[18px] min-w-[18px] place-items-center rounded-full px-1 text-[10px] font-bold text-forest"
+                  style={{ background: GOLD }}
+                >
+                  {itemCount > 99 ? "99+" : itemCount}
+                </span>
+              )}
+            </span>
+            Cart
           </Link>
         </div>
       </div>
