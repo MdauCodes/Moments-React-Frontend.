@@ -18,8 +18,9 @@ import { api, type Segment, type Category as TaxCategory, type Subcategory } fro
  */
 type SimpleNav = { to: string; label: string };
 
-// Order: [Shop dropdown], Company, Sustainability, Track Order, Deals.
+// Order: [Shop dropdown], Why Moments, Company, Sustainability, Track Order, Deals.
 const navAfterShop: readonly SimpleNav[] = [
+  { to: "/discover", label: "Why Moments" },
   { to: "/company-profile", label: "About Us" },
   { to: "/privacy", label: "Privacy Policy" },
   { to: "/sustainability", label: "Our Sustainability Pledge" },

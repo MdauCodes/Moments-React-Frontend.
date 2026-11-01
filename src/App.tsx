@@ -238,6 +238,10 @@ export default function App() {
                   <Routes>
                     {/* Public */}
                     <Route path="/" element={<HomePage />} />
+                    {/* The full home page (story, guarantees, accounts, testimonials, blogs) keeps
+                        its own address and nav item ("Why Moments") while "/" becomes the
+                        sales-first market page — plans/MARKET_HOME_PLAN_2026-11-01.md. */}
+                    <Route path="/discover" element={<HomePage />} />
                     {LAUNCH_PAGE_ENABLED && <Route path="/launch" element={<LaunchCountdownPage />} />}
                     <Route path="/about" element={<AboutPage />} />
                     <Route path="/contact" element={<ContactPage />} />

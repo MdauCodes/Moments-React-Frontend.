@@ -65,6 +65,16 @@ export const STATIC_PAGES = {
       "Need your logo on it? Custom-branded packaging is available on request, with low minimum order quantities.",
     ],
   },
+  "/discover": {
+    title: "Why Moments Packaging — Quality Packaging Supplier in Nairobi",
+    description:
+      "Why Kenyan businesses buy their packaging from Moments: stock you can see in Nairobi CBD, M-Pesa checkout, same-day Nairobi delivery, business accounts and custom-branded packaging.",
+    h1: "Why businesses choose Moments Packaging",
+    intro: [
+      "Moments Packaging Kenya supplies paper bags, boxes and cartons, cups and lids, food containers, mailers, wrapping and gifting packaging to restaurants, cafés, bakeries, shops and events across Kenya.",
+      "Buy online with M-Pesa or in person at our Ukwala Road shop, open a business or individual account for better prices, and ask us for packaging printed with your logo.",
+    ],
+  },
   "/products": {
     title: "Shop Packaging Online in Kenya — All Products | Moments Packaging",
     description:

@@ -44,6 +44,7 @@ const SITE_ORIGIN = "https://momentspackaging.com";
 
 const STATIC_PAGES = [
   { loc: "/", changefreq: "weekly", priority: "1.0" },
+  { loc: "/discover", changefreq: "monthly", priority: "0.7" },
   { loc: "/products", changefreq: "weekly", priority: "0.9" },
   // Guide pages (src/seo/guidePages.js): canonical with a trailing slash, like the hubs.
   ...GUIDE_PAGES.map((g) => ({

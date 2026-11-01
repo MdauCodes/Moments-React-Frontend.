@@ -133,6 +133,9 @@ function HomeNav() {
           />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-white">
+          <Link to="/discover" className="hover:opacity-80">
+            Why Moments
+          </Link>
           <Link to="/company-profile" className="hover:opacity-80">
             About Us
           </Link>
