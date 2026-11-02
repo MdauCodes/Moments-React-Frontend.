@@ -221,7 +221,7 @@ export function RisellerRecordReminder() {
       <AlertDialogContent
         className="max-h-[90vh] overflow-hidden border-2 border-amber-500 sm:max-w-lg"
         onEscapeKeyDown={(e) => {
-          if (mustDo) e.preventDefault();
+          if (mustDo) parkForNow();
           else later();
         }}
       >
@@ -238,7 +238,8 @@ export function RisellerRecordReminder() {
             <AlertDialogDescription>
               These sold on the website and Riseller doesn't know yet. Enter each one in Riseller,
               then tick it here.
-              {mustDo && " This stays open until every product is ticked."}
+              {mustDo &&
+                " Orders waiting? Close this for 30 minutes and carry on; it comes back until every product is ticked."}
             </AlertDialogDescription>
           </div>
         </div>
@@ -307,7 +308,7 @@ export function RisellerRecordReminder() {
             </p>
           </div>
         )}
-        {mustDo && tickError && (
+        {mustDo && (
           <AlertDialogFooter>
             <Button variant="outline" onClick={parkForNow}>
               Close for 30 minutes
