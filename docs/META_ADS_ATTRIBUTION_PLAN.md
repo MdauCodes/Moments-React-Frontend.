@@ -46,7 +46,7 @@ each has a recommended default, so work can start on the defaults.
 
 | Piece | Where | Notes |
 |---|---|---|
-| Meta Pixel `978799355262510` (dataset "Moments E-commerce") | `src/components/MetaPixel.tsx`, mounted in `App.tsx` | Loads **only after cookie consent** (`localStorage["mpk_cookie_consent_v1"].choice === "accepted"`, or the `mpk:cookies-accepted` window event). Sends `PageView` per route change. `disablePushState` + `allowDuplicatePageViews` are set deliberately; don't remove them (without them staff pages get tracked and repeat PageViews are dropped). Only runs on `momentspackaging.com`. **No other events are sent yet.** |
+| Meta Pixel `28872239562427084` (dataset "Moments E-commerce") | `src/components/MetaPixel.tsx`, mounted in `App.tsx` | Loads **only after cookie consent** (`localStorage["mpk_cookie_consent_v1"].choice === "accepted"`, or the `mpk:cookies-accepted` window event). Sends `PageView` per route change. `disablePushState` + `allowDuplicatePageViews` are set deliberately; don't remove them (without them staff pages get tracked and repeat PageViews are dropped). Only runs on `momentspackaging.com`. **No other events are sent yet.** |
 | Cookie banner | `src/components/CookieConsent.tsx` | Appears only after **3 minutes** on site (`SHOW_AFTER_MS`). Most ad visitors leave before that, so the pixel never loads for them. See decision D3. |
 | Anonymous session ID | `src/config/api.ts` (`mpk_session_id`, sent as `X-Session-Id` by `apiFetch({ session: true })`) | Same ID is already sent in the checkout body (`CheckoutRequest.sessionId`) and used by the page-journey and checkout-funnel trackers. It's the join key for "which visit became which order". |
 | Page-view beacon | `src/services/pageJourneyTracker.ts` → `POST /api/v1/public/page-journey/event` → table `page_view_events(session_id, path, created_at)` | Stores path only: **no UTM, referrer or click ID**. |
@@ -107,7 +107,7 @@ Two sources of truth, on purpose:
 The owner does these in Meta Business Manager / Events Manager. The implementer only needs the outputs.
 
 1. **Verify the domain** `momentspackaging.com` (Business Settings → Brand safety → Domains). Use the **DNS TXT** method; DNS for momentspackaging.com is at Namecheap (Advanced DNS). Alternatively add Meta's `<meta name="facebook-domain-verification">` tag to `index.html`; if so, the implementer adds it.
-2. **Confirm the pixel is the dataset** "Moments E-commerce" (`978799355262510`) and it's connected to the ad account.
+2. **Confirm the pixel is the dataset** "Moments E-commerce" (`28872239562427084`) and it's connected to the ad account.
 3. **Create a Conversions API access token.** Events Manager → dataset → Settings → Conversions API → Generate access token; a System User token is preferred. Store it only as a Railway environment variable on the production backend: `META_CAPI_ACCESS_TOKEN`. Never commit it and never put it in the frontend.
 4. **Get a test event code** (Events Manager → Test events) for verification: Railway env `META_CAPI_TEST_EVENT_CODE`. Remove it after go-live.
 5. **Event priority** (Aggregated Event Measurement, if Meta still shows it for this account): Purchase first, then InitiateCheckout, AddToCart, ViewContent, Lead.
@@ -263,7 +263,7 @@ Why: bank-transfer and cash-on-delivery orders are confirmed by staff hours late
 
 ### 6.1 Implementation
 
-- New `marketing/service/MetaConversionsService.java`, enabled only when `META_CAPI_ACCESS_TOKEN` is set (log once at startup if disabled). Dataset ID in config: `meta.capi.dataset-id=978799355262510` in `application.yml`.
+- New `marketing/service/MetaConversionsService.java`, enabled only when `META_CAPI_ACCESS_TOKEN` is set (log once at startup if disabled). Dataset ID in config: `meta.capi.dataset-id=28872239562427084` in `application.yml`.
 - Trigger: publish an `OrderPaidEvent` at the end of `PaymentService.applySuccessfulPayment` (after the existing work). Handle it with `@TransactionalEventListener(phase = AFTER_COMMIT)` + `@Async`. **Never** call Meta inside the payment transaction: a slow or failed Meta call must not roll back or delay a payment. The early-return guard in `applySuccessfulPayment` already makes this fire at most once per order.
 - Send only when: token configured AND order not `isTestOrder`/`preLaunchDemoOrder` AND `order_attribution.consent_marketing = true` (decision D2). Otherwise set `meta_capi_status` to `SKIPPED_NO_CONSENT` / `SKIPPED_TEST`.
 - Request: `POST https://graph.facebook.com/v<current>/<datasetId>/events?access_token=...`. Check the current Graph API version at implementation time; don't hardcode an old one. Body:

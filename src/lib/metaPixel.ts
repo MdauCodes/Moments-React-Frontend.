@@ -3,7 +3,7 @@
 // src/components/MetaPixel.tsx; page code sends events through src/lib/metaEvents.ts.
 import { getConsentChoice } from "@/lib/cookieConsent";
 
-export const PIXEL_ID = "978799355262510";
+export const PIXEL_ID = "28872239562427084";
 
 /** Only the live storefront reports to Meta; staging and local builds would pollute the data.
  *  To test on another host on purpose, run localStorage.setItem("mpk_meta_pixel_debug", "1"). */
