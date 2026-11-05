@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { adminJson } from "@/services/adminApi";
-import { TumaBodaStrategyGuideContent } from "@/components/admin/TumaBodaStrategyNotice";
+import { TumaBodaStrategyGuideContent, WALLET_UPDATED_EVENT } from "@/components/admin/TumaBodaStrategyNotice";
+import { useAuth } from "@/contexts/AdminAuthContext";
+import { formatKes } from "@/components/admin/commerceUi";
+import { tumaBodaSettlementApi } from "@/services/tumaBodaSettlementService";
 
 const NOTICE_KEY = "tumaboda-payment-strategy-2026-11";
 /** Countdown length once someone has had time to read. */
@@ -38,7 +41,8 @@ function snoozed(userId: string): boolean {
  * of the guide. Someone who reaches the end faster than they could have read it gets a countdown
  * three times slower, until they have had the guide open long enough to read it.
  * "Understood" is saved on the server, so it holds on every device. "Read later" hides it on this
- * browser for a few hours.
+ * browser for a few hours. Admins also get "Record top-up", which records the wallet payment in
+ * the same step and counts as understood.
  */
 export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false);
@@ -48,6 +52,12 @@ export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
   const [readMs, setReadMs] = useState(MAX_READ_MS);
   const [saving, setSaving] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const { isAdmin } = useAuth();
+  const [step, setStep] = useState<"read" | "topup">("read");
+  const [amount, setAmount] = useState("");
+  const [code, setCode] = useState("");
+  const [method, setMethod] = useState("mpesa");
+  const [note, setNote] = useState("Opening balance");
 
   useEffect(() => {
     if (understoodThisVisit.has(userId) || snoozed(userId)) return;
@@ -106,15 +116,50 @@ export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
     hint = `${secondsLeft} second${plural} to go, counting slowly because you reached the end quickly. Take time to read the guide and it will speed up.`;
   else hint = `The buttons work in ${secondsLeft} second${plural}.`;
 
+  const acknowledge = async () => {
+    await adminJson(`/api/v1/admin/notices/${NOTICE_KEY}/acknowledge`, { method: "POST" });
+    understoodThisVisit.add(userId);
+    try { window.localStorage.removeItem(laterKey(userId)); } catch { /* storage unavailable */ }
+    setOpen(false);
+  };
+
   const understood = async () => {
     setSaving(true);
     try {
-      await adminJson(`/api/v1/admin/notices/${NOTICE_KEY}/acknowledge`, { method: "POST" });
-      understoodThisVisit.add(userId);
-      try { window.localStorage.removeItem(laterKey(userId)); } catch { /* storage unavailable */ }
-      setOpen(false);
+      await acknowledge();
     } catch {
       toast.error("Couldn't save that. Check your connection and try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const topUpAmount = Number(amount);
+  const topUpValid = Number.isFinite(topUpAmount) && topUpAmount > 0 && code.trim().length >= 3;
+
+  const recordTopUp = async () => {
+    if (!topUpValid || saving) return;
+    setSaving(true);
+    try {
+      await tumaBodaSettlementApi.recordPayment({
+        ledger: "WALLET",
+        amount: topUpAmount,
+        reference: code.trim(),
+        method,
+        notes: note.trim() || undefined,
+      });
+      window.dispatchEvent(new Event(WALLET_UPDATED_EVENT));
+      toast.success(`Top-up of ${formatKes(topUpAmount)} recorded. Customers can choose TumaBoda while the balance covers the fee.`);
+    } catch {
+      toast.error("Couldn't record the top-up. Nothing was saved, so you can try again.");
+      setSaving(false);
+      return;
+    }
+    // The money is recorded. Marking the guide as read is secondary: if that fails, it just shows again.
+    try {
+      await acknowledge();
+    } catch {
+      setOpen(false);
     } finally {
       setSaving(false);
     }
@@ -157,9 +202,43 @@ export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
         <div style={{ padding: "12px 20px", fontSize: 12, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "var(--admin-muted)", borderBottom: "1px solid var(--admin-border)" }}>
           Please read: change to TumaBoda deliveries
         </div>
-        <div ref={bodyRef} onScroll={checkEnd} style={{ padding: 20, overflowY: "auto", flex: 1 }}>
+        <div ref={bodyRef} onScroll={checkEnd} style={{ padding: 20, overflowY: "auto", flex: 1, display: step === "read" ? undefined : "none" }}>
           <TumaBodaStrategyGuideContent titleId="tumaboda-guide-title" />
         </div>
+        {step === "topup" && (
+          <form
+            id="tumaboda-guide-topup"
+            onSubmit={(e) => { e.preventDefault(); void recordTopUp(); }}
+            style={{ padding: 20, overflowY: "auto", flex: 1, display: "grid", gap: 12, alignContent: "start" }}
+          >
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Record a wallet top-up</h2>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--admin-muted)" }}>
+              Enter money already paid to TumaBoda. This records it in Moments; it doesn't move any money.
+            </p>
+            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+              <span className="admin-label">Amount paid (KES)</span>
+              <input className="admin-input" type="number" min="1" step="0.01" inputMode="decimal" required autoFocus
+                value={amount} onChange={(e) => setAmount(e.target.value)} />
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+              <span className="admin-label">M-Pesa code or bank reference</span>
+              <input className="admin-input" required minLength={3} maxLength={100} placeholder="e.g. SKD4XXXXXX"
+                value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} />
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+              <span className="admin-label">Paid by</span>
+              <select className="admin-input" value={method} onChange={(e) => setMethod(e.target.value)}>
+                <option value="mpesa">M-Pesa</option>
+                <option value="bank_transfer">Bank transfer</option>
+                <option value="other">Other</option>
+              </select>
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+              <span className="admin-label">Note</span>
+              <input className="admin-input" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+            </label>
+          </form>
+        )}
         <div
           style={{
             padding: "12px 20px",
@@ -171,6 +250,18 @@ export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
             flexWrap: "wrap",
           }}
         >
+          {step === "topup" ? (
+            <>
+              <button type="button" className="admin-btn admin-btn-ghost" disabled={saving} onClick={() => setStep("read")}>
+                Back to the guide
+              </button>
+              <button type="submit" form="tumaboda-guide-topup" className="admin-btn admin-btn-primary"
+                disabled={saving || !topUpValid} style={{ marginLeft: "auto" }}>
+                {saving ? "Saving…" : `Record ${topUpValid ? formatKes(topUpAmount) : "top-up"}`}
+              </button>
+            </>
+          ) : (
+          <>
           <span
             aria-live="polite"
             data-skimmed={!ready && atEnd && skimmed ? "true" : undefined}
@@ -182,10 +273,17 @@ export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
             <button type="button" className="admin-btn admin-btn-ghost" disabled={!ready || saving} onClick={later}>
               Read later
             </button>
+            {isAdmin && (
+              <button type="button" className="admin-btn admin-btn-ghost" disabled={!ready || saving} onClick={() => setStep("topup")}>
+                Record top-up
+              </button>
+            )}
             <button type="button" className="admin-btn admin-btn-primary" disabled={!ready || saving} onClick={() => void understood()}>
               {saving ? "Saving…" : "Understood"}
             </button>
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>

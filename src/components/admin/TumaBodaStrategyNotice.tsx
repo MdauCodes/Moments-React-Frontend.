@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { formatKes } from "@/components/admin/commerceUi";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
+import { adminResources } from "@/services/adminResources";
 import {
   tumaBodaSettlementApi,
   type TumaBodaFunding,
@@ -13,6 +14,12 @@ const H3 = { margin: "16px 0 0", fontSize: 14, fontWeight: 700 } as const;
 const OL = { margin: "6px 0 0", paddingLeft: 20, fontSize: 13, lineHeight: 1.6, listStyleType: "decimal" } as const;
 const UL = { margin: "6px 0 0", paddingLeft: 20, fontSize: 13, lineHeight: 1.6, listStyleType: "disc" } as const;
 const P = { margin: "6px 0 0", fontSize: 13, lineHeight: 1.6 } as const;
+
+/** Where Moments pays TumaBoda. Not published by TumaBoda, so admins save them under Delivery Settings. */
+export const TOPUP_PAYBILL_KEY = "tumaboda.wallet.paybill";
+export const TOPUP_ACCOUNT_KEY = "tumaboda.wallet.account";
+/** Fired after a top-up is recorded, so every copy of the guide shows the new balance. */
+export const WALLET_UPDATED_EVENT = "tumaboda-wallet-updated";
 
 const MODE_LABEL: Record<TumaBodaFundingMode, string> = {
   WALLET: "Wallet (prepaid)",
@@ -41,17 +48,30 @@ export function TumaBodaStrategyGuideContent({ titleId }: { titleId: string }) {
   const { isAdmin, hasPermission } = useAuth();
   const [mode, setMode] = useState<TumaBodaFundingMode | null>(null);
   const [funding, setFunding] = useState<TumaBodaFunding | null>(null);
+  const [paybill, setPaybill] = useState<string | null>(null);
+  const [account, setAccount] = useState<string | null>(null);
 
   useEffect(() => {
     // A failed read only hides the "active now" line: the instructions still show.
     if (isAdmin) {
-      tumaBodaSettlementApi
-        .getFunding()
-        .then((f) => {
-          setFunding(f);
-          setMode(f.mode);
+      const loadFunding = () =>
+        tumaBodaSettlementApi
+          .getFunding()
+          .then((f) => {
+            setFunding(f);
+            setMode(f.mode);
+          })
+          .catch(() => undefined);
+      void loadFunding();
+      adminResources.settings
+        .list()
+        .then((rows) => {
+          setPaybill(rows.find((r) => r.key === TOPUP_PAYBILL_KEY)?.value?.trim() || null);
+          setAccount(rows.find((r) => r.key === TOPUP_ACCOUNT_KEY)?.value?.trim() || null);
         })
         .catch(() => undefined);
+      window.addEventListener(WALLET_UPDATED_EVENT, loadFunding);
+      return () => window.removeEventListener(WALLET_UPDATED_EVENT, loadFunding);
     } else {
       tumaBodaSettlementApi
         .getActiveFundingMode()
@@ -109,11 +129,26 @@ export function TumaBodaStrategyGuideContent({ titleId }: { titleId: string }) {
       {isAdmin ? (
         <ol style={OL}>
           <li>Open the TumaBoda dashboard and note how much is in the wallet.</li>
-          <li>If it's empty or low, top up there or by Paybill.</li>
           <li>
-            In Moments, go to <b>Delivery</b> › {link("/admin/tumaboda-settlements", "TumaBoda Settlements", canSettle)} ›{" "}
-            <b>Wallet</b> tab, and use <b>Record a top-up</b> for the full amount now in the TumaBoda wallet. Money that was
-            already there counts too: record it once, with the note "opening balance".
+            If it's empty or low, pay TumaBoda by M-Pesa:{" "}
+            {paybill ? (
+              <>
+                Paybill <b>{paybill}</b>
+                {account ? <>, account <b>{account}</b></> : <>, with the account number shown on the TumaBoda dashboard</>}.
+              </>
+            ) : (
+              <>
+                use the Paybill and account number shown on the TumaBoda dashboard. Save them under <b>Delivery</b> ›{" "}
+                {link("/admin/delivery-settings", "Delivery Settings", true)} and they'll show here for everyone.
+              </>
+            )}{" "}
+            Keep the M-Pesa confirmation code. A bank transfer works too, from the details on the TumaBoda dashboard.
+          </li>
+          <li>
+            Record it in Moments: once you've read this guide, press <b>Record top-up</b> at the bottom of it. You can also
+            do it any time under <b>Delivery</b> › {link("/admin/tumaboda-settlements", "TumaBoda Settlements", canSettle)} ›{" "}
+            <b>Wallet</b>. Record the full amount now in the TumaBoda wallet: money that was already there counts too, so
+            record it once as the opening balance.
           </li>
           <li>Check that the wallet balance on that page matches the TumaBoda dashboard.</li>
           <li>
