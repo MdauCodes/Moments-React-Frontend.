@@ -67,15 +67,16 @@ export interface NavSection {
   items: NavItem[];
 }
 
-// Ordered by day-to-day usability for staff, not alphabetically or by when a section was
-// added — daily operational work first, technical/reference material last (Help and Developer
-// are both low-frequency reference material, so they sit next to each other at the bottom).
+// Grouped by what the work is about, daily operational work first and reference material last.
+// Each section holds only items that belong under its title.
 export const navSections: NavSection[] = [
   {
+    // The three views worth a daily glance.
     label: "Overview",
     items: [
-      // Dashboard adapts internally — show whenever there's anything to show.
       { label: "Dashboard", to: "/admin/dashboard", icon: LayoutDashboard, requiresAny: [PERM.ANALYTICS_VIEW, PERM.ORDER_VIEW, PERM.USER_MANAGE_ROLES, PERM.PRODUCT_MANAGE, PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.USER_VIEW] },
+      { label: "Analytics", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Needs Attention", to: "/admin/analytics/needs-attention", icon: AlertTriangle, requiresAny: [PERM.ANALYTICS_VIEW] },
     ],
   },
   {
@@ -86,25 +87,39 @@ export const navSections: NavSection[] = [
       { label: "Manual Delivery", to: "/admin/board/manual-delivery", icon: PackageCheck, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "CBD / Hand Delivery", to: "/admin/board/hand-delivery", icon: Building2, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
       { label: "TumaBoda", to: "/admin/board/tumaboda", icon: ScanLine, requiresAny: [PERM.ORDER_VERIFY_PAYMENT, PERM.ORDER_PREPARE, PERM.ORDER_DISPATCH, PERM.ORDER_MANAGE_ALL] },
+    ],
+  },
+  {
+    // Money coming in from customers and going back to them.
+    label: "Payments",
+    items: [
       { label: "Payments", to: "/admin/payments-log", icon: Coins, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
-      { label: "Failed Payments", to: "/admin/failed-payments", icon: XCircle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
       { label: "Stuck Payments", to: "/admin/payments", icon: AlertTriangle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
-      { label: "Delivery Settings", to: "/admin/delivery-settings", icon: MapPin, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Failed Payments", to: "/admin/failed-payments", icon: XCircle, requiresAny: [PERM.ORDER_VERIFY_PAYMENT] },
       { label: "Refund Requests", to: "/admin/refund-requests", icon: Undo2, requiresAny: [PERM.PAYMENT_REFUND] },
     ],
   },
   {
-    label: "Inventory",
+    // How orders reach customers: the settings, where we deliver, and paying TumaBoda.
+    label: "Delivery",
+    items: [
+      { label: "Delivery Settings", to: "/admin/delivery-settings", icon: MapPin, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Delivery Zones", to: "/admin/delivery-zones", icon: Truck, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
+    ],
+  },
+  {
+    label: "Products",
     items: [
       { label: "Products", to: "/admin/products", icon: Package, requiresAny: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE] },
       { label: "Stock Levels", to: "/admin/inventory", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Classifications", to: "/admin/catalog", icon: ListTree, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Classify Products", to: "/admin/classify-products", icon: LayoutList, requiresAny: [PERM.PRODUCT_MANAGE] },
-      { label: "Delivery Zones", to: "/admin/delivery-zones", icon: Truck, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, adminOnly: true },
     ],
   },
   {
-    label: "Audience",
+    label: "Customers",
     items: [
       { label: "Customers", to: "/admin/customers", icon: Users, requiresAny: [PERM.CUSTOMER_VIEW] },
       { label: "Business Accounts", to: "/admin/business-accounts", icon: Briefcase, requiresAny: [PERM.CUSTOMER_VIEW] },
@@ -114,29 +129,26 @@ export const navSections: NavSection[] = [
     ],
   },
   {
-    label: "Sales",
+    // Bringing customers in and back: discounts, rewards, referrals and the blog.
+    label: "Marketing",
     items: [
-      { label: "TumaBoda Settlements", to: "/admin/tumaboda-settlements", icon: HandCoins, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
-      { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
       { label: "Promo Codes", to: "/admin/promo-codes", icon: TicketPercent, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Rewards Tiers", to: "/admin/rewards-tiers", icon: Gift, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Referral Payout Tiers", to: "/admin/referral-tiers", icon: Share2, requiresAny: [PERM.SETTINGS_MANAGE] },
-      { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Rewards Settings", to: "/admin/rewards-settings", icon: Coins, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Blogs", to: "/admin/blogs", icon: FileText, requiresAny: [PERM.BLOG_MANAGE] },
     ],
   },
   {
-    // The two views actually worth a daily glance. Everything checked weekly/monthly moved to
-    // "Reports" below — an 11-item Analytics section was the single longest list in the sidebar,
-    // and roughly half of it was reference material, not a daily habit.
-    label: "Analytics",
+    // Paperwork issued for orders.
+    label: "Tax & Documents",
     items: [
-      { label: "Overview", to: "/admin/analytics", icon: BarChart3, requiresAny: [PERM.ANALYTICS_VIEW] },
-      { label: "Needs Attention", to: "/admin/analytics/needs-attention", icon: AlertTriangle, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Tax Documents", to: "/admin/tax-documents", icon: Receipt, requiresAny: [PERM.ORDER_VIEW] },
+      { label: "Documents/PDFs", to: "/admin/document-bundles", icon: FileCheck2, requiresAny: [PERM.ORDER_VIEW] },
     ],
   },
   {
+    // Checked weekly or monthly rather than daily.
     label: "Reports",
     items: [
       { label: "Geographic", to: "/admin/analytics/geographic", icon: MapPin, requiresAny: [PERM.ANALYTICS_VIEW] },
@@ -145,37 +157,27 @@ export const navSections: NavSection[] = [
       { label: "Profitability", to: "/admin/analytics/profitability", icon: TrendingUp, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Tax & Compliance", to: "/admin/analytics/tax", icon: Receipt, requiresAny: [PERM.ANALYTICS_VIEW] },
       { label: "Rewards & Referrals", to: "/admin/analytics/rewards", icon: Gift, requiresAny: [PERM.ANALYTICS_VIEW] },
+      { label: "Rewards Report", to: "/admin/rewards-report", icon: TrendingUp, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Data Visualization", to: "/admin/analytics/data-visualization", icon: LayoutGrid, requiresAny: [PERM.ANALYTICS_VIEW] },
     ],
   },
   {
-    label: "Content",
-    items: [
-      { label: "Blogs", to: "/admin/blogs", icon: FileText, requiresAny: [PERM.BLOG_MANAGE] },
-    ],
-  },
-  {
+    // Who can do what, and how the system runs.
     label: "System",
     items: [
       { label: "Users", to: "/admin/users", icon: Users, requiresAny: [PERM.USER_VIEW, PERM.USER_CREATE, PERM.USER_MANAGE_ROLES] },
       { label: "Roles", to: "/admin/roles", icon: ShieldCheck, requiresAny: [PERM.USER_MANAGE_ROLES] },
-      { label: "Audit Logs", to: "/admin/audit-logs", icon: FileText, requiresAny: [PERM.AUDIT_VIEW] },
-      { label: "Changelog", to: "/admin/changelog", icon: BookOpen, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "Settings", to: "/admin/settings", icon: Settings, requiresAny: [PERM.SETTINGS_MANAGE] },
+      { label: "Audit Logs", to: "/admin/audit-logs", icon: FileText, requiresAny: [PERM.AUDIT_VIEW] },
+      { label: "Developer Tools", to: "/admin/developer", icon: Wrench, superAdminOnly: true },
     ],
   },
   {
     label: "Help",
     items: [
       { label: "Feature Guide", to: "/admin/feature-guide", icon: BookOpen },
+      { label: "Changelog", to: "/admin/changelog", icon: BookOpen, requiresAny: [PERM.SETTINGS_MANAGE] },
       { label: "System Architecture", to: "/admin/architecture", icon: Layers, superAdminOnly: true },
-    ],
-  },
-  {
-    label: "Developer",
-    items: [
-      { label: "Developer", to: "/admin/developer", icon: Wrench, superAdminOnly: true },
-      { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, adminOnly: true },
     ],
   },
 ];
