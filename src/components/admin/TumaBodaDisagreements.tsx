@@ -44,7 +44,7 @@ function valueText(kind: string, v: string | null): string {
   return kind === "COST_DIFFERS" ? formatKes(Number(v)) : v;
 }
 
-export function TumaBodaDisagreements() {
+export function TumaBodaDisagreements({ prepaid = false }: { prepaid?: boolean }) {
   const [rows, setRows] = useState<TumaBodaDisagreement[]>([]);
   const [summary, setSummary] = useState<TumaBodaLedgerSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -156,9 +156,11 @@ export function TumaBodaDisagreements() {
           <b>Ledger difference: {formatKes(Math.abs(Number(summary.delta)))}</b>{" "}
           {Number(summary.delta) < 0 ? "more on TumaBoda's side than ours" : "more on our side than TumaBoda's"}
           {summary.differingSince ? `, showing since ${formatDateShort(summary.differingSince)}` : ""}. We have{" "}
-          {formatKes(Number(summary.ourBalance))}, they report {formatKes(Number(summary.theirBalance))}. TumaBoda
-          counts a delivery against your credit when it is booked; our ledger counts it once delivered, so deliveries
-          still on the road are a usual cause. The list below shows the individual orders that differ.
+          {formatKes(Number(summary.ourBalance))}, they report {formatKes(Number(summary.theirBalance))}.{" "}
+          {prepaid
+            ? "A top-up not recorded here, or a return fee, is a usual cause."
+            : "TumaBoda counts a delivery against your credit when it is booked; our ledger counts it once delivered, so deliveries still on the road are a usual cause."}{" "}
+          The list below shows the individual orders that differ.
         </div>
       )}
 

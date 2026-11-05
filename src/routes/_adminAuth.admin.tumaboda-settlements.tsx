@@ -14,6 +14,8 @@ import {
   type TumaBodaPayment,
   type TumaBodaReconciliation,
   type TumaBodaCreditLine,
+  type TumaBodaFunding,
+  type TumaBodaFundingMode,
 } from "@/services/tumaBodaSettlementService";
 
 const REMITTANCE_METHODS = [
@@ -56,14 +58,27 @@ function AdminTumaBodaSettlementsPage() {
   const [liveCreditLine, setLiveCreditLine] = useState<TumaBodaCreditLine | null>(null);
   const [loadingLiveCreditLine, setLoadingLiveCreditLine] = useState(false);
 
+  const [funding, setFunding] = useState<TumaBodaFunding | null>(null);
+  // Both ledgers stay open whichever strategy is active; this opens on the active one.
+  const [view, setView] = useState<TumaBodaFundingMode | null>(null);
+  const ledger: TumaBodaFundingMode = view ?? funding?.mode ?? "WALLET";
+  const prepaid = ledger === "WALLET";
+
   useEffect(() => { document.title = "TumaBoda Settlements · Moments admin"; }, []);
+
+  const loadFunding = async () => {
+    try {
+      setFunding(await tumaBodaSettlementApi.getFunding());
+    } catch (err) {
+      reportAdminError(err, "Loading the TumaBoda wallet");
+    }
+  };
 
   const loadBalance = async () => {
     setLoadingBalance(true);
     try {
       const b = await tumaBodaSettlementApi.getBalance();
       setBalance(b);
-      setPaymentAmount((prev) => prev || (b.outstandingBalance > 0 ? b.outstandingBalance.toFixed(2) : ""));
     } catch (err) {
       reportAdminError(err, "Loading TumaBoda balance");
     } finally {
@@ -74,7 +89,7 @@ function AdminTumaBodaSettlementsPage() {
   const loadPayments = async () => {
     setLoadingPayments(true);
     try {
-      const res = await tumaBodaSettlementApi.getPayments(0, 20);
+      const res = await tumaBodaSettlementApi.getPayments(ledger, 0, 20);
       setPayments(res.rows);
     } catch (err) {
       reportAdminError(err, "Loading TumaBoda payment history");
@@ -86,7 +101,7 @@ function AdminTumaBodaSettlementsPage() {
   const loadReconciliations = async () => {
     setLoadingReconciliations(true);
     try {
-      const res = await tumaBodaSettlementApi.getReconciliations(0, 20);
+      const res = await tumaBodaSettlementApi.getReconciliations(ledger, 0, 20);
       setReconciliations(res.rows);
     } catch (err) {
       reportAdminError(err, "Loading TumaBoda reconciliation history");
@@ -107,7 +122,15 @@ function AdminTumaBodaSettlementsPage() {
     }
   };
 
-  useEffect(() => { void loadBalance(); void loadPayments(); void loadReconciliations(); void loadLiveCreditLine(); }, []);
+  useEffect(() => { void loadBalance(); void loadFunding(); void loadLiveCreditLine(true); }, []);
+  // Waits for the active strategy, so the page doesn't load one ledger and then the other.
+  useEffect(() => {
+    if (!funding && !view) return;
+    void loadPayments();
+    void loadReconciliations();
+    setTheirBalance("");
+    setPaymentAmount(ledger === "CREDIT_LINE" && balance && balance.outstandingBalance > 0 ? balance.outstandingBalance.toFixed(2) : "");
+  }, [ledger, funding !== null]);
   useEffect(() => { if (ordersOpen && orders.length === 0) void loadOrders(); }, [ordersOpen]);
 
   const submitPayment = async (e: FormEvent) => {
@@ -120,17 +143,18 @@ function AdminTumaBodaSettlementsPage() {
     setRecordingPayment(true);
     try {
       await tumaBodaSettlementApi.recordPayment({
+        ledger,
         amount,
         notes: paymentNotes.trim() || undefined,
         reference: paymentReference.trim() || undefined,
         method: paymentMethod || undefined,
       });
-      toast.success(`Recorded payment of ${formatKes(amount)}`);
+      toast.success(`Recorded ${prepaid ? "top-up" : "payment"} of ${formatKes(amount)}`);
       setPaymentAmount("");
       setPaymentNotes("");
       setPaymentReference("");
       setPaymentMethod("");
-      await Promise.all([loadBalance(), loadPayments()]);
+      await Promise.all([loadBalance(), loadPayments(), loadFunding()]);
       setOrders([]);
       if (ordersOpen) void loadOrders();
     } catch (err) {
@@ -140,13 +164,13 @@ function AdminTumaBodaSettlementsPage() {
     }
   };
 
-  const loadLiveCreditLine = async () => {
+  const loadLiveCreditLine = async (quiet = false) => {
     setLoadingLiveCreditLine(true);
     try {
       const c = await tumaBodaSettlementApi.getLiveCreditLine();
       setLiveCreditLine(c);
     } catch (err) {
-      reportAdminError(err, "Fetching TumaBoda's live credit line");
+      if (!quiet) reportAdminError(err, "Fetching TumaBoda's live credit line");
     } finally {
       setLoadingLiveCreditLine(false);
     }
@@ -207,11 +231,16 @@ function AdminTumaBodaSettlementsPage() {
     setRecordingReconciliation(true);
     try {
       const r = await tumaBodaSettlementApi.recordReconciliation({
+        ledger,
         theirReportedBalance: theirs,
         notes: reconciliationNotes.trim() || undefined,
       });
       if (r.delta != null && Math.abs(r.delta) > 0.01) {
-        toast.warning(`Recorded — ${formatKes(Math.abs(r.delta))} disagreement (${r.delta > 0 ? "we show more owed" : "TumaBoda shows more owed"})`);
+        toast.warning(
+          prepaid
+            ? `Recorded — ${formatKes(Math.abs(r.delta))} difference (${r.delta > 0 ? "our estimate is higher than TumaBoda's balance" : "TumaBoda's balance is higher than our estimate"})`
+            : `Recorded — ${formatKes(Math.abs(r.delta))} disagreement (${r.delta > 0 ? "we show more owed" : "TumaBoda shows more owed"})`,
+        );
       } else if (r.delta != null) {
         toast.success("Recorded — balances agree");
       } else {
@@ -230,9 +259,23 @@ function AdminTumaBodaSettlementsPage() {
   if (!allowed) return null;
 
   return (
-    <AdminLayout title="TumaBoda Settlements" onReload={() => { void loadBalance(); void loadPayments(); void loadReconciliations(); void loadLiveCreditLine(); }}>
+    <AdminLayout title="TumaBoda Settlements" onReload={() => { void loadBalance(); void loadPayments(); void loadReconciliations(); void loadFunding(); void loadLiveCreditLine(true); }}>
       <HelpAnchor>
         <HelpPanel title="TumaBoda settlement ledger">
+          {prepaid ? (
+            <div>
+              <p style={{ marginTop: 0 }}>
+                This is the prepaid wallet ledger. Each delivery booked while the wallet is active comes out of this balance.
+              </p>
+              <ul style={{ paddingLeft: 18, margin: "4px 0" }}>
+                <li>Top up on the TumaBoda dashboard or Paybill, then record the top-up here.</li>
+                <li>The balance here is our estimate: top-ups, minus delivered fees, minus fees held for orders paid but not yet delivered.</li>
+                <li>Once a week, enter the balance from the TumaBoda dashboard to catch any difference early.</li>
+                <li>While the wallet is active and the estimate can't cover a delivery fee, customers can't choose TumaBoda at checkout.</li>
+                <li>The active strategy is set under Delivery Settings.</li>
+              </ul>
+            </div>
+          ) : (
           <div>
             <p style={{ marginTop: 0 }}>
               Moments collects full payment from customers at checkout, then owes TumaBoda separately for the
@@ -252,22 +295,63 @@ function AdminTumaBodaSettlementsPage() {
               </li>
             </ul>
           </div>
+          )}
         </HelpPanel>
 
         <div className="admin-page-stack">
+          <div role="tablist" aria-label="TumaBoda ledger" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(["WALLET", "CREDIT_LINE"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                role="tab"
+                aria-selected={ledger === m}
+                className={ledger === m ? "admin-btn admin-btn-primary" : "admin-btn admin-btn-ghost"}
+                onClick={() => setView(m)}
+              >
+                {m === "WALLET" ? "Wallet" : "Credit line"}
+                {funding?.mode === m ? " · Active" : ""}
+              </button>
+            ))}
+          </div>
+
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 14 }} data-admin-stats>
             <div className="admin-panel" style={{ padding: 16 }}>
-              <div className="admin-label">Total owed to date</div>
+              <div className="admin-label">{prepaid ? "Delivery fees to date" : "Total owed to date"}</div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>
-                {loadingBalance ? "—" : formatKes(balance?.totalOwed ?? 0)}
+                {prepaid ? formatKes(funding?.walletDeliveredFees ?? 0) : loadingBalance ? "—" : formatKes(balance?.totalOwed ?? 0)}
               </div>
             </div>
             <div className="admin-panel" style={{ padding: 16 }}>
-              <div className="admin-label">Total paid to date</div>
+              <div className="admin-label">{prepaid ? "Top-ups to date" : "Total paid to date"}</div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>
-                {loadingBalance ? "—" : formatKes(balance?.totalPaid ?? 0)}
+                {prepaid ? formatKes(funding?.walletTopUps ?? 0) : loadingBalance ? "—" : formatKes(balance?.totalPaid ?? 0)}
               </div>
             </div>
+            {prepaid ? (
+              <div className="admin-panel" style={{ padding: 16 }}>
+                <div className="admin-label">Wallet balance (our estimate)</div>
+                <div
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    fontSize: 28,
+                    marginTop: 6,
+                    color:
+                      (funding?.estimatedBalance ?? 0) <= (funding?.criticalBalanceKes ?? 0)
+                        ? "#dc2626"
+                        : (funding?.estimatedBalance ?? 0) <= (funding?.lowBalanceKes ?? 0)
+                          ? "var(--admin-clay)"
+                          : undefined,
+                  }}
+                >
+                  {formatKes(funding?.estimatedBalance ?? 0)}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 6, lineHeight: 1.4 }}>
+                  While the wallet is active and this can't cover a delivery fee, customers can't choose TumaBoda at
+                  checkout and see Manual Delivery or Pickup.
+                </div>
+              </div>
+            ) : (
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">Outstanding balance</div>
               <div
@@ -281,12 +365,23 @@ function AdminTumaBodaSettlementsPage() {
                 {loadingBalance ? "—" : formatKes(balance?.outstandingBalance ?? 0)}
               </div>
             </div>
+            )}
+            {!prepaid && (
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">Delivered TumaBoda orders</div>
               <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>
                 {loadingBalance ? "—" : balance?.deliveredOrderCount ?? 0}
               </div>
             </div>
+            )}
+            {prepaid ? (
+              <div className="admin-panel" style={{ padding: 16 }}>
+                <div className="admin-label">Held for paid deliveries not yet finished</div>
+                <div style={{ fontFamily: "var(--font-display)", fontSize: 28, marginTop: 6 }}>
+                  {formatKes(funding?.heldForDeliveries ?? 0)}
+                </div>
+              </div>
+            ) : (
             <div className="admin-panel" style={{ padding: 16 }}>
               <div className="admin-label">TumaBoda available credit (live)</div>
               {(() => {
@@ -322,8 +417,10 @@ function AdminTumaBodaSettlementsPage() {
                 );
               })()}
             </div>
+            )}
           </div>
 
+          {!prepaid && (
           <div className="admin-panel" style={{ padding: 16 }}>
             <button
               type="button"
@@ -369,20 +466,21 @@ function AdminTumaBodaSettlementsPage() {
               </div>
             )}
           </div>
+          )}
 
-          <TumaBodaDisagreements />
+          <TumaBodaDisagreements prepaid={funding?.mode === "WALLET"} />
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14 }}>
             <div className="admin-panel" style={{ padding: 16 }}>
-              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>Record a payment</h3>
+              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>{prepaid ? "Record a top-up" : "Record a payment"}</h3>
               <p style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 0 }}>
-                Record it here after transferring funds, then use "Declare to TumaBoda" below to notify them for
-                review — this is the same flow their credit-line API is built for, so our ledger and theirs stay in
-                sync without entering it twice.
+                {prepaid
+                  ? "Record it here after topping up on the TumaBoda dashboard or Paybill. This does not move any money."
+                  : 'Record it here after transferring funds, then use "Declare to TumaBoda" below to notify them for review — this is the same flow their credit-line API is built for, so our ledger and theirs stay in sync without entering it twice.'}
               </p>
               <form onSubmit={submitPayment} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
-                  <label className="admin-label">Amount paid (KES)</label>
+                  <label className="admin-label">{prepaid ? "Amount topped up (KES)" : "Amount paid (KES)"}</label>
                   <input
                     className="admin-input"
                     type="number"
@@ -398,7 +496,7 @@ function AdminTumaBodaSettlementsPage() {
                     <label className="admin-label">M-Pesa code / bank ref</label>
                     <input
                       className="admin-input"
-                      placeholder="Required to declare to TumaBoda"
+                      placeholder={prepaid ? "M-Pesa code or bank ref" : "Required to declare to TumaBoda"}
                       value={paymentReference}
                       onChange={(e) => setPaymentReference(e.target.value)}
                       style={{ width: "100%" }}
@@ -428,15 +526,15 @@ function AdminTumaBodaSettlementsPage() {
                   />
                 </div>
                 <button type="submit" className="admin-btn" disabled={recordingPayment}>
-                  {recordingPayment ? "Recording…" : "Record payment"}
+                  {recordingPayment ? "Recording…" : prepaid ? "Record top-up" : "Record payment"}
                 </button>
               </form>
 
-              <h4 style={{ marginTop: 20, fontSize: 13, color: "var(--admin-muted)" }}>Recent payments</h4>
+              <h4 style={{ marginTop: 20, fontSize: 13, color: "var(--admin-muted)" }}>{prepaid ? "Recent top-ups" : "Recent payments"}</h4>
               {loadingPayments ? (
                 <div className="admin-empty">Loading…</div>
               ) : payments.length === 0 ? (
-                <div className="admin-empty">No payments recorded yet.</div>
+                <div className="admin-empty">{prepaid ? "No top-ups recorded yet." : "No payments recorded yet."}</div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {payments.map((p) => (
@@ -445,6 +543,7 @@ function AdminTumaBodaSettlementsPage() {
                         <span>{formatDateShort(p.paidAt)} — {p.notes || p.reference || "—"}</span>
                         <b>{formatKes(p.amount)}</b>
                       </div>
+                      {!prepaid && (
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <span style={{ color: "var(--admin-muted)" }}>
                           {p.tumabodaRemittanceStatus
@@ -474,6 +573,7 @@ function AdminTumaBodaSettlementsPage() {
                           </button>
                         )}
                       </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -481,11 +581,14 @@ function AdminTumaBodaSettlementsPage() {
             </div>
 
             <div className="admin-panel" style={{ padding: 16 }}>
-              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>Weekly reconciliation</h3>
+              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>{prepaid ? "Weekly balance check" : "Weekly reconciliation"}</h3>
               <p style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 0 }}>
-                Pulls TumaBoda's reported balance straight from their credit-line API — do this roughly every 7 days.
-                Manual entry below still works if the API is ever unavailable.
+                {prepaid
+                  ? "Enter the available balance from the TumaBoda dashboard, roughly every 7 days. It is compared with our estimate."
+                  : "Pulls TumaBoda's reported balance straight from their credit-line API — do this roughly every 7 days. Manual entry below still works if the API is ever unavailable."}
               </p>
+              {!prepaid && (
+              <>
               <button
                 type="button"
                 className="admin-btn"
@@ -513,16 +616,24 @@ function AdminTumaBodaSettlementsPage() {
                   </div>
                 )}
               </div>
+              </>
+              )}
 
               <form onSubmit={submitReconciliation} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <div>
-                  <label className="admin-label">TumaBoda's reported balance (KES)</label>
+                  <label className="admin-label">{prepaid ? "Balance on the TumaBoda dashboard (KES)" : "TumaBoda's reported balance (KES)"}</label>
                   <input
                     className="admin-input"
                     type="number"
                     step="0.01"
                     min="0"
-                    placeholder={loadingBalance ? "" : `Our balance: ${formatKes(balance?.outstandingBalance ?? 0)}`}
+                    placeholder={
+                      prepaid
+                        ? `Our estimate: ${formatKes(funding?.estimatedBalance ?? 0)}`
+                        : loadingBalance
+                          ? ""
+                          : `Our balance: ${formatKes(balance?.outstandingBalance ?? 0)}`
+                    }
                     value={theirBalance}
                     onChange={(e) => setTheirBalance(e.target.value)}
                     style={{ width: "100%" }}

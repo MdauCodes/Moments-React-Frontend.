@@ -6,6 +6,7 @@ import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { RoleBadge } from "@/components/admin/RoleBadge";
 import { resolveStaffRole, STAFF_ROLE_DISPLAY } from "@/lib/roles";
 import { OnboardingTour } from "@/components/admin/OnboardingTour";
+import { TumaBodaStrategyGuide } from "@/components/admin/TumaBodaStrategyGuide";
 import { isOnboardingDone, ROLE_TOURS } from "@/lib/onboardingTours";
 import { useMockModeState } from "@/lib/mockMode";
 import { adminResources, type AdminNotificationDto } from "@/services/adminResources";
@@ -776,6 +777,8 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
           onClose={() => { setTourOpen(false); setTourStepFilter(undefined); }}
         />
       )}
+      {/* Waits for the welcome tour, so the two never sit on top of each other. */}
+      {user?.id && !tourOpen && <TumaBodaStrategyGuide userId={user.id} />}
     </div>
   );
 }

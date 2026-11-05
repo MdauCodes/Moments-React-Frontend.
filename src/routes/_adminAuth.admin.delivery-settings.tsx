@@ -6,6 +6,10 @@ import { AdminLayout } from "@/layouts/AdminLayout";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { adminResources } from "@/services/adminResources";
+import { formatKes } from "@/components/admin/commerceUi";
+import { resolveStaffRole } from "@/lib/roles";
+import { PodModeCard, TumaBodaOverrideCard, VehicleThresholdCard } from "@/components/admin/TumaBodaDeliveryCards";
+import { tumaBodaSettlementApi, type TumaBodaFunding, type TumaBodaFundingMode } from "@/services/tumaBodaSettlementService";
 
 const CBD_FEE_KEY = "delivery.cbd.fee.kes";
 const CBD_FEE_DEFAULT = "150";
@@ -13,7 +17,8 @@ const CBD_FREE_THRESHOLD_KEY = "delivery.cbd.freeThreshold.kes";
 const CBD_FREE_THRESHOLD_DEFAULT = "5000";
 
 function AdminDeliverySettingsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const isSuperAdmin = resolveStaffRole(user) === "SUPER_ADMIN";
   const [reloadKey, setReloadKey] = useState(0);
 
   if (!isAdmin) return <AdminLayout title="Delivery Settings"><Forbidden resource="delivery settings" /></AdminLayout>;
@@ -21,10 +26,128 @@ function AdminDeliverySettingsPage() {
   return (
     <AdminLayout title="Delivery Settings" onReload={() => setReloadKey((k) => k + 1)}>
       <div className="admin-page-stack">
+        <SectionHeading title="TumaBoda" />
+        <TumaBodaStrategyCard reloadKey={reloadKey} />
+        {isSuperAdmin && <VehicleThresholdCard />}
+        {isSuperAdmin && <PodModeCard />}
+        {isSuperAdmin && <TumaBodaOverrideCard />}
+        <SectionHeading title="Nairobi CBD hand delivery" />
         <CbdFeeCard reloadKey={reloadKey} />
         <CbdFreeThresholdCard reloadKey={reloadKey} />
       </div>
     </AdminLayout>
+  );
+}
+
+function SectionHeading({ title }: { title: string }) {
+  return (
+    <h2 style={{ margin: "8px 0 -4px", fontSize: 13, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", color: "var(--admin-muted)" }}>
+      {title}
+    </h2>
+  );
+}
+
+const STRATEGIES: { mode: TumaBodaFundingMode; label: string; detail: string }[] = [
+  {
+    mode: "WALLET",
+    label: "Wallet (prepaid)",
+    detail: "New deliveries count against the wallet. TumaBoda can't be chosen at checkout when the balance can't cover the fee.",
+  },
+  {
+    mode: "CREDIT_LINE",
+    label: "Credit line",
+    detail: "New deliveries count against the credit line. TumaBoda can't be chosen at checkout when available credit can't cover the fee.",
+  },
+];
+
+/** Which TumaBoda balance is active. The other ledger stays open on the Settlements page. */
+function TumaBodaStrategyCard({ reloadKey }: { reloadKey: number }) {
+  const [funding, setFunding] = useState<TumaBodaFunding | null>(null);
+  const [pending, setPending] = useState<TumaBodaFundingMode | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    tumaBodaSettlementApi
+      .getFunding()
+      .then(setFunding)
+      .catch((err) => reportAdminError(err, "Failed to read the TumaBoda payment strategy"));
+  }, [reloadKey]);
+
+  const apply = async () => {
+    if (!pending) return;
+    setBusy(true);
+    try {
+      setFunding(await tumaBodaSettlementApi.setFundingMode(pending));
+      toast.success(`TumaBoda payment strategy set to ${STRATEGIES.find((s) => s.mode === pending)?.label}.`);
+    } catch (err) {
+      reportAdminError(err, "Failed to change the TumaBoda payment strategy");
+    } finally {
+      setBusy(false);
+      setPending(null);
+    }
+  };
+
+  return (
+    <div className="admin-panel" style={{ padding: 20 }}>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>TumaBoda payment strategy</h2>
+      <p style={{ margin: "6px 0 14px", fontSize: 13, color: "var(--admin-muted)" }}>
+        Applies from the moment it's saved, to deliveries booked after that. Deliveries already booked stay on the
+        balance they started on, and both ledgers stay open on the TumaBoda Settlements page. This doesn't change how
+        TumaBoda bills the account.
+      </p>
+      <div role="radiogroup" aria-label="TumaBoda payment strategy" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 10 }}>
+        {STRATEGIES.map((s) => {
+          const active = funding?.mode === s.mode;
+          return (
+            <button
+              key={s.mode}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              disabled={!funding || busy}
+              onClick={() => { if (!active) setPending(s.mode); }}
+              style={{
+                textAlign: "left",
+                padding: 14,
+                borderRadius: 10,
+                cursor: !funding || active ? "default" : "pointer",
+                background: "transparent",
+                color: "inherit",
+                border: active ? "2px solid var(--admin-accent)" : "1px solid var(--admin-border)",
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 14 }}>
+                {s.label}{active ? " · Active" : ""}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 4, lineHeight: 1.45 }}>{s.detail}</div>
+            </button>
+          );
+        })}
+      </div>
+      {funding && (
+        <p style={{ margin: "12px 0 0", fontSize: 13 }}>
+          Wallet balance, our estimate: <b>{formatKes(funding.estimatedBalance)}</b>
+        </p>
+      )}
+      {pending && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "var(--admin-bg)", border: "1px solid var(--admin-border)", borderRadius: 12, maxWidth: 420, width: "100%", padding: 24 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Switch to {STRATEGIES.find((s) => s.mode === pending)?.label}?</h3>
+            <p style={{ fontSize: 13, color: "var(--admin-muted)", marginTop: 8 }}>
+              {pending === "WALLET" && funding && funding.estimatedBalance <= 0
+                ? `The wallet estimate is ${formatKes(funding.estimatedBalance)}, so customers won't be able to choose TumaBoda until a top-up is recorded.`
+                : STRATEGIES.find((s) => s.mode === pending)?.detail}
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>
+              <button className="admin-btn admin-btn-ghost" onClick={() => setPending(null)} disabled={busy}>Cancel</button>
+              <button className="admin-btn admin-btn-primary" onClick={() => void apply()} disabled={busy}>
+                {busy ? <Loader2 size={14} className="animate-spin" /> : null} Switch
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -41,6 +41,19 @@ export interface TumaBodaCreditLine {
   totalRepaid: number;
 }
 
+export type TumaBodaFundingMode = "WALLET" | "CREDIT_LINE";
+
+/** The active payment strategy and the wallet ledger. Wallet figures are our own estimate. */
+export interface TumaBodaFunding {
+  mode: TumaBodaFundingMode;
+  estimatedBalance: number;
+  heldForDeliveries: number;
+  walletTopUps: number;
+  walletDeliveredFees: number;
+  lowBalanceKes: number;
+  criticalBalanceKes: number;
+}
+
 export interface TumaBodaReconciliation {
   id: string;
   checkedAt: string;
@@ -91,15 +104,25 @@ function unwrap<T>(data: { content?: T[]; totalElements?: number; totalPages?: n
 }
 
 export const tumaBodaSettlementApi = {
+  getFunding: () => adminJson<TumaBodaFunding>("/api/v1/admin/tumaboda-settlements/funding"),
+
+  /** The active strategy only, readable by all staff. */
+  getActiveFundingMode: () =>
+    adminJson<{ mode: TumaBodaFundingMode }>("/api/v1/admin/tumaboda-settlements/funding/active"),
+
+  setFundingMode: (mode: TumaBodaFundingMode) =>
+    adminJson<TumaBodaFunding>(`/api/v1/admin/tumaboda-settlements/funding?mode=${mode}`, { method: "PUT" }),
+
   getBalance: () => adminJson<TumaBodaBalance>("/api/v1/admin/tumaboda-settlements/balance"),
 
   getOrderBreakdown: async (page = 0, size = 50): Promise<PageResult<TumaBodaOrderBreakdown>> =>
     unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/orders?page=${page}&size=${size}`)),
 
-  getPayments: async (page = 0, size = 20): Promise<PageResult<TumaBodaPayment>> =>
-    unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/payments?page=${page}&size=${size}`)),
+  getPayments: async (ledger: TumaBodaFundingMode, page = 0, size = 20): Promise<PageResult<TumaBodaPayment>> =>
+    unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/payments?ledger=${ledger}&page=${page}&size=${size}`)),
 
   recordPayment: (body: {
+    ledger: TumaBodaFundingMode;
     amount: number;
     paidAt?: string;
     notes?: string;
@@ -112,10 +135,10 @@ export const tumaBodaSettlementApi = {
       body: JSON.stringify(body),
     }),
 
-  getReconciliations: async (page = 0, size = 20): Promise<PageResult<TumaBodaReconciliation>> =>
-    unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/reconciliations?page=${page}&size=${size}`)),
+  getReconciliations: async (ledger: TumaBodaFundingMode, page = 0, size = 20): Promise<PageResult<TumaBodaReconciliation>> =>
+    unwrap(await adminJson(`/api/v1/admin/tumaboda-settlements/reconciliations?ledger=${ledger}&page=${page}&size=${size}`)),
 
-  recordReconciliation: (body: { theirReportedBalance?: number; notes?: string }) =>
+  recordReconciliation: (body: { ledger: TumaBodaFundingMode; theirReportedBalance?: number; notes?: string }) =>
     adminJson<TumaBodaReconciliation>("/api/v1/admin/tumaboda-settlements/reconciliations", {
       method: "POST",
       body: JSON.stringify(body),

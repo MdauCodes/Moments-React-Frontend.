@@ -12,6 +12,7 @@ import { useAdminOrders } from "@/contexts/AdminOrdersContext";
 import { adminResources } from "@/services/adminResources";
 import { PERM } from "@/lib/permissions";
 import { HelpPanel, HelpAnchor } from "@/components/admin/HelpPanel";
+import { TumaBodaStrategyNotice } from "@/components/admin/TumaBodaStrategyNotice";
 
 
 
@@ -107,6 +108,8 @@ export function AdminDashboardPage() {
 
         <div className="admin-page-stack">
           {stats && <MockBanner source={stats.source} />}
+
+          <TumaBodaStrategyNotice />
 
           {tiles.length > 0 && (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }} data-admin-stats>
