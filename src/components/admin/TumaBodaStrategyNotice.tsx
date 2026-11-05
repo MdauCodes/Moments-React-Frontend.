@@ -143,6 +143,7 @@ export function TumaBodaStrategyGuideContent({ titleId }: { titleId: string }) {
               </>
             )}{" "}
             Keep the M-Pesa confirmation code. A bank transfer works too, from the details on the TumaBoda dashboard.
+            TumaBoda adds the money to the wallet straight away: there's no approval to wait for and no need to call them.
           </li>
           <li>
             Record it in Moments: once you've read this guide, press <b>Record top-up</b> at the bottom of it. You can also
@@ -170,7 +171,10 @@ export function TumaBodaStrategyGuideContent({ titleId }: { titleId: string }) {
           TumaBoda doesn't share the real balance with our system, so Moments keeps its own: top-ups recorded, minus fees
           for delivered orders, minus fees held for orders paid but not yet delivered. Money is held from checkout, so two orders can't spend the same money.
         </li>
-        <li>A top-up only counts once someone records it in Moments. Recording it doesn't move any money.</li>
+        <li>
+          A top-up only counts in Moments once someone records it here. Recording it doesn't move any money and isn't sent
+          to TumaBoda; it keeps Moments' balance in step with TumaBoda's.
+        </li>
         <li>
           When the balance can't cover a delivery fee, customers still see a TumaBoda price at checkout but can't choose it.
           Manual Delivery and Pickup stay available.

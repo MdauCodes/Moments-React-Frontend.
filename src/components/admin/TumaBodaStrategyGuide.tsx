@@ -213,7 +213,9 @@ export function TumaBodaStrategyGuide({ userId }: { userId: string }) {
           >
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Record a wallet top-up</h2>
             <p style={{ margin: 0, fontSize: 13, color: "var(--admin-muted)" }}>
-              Enter money already paid to TumaBoda. This records it in Moments; it doesn't move any money.
+              Enter money already paid to TumaBoda. TumaBoda adds M-Pesa and bank top-ups to the wallet straight
+              away, so there's no approval to wait for and no need to call them. Check the new balance shows on the
+              TumaBoda dashboard, then record it here. Recording it doesn't move any money.
             </p>
             <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
               <span className="admin-label">Amount paid (KES)</span>
