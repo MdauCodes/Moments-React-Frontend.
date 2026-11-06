@@ -432,7 +432,7 @@ function BannerCarousel({ deals }: { deals: Product[] | null }) {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className="relative min-h-[256px] overflow-hidden rounded-2xl border-2 sm:h-[200px] sm:min-h-0 lg:h-full lg:min-h-[220px]"
+      className="relative min-h-[256px] overflow-hidden rounded-2xl border-2 sm:h-[200px] sm:min-h-0 lg:h-full lg:min-h-[248px]"
       style={{ background: slide.bg, borderColor: GOLD }}
     >
       {slide.image && (
