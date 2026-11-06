@@ -9,7 +9,6 @@ import { adminResources } from "@/services/adminResources";
 import { formatKes } from "@/components/admin/commerceUi";
 import { resolveStaffRole } from "@/lib/roles";
 import { PodModeCard, TumaBodaOverrideCard, VehicleThresholdCard } from "@/components/admin/TumaBodaDeliveryCards";
-import { TOPUP_ACCOUNT_KEY, TOPUP_PAYBILL_KEY } from "@/components/admin/TumaBodaStrategyNotice";
 import { tumaBodaSettlementApi, type TumaBodaFunding, type TumaBodaFundingMode } from "@/services/tumaBodaSettlementService";
 
 const CBD_FEE_KEY = "delivery.cbd.fee.kes";
@@ -29,7 +28,6 @@ function AdminDeliverySettingsPage() {
       <div className="admin-page-stack">
         <SectionHeading title="TumaBoda" />
         <TumaBodaStrategyCard reloadKey={reloadKey} />
-        <TopUpDetailsCard reloadKey={reloadKey} />
         {isSuperAdmin && <VehicleThresholdCard />}
         {isSuperAdmin && <PodModeCard />}
         {isSuperAdmin && <TumaBodaOverrideCard />}
@@ -38,73 +36,6 @@ function AdminDeliverySettingsPage() {
         <CbdFreeThresholdCard reloadKey={reloadKey} />
       </div>
     </AdminLayout>
-  );
-}
-
-/** Where Moments pays TumaBoda. TumaBoda only shows these on its own dashboard, so they're saved
- *  here to appear in the staff guide's top-up steps. */
-function TopUpDetailsCard({ reloadKey }: { reloadKey: number }) {
-  const [saved, setSaved] = useState<{ paybill: string; account: string } | null>(null);
-  const [paybill, setPaybill] = useState("");
-  const [account, setAccount] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    adminResources.settings
-      .list()
-      .then((rows) => {
-        const p = rows.find((r) => r.key === TOPUP_PAYBILL_KEY)?.value ?? "";
-        const a = rows.find((r) => r.key === TOPUP_ACCOUNT_KEY)?.value ?? "";
-        setSaved({ paybill: p, account: a });
-        setPaybill(p);
-        setAccount(a);
-      })
-      .catch((err) => reportAdminError(err, "Failed to read the TumaBoda top-up details"));
-  }, [reloadKey]);
-
-  const valid = /^\d{5,7}$/.test(paybill.trim()) && account.trim().length <= 40;
-  const dirty = saved !== null && (paybill.trim() !== saved.paybill || account.trim() !== saved.account);
-
-  const save = async () => {
-    setBusy(true);
-    try {
-      await adminResources.settings.upsert({ key: TOPUP_PAYBILL_KEY, value: paybill.trim(), description: "TumaBoda wallet M-Pesa Paybill number, shown in the staff guide's top-up steps." });
-      await adminResources.settings.upsert({ key: TOPUP_ACCOUNT_KEY, value: account.trim(), description: "TumaBoda wallet Paybill account number, shown in the staff guide's top-up steps." });
-      setSaved({ paybill: paybill.trim(), account: account.trim() });
-      toast.success("TumaBoda top-up details saved.");
-    } catch (err) {
-      reportAdminError(err, "Failed to save the TumaBoda top-up details");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="admin-panel" style={{ padding: 20 }}>
-      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>How to pay TumaBoda</h2>
-      <p style={{ margin: "6px 0 12px", fontSize: 13, color: "var(--admin-muted)" }}>
-        Copy the M-Pesa Paybill and account number from the TumaBoda dashboard's top-up page. They appear in the staff
-        guide, so whoever tops up the wallet pays the right account.
-      </p>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span className="admin-label">Paybill number</span>
-          <input className="admin-input" inputMode="numeric" style={{ width: 160 }} value={paybill}
-            disabled={saved === null || busy} onChange={(e) => setPaybill(e.target.value.replace(/\D/g, ""))} />
-        </label>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span className="admin-label">Account number</span>
-          <input className="admin-input" style={{ width: 200 }} value={account} maxLength={40}
-            disabled={saved === null || busy} onChange={(e) => setAccount(e.target.value)} />
-        </label>
-        <button className="admin-btn admin-btn-primary" disabled={busy || !valid || !dirty} onClick={() => void save()}>
-          {busy ? <Loader2 size={14} className="animate-spin" /> : null} Save
-        </button>
-      </div>
-      {paybill.trim() !== "" && !valid && (
-        <p style={{ margin: "8px 0 0", fontSize: 12, color: "#b91c1c" }}>A Paybill number is 5 to 7 digits.</p>
-      )}
-    </div>
   );
 }
 
@@ -195,7 +126,8 @@ function TumaBodaStrategyCard({ reloadKey }: { reloadKey: number }) {
       </div>
       {funding && (
         <p style={{ margin: "12px 0 0", fontSize: 13 }}>
-          Wallet balance, our estimate: <b>{formatKes(funding.estimatedBalance)}</b>
+          TumaBoda wallet, free for new orders:{" "}
+          <b>{funding.realBalanceReadable && funding.availableForNewOrders != null ? formatKes(funding.availableForNewOrders) : "can't be read right now"}</b>
         </p>
       )}
       {pending && (
@@ -203,8 +135,8 @@ function TumaBodaStrategyCard({ reloadKey }: { reloadKey: number }) {
           <div style={{ background: "var(--admin-bg)", border: "1px solid var(--admin-border)", borderRadius: 12, maxWidth: 420, width: "100%", padding: 24 }}>
             <h3 style={{ margin: 0, fontSize: 16 }}>Switch to {STRATEGIES.find((s) => s.mode === pending)?.label}?</h3>
             <p style={{ fontSize: 13, color: "var(--admin-muted)", marginTop: 8 }}>
-              {pending === "WALLET" && funding && funding.estimatedBalance <= 0
-                ? `The wallet estimate is ${formatKes(funding.estimatedBalance)}, so customers won't be able to choose TumaBoda until a top-up is recorded.`
+              {pending === "WALLET" && funding && (funding.availableForNewOrders ?? 0) <= 0
+                ? "The TumaBoda wallet is empty, so customers won't be able to choose TumaBoda until someone tops it up on TumaBoda."
                 : STRATEGIES.find((s) => s.mode === pending)?.detail}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 16 }}>

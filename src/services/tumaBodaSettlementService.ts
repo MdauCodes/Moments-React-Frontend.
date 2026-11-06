@@ -52,6 +52,36 @@ export interface TumaBodaFunding {
   walletDeliveredFees: number;
   lowBalanceKes: number;
   criticalBalanceKes: number;
+  /** TumaBoda's real wallet, read live. Null when it couldn't be read. */
+  realSpendable: number | null;
+  realHeld: number | null;
+  /** realSpendable minus orders paid but not booked yet: what checkout uses. */
+  availableForNewOrders: number | null;
+  realBalanceReadable: boolean;
+}
+
+/** Developer check: Moments' wallet ledger next to TumaBoda's real wallet. */
+export interface TumaBodaWalletSync {
+  checkedAt: string;
+  sandbox: boolean;
+  theirs: {
+    status: string | null;
+    available: number | null;
+    inAppCredit: number | null;
+    escrow: number | null;
+    spendable: number | null;
+    updatedAt: string | null;
+  } | null;
+  error: string | null;
+  ourTopUps: number;
+  ourDeliveredFees: number;
+  ourBookedInFlight: number;
+  ourReservedNotBooked: number;
+  ourAvailableEquivalent: number;
+  ourEstimate: number;
+  availableDifference: number | null;
+  escrowDifference: number | null;
+  realSpendableAfterReservations: number | null;
 }
 
 export interface TumaBodaReconciliation {
@@ -104,6 +134,8 @@ function unwrap<T>(data: { content?: T[]; totalElements?: number; totalPages?: n
 }
 
 export const tumaBodaSettlementApi = {
+  getWalletSync: () => adminJson<TumaBodaWalletSync>("/api/v1/admin/tumaboda-settlements/wallet-sync"),
+
   getFunding: () => adminJson<TumaBodaFunding>("/api/v1/admin/tumaboda-settlements/funding"),
 
   /** The active strategy only, readable by all staff. */

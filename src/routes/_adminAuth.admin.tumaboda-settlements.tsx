@@ -268,7 +268,7 @@ function AdminTumaBodaSettlementsPage() {
                 This is the prepaid wallet ledger. Each delivery booked while the wallet is active comes out of this balance.
               </p>
               <ul style={{ paddingLeft: 18, margin: "4px 0" }}>
-                <li>Top up on the TumaBoda dashboard or Paybill, then record the top-up here.</li>
+                <li>Top up on the TumaBoda dashboard. Moments reads TumaBoda's wallet by itself, so there's nothing to record.</li>
                 <li>The balance here is our estimate: top-ups, minus delivered fees, minus fees held for orders paid but not yet delivered.</li>
                 <li>Once a week, enter the balance from the TumaBoda dashboard to catch any difference early.</li>
                 <li>While the wallet is active and the estimate can't cover a delivery fee, customers can't choose TumaBoda at checkout.</li>
@@ -330,25 +330,27 @@ function AdminTumaBodaSettlementsPage() {
             </div>
             {prepaid ? (
               <div className="admin-panel" style={{ padding: 16 }}>
-                <div className="admin-label">Wallet balance (our estimate)</div>
+                <div className="admin-label">TumaBoda wallet, free for new orders (live)</div>
                 <div
                   style={{
                     fontFamily: "var(--font-display)",
                     fontSize: 28,
                     marginTop: 6,
                     color:
-                      (funding?.estimatedBalance ?? 0) <= (funding?.criticalBalanceKes ?? 0)
+                      (funding?.availableForNewOrders ?? 0) <= (funding?.criticalBalanceKes ?? 0)
                         ? "#dc2626"
-                        : (funding?.estimatedBalance ?? 0) <= (funding?.lowBalanceKes ?? 0)
+                        : (funding?.availableForNewOrders ?? 0) <= (funding?.lowBalanceKes ?? 0)
                           ? "var(--admin-clay)"
                           : undefined,
                   }}
                 >
-                  {formatKes(funding?.estimatedBalance ?? 0)}
+                  {funding?.realBalanceReadable && funding.availableForNewOrders != null ? formatKes(funding.availableForNewOrders) : "—"}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--admin-muted)", marginTop: 6, lineHeight: 1.4 }}>
-                  While the wallet is active and this can't cover a delivery fee, customers can't choose TumaBoda at
-                  checkout and see Manual Delivery or Pickup.
+                  {funding?.realBalanceReadable
+                    ? `TumaBoda shows ${formatKes(funding.realSpendable ?? 0)}; ${formatKes(Math.max(0, (funding.realSpendable ?? 0) - (funding.availableForNewOrders ?? 0)))} of it is kept for orders paid but not sent yet. `
+                    : "TumaBoda's wallet can't be read right now, so TumaBoda is hidden at checkout. "}
+                  When this can't cover a delivery fee, customers see Manual Delivery or Pickup instead.
                 </div>
               </div>
             ) : (
@@ -472,10 +474,10 @@ function AdminTumaBodaSettlementsPage() {
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: 14 }}>
             <div className="admin-panel" style={{ padding: 16 }}>
-              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>{prepaid ? "Record a top-up" : "Record a payment"}</h3>
+              <h3 style={{ marginTop: 0, fontFamily: "var(--font-display)", fontSize: 18 }}>{prepaid ? "Top-up history (optional)" : "Record a payment"}</h3>
               <p style={{ fontSize: 12, color: "var(--admin-muted)", marginTop: 0 }}>
                 {prepaid
-                  ? "Record it here after topping up on the TumaBoda dashboard or Paybill. This does not move any money."
+                  ? "Not needed: TumaBoda is offered at checkout from its real wallet balance. Record top-ups here only if you want your own history of them."
                   : 'Record it here after transferring funds, then use "Declare to TumaBoda" below to notify them for review — this is the same flow their credit-line API is built for, so our ledger and theirs stay in sync without entering it twice.'}
               </p>
               <form onSubmit={submitPayment} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
