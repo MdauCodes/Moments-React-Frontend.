@@ -6,6 +6,7 @@ import {
   Briefcase,
   Flame,
   Info,
+  MessageSquareText,
   PackageCheck,
   Search,
   ShieldCheck,
@@ -30,6 +31,7 @@ import { SearchCommand } from "@/components/SearchCommand";
 import { ShopMegaMenu } from "@/components/ShopMegaMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { useCart } from "@/contexts/CartContext";
 import { useCartBump } from "@/hooks/useCartBump";
 import { api, type Segment, type Subcategory } from "@/services/api";
@@ -370,6 +372,7 @@ type Slide = {
 
 function BannerCarousel({ deals }: { deals: Product[] | null }) {
   const { openRegister } = useAuthModal();
+  const { openEnquiry } = useEnquiry();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
 
@@ -429,7 +432,7 @@ function BannerCarousel({ deals }: { deals: Product[] | null }) {
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
-      className="relative h-[168px] overflow-hidden rounded-2xl border-2 sm:h-[200px] lg:h-full lg:min-h-[220px]"
+      className="relative min-h-[256px] overflow-hidden rounded-2xl border-2 sm:h-[200px] sm:min-h-0 lg:h-full lg:min-h-[220px]"
       style={{ background: slide.bg, borderColor: GOLD }}
     >
       {slide.image && (
@@ -440,7 +443,8 @@ function BannerCarousel({ deals }: { deals: Product[] | null }) {
           className="absolute inset-y-0 right-0 h-full w-[45%] object-cover opacity-90 [mask-image:linear-gradient(to_right,transparent,black_45%)]"
         />
       )}
-      <div className="relative flex h-full max-w-[75%] flex-col justify-center px-5 sm:px-8">
+      {/* On a phone the two buttons stack, so the banner grows to fit them instead of cutting one off. */}
+      <div className="relative flex h-full max-w-[75%] flex-col justify-center px-5 pb-6 pt-4 sm:px-8 sm:py-0">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: GOLD }}>
           {slide.kicker}
         </p>
@@ -448,7 +452,7 @@ function BannerCarousel({ deals }: { deals: Product[] | null }) {
           {slide.title}
         </h2>
         <p className="mt-1 line-clamp-2 text-xs text-white/85 sm:text-sm">{slide.line}</p>
-        <div>
+        <div className="flex flex-wrap items-center gap-x-2">
           {slide.to ? (
             <Link to={slide.to} className={ctaClass} style={{ background: GOLD }}>
               {slide.cta} <ArrowRight className="h-4 w-4" />
@@ -463,6 +467,19 @@ function BannerCarousel({ deals }: { deals: Product[] | null }) {
               {slide.cta} <ArrowRight className="h-4 w-4" />
             </button>
           )}
+          {/* On every slide, so a visitor with a question can always ask from the top of the page.
+              Opens the site's one enquiry panel, the same as on Why Moments and product pages. */}
+          <button
+            type="button"
+            onClick={() => openEnquiry()}
+            aria-label="Send us an enquiry"
+            className={ctaClass}
+            style={{ background: "#ffffff" }}
+          >
+            <MessageSquareText className="h-4 w-4" aria-hidden="true" />
+            <span className="sm:hidden">Enquire</span>
+            <span className="hidden sm:inline">Send us an enquiry</span>
+          </button>
         </div>
       </div>
       {slides.length > 1 && (
