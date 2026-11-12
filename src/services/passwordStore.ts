@@ -24,7 +24,7 @@ async function post<T = unknown>(path: string, body: unknown): Promise<Result<T>
     if (res.ok) return { ok: true, data: data as T, message: (data as { message?: string }).message };
     return {
       ok: false,
-      message: (data as { message?: string }).message ?? `Request failed (${res.status})`,
+      message: (data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? `Request failed (${res.status})`,
     };
   } catch {
     return { ok: false, message: "Network error — please check your connection and try again." };
@@ -49,10 +49,11 @@ export const passwordStore = {
   async requestStaffReset(email: string): Promise<Result> {
     return post("/api/v1/auth/staff/forgot-password", { email });
   },
-  // Staff flow has no separate verify endpoint — the OTP is submitted with the new password.
-  async staffReset(otp: string, newPassword: string): Promise<Result> {
+  // Staff flow has no separate verify endpoint — the OTP is submitted with the new password, together with the email it
+  // was sent to (security fix, 12 Nov 2026: a code no longer works on its own, and five wrong codes throw it away).
+  async staffReset(email: string, otp: string, newPassword: string): Promise<Result> {
     if (!/^\d{6}$/.test(otp)) return { ok: false, message: "Enter the 6-digit code from your email." };
-    return post("/api/v1/auth/staff/reset-password", { otp, newPassword });
+    return post("/api/v1/auth/staff/reset-password", { email: email.trim(), otp, newPassword });
   },
 
   async verifyEmail(token: string): Promise<Result> {

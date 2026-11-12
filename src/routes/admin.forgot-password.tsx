@@ -50,10 +50,11 @@ function AdminForgotPasswordPage() {
     e.preventDefault();
     setError(null);
     if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password.length > 64) { setError("Password must be at most 64 characters."); return; }
     if (password !== confirm) { setError("Passwords don't match."); return; }
     setSubmitting(true);
     try {
-      const res = await passwordStore.staffReset(otp, password);
+      const res = await passwordStore.staffReset(email, otp, password);
       if (!res.ok) { setError(res.message ?? "Could not reset password."); return; }
       setStep("done");
       toast.success("Password reset successfully");
