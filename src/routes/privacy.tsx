@@ -129,6 +129,13 @@ export function getPrivacyPolicyContent() {
               <td>Contract performance; legitimate interest in customer service.</td>
             </tr>
             <tr>
+              <td>
+                Keep a record of everyone who buys from us, including guest checkouts without an account, so we can
+                follow up on orders, support you and offer products relevant to what you bought.
+              </td>
+              <td>Legitimate interest in serving our customers. You can object at any time and we will stop.</td>
+            </tr>
+            <tr>
               <td>Send marketing about new products, deals and bulk-order offers.</td>
               <td>Consent (you can withdraw at any time).</td>
             </tr>
@@ -254,6 +261,7 @@ export function getPrivacyPolicyContent() {
           <li>Account profile: while your account is active, plus 12 months after closure.</li>
           <li>Marketing list: until you unsubscribe.</li>
           <li>Support conversations (WhatsApp/email): up to 24 months.</li>
+          <li>Customer record of a buyer without an account (guest checkout): up to 24 months after the last order.</li>
         </ul>
       ),
     },
