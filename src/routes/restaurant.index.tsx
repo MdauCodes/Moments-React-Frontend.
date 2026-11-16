@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { MessageCircle } from "lucide-react";
 
 import { PortalShell, usePortal } from "@/components/restaurant/PortalShell";
+import { OrderList, usePurchaseOrders } from "@/components/restaurant/PoList";
 import {
   ComingSoon,
   Muted,
@@ -22,6 +23,7 @@ import {
   describeHeadRequest,
   firstName,
   isHeadRole,
+  isPoClosed,
   kes,
   ruleText,
   splitTeam,
@@ -88,34 +90,7 @@ function HomeBody() {
           Moments prices it for you.
         </Muted>
 
-        {isHead && (
-          <PortalCard aria-labelledby="h-approve">
-            <h2 id="h-approve" className="text-[18px] font-bold">
-              For you to approve
-            </h2>
-            <ComingSoon
-              title="Nothing waiting yet"
-              text={`When your staff place orders, they wait here until ${ruleText(restaurant.approvalRule)}. You'll download each purchase order, sign it with the other heads, and upload the signed copy.`}
-            />
-          </PortalCard>
-        )}
-
-        <PortalCard aria-labelledby="h-progress">
-          <h2 id="h-progress" className="text-[18px] font-bold">
-            Orders in progress
-          </h2>
-          <ComingSoon
-            title="Purchase orders open soon"
-            text="Each order will show where it is: with your heads, being prepared, waiting for Moments' final signature, or on its way. Orders you place in the shop meanwhile are under My orders in your account."
-          />
-          <Link
-            to="/account/orders"
-            className="mt-2 inline-flex min-h-11 items-center text-[14px] font-semibold"
-            style={{ color: c.green }}
-          >
-            My shop orders
-          </Link>
-        </PortalCard>
+        <HomeOrders isHead={isHead} rule={restaurant.approvalRule} />
 
         <PortalCard aria-labelledby="h-money">
           <h2 id="h-money" className="text-[18px] font-bold">
@@ -237,5 +212,78 @@ function HomeBody() {
         </PortalCard>
       </div>
     </div>
+  );
+}
+
+/**
+ * The POs on the home page: those waiting for this person's signed copy ("For you to sign"; any
+ * head, or the person who placed it) and the rest in progress. Until the store has POs (step 4),
+ * both boxes say what will appear there.
+ */
+function HomeOrders({ isHead, rule }: { isHead: boolean; rule: string }) {
+  const { rows } = usePurchaseOrders();
+  if (!Array.isArray(rows)) {
+    return (
+      <>
+        {isHead && (
+          <PortalCard aria-labelledby="h-approve">
+            <h2 id="h-approve" className="text-[18px] font-bold">
+              For you to sign
+            </h2>
+            <ComingSoon
+              title="Nothing waiting yet"
+              text={`When your staff place orders, they wait here until ${ruleText(rule)}. You'll download each purchase order, sign it with the other heads, and upload the signed copy.`}
+            />
+          </PortalCard>
+        )}
+        <PortalCard aria-labelledby="h-progress">
+          <h2 id="h-progress" className="text-[18px] font-bold">
+            Orders in progress
+          </h2>
+          {rows === null ? (
+            <Muted>Loading…</Muted>
+          ) : (
+            <ComingSoon
+              title="Purchase orders open soon"
+              text="Each order will show where it is: waiting for the signed copy, being prepared, waiting for Moments' final signature, or on its way."
+            />
+          )}
+        </PortalCard>
+      </>
+    );
+  }
+  const mine = rows.filter((r) => r.needsMe);
+  const open = rows.filter((r) => !r.needsMe && !isPoClosed(r.stage));
+  return (
+    <>
+      {mine.length > 0 && (
+        <OrderList title={`For you to sign · ${mine.length}`} rows={mine} highlight />
+      )}
+      {mine.length === 0 && isHead && (
+        <PortalCard aria-labelledby="h-approve">
+          <h2 id="h-approve" className="text-[18px] font-bold">
+            For you to sign
+          </h2>
+          <Muted>Nothing waiting for you.</Muted>
+        </PortalCard>
+      )}
+      {open.length > 0 ? (
+        <OrderList title="Orders in progress" rows={open.slice(0, 6)} />
+      ) : (
+        <PortalCard aria-labelledby="h-progress">
+          <h2 id="h-progress" className="text-[18px] font-bold">
+            Orders in progress
+          </h2>
+          <Muted>None right now.</Muted>
+        </PortalCard>
+      )}
+      <Link
+        to="/restaurant/orders"
+        className="-mt-2 inline-flex min-h-11 items-center text-[14px] font-semibold"
+        style={{ color: c.green }}
+      >
+        All orders
+      </Link>
+    </>
   );
 }

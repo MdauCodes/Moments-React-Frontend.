@@ -101,6 +101,8 @@ const RestaurantHomePage = lazy(() => import("@/routes/restaurant.index"));
 const RestaurantTeamPage = lazy(() => import("@/routes/restaurant.team"));
 const RestaurantCataloguePage = lazy(() => import("@/routes/restaurant.catalogue"));
 const RestaurantBrowsePage = lazy(() => import("@/routes/restaurant.browse"));
+const RestaurantOrdersPage = lazy(() => import("@/routes/restaurant.orders"));
+const RestaurantPoPage = lazy(() => import("@/routes/restaurant.po"));
 const RestaurantSoonPage = lazy(() => import("@/routes/restaurant.soon"));
 const AccountMerchantPage = lazy(() => import("@/routes/account.merchant"));
 
@@ -314,7 +316,8 @@ export default function App() {
                     <Route path="/restaurant/team" element={<RestaurantTeamPage />} />
                     <Route path="/restaurant/catalogue" element={<RestaurantCataloguePage />} />
                     <Route path="/restaurant/browse" element={<RestaurantBrowsePage />} />
-                    <Route path="/restaurant/orders" element={<RestaurantSoonPage page="orders" />} />
+                    <Route path="/restaurant/orders" element={<RestaurantOrdersPage />} />
+                    <Route path="/restaurant/orders/:orderId" element={<RestaurantPoPage />} />
                     <Route path="/restaurant/statement" element={<RestaurantSoonPage page="statement" />} />
 
                     {/* Admin — no auth. Wrapped (together with the auth-required block below) in

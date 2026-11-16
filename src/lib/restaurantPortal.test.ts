@@ -264,25 +264,12 @@ describe("setupDoneSentence", () => {
   });
 });
 
-import {
-  flowLayout,
-  pdfFileName,
-  pdfKes,
-  pdfText,
-  quoteReference,
-  quoteRows,
-  vatIncluded,
-} from "./restaurantPdfLayout.ts";
+import { flowLayout, pdfFileName, pdfKes, pdfText } from "./restaurantPdfLayout.ts";
 
 describe("PDF layout", () => {
   it("cleans text jsPDF's fonts can't print", () => {
     assert.equal(pdfText("Kijani’s “grill”  ✓ box"), 'Kijani\'s "grill" box');
     assert.equal(pdfText(null), "");
-  });
-
-  it("works out the VAT inside a price", () => {
-    assert.equal(vatIncluded(1160), 160);
-    assert.equal(vatIncluded(1190), 164.14);
   });
 
   it("formats money for the PDF", () => {
@@ -301,30 +288,64 @@ describe("PDF layout", () => {
     assert.ok(big.pages.every((p) => p.length > 0));
   });
 
-  it("prices the quote's rows from the catalogue", () => {
-    const rows = quoteRows(
-      [
-        { productId: "a", productName: "Box", quantityNote: "20 packs" },
-        { productId: "b", productName: "Cup" },
-      ],
-      [{ productId: "a", productName: "Kraft box", unit: "pack", price: 1190 }],
-    );
-    assert.deepEqual(rows, [
-      { no: 1, productName: "Kraft box", unit: "pack", quantityNote: "20 packs", price: 1190 },
-      { no: 2, productName: "Cup", unit: "", quantityNote: "", price: null },
-    ]);
-  });
-
-  it("names quotes and files", () => {
-    assert.equal(
-      quoteReference("kg", "2026-11-16T10:40:00Z", "ab12cd34-0000"),
-      "KG-Q-2026-11-16-AB12",
-    );
-    assert.equal(quoteReference(null, "bad", "x1"), "R-Q-0000-00-00-X1");
+  it("names files", () => {
     assert.equal(
       pdfFileName("Kijani: Grill", "catalogue", "KG-v3"),
       "Kijani Grill catalogue KG-v3.pdf",
     );
     assert.equal(pdfFileName(null), "document.pdf");
+  });
+});
+
+import {
+  canUploadAt,
+  fileSize,
+  isPoClosed,
+  poStageText,
+  signRuleText,
+  signedCopyProblem,
+} from "./restaurantPortal.ts";
+
+describe("purchase orders", () => {
+  it("says each stage in the restaurant's words", () => {
+    assert.equal(poStageText("AWAITING_SIGNED_COPY").label, "Waiting for the signed copy");
+    assert.equal(poStageText("AWAITING_SIGNED_COPY", "MPESA").label, "With the heads");
+    assert.equal(
+      poStageText("CHECKING_SIGNED_COPY").label,
+      "Signed copy uploaded · Moments is checking",
+    );
+    assert.equal(poStageText("SENT_BACK").tone, "bad");
+    assert.equal(
+      poStageText("AWAITING_FINAL_SIGNATURE").label,
+      "Waiting for Moments' final signature",
+    );
+    assert.equal(poStageText("SOMETHING_NEW").label, "In progress");
+    assert.equal(isPoClosed("DELIVERED"), true);
+    assert.equal(isPoClosed("ON_ITS_WAY"), false);
+    assert.equal(canUploadAt("SENT_BACK"), true);
+    assert.equal(canUploadAt("CHECKING_SIGNED_COPY"), false);
+  });
+
+  it("checks the signed copy's files like the store does", () => {
+    const pdf = { name: "po.pdf", type: "application/pdf", size: 200_000 };
+    assert.equal(signedCopyProblem([pdf]), null);
+    assert.match(signedCopyProblem([]) ?? "", /Add the scan/);
+    assert.match(signedCopyProblem(Array(11).fill(pdf)) ?? "", /Up to 10 files/);
+    assert.match(
+      signedCopyProblem([{ name: "po.heic", type: "image/heic", size: 10 }]) ?? "",
+      /isn't a PDF, JPG or PNG/,
+    );
+    assert.match(signedCopyProblem([{ ...pdf, size: 11 * 1024 * 1024 }]) ?? "", /over 10 MB/);
+    // a phone may leave the type blank: the name decides
+    assert.equal(signedCopyProblem([{ name: "IMG_1.JPG", type: "", size: 5 }]), null);
+  });
+
+  it("formats sizes and the signing line", () => {
+    assert.equal(fileSize(512), "512 B");
+    assert.equal(fileSize(2048), "2 KB");
+    assert.equal(fileSize(3.5 * 1024 * 1024), "3.5 MB");
+    assert.equal(signRuleText("ALL", 3), "All 3 heads sign the printed PO.");
+    assert.equal(signRuleText("ANY", 2), "Any one head signs the printed PO.");
+    assert.equal(signRuleText("ALL", 1), "The head signs the printed PO.");
   });
 });

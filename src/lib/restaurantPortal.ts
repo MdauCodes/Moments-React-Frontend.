@@ -389,3 +389,85 @@ export function setupDoneSentence(
         : `${joinNames(approvers)} approve it`;
   return `${first}Any of you can place an order; ${approve}, then it goes to Moments.`;
 }
+
+// ---- purchase orders (doc 15 §20-§21) ----
+
+/** What a PO's stage says to the restaurant, in the design's words (PortalHomePhone, PoScreen). */
+export function poStageText(stage: string, signingMethod?: string): { label: string; tone: Tone } {
+  switch (stage) {
+    case "AWAITING_SIGNED_COPY":
+      return signingMethod && signingMethod !== "MANUAL"
+        ? { label: "With the heads", tone: "wait" }
+        : { label: "Waiting for the signed copy", tone: "wait" };
+    case "CHECKING_SIGNED_COPY":
+      return { label: "Signed copy uploaded · Moments is checking", tone: "info" };
+    case "SENT_BACK":
+      return { label: "Sent back: upload a new signed copy", tone: "bad" };
+    case "HELD":
+      return { label: "Held for Moments' approval", tone: "wait" };
+    case "WITH_MOMENTS":
+      return { label: "With Moments", tone: "info" };
+    case "BEING_PREPARED":
+      return { label: "Being prepared at Moments", tone: "info" };
+    case "AWAITING_FINAL_SIGNATURE":
+      return { label: "Waiting for Moments' final signature", tone: "info" };
+    case "READY_FOR_PICKUP":
+      return { label: "Ready for pickup", tone: "good" };
+    case "ON_ITS_WAY":
+      return { label: "On its way", tone: "good" };
+    case "DELIVERED":
+      return { label: "Delivered", tone: "good" };
+    case "CANCELLED":
+      return { label: "Cancelled", tone: "muted" };
+    default:
+      return { label: "In progress", tone: "muted" };
+  }
+}
+
+/** Stages that are finished: they leave "Orders in progress". */
+export const isPoClosed = (stage: string): boolean =>
+  stage === "DELIVERED" || stage === "CANCELLED";
+
+/** A signed copy may be uploaded only at these stages (the store checks too). */
+export const canUploadAt = (stage: string): boolean =>
+  stage === "AWAITING_SIGNED_COPY" || stage === "SENT_BACK";
+
+export const SIGNED_COPY_TYPES = ["application/pdf", "image/jpeg", "image/png"];
+export const SIGNED_COPY_MAX_FILES = 10;
+export const SIGNED_COPY_MAX_BYTES = 10 * 1024 * 1024;
+
+export interface FileLike {
+  name: string;
+  type: string;
+  size: number;
+}
+
+/** The first problem with the files picked for a signed copy, or null when they can go. */
+export function signedCopyProblem(files: FileLike[]): string | null {
+  if (files.length === 0) return "Add the scan or photos of the signed PO.";
+  if (files.length > SIGNED_COPY_MAX_FILES) {
+    return `Up to ${SIGNED_COPY_MAX_FILES} files at a time. Put several pages in one PDF if you can.`;
+  }
+  const lowerName = (f: FileLike) => f.name.toLowerCase();
+  for (const f of files) {
+    const okType = SIGNED_COPY_TYPES.includes(f.type) || /\.(pdf|jpe?g|png)$/.test(lowerName(f));
+    if (!okType) return `${f.name} isn't a PDF, JPG or PNG.`;
+    if (f.size > SIGNED_COPY_MAX_BYTES) return `${f.name} is over 10 MB. Scan at a lower quality.`;
+    if (f.size === 0) return `${f.name} is empty.`;
+  }
+  return null;
+}
+
+export function fileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/** "Every head signs" / "One head signs", for the signature boxes on the printed PO. */
+export function signRuleText(rule: string | null | undefined, heads: number): string {
+  if (heads <= 1) return "The head signs the printed PO.";
+  return rule === "ANY"
+    ? "Any one head signs the printed PO."
+    : `All ${heads} heads sign the printed PO.`;
+}

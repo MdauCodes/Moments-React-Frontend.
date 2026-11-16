@@ -147,6 +147,100 @@ export interface PriceRequestInput {
   note?: string;
 }
 
+// ---- purchase orders (handover doc 15 §21: the step 4 contract; not on the store yet) ----
+
+export type PoStage =
+  | "AWAITING_SIGNED_COPY"
+  | "CHECKING_SIGNED_COPY"
+  | "SENT_BACK"
+  | "HELD"
+  | "WITH_MOMENTS"
+  | "BEING_PREPARED"
+  | "AWAITING_FINAL_SIGNATURE"
+  | "READY_FOR_PICKUP"
+  | "ON_ITS_WAY"
+  | "DELIVERED"
+  | "CANCELLED";
+
+export interface PoPerson {
+  name: string;
+  rank?: string | null;
+  email?: string | null;
+}
+
+export interface PoRow {
+  orderId: string;
+  poNumber: string;
+  stage: PoStage;
+  placedBy: PoPerson;
+  placedAt: string;
+  total: number;
+  paymentMethod?: string | null;
+  itemCount: number;
+  needsMe: boolean;
+}
+
+export interface SignedCopyFile {
+  index: number;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+export interface SignedCopy {
+  id: string;
+  side: "RESTAURANT" | "MOMENTS";
+  uploadedBy: PoPerson;
+  uploadedAt: string;
+  note?: string | null;
+  files: SignedCopyFile[];
+  status: "UPLOADED" | "SENT_BACK" | "ACCEPTED";
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+  reason?: string | null;
+}
+
+export interface PoLine {
+  code?: string | null;
+  name: string;
+  pack?: string | null;
+  qty: number;
+  unitPrice: number;
+  amount: number;
+}
+
+export interface PoDetail {
+  orderId: string;
+  poNumber: string;
+  stage: PoStage;
+  catalogueVersion?: string | null;
+  placedBy: PoPerson;
+  placedAt: string;
+  lines: PoLine[];
+  itemsTotal: number;
+  deliveryFee?: number | null;
+  total: number;
+  vatIncluded?: number | null;
+  paymentMethod?: string | null;
+  creditDueDays?: number | null;
+  delivery?: {
+    method?: string | null;
+    address?: string | null;
+    receiver?: string | null;
+    phone?: string | null;
+  } | null;
+  approvalRule?: string | null;
+  signingMethod: "MANUAL" | "EMAIL_CODE" | "MPESA";
+  heads: { name: string; rank?: string | null; mustSign: boolean }[];
+  signedCopies: SignedCopy[];
+  approvals?: unknown[];
+  momentsSignedCopy?: SignedCopy | null;
+  sentBackReason?: string | null;
+  history: { at: string; text: string }[];
+  /** This person may upload the signed copy now (as `needsMe` on the row). */
+  canUpload?: boolean;
+}
+
 /** An error from the store, with its HTTP status and the store's own message. */
 export class RestaurantApiError extends Error {
   constructor(
@@ -176,6 +270,30 @@ async function call<T>(
   const res = await authFetch(apiUrl(path), { ...init, headers });
   if (!res.ok) throw await readError(res, `${fallback} (${res.status})`);
   return (await res.json()) as T;
+}
+
+/** The file name the store sends, or a fallback, from a Content-Disposition header. */
+function fileNameFrom(res: Response, fallback: string): string {
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  if (star) return decodeURIComponent(star[1]);
+  const plain = /filename="?([^";]+)"?/i.exec(cd);
+  return plain ? plain[1] : fallback;
+}
+
+/** Fetches a PDF the store makes and saves it on the phone or computer. */
+async function savePdfFrom(path: string, fallbackName: string, what: string): Promise<void> {
+  const res = await authFetch(apiUrl(path));
+  if (!res.ok) throw await readError(res, `Couldn't download ${what}.`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileNameFrom(res, fallbackName);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
 const post = <T>(path: string, body: unknown, fallback?: string) =>
@@ -236,5 +354,59 @@ export const restaurantApi = {
       "/api/v1/restaurant/me/price-requests",
       input,
       "Couldn't send the pricing request.",
+    ),
+  /** The quote form the store renders (also attached to the publish email), so there is one version. */
+  downloadQuote: (requestId: string) =>
+    savePdfFrom(
+      `/api/v1/restaurant/me/price-requests/${requestId}/quote.pdf`,
+      "Quote.pdf",
+      "the quote",
+    ),
+
+  purchaseOrders: (stage?: PoStage) =>
+    call<PoRow[]>(
+      `/api/v1/restaurant/me/purchase-orders${stage ? `?stage=${stage}` : ""}`,
+      {},
+      "Couldn't load your orders.",
+    ),
+
+  purchaseOrder: (orderId: string) =>
+    call<PoDetail>(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}`,
+      {},
+      "Couldn't load this order.",
+    ),
+
+  downloadPo: (orderId: string, poNumber: string) =>
+    savePdfFrom(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}/pdf`,
+      `${poNumber}.pdf`,
+      "the purchase order",
+    ),
+
+  signedCopies: (orderId: string) =>
+    call<SignedCopy[]>(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}/signed-copies`,
+      {},
+      "Couldn't load the signed copies.",
+    ),
+
+  /** Multipart: `files` (1-10; PDF, JPG, PNG; up to 10 MB each) and an optional note. */
+  async uploadSignedCopy(orderId: string, files: File[], note?: string): Promise<SignedCopy> {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f, f.name));
+    if (note) form.append("note", note);
+    const res = await authFetch(
+      apiUrl(`/api/v1/restaurant/me/purchase-orders/${orderId}/signed-copies`),
+      { method: "POST", body: form },
+    );
+    if (!res.ok) throw await readError(res, "Couldn't upload the signed copy.");
+    return (await res.json()) as SignedCopy;
+  },
+
+  /** Opens one page of a signed copy (the store redirects to a short-lived private link). */
+  signedCopyFileUrl: (orderId: string, copyId: string, index: number) =>
+    apiUrl(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}/signed-copies/${copyId}/files/${index}`,
     ),
 };

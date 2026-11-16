@@ -1,18 +1,11 @@
-// Orders and Statement in the portal nav, until the store's purchase orders (step 4) and credit
-// ledger and statements (steps 3b, 5) exist. Says what will be here, never shows sample numbers.
+// Statement in the portal nav, until the store's credit ledger and statements (steps 3b, 5) exist.
+// Says what will be here, never shows sample numbers.
 import { useEffect } from "react";
 
 import { PortalShell } from "@/components/restaurant/PortalShell";
 import { ComingSoon, Muted, PortalButtonLink } from "@/components/restaurant/portalUi";
 
 const COPY = {
-  orders: {
-    title: "Orders",
-    doc: "Orders",
-    lead: "Your purchase orders will be here: each with its PO number, who placed it, your heads' signatures and where it is now.",
-    soon: "Ordering through the portal opens soon. Orders you place in the shop meanwhile are under My orders in your account.",
-    link: { to: "/account/orders", label: "My shop orders" },
-  },
   statement: {
     title: "Statement",
     doc: "Statement",
@@ -22,7 +15,7 @@ const COPY = {
   },
 } as const;
 
-export default function RestaurantSoonPage({ page }: { page: "orders" | "statement" }) {
+export default function RestaurantSoonPage({ page }: { page: "statement" }) {
   const copy = COPY[page];
   useEffect(() => {
     document.title = `${copy.doc} · Moments Packaging`;

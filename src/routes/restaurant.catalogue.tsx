@@ -1,6 +1,7 @@
 // The restaurant's own catalogue (doc 15 §14-§15, §21) and its quote requests. Prices are KES, VAT
 // included, unique to this restaurant, and stay until Moments changes them with 14 days' notice.
-// Every priced request gives both a quote form and the updated catalogue, as PDFs. Moments' working
+// Every priced request gives both a quote form (rendered by the store, the same file as the email's)
+// and the updated catalogue (drawn here in the browser), as PDFs. Moments' working
 // steps (who prices, proposed prices) are never shown: a request is "With Moments" until decided.
 // No links to the shop's product pages here: those show shop prices, not the restaurant's.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -32,7 +33,7 @@ import {
   priceRequestStatus,
   shortDate,
 } from "@/lib/restaurantPortal";
-import { pdfFileName, quoteReference } from "@/lib/restaurantPdfLayout";
+import { pdfFileName } from "@/lib/restaurantPdfLayout";
 import { quoteBasket, useQuoteBasket } from "@/lib/quoteBasket";
 import type { Product } from "@/data/products";
 
@@ -54,19 +55,6 @@ async function downloadCatalogue(cat: MyCatalogue, onProgress: (pct: number) => 
     onProgress(Math.round((done / total) * 100)),
   );
   savePdf(blob, pdfFileName(cat.restaurantName, "catalogue", cat.version));
-}
-
-async function downloadQuote(request: MyPriceRequest, cat: MyCatalogue) {
-  const { buildQuotePdf, savePdf } = await import("@/lib/restaurantPdf");
-  const blob = await buildQuotePdf(request, cat);
-  savePdf(
-    blob,
-    pdfFileName(
-      cat.restaurantName,
-      "quote",
-      quoteReference(cat.restaurantCode, request.createdAt, request.id),
-    ),
-  );
 }
 
 function CatalogueBody() {
@@ -136,9 +124,9 @@ function CatalogueBody() {
   async function onDownloadQuote(r: MyPriceRequest) {
     setQuoteBusy(r.id);
     try {
-      await downloadQuote(r, cat);
-    } catch {
-      toast.error("Couldn't make the PDF. Try again.");
+      await restaurantApi.downloadQuote(r.id);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't download the quote. Try again.");
     } finally {
       setQuoteBusy(null);
     }
@@ -331,7 +319,7 @@ function CatalogueBody() {
                         disabled={quoteBusy === r.id}
                       >
                         <Download className="h-4 w-4" aria-hidden="true" />
-                        {quoteBusy === r.id ? "Making the PDF…" : "Download quote (PDF)"}
+                        {quoteBusy === r.id ? "Downloading…" : "Download quote (PDF)"}
                       </PortalButton>
                       <PortalButton
                         variant="secondary"

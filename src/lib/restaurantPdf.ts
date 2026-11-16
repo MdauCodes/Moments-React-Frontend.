@@ -1,7 +1,8 @@
-// The restaurant's catalogue booklet and quote form as PDFs, drawn in the browser (handover doc 15
-// §15, §21), following Trendysh's src/lib/cataloguePdf.ts: jsPDF and the QR maker load only when
-// someone downloads. Both carry the same prices: the restaurant's own (VAT included), as the store
-// returns them from GET /restaurant/me/catalogue. No stock, no promotions, no shop prices.
+// The restaurant's catalogue booklet as a PDF, drawn in the browser (handover doc 15 §15, §22),
+// following Trendysh's src/lib/cataloguePdf.ts: jsPDF and the QR maker load only when someone
+// downloads. Prices are the restaurant's own (VAT included), as the store returns them from
+// GET /restaurant/me/catalogue. No stock, no promotions, no shop prices. The quote form is the
+// store's own PDF (GET /restaurant/me/price-requests/{id}/quote.pdf), so there is one version.
 import logoUrl from "@/assets/moments_logo_without_background.png";
 import {
   COMPANY_ADDRESS,
@@ -22,11 +23,8 @@ import {
   flowLayout,
   pdfKes,
   pdfText,
-  quoteReference,
-  quoteRows,
-  vatIncluded,
 } from "@/lib/restaurantPdfLayout";
-import type { MyCatalogue, MyPriceRequest } from "@/services/restaurantApi";
+import type { MyCatalogue } from "@/services/restaurantApi";
 
 // Moments' colours: deep green (the site's --primary), kraft, gold, the portal's green.
 const DEEP = "#1F3B2D";
@@ -447,156 +445,6 @@ export async function buildCataloguePdf(
       });
     }
   }
-}
-
-/** The quote form: a one-page (or more) table of the products asked about, at the restaurant's prices. */
-export async function buildQuotePdf(request: MyPriceRequest, cat: MyCatalogue): Promise<Blob> {
-  const [{ jsPDF }, { default: autoTable }] = await Promise.all([
-    import("jspdf"),
-    import("jspdf-autotable"),
-  ]);
-  const logo = await loadImage(logoUrl, false);
-  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
-  const restaurant = pdfText(cat.restaurantName);
-  const ref = quoteReference(cat.restaurantCode, request.createdAt, request.id);
-  const rows = quoteRows(request.items, cat.lines);
-  doc.setProperties({
-    title: pdfText(`${cat.restaurantName} quote ${ref}`),
-    author: "Moments Packaging",
-  });
-
-  // masthead
-  doc.setFillColor(DEEP);
-  doc.rect(0, 0, PAGE_W, 34, "F");
-  if (logo) {
-    doc.setFillColor("#ffffff");
-    doc.roundedRect(MARGIN, 7, 20, 20, 3, 3, "F");
-    doc.addImage(logo, "PNG", MARGIN + 2, 9, 16, 16);
-  }
-  doc.setFont("times", "bold");
-  doc.setFontSize(20);
-  doc.setTextColor("#ffffff");
-  doc.text("Price quote", MARGIN + 26, 17);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor("#E9E2D0");
-  doc.text("Moments Packaging  ·  Nairobi", MARGIN + 26, 23.5);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(GOLD);
-  doc.text(ref, PAGE_W - MARGIN, 17, { align: "right" });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor("#E9E2D0");
-  doc.text(longDate(new Date().toISOString()), PAGE_W - MARGIN, 23.5, { align: "right" });
-
-  // to / from
-  let y = 46;
-  doc.setTextColor(MUTED);
-  doc.setFontSize(8);
-  doc.text("PREPARED FOR", MARGIN, y);
-  doc.text("FROM", PAGE_W / 2 + 4, y);
-  doc.setTextColor(INK);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text(restaurant, MARGIN, y + 6, { maxWidth: PAGE_W / 2 - MARGIN - 4 });
-  doc.text("Moments Packaging", PAGE_W / 2 + 4, y + 6);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(MUTED);
-  doc.text(
-    pdfText(
-      `Asked ${longDate(request.createdAt)}${request.requestedBy ? ` by ${request.requestedBy}` : ""}`,
-    ),
-    MARGIN,
-    y + 12,
-    { maxWidth: PAGE_W / 2 - MARGIN - 4 },
-  );
-  doc.text(
-    doc.splitTextToSize(
-      pdfText(`${COMPANY_ADDRESS}  ·  ${COMPANY_PHONE_INTL}  ·  ${COMPANY_EMAIL}`),
-      PAGE_W / 2 - MARGIN - 4,
-    ) as string[],
-    PAGE_W / 2 + 4,
-    y + 12,
-  );
-  y += 28;
-
-  autoTable(doc, {
-    startY: y,
-    margin: { left: MARGIN, right: MARGIN, bottom: 24 },
-    head: [["#", "Product", "Unit", "You usually buy", "Your price (VAT incl.)"]],
-    body: rows.map((r) => [
-      String(r.no),
-      pdfText(r.productName),
-      pdfText(r.unit),
-      pdfText(r.quantityNote),
-      r.price == null ? "Not priced" : pdfKes(r.price),
-    ]),
-    styles: {
-      font: "helvetica",
-      fontSize: 9,
-      textColor: INK,
-      cellPadding: 2.4,
-      lineColor: LINE,
-      lineWidth: 0.2,
-    },
-    headStyles: { fillColor: GREEN, textColor: "#ffffff", fontStyle: "bold" },
-    alternateRowStyles: { fillColor: PAPER },
-    columnStyles: {
-      0: { cellWidth: 9, halign: "right" },
-      2: { cellWidth: 24 },
-      3: { cellWidth: 36 },
-      4: { cellWidth: 40, halign: "right", fontStyle: "bold" },
-    },
-  });
-  const after =
-    (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
-  let ny = after + 8;
-  if (ny > PAGE_H - 70) {
-    doc.addPage();
-    ny = BODY_TOP + 4;
-  }
-  const priced = rows.filter((r) => r.price != null);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(INK);
-  const notes = [
-    "Prices include VAT at 16%" +
-      (priced.length
-        ? ` (e.g. ${pdfKes(priced[0].price ?? 0)} holds ${pdfKes(vatIncluded(priced[0].price ?? 0))} VAT).`
-        : "."),
-    `These are ${restaurant}'s own prices${cat.version ? `, in catalogue ${cat.version}` : ""}. Every order is placed at them; they stay until Moments changes them, with at least 14 days' notice.`,
-    "Order in your restaurant page on the Moments website. Your updated catalogue comes with this quote.",
-  ];
-  if (request.note) notes.unshift(`Your note: ${request.note}`);
-  for (const n of notes) {
-    const lines = doc.splitTextToSize(pdfText(n), PAGE_W - MARGIN * 2) as string[];
-    doc.text(lines, MARGIN, ny);
-    ny += lines.length * 4.4 + 2;
-  }
-  const approval = approvalLine(cat);
-  if (approval) {
-    ny += 4;
-    doc.setDrawColor(LINE);
-    doc.line(MARGIN, ny, MARGIN + 80, ny);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(MUTED);
-    doc.text(pdfText(approval), MARGIN, ny + 5);
-  }
-
-  const pageCount = doc.getNumberOfPages();
-  for (let p = 1; p <= pageCount; p++) {
-    doc.setPage(p);
-    footer(
-      doc,
-      logo,
-      `Quote ${ref}${cat.version ? `  ·  catalogue ${cat.version}` : ""}`,
-      p,
-      pageCount,
-    );
-  }
-  return doc.output("blob");
 }
 
 /** Saves a built PDF on the phone or computer. */
