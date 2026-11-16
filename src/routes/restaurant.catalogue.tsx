@@ -1,9 +1,12 @@
-// The restaurant's approved catalogue (doc 15 §14-§15) and its pricing requests. Prices are KES,
-// VAT included, and stay until Moments changes them with 14 days' notice. Moments' working steps
-// (who prices, proposed prices) are never shown: a request is "With Moments" until it is decided.
+// The restaurant's own catalogue (doc 15 §14-§15, §21) and its quote requests. Prices are KES, VAT
+// included, unique to this restaurant, and stay until Moments changes them with 14 days' notice.
+// Every priced request gives both a quote form and the updated catalogue, as PDFs. Moments' working
+// steps (who prices, proposed prices) are never shown: a request is "With Moments" until decided.
+// No links to the shop's product pages here: those show shop prices, not the restaurant's.
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
-import { Plus, Search, Trash2 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { Download, LayoutGrid, Plus, Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { PortalShell } from "@/components/restaurant/PortalShell";
 import {
@@ -13,6 +16,7 @@ import {
   Muted,
   Pill,
   PortalButton,
+  PortalButtonLink,
   PortalCard,
   inputClass,
   portalColors as c,
@@ -28,6 +32,8 @@ import {
   priceRequestStatus,
   shortDate,
 } from "@/lib/restaurantPortal";
+import { pdfFileName, quoteReference } from "@/lib/restaurantPdfLayout";
+import { quoteBasket, useQuoteBasket } from "@/lib/quoteBasket";
 import type { Product } from "@/data/products";
 
 export default function RestaurantCataloguePage() {
@@ -41,12 +47,38 @@ export default function RestaurantCataloguePage() {
   );
 }
 
+/** Builds and saves a PDF; the drawing code (jsPDF, the QR maker) loads only now. */
+async function downloadCatalogue(cat: MyCatalogue, onProgress: (pct: number) => void) {
+  const { buildCataloguePdf, savePdf } = await import("@/lib/restaurantPdf");
+  const blob = await buildCataloguePdf(cat, (done, total) =>
+    onProgress(Math.round((done / total) * 100)),
+  );
+  savePdf(blob, pdfFileName(cat.restaurantName, "catalogue", cat.version));
+}
+
+async function downloadQuote(request: MyPriceRequest, cat: MyCatalogue) {
+  const { buildQuotePdf, savePdf } = await import("@/lib/restaurantPdf");
+  const blob = await buildQuotePdf(request, cat);
+  savePdf(
+    blob,
+    pdfFileName(
+      cat.restaurantName,
+      "quote",
+      quoteReference(cat.restaurantCode, request.createdAt, request.id),
+    ),
+  );
+}
+
 function CatalogueBody() {
+  const [params, setParams] = useSearchParams();
+  const basket = useQuoteBasket();
   const [catalogue, setCatalogue] = useState<MyCatalogue | null>(null);
   const [requests, setRequests] = useState<MyPriceRequest[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [asking, setAsking] = useState(false);
+  const [asking, setAsking] = useState(params.get("ask") === "1" || basket.length > 0);
+  const [pdfProgress, setPdfProgress] = useState<number | null>(null);
+  const [quoteBusy, setQuoteBusy] = useState<string | null>(null);
   const askRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -68,8 +100,8 @@ function CatalogueBody() {
   }, [load]);
 
   useEffect(() => {
-    if (asking) askRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [asking]);
+    if (asking && catalogue) askRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [asking, catalogue]);
 
   if (error && !catalogue) {
     return (
@@ -85,31 +117,72 @@ function CatalogueBody() {
     return <div className="h-48 animate-pulse rounded-2xl bg-black/5" aria-busy="true" />;
   }
 
-  const lines = filterLines(catalogue.lines, query);
+  const cat = catalogue;
+  const lines = filterLines(cat.lines, query);
   const groups = groupByCategory(lines);
   const open = requests.filter((r) => r.status !== "PUBLISHED" && r.status !== "DECLINED");
+
+  async function onDownloadCatalogue() {
+    setPdfProgress(0);
+    try {
+      await downloadCatalogue(cat, setPdfProgress);
+    } catch {
+      toast.error("Couldn't make the PDF. Try again.");
+    } finally {
+      setPdfProgress(null);
+    }
+  }
+
+  async function onDownloadQuote(r: MyPriceRequest) {
+    setQuoteBusy(r.id);
+    try {
+      await downloadQuote(r, cat);
+    } catch {
+      toast.error("Couldn't make the PDF. Try again.");
+    } finally {
+      setQuoteBusy(null);
+    }
+  }
+
+  const closeAsk = () => {
+    setAsking(false);
+    if (params.get("ask")) {
+      params.delete("ask");
+      setParams(params, { replace: true });
+    }
+  };
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-[24px] font-bold">
-            Your catalogue{catalogue.version ? ` · ${catalogue.version}` : ""}
+            Your catalogue{cat.version ? ` · ${cat.version}` : ""}
           </h1>
           <Muted>
-            {catalogue.version
-              ? `Your own prices, VAT included. Approved ${shortDate(catalogue.approvedAt ?? catalogue.effectiveFrom)}; they stay until Moments changes them, with 14 days' notice.`
-              : "No approved prices yet. Ask Moments to price the products you buy; your catalogue appears here once a Moments manager approves it."}
+            {cat.version
+              ? `Your own prices, VAT included. Approved ${shortDate(cat.approvedAt ?? cat.effectiveFrom)}; every order is placed at them, and they stay until Moments changes them, with 14 days' notice.`
+              : "No prices yet. Browse the products you buy and send a quote request; Moments prices them for you and sends a quote and your catalogue."}
           </Muted>
         </div>
-        {!asking && (
-          <PortalButton onClick={() => setAsking(true)} className="shrink-0">
-            <Plus className="h-4 w-4" aria-hidden="true" /> Ask prices for new products
-          </PortalButton>
-        )}
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          {cat.lines.length > 0 && (
+            <PortalButton
+              variant="secondary"
+              onClick={() => void onDownloadCatalogue()}
+              disabled={pdfProgress != null}
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              {pdfProgress != null ? `Making the PDF… ${pdfProgress}%` : "Download catalogue (PDF)"}
+            </PortalButton>
+          )}
+          <PortalButtonLink to="/restaurant/browse">
+            <LayoutGrid className="h-4 w-4" aria-hidden="true" /> Browse products
+          </PortalButtonLink>
+        </div>
       </div>
 
-      {catalogue.upcoming.map((u) => (
+      {cat.upcoming.map((u) => (
         <div
           key={u.label}
           role="note"
@@ -128,19 +201,25 @@ function CatalogueBody() {
         </div>
       ))}
 
-      {asking && (
+      {asking ? (
         <div ref={askRef}>
           <PriceRequestForm
-            onCancel={() => setAsking(false)}
+            onCancel={closeAsk}
             onSent={async () => {
-              setAsking(false);
+              closeAsk();
               await load();
             }}
           />
         </div>
+      ) : (
+        <div>
+          <PortalButton variant="secondary" onClick={() => setAsking(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" /> Ask prices for new products
+          </PortalButton>
+        </div>
       )}
 
-      {catalogue.lines.length > 0 && (
+      {cat.lines.length > 0 && (
         <PortalCard>
           <label className="relative block">
             <span className="sr-only">Search your catalogue</span>
@@ -188,16 +267,7 @@ function CatalogueBody() {
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      {l.slug ? (
-                        <Link
-                          to={`/products/${l.slug}`}
-                          className="break-words font-semibold underline-offset-4 hover:underline"
-                        >
-                          {l.productName}
-                        </Link>
-                      ) : (
-                        <span className="break-words font-semibold">{l.productName}</span>
-                      )}
+                      <span className="break-words font-semibold">{l.productName}</span>
                       <div className="text-[12.5px]" style={{ color: c.muted }}>
                         {l.unit ? `per ${l.unit}` : ""}
                         {l.unit && l.priceSince ? " · " : ""}
@@ -215,12 +285,12 @@ function CatalogueBody() {
 
       <ComingSoon
         title="Ordering from your catalogue"
-        text="Purchase orders at these prices, approved by your heads, open here soon. Until then, order as usual from the Moments shop or through your contact at Moments."
+        text="Purchase orders at these prices open here soon: your heads download the PO, sign it, and upload the signed copy. Until then, order through your contact at Moments."
       />
 
       <PortalCard aria-labelledby="h-requests">
         <h2 id="h-requests" className="text-[18px] font-bold">
-          Pricing requests{open.length ? ` · ${open.length} with Moments` : ""}
+          Quote requests{open.length ? ` · ${open.length} with Moments` : ""}
         </h2>
         {requests.length === 0 ? (
           <Muted className="mt-1">You haven't asked for prices yet.</Muted>
@@ -228,6 +298,7 @@ function CatalogueBody() {
           <ul className="mt-2 flex flex-col gap-2">
             {requests.map((r) => {
               const st = priceRequestStatus(r.status, r.publishedVersion);
+              const priced = r.status === "PUBLISHED";
               return (
                 <li
                   key={r.id}
@@ -252,6 +323,25 @@ function CatalogueBody() {
                       <strong>Moments:</strong> {r.declineReason}
                     </div>
                   )}
+                  {priced && (
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <PortalButton
+                        variant="secondary"
+                        onClick={() => void onDownloadQuote(r)}
+                        disabled={quoteBusy === r.id}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        {quoteBusy === r.id ? "Making the PDF…" : "Download quote (PDF)"}
+                      </PortalButton>
+                      <PortalButton
+                        variant="secondary"
+                        onClick={() => void onDownloadCatalogue()}
+                        disabled={pdfProgress != null}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" /> Download catalogue (PDF)
+                      </PortalButton>
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -262,11 +352,7 @@ function CatalogueBody() {
   );
 }
 
-interface Picked {
-  product: Pick<Product, "id" | "name" | "image">;
-  quantityNote: string;
-}
-
+/** The quote request: the products picked in Browse (or searched here), with optional quantity notes. */
 function PriceRequestForm({
   onCancel,
   onSent,
@@ -274,10 +360,11 @@ function PriceRequestForm({
   onCancel: () => void;
   onSent: () => Promise<void>;
 }) {
+  const picked = useQuoteBasket();
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Product[]>([]);
   const [searching, setSearching] = useState(false);
-  const [picked, setPicked] = useState<Picked[]>([]);
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -303,16 +390,6 @@ function PriceRequestForm({
     };
   }, [q]);
 
-  const add = (p: Product) => {
-    if (picked.some((x) => x.product.id === p.id)) return;
-    setPicked([
-      ...picked,
-      { product: { id: p.id, name: p.name, image: p.image }, quantityNote: "" },
-    ]);
-    setQ("");
-    setResults([]);
-  };
-
   async function send(e: FormEvent) {
     e.preventDefault();
     if (picked.length === 0) return setError("Add at least one product to the request.");
@@ -321,14 +398,16 @@ function PriceRequestForm({
     try {
       await restaurantApi.requestPrices({
         items: picked.map((p) => ({
-          productId: p.product.id,
-          quantityNote: p.quantityNote.trim() || undefined,
+          productId: p.id,
+          quantityNote: notes[p.id]?.trim() || undefined,
         })),
         note: note.trim() || undefined,
       });
+      quoteBasket.clear();
+      toast.success("Sent to Moments. You'll get an email with your quote and catalogue.");
       await onSent();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't send the pricing request.");
+      setError(err instanceof Error ? err.message : "Couldn't send the quote request.");
     } finally {
       setBusy(false);
     }
@@ -338,12 +417,17 @@ function PriceRequestForm({
     <PortalCard aria-labelledby="h-ask">
       <form onSubmit={(e) => void send(e)} className="flex flex-col gap-3" noValidate>
         <h2 id="h-ask" className="text-[18px] font-bold">
-          Request catalogue pricing
+          Quote request
         </h2>
         <Muted>
-          Search for the products you buy and add them. A Moments manager prices them for you;
-          you'll get an email when your catalogue is updated.
+          Add the products you want priced. A Moments manager prices them for you; you then get a
+          quote and your updated catalogue, by email and here.
         </Muted>
+        <div>
+          <PortalButtonLink to="/restaurant/browse" variant="secondary">
+            <LayoutGrid className="h-4 w-4" aria-hidden="true" /> Browse by industry or category
+          </PortalButtonLink>
+        </div>
         <label className="relative block">
           <span className="sr-only">Search products</span>
           <Search
@@ -355,7 +439,7 @@ function PriceRequestForm({
             type="search"
             className={`${inputClass} pl-9`}
             style={{ borderColor: c.line }}
-            placeholder="Search products, e.g. kraft box"
+            placeholder="Or search, e.g. kraft box"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -367,18 +451,23 @@ function PriceRequestForm({
             style={{ borderColor: c.line }}
           >
             {results.map((p) => {
-              const already = picked.some((x) => x.product.id === p.id);
+              const already = picked.some((x) => x.id === p.id);
+              const image = p.primaryImageUrl || p.image;
               return (
                 <li key={p.id}>
                   <button
                     type="button"
-                    onClick={() => add(p)}
+                    onClick={() => {
+                      quoteBasket.add({ id: p.id, name: p.name, image: image || undefined });
+                      setQ("");
+                      setResults([]);
+                    }}
                     disabled={already}
                     className="flex min-h-12 w-full items-center gap-3 px-3 py-2 text-left disabled:opacity-60"
                   >
-                    {p.image ? (
+                    {image ? (
                       <img
-                        src={p.image}
+                        src={image}
                         alt=""
                         className="h-9 w-9 shrink-0 rounded-md object-cover"
                       />
@@ -400,19 +489,19 @@ function PriceRequestForm({
         )}
         {picked.length > 0 && (
           <ul className="flex flex-col gap-2" aria-label="Products to price">
-            {picked.map((p, i) => (
+            {picked.map((p) => (
               <li
-                key={p.product.id}
+                key={p.id}
                 className="list-none rounded-[10px] border p-3"
                 style={{ borderColor: c.line, background: c.page }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="min-w-0 break-words font-semibold">{p.product.name}</span>
+                  <span className="min-w-0 break-words font-semibold">{p.name}</span>
                   <button
                     type="button"
-                    onClick={() => setPicked(picked.filter((_, j) => j !== i))}
+                    onClick={() => quoteBasket.remove(p.id)}
                     className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px]"
-                    aria-label={`Remove ${p.product.name}`}
+                    aria-label={`Remove ${p.name}`}
                     style={{ color: c.danger }}
                   >
                     <Trash2 className="h-4 w-4" aria-hidden="true" />
@@ -421,12 +510,8 @@ function PriceRequestForm({
                 <Field
                   label="How many you usually buy (optional)"
                   placeholder="e.g. 20 packs a month"
-                  value={p.quantityNote}
-                  onChange={(e) =>
-                    setPicked(
-                      picked.map((x, j) => (j === i ? { ...x, quantityNote: e.target.value } : x)),
-                    )
-                  }
+                  value={notes[p.id] ?? ""}
+                  onChange={(e) => setNotes({ ...notes, [p.id]: e.target.value })}
                 />
               </li>
             ))}
@@ -440,10 +525,10 @@ function PriceRequestForm({
         <ErrorText>{error}</ErrorText>
         <div className="flex flex-col gap-2 sm:flex-row">
           <PortalButton type="submit" disabled={busy}>
-            {busy ? "Sending…" : `Send request${picked.length ? ` (${picked.length})` : ""}`}
+            {busy ? "Sending…" : `Send to Moments${picked.length ? ` (${picked.length})` : ""}`}
           </PortalButton>
           <PortalButton variant="secondary" onClick={onCancel} disabled={busy}>
-            Cancel
+            Close
           </PortalButton>
         </div>
       </form>

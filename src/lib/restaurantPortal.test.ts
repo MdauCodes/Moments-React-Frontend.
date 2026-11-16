@@ -263,3 +263,68 @@ describe("setupDoneSentence", () => {
     );
   });
 });
+
+import {
+  flowLayout,
+  pdfFileName,
+  pdfKes,
+  pdfText,
+  quoteReference,
+  quoteRows,
+  vatIncluded,
+} from "./restaurantPdfLayout.ts";
+
+describe("PDF layout", () => {
+  it("cleans text jsPDF's fonts can't print", () => {
+    assert.equal(pdfText("Kijani’s “grill”  ✓ box"), 'Kijani\'s "grill" box');
+    assert.equal(pdfText(null), "");
+  });
+
+  it("works out the VAT inside a price", () => {
+    assert.equal(vatIncluded(1160), 160);
+    assert.equal(vatIncluded(1190), 164.14);
+  });
+
+  it("formats money for the PDF", () => {
+    assert.equal(pdfKes(1190), "KES 1,190");
+    assert.equal(pdfKes(47350.5), "KES 47,350.50");
+  });
+
+  it("flows sections down the pages, two cards a row", () => {
+    const { pages, startPage } = flowLayout([3, 1]);
+    assert.equal(pages.length, 1);
+    assert.deepEqual(startPage, [0, 0]);
+    const cards = pages[0].filter((i) => i.kind === "card");
+    assert.equal(cards.length, 4);
+    const big = flowLayout([40]);
+    assert.ok(big.pages.length > 1);
+    assert.ok(big.pages.every((p) => p.length > 0));
+  });
+
+  it("prices the quote's rows from the catalogue", () => {
+    const rows = quoteRows(
+      [
+        { productId: "a", productName: "Box", quantityNote: "20 packs" },
+        { productId: "b", productName: "Cup" },
+      ],
+      [{ productId: "a", productName: "Kraft box", unit: "pack", price: 1190 }],
+    );
+    assert.deepEqual(rows, [
+      { no: 1, productName: "Kraft box", unit: "pack", quantityNote: "20 packs", price: 1190 },
+      { no: 2, productName: "Cup", unit: "", quantityNote: "", price: null },
+    ]);
+  });
+
+  it("names quotes and files", () => {
+    assert.equal(
+      quoteReference("kg", "2026-11-16T10:40:00Z", "ab12cd34-0000"),
+      "KG-Q-2026-11-16-AB12",
+    );
+    assert.equal(quoteReference(null, "bad", "x1"), "R-Q-0000-00-00-X1");
+    assert.equal(
+      pdfFileName("Kijani: Grill", "catalogue", "KG-v3"),
+      "Kijani Grill catalogue KG-v3.pdf",
+    );
+    assert.equal(pdfFileName(null), "document.pdf");
+  });
+});

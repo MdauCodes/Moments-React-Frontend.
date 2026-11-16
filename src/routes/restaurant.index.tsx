@@ -75,13 +75,17 @@ function HomeBody() {
           <PortalButtonLink to="/restaurant/catalogue" className="min-h-[52px]">
             New order
           </PortalButtonLink>
-          <PortalButtonLink to="/products" variant="secondary" className="min-h-[52px] text-center">
-            Quick purchase (pay now)
+          <PortalButtonLink
+            to="/restaurant/browse"
+            variant="secondary"
+            className="min-h-[52px] text-center"
+          >
+            Browse products
           </PortalButtonLink>
         </div>
         <Muted className="-mt-2 text-[12.5px]">
-          Quick purchase is at the shop price and is paid at once by M-Pesa or bank; it skips your
-          heads' approval and never goes on credit.
+          You order at your own prices. Need something new? Browse the products and ask for a quote;
+          Moments prices it for you.
         </Muted>
 
         {isHead && (
@@ -91,7 +95,7 @@ function HomeBody() {
             </h2>
             <ComingSoon
               title="Nothing waiting yet"
-              text={`When your staff place orders, they wait here until ${ruleText(restaurant.approvalRule)}. You'll be able to look at each one and approve and sign it from your phone.`}
+              text={`When your staff place orders, they wait here until ${ruleText(restaurant.approvalRule)}. You'll download each purchase order, sign it with the other heads, and upload the signed copy.`}
             />
           </PortalCard>
         )}
@@ -175,9 +179,9 @@ function HomeBody() {
           )}
           <div className="mt-3 flex flex-col gap-2">
             <PortalButtonLink to="/restaurant/catalogue" variant="secondary">
-              Open your catalogue
+              Open your catalogue (and PDF)
             </PortalButtonLink>
-            <PortalButtonLink to="/restaurant/catalogue" variant="secondary">
+            <PortalButtonLink to="/restaurant/browse" variant="secondary">
               Ask prices for new products
             </PortalButtonLink>
           </div>
