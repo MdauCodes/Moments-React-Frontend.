@@ -75,6 +75,8 @@ const NEVER_PROMPT_PREFIXES = [
   "/account/register",
   "/account/forgot-password",
   "/account/reset-password",
+  // The restaurant portal: shop offers and coupons never apply to restaurant ordering (doc 15 §14).
+  "/restaurant",
 ];
 
 /** The one place a post-order moment is allowed but a dwell-driven one is not: the visitor is

@@ -93,6 +93,14 @@ const AccountProfilePage = lazy(() => import("@/routes/account.profile"));
 const AccountReferralsPage = lazy(() => import("@/routes/account.referrals"));
 const AccountWishlistPage = lazy(() => import("@/routes/account.wishlist"));
 const AccountBusinessPage = lazy(() => import("@/routes/account.business"));
+// Restaurant portal (handover doc 15 §16-§18): restaurant people are ordinary customers; the
+// store checks every permission. /restaurant/join is public (the emailed code is the proof).
+const RestaurantJoinPage = lazy(() => import("@/routes/restaurant.join"));
+const RestaurantSetupPage = lazy(() => import("@/routes/restaurant.setup"));
+const RestaurantHomePage = lazy(() => import("@/routes/restaurant.index"));
+const RestaurantTeamPage = lazy(() => import("@/routes/restaurant.team"));
+const RestaurantCataloguePage = lazy(() => import("@/routes/restaurant.catalogue"));
+const RestaurantSoonPage = lazy(() => import("@/routes/restaurant.soon"));
 const AccountMerchantPage = lazy(() => import("@/routes/account.merchant"));
 
 // ── Admin auth pages (no auth required) ────────────────────────────────────
@@ -297,6 +305,15 @@ export default function App() {
                     <Route path="/account/wishlist" element={<AccountWishlistPage />} />
                     <Route path="/account/business" element={<AccountBusinessPage />} />
                     <Route path="/account/merchant" element={<AccountMerchantPage />} />
+
+                    {/* Restaurant portal */}
+                    <Route path="/restaurant" element={<RestaurantHomePage />} />
+                    <Route path="/restaurant/join" element={<RestaurantJoinPage />} />
+                    <Route path="/restaurant/setup" element={<RestaurantSetupPage />} />
+                    <Route path="/restaurant/team" element={<RestaurantTeamPage />} />
+                    <Route path="/restaurant/catalogue" element={<RestaurantCataloguePage />} />
+                    <Route path="/restaurant/orders" element={<RestaurantSoonPage page="orders" />} />
+                    <Route path="/restaurant/statement" element={<RestaurantSoonPage page="statement" />} />
 
                     {/* Admin — no auth. Wrapped (together with the auth-required block below) in
                         one Suspense boundary — every admin route is now a lazy chunk, see the
