@@ -16,6 +16,7 @@ import {
   Share2,
   LayoutGrid,
   Wallet,
+  UtensilsCrossed,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -29,6 +30,7 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { orderStore, type CustomerOrder } from "@/services/orderStore";
 import { profileStore, type CustomerProfile } from "@/services/profileStore";
 import { referralStore, type ReferralWallet } from "@/services/referralStore";
+import { restaurantApi, type MyRestaurant } from "@/services/restaurantApi";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
@@ -37,7 +39,7 @@ function fmt(n: number) {
 // Every item navigates via a real route (see DashboardSidebarNav's `to` mode) rather than
 // switching an in-page tab, so `active`/`onChange` are never actually read — these keys only
 // need to be distinct (React list keys) and satisfy DashboardShell's generic tab-state contract.
-type NavKey = "overview" | "orders" | "wishlist" | "addresses" | "rewards" | "business";
+type NavKey = "overview" | "orders" | "wishlist" | "addresses" | "rewards" | "business" | "restaurant";
 
 function DashboardPage() {
   const { user, logout } = useAuth();
@@ -48,6 +50,9 @@ function DashboardPage() {
   const [profile, setProfile] = useState<CustomerProfile | null>(null);
   const [wallet, setWallet] = useState<ReferralWallet | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
+  // Set when this customer belongs to a restaurant account (handover doc 15 §16): the way into
+  // its portal. A 404 (not a member) or any error just leaves the link out.
+  const [restaurant, setRestaurant] = useState<MyRestaurant | null>(null);
   // Set once, from router state left by account.register.tsx's redirect — a real navigation
   // (refresh, back button, revisiting later) never carries that state again, so this stays true
   // only for the one page view right after signup, not "every time you happen to land here."
@@ -62,6 +67,7 @@ function DashboardPage() {
       setProfile(p);
     });
     referralStore.getWallet().then(setWallet).catch(() => undefined);
+    restaurantApi.mine().then(setRestaurant).catch(() => undefined);
   }, []);
 
   const defaultAddress = (profile?.addresses ?? []).find((a) => a.isDefault) ?? profile?.addresses?.[0];
@@ -102,7 +108,11 @@ function DashboardPage() {
     ...(user?.accountType === "BUSINESS"
       ? [{ key: "business" as const, label: "Business Account", icon: Briefcase, to: "/account/business" }]
       : []),
+    ...(restaurant
+      ? [{ key: "restaurant" as const, label: "Restaurant portal", icon: UtensilsCrossed, to: "/restaurant" }]
+      : []),
   ];
+  const restaurantSetupPending = restaurant?.myRole === "OWNER" && !restaurant.headsLocked;
 
   return (
     <ProtectedRoute>
@@ -140,6 +150,29 @@ function DashboardPage() {
             </StatCardGrid>
           }
         >
+          {restaurant && (
+            <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <UtensilsCrossed className="mt-0.5 h-5 w-5 shrink-0 text-accent" aria-hidden="true" />
+                <div>
+                  <p className="font-display text-lg">{restaurant.businessName}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {restaurantSetupPending
+                      ? "Finish setting up your restaurant: add the heads who approve orders and invite your staff."
+                      : "Your restaurant account: your catalogue at your own prices, your team and your orders with Moments."}
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={restaurantSetupPending ? "/restaurant/setup" : "/restaurant"}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                {restaurantSetupPending ? "Finish the setup" : "Open the restaurant portal"}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+          )}
+
           {justRegistered && (
             <div className="mb-6 flex items-start gap-3 rounded-2xl border border-accent/30 bg-accent/10 p-5">
               <Sparkles className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
