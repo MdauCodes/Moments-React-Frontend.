@@ -635,6 +635,44 @@ export function payProblem(amount: number, owed: number, phone: string): string 
   return null;
 }
 
+// ---- what the store says this person may do on a PO (doc 15 §23.10) ----
+
+export interface ActionLike {
+  key: string;
+  allowed: boolean;
+  text?: string | null;
+}
+
+/** The store's entry for one action, if it sent one. */
+export function findAction<T extends ActionLike>(
+  actions: T[] | null | undefined,
+  key: string,
+): T | undefined {
+  return (actions ?? []).find((a) => a.key === key);
+}
+
+/**
+ * May this person do it now? The store's answer when it sent one; otherwise the older fields
+ * (`fallback`), so a store without `actions[]` still works. The store checks again either way.
+ */
+export function actionAllowed(
+  actions: ActionLike[] | null | undefined,
+  key: string,
+  fallback: boolean,
+): boolean {
+  const a = findAction(actions, key);
+  return a ? a.allowed : fallback;
+}
+
+/** The store's words for a limit the restaurant meets: a refused action with text to show. */
+export function actionLimitText(
+  actions: ActionLike[] | null | undefined,
+  key: string,
+): string | null {
+  const a = findAction(actions, key);
+  return a && !a.allowed && a.text ? a.text : null;
+}
+
 // ---- paying a PO (doc 15 §23) ----
 
 /** The VAT inside a VAT-inclusive amount at 16%, rounded to the cent. */

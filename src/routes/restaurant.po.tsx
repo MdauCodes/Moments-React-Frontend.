@@ -28,8 +28,11 @@ import {
 } from "@/services/restaurantApi";
 import {
   canUploadAt,
+  actionAllowed,
+  actionLimitText,
   dateTime,
   fileSize,
+  findAction,
   isHeadRole,
   kes,
   poPaymentBadge,
@@ -128,10 +131,32 @@ function PoBody() {
   // The store says whether it is this person's turn (`canUpload`); the guess below (a head, or the
   // name of whoever placed it) is only for a store that doesn't send it yet. The store checks anyway.
   const placedByMe = !!me && me.name === po.placedBy.name;
+  // While Moments reviews a change, the store refuses uploads and payment; its actions[] says so.
   const myTurn =
     po.signingMethod === "MANUAL" &&
-    canUploadAt(po.stage) &&
-    (po.canUpload ?? (isHeadRole(restaurant.myRole) || placedByMe));
+    !po.changeUnderReview &&
+    actionAllowed(
+      po.actions,
+      "UPLOAD_SIGNED_COPY",
+      canUploadAt(po.stage) && (po.canUpload ?? (isHeadRole(restaurant.myRole) || placedByMe)),
+    );
+  const canPayNow =
+    po.stage === "AWAITING_PAYMENT" &&
+    !po.changeUnderReview &&
+    actionAllowed(po.actions, "PAY", !!po.canPay);
+  const canCancelNow = actionAllowed(po.actions, "CANCEL", !!po.canCancel);
+  // The store's own words when it sends them (shown as given), else the agreed sentence.
+  const reviewText =
+    findAction(po.actions, "CHANGE_UNDER_REVIEW")?.text ||
+    "Moments is reviewing a change to this PO.";
+  // A limit the restaurant meets, in the store's words: shown instead of a button that would fail.
+  const limits = (["UPLOAD_SIGNED_COPY", "PAY"] as const)
+    .map((k) => actionLimitText(po.actions, k))
+    .filter((t): t is string => !!t && !po.changeUnderReview);
+  const cancelLimit =
+    po.stage !== "CANCELLED" && po.stage !== "DELIVERED"
+      ? actionLimitText(po.actions, "CANCEL")
+      : null;
   const restaurantCopies = po.signedCopies.filter((s) => s.side === "RESTAURANT");
 
   async function cancel() {
@@ -223,7 +248,28 @@ function PoBody() {
         </p>
       )}
 
-      {newVersion && (
+      {po.changeUnderReview && (
+        <p
+          role="status"
+          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
+          style={{ background: "#E3EEF0", color: "#1D4F5A" }}
+        >
+          {reviewText}
+        </p>
+      )}
+
+      {limits.map((t) => (
+        <p
+          key={t}
+          role="note"
+          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
+          style={{ background: "#F3EFE6", color: "#3E4842" }}
+        >
+          {t}
+        </p>
+      ))}
+
+      {newVersion && !po.changeUnderReview && (
         <p
           role="alert"
           className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
@@ -235,7 +281,7 @@ function PoBody() {
         </p>
       )}
 
-      {po.canPay && po.stage === "AWAITING_PAYMENT" && (
+      {canPayNow && (
         <PoPayNow
           po={po}
           mode="pay"
@@ -493,7 +539,17 @@ function PoBody() {
         </ol>
       </Collapsible>
 
-      {po.canCancel && (
+      {!canCancelNow && cancelLimit && (
+        <p
+          role="note"
+          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
+          style={{ background: "#F3EFE6", color: "#3E4842" }}
+        >
+          {cancelLimit}
+        </p>
+      )}
+
+      {canCancelNow && (
         <PortalCard aria-labelledby="h-cancel">
           <h2 id="h-cancel" className="text-[16px] font-bold">
             Cancel this order

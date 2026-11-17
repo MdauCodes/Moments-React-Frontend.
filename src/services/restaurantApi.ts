@@ -300,6 +300,23 @@ export interface PoDetail {
   canCancel?: boolean;
   topUps?: PoTopUp[];
   revisions?: PoRevision[];
+  /** Moments is reviewing a change to this PO (§23.9-§23.10): show it; nothing else to do meanwhile. */
+  changeUnderReview?: boolean;
+  /** What this person may do now and, when not, the store's own words for why (§23.10). */
+  actions?: PoAction[];
+}
+
+/**
+ * One action on a PO as the store sees it for this person (§23.8-§23.10). Restaurant keys:
+ * UPLOAD_SIGNED_COPY, PAY, CANCEL, and CHANGE_UNDER_REVIEW while a change waits. `text` is shown as
+ * given wherever the restaurant meets a limit.
+ */
+export interface PoAction {
+  key: string;
+  allowed: boolean;
+  needsApproval: boolean;
+  approvers: string[];
+  text?: string | null;
 }
 
 export interface BalanceMovement {

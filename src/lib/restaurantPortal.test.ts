@@ -486,3 +486,30 @@ describe("paying a PO (§23)", () => {
     assert.equal(balanceMovementText("APPLIED_TO_PO"), "Used towards an order");
   });
 });
+
+import { actionAllowed, actionLimitText, findAction } from "./restaurantPortal.ts";
+
+describe("PO actions from the store (§23.10)", () => {
+  const actions = [
+    { key: "PAY", allowed: true, text: null },
+    { key: "CANCEL", allowed: false, text: "Moments has this PO now. Ask Moments to cancel it." },
+    { key: "UPLOAD_SIGNED_COPY", allowed: false, text: null },
+  ];
+
+  it("takes the store's answer, else the older fields", () => {
+    assert.equal(actionAllowed(actions, "PAY", false), true);
+    assert.equal(actionAllowed(actions, "CANCEL", true), false);
+    assert.equal(actionAllowed([], "CANCEL", true), true);
+    assert.equal(actionAllowed(undefined, "PAY", false), false);
+    assert.equal(findAction(actions, "NOPE"), undefined);
+  });
+
+  it("gives the store's words for a refused action only", () => {
+    assert.equal(
+      actionLimitText(actions, "CANCEL"),
+      "Moments has this PO now. Ask Moments to cancel it.",
+    );
+    assert.equal(actionLimitText(actions, "PAY"), null);
+    assert.equal(actionLimitText(actions, "UPLOAD_SIGNED_COPY"), null);
+  });
+});
