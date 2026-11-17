@@ -1,7 +1,7 @@
 // A new purchase order from the restaurant's catalogue (doc 15 §21): pick quantities at its own
 // prices, then delivery and how it will pay, then place it. The store prices it again from the
 // catalogue, gives it a PO number and charges nothing at placing: the heads sign the printed PO
-// first. The pay-now step for M-Pesa/bank POs waits for the owner's decision (see §21).
+// first. An M-Pesa/bank PO is paid once Moments accepts the signed copy (owner, 17 Nov; §21).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Search } from "lucide-react";
@@ -315,7 +315,7 @@ function OrderBody() {
           <Muted className="mt-2 text-[12.5px]">
             {pay === "CREDIT"
               ? `Nothing to pay now: it goes on your credit account, due ${live?.paymentTermsDays ?? restaurant.paymentTermsDays ?? 30} days after delivery.`
-              : "Nothing is charged now. Moments tells you when and how to pay once your signed copy is accepted."}
+              : "Nothing is charged now. Once Moments accepts your signed copy, Pay now appears on the order."}
           </Muted>
         </PortalCard>
 

@@ -1,4 +1,4 @@
-// Paying a pay-now PO (owner's open question, built as the store proposed in doc 15 §21.1): once
+// Paying a pay-now PO (owner, 17 Nov; doc 15 §21, §21.1): once
 // Moments has accepted the signed copy, an M-Pesa or bank PO shows Pay now. The store sends the
 // M-Pesa prompt; the page asks the store every few seconds until it is paid or fails. Moments
 // prepares the order after payment.
