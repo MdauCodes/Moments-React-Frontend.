@@ -141,12 +141,18 @@ export function textOn(hex: string): string {
   return contrastWhite >= contrastDark ? "#FFFFFF" : "#17241C";
 }
 
-const kesFormat = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 2 });
+const kesWhole = new Intl.NumberFormat("en-KE", { maximumFractionDigits: 0 });
+const kesCents = new Intl.NumberFormat("en-KE", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
+/** "KES 1,190", or "KES 41,449.60" when there are cents. */
 export function kes(amount: number | string | null | undefined): string {
   const n = typeof amount === "string" ? Number(amount) : amount;
   if (n == null || !Number.isFinite(n)) return "KES —";
-  return `KES ${kesFormat.format(n)}`;
+  const whole = Math.round(n * 100) % 100 === 0;
+  return `KES ${(whole ? kesWhole : kesCents).format(n)}`;
 }
 
 const NAIROBI = "Africa/Nairobi";
@@ -538,5 +544,73 @@ export function deliveryProblem(d: DeliveryDraft): string | null {
   if (d.receiver.trim().split(/\s+/).length < 2) {
     return "Enter the full name (first and last) of whoever receives the order.";
   }
+  return null;
+}
+
+// ---- credit (doc 15 §19) ----
+
+/** How much of the limit is used, 0-100, for the bar. */
+export function creditUsedPct(owed: number, limit: number | null | undefined): number {
+  if (!limit || limit <= 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((owed / limit) * 100)));
+}
+
+export function paymentMethodText(method: string): string {
+  switch (method) {
+    case "MPESA_PROMPT":
+      return "M-Pesa (from the portal)";
+    case "MPESA_RECEIPT":
+      return "M-Pesa";
+    case "BANK":
+      return "Bank";
+    case "CHEQUE":
+      return "Cheque";
+    case "CASH":
+      return "Cash";
+    default:
+      return method;
+  }
+}
+
+export function paymentStatusText(status: string): { label: string; tone: Tone } {
+  switch (status) {
+    case "CONFIRMED":
+      return { label: "Received", tone: "good" };
+    case "REJECTED":
+      return { label: "Not accepted", tone: "bad" };
+    case "FAILED":
+      return { label: "Didn't go through", tone: "bad" };
+    default:
+      return { label: "Being confirmed", tone: "wait" };
+  }
+}
+
+/** When a credit charge is due, in plain words. */
+export function chargeDueText(c: {
+  deliveredAt?: string | null;
+  dueOn?: string | null;
+  overdue: boolean;
+}): {
+  label: string;
+  tone: Tone;
+} {
+  if (!c.deliveredAt) return { label: "Due once delivered", tone: "muted" };
+  if (c.overdue) return { label: `Overdue since ${shortDate(c.dueOn)}`, tone: "bad" };
+  return { label: `Due ${shortDate(c.dueOn)}`, tone: "wait" };
+}
+
+/** The amount the M-Pesa prompt will ask for: whole shillings, rounded up, as the store does. */
+export function promptAmount(amount: number): number {
+  return Math.ceil(Math.round(amount * 100) / 100);
+}
+
+/** The first problem with a "Pay by M-Pesa" entry, in the store's words, or null. */
+export function payProblem(amount: number, owed: number, phone: string): string | null {
+  if (owed <= 0) return "Your restaurant owes nothing right now.";
+  if (!Number.isFinite(amount) || amount < 1 || amount > promptAmount(owed)) {
+    return `Pay between KES 1 and what your restaurant owes, ${kes(promptAmount(owed))}.`;
+  }
+  if (phone.replace(/\D/g, "").length < 9)
+    return "Enter the M-Pesa phone number to send the prompt to.";
   return null;
 }

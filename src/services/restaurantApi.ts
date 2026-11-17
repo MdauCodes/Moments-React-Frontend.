@@ -266,6 +266,60 @@ export interface PlacedPo {
   stage?: PoStage | null;
 }
 
+// ---- credit (doc 15 §19.4, §19.7: built on the store branch, 567ee71) ----
+
+export interface ChargeRow {
+  id: string;
+  orderId: string;
+  orderReference: string;
+  chargedAt: string;
+  amount: number;
+  paid: number;
+  open: number;
+  status: "OPEN" | "VOID";
+  /** null = not delivered yet, so not due yet. */
+  deliveredAt?: string | null;
+  dueOn?: string | null;
+  overdue: boolean;
+}
+
+export interface PaymentRow {
+  id: string;
+  method: "MPESA_PROMPT" | "MPESA_RECEIPT" | "BANK" | "CHEQUE" | "CASH";
+  amount: number;
+  reference?: string | null;
+  paidOn?: string | null;
+  status: "PENDING" | "CONFIRMED" | "REJECTED" | "FAILED";
+  confirmedBy?: string | null;
+  confirmedAt?: string | null;
+  rejectReason?: string | null;
+  createdAt: string;
+}
+
+export interface CreditSummary {
+  restaurantId: string;
+  restaurantName: string;
+  creditEnabled: boolean;
+  creditLimit?: number | null;
+  paymentTermsDays?: number | null;
+  deliveryFeeOnCredit: boolean;
+  owed: number;
+  available: number;
+  overdue: number;
+  nextDueOn?: string | null;
+  nextDueAmount?: number | null;
+  unallocated: number;
+  openCharges: ChargeRow[];
+  recentPayments: PaymentRow[];
+}
+
+export interface PromptStatus {
+  id: string;
+  status: PaymentRow["status"];
+  amount: number;
+  message?: string | null;
+}
+
 /** An error from the store, with its HTTP status and the store's own message. */
 export class RestaurantApiError extends Error {
   constructor(
@@ -468,4 +522,22 @@ export const restaurantApi = {
     if (!res.ok) throw await readError(res, "Couldn't place the order.");
     return (await res.json()) as PlacedPo;
   },
+  /** The restaurant's credit: a 404 or 405 means the store doesn't have credit yet. */
+  credit: () =>
+    call<CreditSummary>("/api/v1/restaurant/me/credit", {}, "Couldn't load your credit."),
+
+  /** Sends an M-Pesa prompt to `phone` for `amount` (everything owed when left out). */
+  payCredit: (input: { amount?: number; phone: string }) =>
+    post<PromptStatus>(
+      "/api/v1/restaurant/me/credit/pay",
+      input,
+      "Couldn't send the M-Pesa prompt.",
+    ),
+
+  creditPayment: (id: string) =>
+    call<PromptStatus>(
+      `/api/v1/restaurant/me/credit/payments/${id}`,
+      {},
+      "Couldn't check the payment.",
+    ),
 };

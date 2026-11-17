@@ -196,7 +196,8 @@ describe("catalogue", () => {
 
   it("formats money and announced changes", () => {
     assert.equal(kes(1190), "KES 1,190");
-    assert.equal(kes("47350.5"), "KES 47,350.5");
+    assert.equal(kes("47350.5"), "KES 47,350.50");
+    assert.equal(kes(41449.6), "KES 41,449.60");
     assert.equal(kes(null), "KES —");
     assert.equal(
       describeChange("2026-12-01T00:00:00+03:00", {
@@ -394,5 +395,52 @@ describe("placing a PO", () => {
     assert.match(deliveryProblem({ ...base, address: "" }) ?? "", /where Moments should deliver/);
     assert.match(deliveryProblem({ ...base, phone: "07" }) ?? "", /phone number/);
     assert.equal(deliveryProblem({ ...base, method: "PICKUP", address: "", receiver: "" }), null);
+  });
+});
+
+import {
+  chargeDueText,
+  creditUsedPct,
+  payProblem,
+  paymentMethodText,
+  paymentStatusText,
+  promptAmount,
+} from "./restaurantPortal.ts";
+
+describe("credit", () => {
+  it("draws the used bar", () => {
+    assert.equal(creditUsedPct(108550, 150000), 72);
+    assert.equal(creditUsedPct(200000, 150000), 100);
+    assert.equal(creditUsedPct(10, null), 0);
+  });
+
+  it("says when a charge is due", () => {
+    assert.equal(chargeDueText({ deliveredAt: null, overdue: false }).label, "Due once delivered");
+    assert.equal(
+      chargeDueText({ deliveredAt: "2026-11-18T10:00:00Z", dueOn: "2026-12-18", overdue: false })
+        .label,
+      "Due 18 Dec",
+    );
+    assert.equal(
+      chargeDueText({ deliveredAt: "2026-10-01T10:00:00Z", dueOn: "2026-10-31", overdue: true })
+        .tone,
+      "bad",
+    );
+  });
+
+  it("checks a payment like the store", () => {
+    assert.equal(promptAmount(24150.2), 24151);
+    assert.equal(promptAmount(24150), 24150);
+    assert.equal(payProblem(100, 0, "0712000318"), "Your restaurant owes nothing right now.");
+    assert.match(payProblem(0, 500, "0712000318") ?? "", /between KES 1 and/);
+    assert.match(payProblem(502, 500.5, "0712000318") ?? "", /KES 501/);
+    assert.equal(payProblem(501, 500.5, "0712000318"), null);
+    assert.match(payProblem(100, 500, "07") ?? "", /phone number/);
+  });
+
+  it("names payments", () => {
+    assert.equal(paymentMethodText("MPESA_PROMPT"), "M-Pesa (from the portal)");
+    assert.equal(paymentStatusText("PENDING").label, "Being confirmed");
+    assert.equal(paymentStatusText("CONFIRMED").tone, "good");
   });
 });

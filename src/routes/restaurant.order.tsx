@@ -21,6 +21,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { restaurantApi, type MyCatalogue } from "@/services/restaurantApi";
 import { orderDraft, useOrderDraft } from "@/lib/orderDraft";
+import { useCredit } from "@/lib/useCredit";
 import {
   clampQty,
   deliveryProblem,
@@ -56,6 +57,8 @@ function OrderBody() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const quantities = useOrderDraft();
+  const { credit } = useCredit();
+  const live = credit && credit !== "unavailable" && credit.creditEnabled ? credit : null;
   const [catalogue, setCatalogue] = useState<MyCatalogue | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -291,9 +294,28 @@ function OrderBody() {
               </label>
             ))}
           </div>
+          {pay === "CREDIT" && live && (
+            <div className="mt-2 text-[13.5px]">
+              <span style={{ color: c.muted }}>Credit available: </span>
+              <strong className="tabular-nums">{kes(live.available)}</strong>
+              {summary.total > live.available && (
+                <p role="alert" className="mt-1 font-semibold" style={{ color: c.danger }}>
+                  This order is more than your available credit. Pay for it by M-Pesa or bank, make
+                  it smaller, or talk to Moments.
+                </p>
+              )}
+              {live.overdue > 0 && summary.total <= live.available && (
+                <p className="mt-1" style={{ color: "#6B4A00" }}>
+                  {kes(live.overdue)} is overdue, so this order waits for Moments' approval. Pay it
+                  on the Statement page to avoid the wait.
+                </p>
+              )}
+            </div>
+          )}
           <Muted className="mt-2 text-[12.5px]">
-            Nothing is charged now. Moments tells you when and how to pay once your signed copy is
-            accepted.
+            {pay === "CREDIT"
+              ? `Nothing to pay now: it goes on your credit account, due ${live?.paymentTermsDays ?? restaurant.paymentTermsDays ?? 30} days after delivery.`
+              : "Nothing is charged now. Moments tells you when and how to pay once your signed copy is accepted."}
           </Muted>
         </PortalCard>
 

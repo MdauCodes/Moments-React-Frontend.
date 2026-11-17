@@ -8,6 +8,7 @@ import { MessageCircle } from "lucide-react";
 
 import { PortalShell, usePortal } from "@/components/restaurant/PortalShell";
 import { OrderList, usePurchaseOrders } from "@/components/restaurant/PoList";
+import { useCredit } from "@/lib/useCredit";
 import {
   ComingSoon,
   Muted,
@@ -24,8 +25,10 @@ import {
   firstName,
   isHeadRole,
   isPoClosed,
+  creditUsedPct,
   kes,
   ruleText,
+  shortDate,
   splitTeam,
 } from "@/lib/restaurantPortal";
 
@@ -92,40 +95,7 @@ function HomeBody() {
 
         <HomeOrders isHead={isHead} rule={restaurant.approvalRule} />
 
-        <PortalCard aria-labelledby="h-money">
-          <h2 id="h-money" className="text-[18px] font-bold">
-            Money
-          </h2>
-          {restaurant.creditEnabled && restaurant.creditLimit != null ? (
-            <div className="mt-1 grid grid-cols-2 gap-2">
-              <div className="rounded-[10px] p-3" style={{ background: c.soft }}>
-                <div className="text-[12.5px]" style={{ color: c.muted }}>
-                  Credit limit
-                </div>
-                <div className="text-[18px] font-bold">{kes(restaurant.creditLimit)}</div>
-              </div>
-              <div className="rounded-[10px] p-3" style={{ background: c.soft }}>
-                <div className="text-[12.5px]" style={{ color: c.muted }}>
-                  Time to pay
-                </div>
-                <div className="text-[18px] font-bold">
-                  {restaurant.paymentTermsDays ?? "—"} days
-                </div>
-              </div>
-            </div>
-          ) : (
-            <Muted className="mt-1">
-              You pay for each order by M-Pesa or bank. Moments can open credit for{" "}
-              {restaurant.businessName}; ask your contact at Moments.
-            </Muted>
-          )}
-          <div className="mt-3">
-            <ComingSoon
-              title="Balance, payments due and statements"
-              text="What you owe, the next due date, what you spent this month and Pay by M-Pesa appear here once ordering on credit opens."
-            />
-          </div>
-        </PortalCard>
+        <HomeMoney />
       </div>
 
       <div className="flex flex-col gap-4">
@@ -285,5 +255,82 @@ function HomeOrders({ isHead, rule }: { isHead: boolean; rule: string }) {
         All orders
       </Link>
     </>
+  );
+}
+
+/**
+ * Money on the home page (PortalHomePhone): credit available with a used bar, owed now with the next
+ * due date, anything overdue, and the way to the statement and Pay by M-Pesa. Live from the store's
+ * credit account (§19); a restaurant without credit pays each order by M-Pesa or bank.
+ */
+function HomeMoney() {
+  const { restaurant } = usePortal();
+  const { credit } = useCredit();
+  const live = credit && credit !== "unavailable" ? credit : null;
+  return (
+    <PortalCard aria-labelledby="h-money">
+      <h2 id="h-money" className="text-[18px] font-bold">
+        Money
+      </h2>
+      {live && live.creditEnabled ? (
+        <>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <div className="rounded-[10px] p-3" style={{ background: c.soft }}>
+              <div className="text-[12.5px]" style={{ color: c.muted }}>
+                Credit available
+              </div>
+              <div className="text-[18px] font-bold tabular-nums">{kes(live.available)}</div>
+            </div>
+            <div className="rounded-[10px] p-3" style={{ background: c.soft }}>
+              <div className="text-[12.5px]" style={{ color: c.muted }}>
+                Owed now
+              </div>
+              <div className="text-[18px] font-bold tabular-nums">{kes(live.owed)}</div>
+              {live.nextDueOn && (
+                <div className="text-[12.5px] tabular-nums" style={{ color: c.muted }}>
+                  next {shortDate(live.nextDueOn)}
+                  {live.nextDueAmount ? ` · ${kes(live.nextDueAmount)}` : ""}
+                </div>
+              )}
+            </div>
+          </div>
+          <div
+            className="mt-3 h-2.5 overflow-hidden rounded-full"
+            style={{ background: c.soft }}
+            role="img"
+            aria-label={`${kes(live.owed)} of ${kes(live.creditLimit)} credit used`}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${creditUsedPct(live.owed, live.creditLimit)}%`,
+                background: live.overdue > 0 ? c.danger : c.green,
+              }}
+            />
+          </div>
+          <div
+            className="mt-1.5 text-[13px]"
+            style={{ color: live.overdue > 0 ? c.danger : c.muted }}
+          >
+            {kes(live.owed)} used of {kes(live.creditLimit)} ·{" "}
+            {live.overdue > 0 ? `${kes(live.overdue)} overdue` : "nothing overdue"}
+          </div>
+          <div className="mt-3">
+            <PortalButtonLink
+              to="/restaurant/statement"
+              variant={live.owed > 0 ? "primary" : "secondary"}
+            >
+              {live.owed > 0 ? "Pay by M-Pesa" : "Open the statement"}
+            </PortalButtonLink>
+          </div>
+        </>
+      ) : (
+        <Muted className="mt-1">
+          {credit === null
+            ? "Loading…"
+            : `You pay for each order by M-Pesa or bank. Moments can open credit for ${restaurant.businessName}; ask your contact at Moments.`}
+        </Muted>
+      )}
+    </PortalCard>
   );
 }
