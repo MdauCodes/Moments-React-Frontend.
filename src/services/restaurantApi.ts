@@ -141,6 +141,8 @@ export interface MyPriceRequest {
   items: { productId: string; productName: string; quantityNote?: string | null }[];
   declineReason?: string | null;
   publishedVersion?: string | null;
+  /** "KG-2026-3" once the request is priced (null before): the quote form exists only then. */
+  quoteNumber?: string | null;
 }
 
 export interface PriceRequestInput {
@@ -379,10 +381,10 @@ export const restaurantApi = {
       "Couldn't send the pricing request.",
     ),
   /** The quote form the store renders (also attached to the publish email), so there is one version. */
-  downloadQuote: (requestId: string) =>
+  downloadQuote: (requestId: string, quoteNumber?: string | null) =>
     savePdfFrom(
       `/api/v1/restaurant/me/price-requests/${requestId}/quote.pdf`,
-      "Quote.pdf",
+      quoteNumber ? `Quote-${quoteNumber}.pdf` : "Quote.pdf",
       "the quote",
     ),
 

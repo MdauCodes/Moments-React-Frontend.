@@ -123,7 +123,7 @@ function CatalogueBody() {
   async function onDownloadQuote(r: MyPriceRequest) {
     setQuoteBusy(r.id);
     try {
-      await restaurantApi.downloadQuote(r.id);
+      await restaurantApi.downloadQuote(r.id, r.quoteNumber);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't download the quote. Try again.");
     } finally {
@@ -293,7 +293,8 @@ function CatalogueBody() {
           <ul className="mt-2 flex flex-col gap-2">
             {requests.map((r) => {
               const st = priceRequestStatus(r.status, r.publishedVersion);
-              const priced = r.status === "PUBLISHED";
+              // The store makes the quote form once the request is priced; it says so with a number.
+              const priced = !!r.quoteNumber;
               return (
                 <li
                   key={r.id}
@@ -302,6 +303,7 @@ function CatalogueBody() {
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="font-semibold">
+                      {r.quoteNumber ? `Quote ${r.quoteNumber} · ` : ""}
                       {r.items.length} {r.items.length === 1 ? "product" : "products"}
                     </span>
                     <Pill tone={st.tone}>{st.label}</Pill>
