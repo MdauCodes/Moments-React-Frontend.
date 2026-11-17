@@ -181,6 +181,8 @@ export interface PoRow {
   paymentMethod?: string | null;
   itemCount: number;
   needsMe: boolean;
+  /** A pay-now PO at WITH_MOMENTS, signed copy accepted, not paid yet: show Pay now (§21.1). */
+  awaitingPayment?: boolean;
 }
 
 export interface SignedCopyFile {
@@ -242,6 +244,20 @@ export interface PoDetail {
   history: { at: string; text: string }[];
   /** This person may upload the signed copy now (as `needsMe` on the row). */
   canUpload?: boolean;
+  /** The shop order's reference (MP-...), as on payment receipts. */
+  orderReference?: string | null;
+  paymentStatus?: string | null;
+  /** A pay-now PO at WITH_MOMENTS, signed copy accepted, not paid yet: show Pay now (§21.1). */
+  awaitingPayment?: boolean;
+}
+
+/** The shop's payment status for an order (GET /api/v1/payments/status/{orderId}). */
+export interface OrderPaymentStatus {
+  status?: string; // PROCESSING | SUCCESS | FAILED | NO_PAYMENT
+  message?: string | null;
+  amount?: number | null;
+  receiptNumber?: string | null;
+  failureReason?: string | null;
 }
 
 /** Placing a PO from the catalogue (doc 15 §21): the shop's checkout, as a CATALOGUE order. */
@@ -538,6 +554,25 @@ export const restaurantApi = {
     call<PromptStatus>(
       `/api/v1/restaurant/me/credit/payments/${id}`,
       {},
+      "Couldn't check the payment.",
+    ),
+  /**
+   * Pay a pay-now PO by M-Pesa once Moments has accepted its signed copy (§21.1): the shop's own
+   * payment calls, without the shop's order-history and ad-tracking side effects.
+   */
+  async payPoByMpesa(orderId: string, phone: string): Promise<void> {
+    const res = await authFetch(apiUrl("/api/v1/payments/initiate"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
+      body: JSON.stringify({ orderId, paymentMethod: "MPESA", phone }),
+    });
+    if (!res.ok) throw await readError(res, "Couldn't send the M-Pesa prompt.");
+  },
+
+  poPaymentStatus: (orderId: string) =>
+    call<OrderPaymentStatus>(
+      `/api/v1/payments/status/${encodeURIComponent(orderId)}`,
+      { headers: { "X-Session-Id": getSessionId() } },
       "Couldn't check the payment.",
     ),
 };

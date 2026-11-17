@@ -337,6 +337,9 @@ describe("purchase orders", () => {
       /isn't a PDF, JPG or PNG/,
     );
     assert.match(signedCopyProblem([{ ...pdf, size: 11 * 1024 * 1024 }]) ?? "", /over 10 MB/);
+    const big = { name: "p.jpg", type: "image/jpeg", size: 9 * 1024 * 1024 };
+    assert.match(signedCopyProblem([big, big, big, big]) ?? "", /over 30 MB/);
+    assert.equal(signedCopyProblem([big, big, big]), null);
     // a phone may leave the type blank: the name decides
     assert.equal(signedCopyProblem([{ name: "IMG_1.JPG", type: "", size: 5 }]), null);
   });

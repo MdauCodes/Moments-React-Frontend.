@@ -69,14 +69,13 @@ function OrderGroups({ rows }: { rows: PoRow[] }) {
   if (rows.length === 0) {
     return <Muted>No orders yet. Orders from your catalogue appear here.</Muted>;
   }
-  const mine = rows.filter((r) => r.needsMe);
-  const open = rows.filter((r) => !r.needsMe && !isPoClosed(r.stage));
-  const done = rows.filter((r) => !r.needsMe && isPoClosed(r.stage));
+  const needsYou = (r: PoRow) => r.needsMe || !!r.awaitingPayment;
+  const mine = rows.filter(needsYou);
+  const open = rows.filter((r) => !needsYou(r) && !isPoClosed(r.stage));
+  const done = rows.filter((r) => !needsYou(r) && isPoClosed(r.stage));
   return (
     <>
-      {mine.length > 0 && (
-        <OrderList title={`Sign and upload · ${mine.length}`} rows={mine} highlight />
-      )}
+      {mine.length > 0 && <OrderList title={`Needs you · ${mine.length}`} rows={mine} highlight />}
       {open.length > 0 && <OrderList title="In progress" rows={open} />}
       {done.length > 0 && <OrderList title="Done" rows={done} />}
     </>

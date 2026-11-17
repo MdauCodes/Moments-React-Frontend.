@@ -412,7 +412,7 @@ export function poStageText(stage: string, signingMethod?: string): { label: str
     case "HELD":
       return { label: "Held for Moments' approval", tone: "wait" };
     case "WITH_MOMENTS":
-      return { label: "With Moments", tone: "info" };
+      return { label: "Signed copy accepted · with Moments", tone: "info" };
     case "BEING_PREPARED":
       return { label: "Being prepared at Moments", tone: "info" };
     case "AWAITING_FINAL_SIGNATURE":
@@ -441,6 +441,8 @@ export const canUploadAt = (stage: string): boolean =>
 export const SIGNED_COPY_TYPES = ["application/pdf", "image/jpeg", "image/png"];
 export const SIGNED_COPY_MAX_FILES = 10;
 export const SIGNED_COPY_MAX_BYTES = 10 * 1024 * 1024;
+/** The store takes up to 30 MB in one upload (§21.1). */
+export const SIGNED_COPY_MAX_TOTAL = 30 * 1024 * 1024;
 
 export interface FileLike {
   name: string;
@@ -460,6 +462,9 @@ export function signedCopyProblem(files: FileLike[]): string | null {
     if (!okType) return `${f.name} isn't a PDF, JPG or PNG.`;
     if (f.size > SIGNED_COPY_MAX_BYTES) return `${f.name} is over 10 MB. Scan at a lower quality.`;
     if (f.size === 0) return `${f.name} is empty.`;
+  }
+  if (files.reduce((sum, f) => sum + f.size, 0) > SIGNED_COPY_MAX_TOTAL) {
+    return "Together the files are over 30 MB. Scan at a lower quality or send fewer pages.";
   }
   return null;
 }

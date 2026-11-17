@@ -222,13 +222,11 @@ function HomeOrders({ isHead, rule }: { isHead: boolean; rule: string }) {
       </>
     );
   }
-  const mine = rows.filter((r) => r.needsMe);
-  const open = rows.filter((r) => !r.needsMe && !isPoClosed(r.stage));
+  const mine = rows.filter((r) => r.needsMe || r.awaitingPayment);
+  const open = rows.filter((r) => !r.needsMe && !r.awaitingPayment && !isPoClosed(r.stage));
   return (
     <>
-      {mine.length > 0 && (
-        <OrderList title={`For you to sign · ${mine.length}`} rows={mine} highlight />
-      )}
+      {mine.length > 0 && <OrderList title={`Needs you · ${mine.length}`} rows={mine} highlight />}
       {mine.length === 0 && isHead && (
         <PortalCard aria-labelledby="h-approve">
           <h2 id="h-approve" className="text-[18px] font-bold">

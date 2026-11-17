@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronDown, Download, FileText } from "lucide-react";
 
 import { PortalShell, usePortal } from "@/components/restaurant/PortalShell";
 import { SignedCopyUpload } from "@/components/restaurant/SignedCopyUpload";
+import { PoPayNow } from "@/components/restaurant/PoPayNow";
 import {
   ComingSoon,
   ErrorText,
@@ -48,6 +49,7 @@ function PoBody() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [justUploaded, setJustUploaded] = useState(false);
+  const [justPaid, setJustPaid] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -188,11 +190,41 @@ function PoBody() {
         </p>
       )}
 
-      {po.stage === "WITH_MOMENTS" && po.paymentMethod !== "CREDIT" && (
-        <ComingSoon
-          title="Paying for this order"
-          text="Your signed copy is accepted. Moments will tell you how and when to pay by M-Pesa or bank; a Pay now button will appear here."
+      {po.awaitingPayment && (
+        <PoPayNow
+          po={po}
+          defaultPhone={me?.phone ?? po.delivery?.phone ?? ""}
+          onPaid={() => {
+            setJustPaid(true);
+            void load();
+          }}
         />
+      )}
+
+      {justPaid && !po.awaitingPayment && (
+        <p
+          role="status"
+          className="rounded-[12px] p-3.5 text-[14px]"
+          style={{ background: "#E4F0E8", color: "#1F5A3B" }}
+        >
+          <strong>Paid.</strong> Moments now prepares your order; you'll get an email when it's
+          ready or on its way.
+        </p>
+      )}
+
+      {po.stage === "HELD" && (
+        <p
+          role="status"
+          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
+          style={{ background: "#FFF4D6", color: "#5A3E00" }}
+        >
+          <strong>Waiting for Moments' approval.</strong> Your credit account has an overdue bill,
+          or this order no longer fits the credit available. Pay what's due on the{" "}
+          <Link to="/restaurant/statement" className="font-semibold underline">
+            Statement
+          </Link>{" "}
+          page, or talk to Moments.
+        </p>
       )}
 
       {myTurn && (
