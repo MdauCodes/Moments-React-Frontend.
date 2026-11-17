@@ -673,6 +673,35 @@ export function actionLimitText(
   return a && !a.allowed && a.text ? a.text : null;
 }
 
+/** How a PO reaches the restaurant, in the order screen's own words (the store sends the enum). */
+export function deliveryMethodText(method: string | null | undefined): string {
+  switch ((method ?? "").toUpperCase()) {
+    case "":
+      return "—";
+    case "PICKUP":
+      return "We collect";
+    case "MANUAL_DELIVERY":
+      return "Moments delivers";
+    case "TUMABODA_DELIVERY":
+      return "TumaBoda";
+    default:
+      return method ?? "—";
+  }
+}
+
+/**
+ * A restaurant's signed copy before Moments can see the PO (§23.7: Moments sees it only once it is
+ * paid or on credit) is the restaurant's own approval, not something Moments is checking.
+ */
+export function signedCopyLabel(status: string, stage: string): { label: string; tone: Tone } {
+  if (status === "ACCEPTED") return { label: "Accepted", tone: "good" };
+  if (status === "SENT_BACK") return { label: "Sent back", tone: "bad" };
+  if (stage === "AWAITING_PAYMENT" || stage === "CONFIRMING_PAYMENT") {
+    return { label: "Approved by you", tone: "good" };
+  }
+  return { label: "Moments is checking", tone: "info" };
+}
+
 // ---- paying a PO (doc 15 §23) ----
 
 /** The VAT inside a VAT-inclusive amount at 16%, rounded to the cent. */

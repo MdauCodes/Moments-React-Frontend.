@@ -31,6 +31,7 @@ import {
   actionAllowed,
   actionLimitText,
   dateTime,
+  deliveryMethodText,
   fileSize,
   findAction,
   isHeadRole,
@@ -38,6 +39,7 @@ import {
   poPaymentBadge,
   poStageText,
   ruleText,
+  signedCopyLabel,
   vatShare,
 } from "@/lib/restaurantPortal";
 
@@ -213,7 +215,7 @@ function PoBody() {
           />
           <Fact
             label="Delivery"
-            value={po.delivery?.method ?? "—"}
+            value={deliveryMethodText(po.delivery?.method)}
             sub={po.deliveryFee ? `${kes(po.deliveryFee)}` : undefined}
           />
           <Fact
@@ -275,9 +277,11 @@ function PoBody() {
           className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
           style={{ background: "#FFF4D6", color: "#5A3E00" }}
         >
-          <strong>Moments changed this order: version {po.revision}.</strong>{" "}
-          {po.sentBackReason ? `${po.sentBackReason} ` : ""}Download the new version, have it
-          signed, and upload it.
+          {/* The store's reason already says what changed; say it once. */}
+          <strong>
+            {po.sentBackReason || `Moments changed this order: version ${po.revision}.`}
+          </strong>{" "}
+          Download the new version, have it signed, and upload it.
         </p>
       )}
 
@@ -483,7 +487,7 @@ function PoBody() {
             <h3 className="text-[15px] font-bold">Signed copies</h3>
             <ul className="mt-2 flex flex-col gap-2">
               {restaurantCopies.map((s) => (
-                <CopyRow key={s.id} orderId={po.orderId} copy={s} />
+                <CopyRow key={s.id} orderId={po.orderId} copy={s} stage={po.stage} />
               ))}
             </ul>
           </div>
@@ -492,16 +496,19 @@ function PoBody() {
           <div className="mt-3">
             <h3 className="text-[15px] font-bold">Moments' signed copy</h3>
             <ul className="mt-2">
-              <CopyRow orderId={po.orderId} copy={po.momentsSignedCopy} />
+              <CopyRow orderId={po.orderId} copy={po.momentsSignedCopy} stage={po.stage} />
             </ul>
           </div>
         )}
       </Collapsible>
 
-      <Collapsible title="Delivery" summary={po.delivery?.method ?? ""}>
+      <Collapsible
+        title="Delivery"
+        summary={po.delivery?.method ? deliveryMethodText(po.delivery.method) : ""}
+      >
         <dl className="grid grid-cols-[90px_1fr] gap-y-1.5 text-[14px]">
           <dt style={{ color: c.muted }}>How</dt>
-          <dd>{po.delivery?.method ?? "—"}</dd>
+          <dd>{deliveryMethodText(po.delivery?.method)}</dd>
           <dt style={{ color: c.muted }}>Where</dt>
           <dd className="break-words">{po.delivery?.address ?? "—"}</dd>
           <dt style={{ color: c.muted }}>Receive</dt>
@@ -688,14 +695,8 @@ function Collapsible({
   );
 }
 
-function CopyRow({ orderId, copy }: { orderId: string; copy: SignedCopy }) {
-  const tone = copy.status === "ACCEPTED" ? "good" : copy.status === "SENT_BACK" ? "bad" : "info";
-  const label =
-    copy.status === "ACCEPTED"
-      ? "Accepted"
-      : copy.status === "SENT_BACK"
-        ? "Sent back"
-        : "Moments is checking";
+function CopyRow({ orderId, copy, stage }: { orderId: string; copy: SignedCopy; stage: string }) {
+  const { label, tone } = signedCopyLabel(copy.status, stage);
   return (
     <li className="list-none rounded-[10px] border p-3 text-[14px]" style={{ borderColor: c.line }}>
       <div className="flex items-start justify-between gap-2">

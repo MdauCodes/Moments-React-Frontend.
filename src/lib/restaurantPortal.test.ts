@@ -513,3 +513,22 @@ describe("PO actions from the store (§23.10)", () => {
     assert.equal(actionLimitText(actions, "UPLOAD_SIGNED_COPY"), null);
   });
 });
+
+import { deliveryMethodText, signedCopyLabel } from "./restaurantPortal.ts";
+
+describe("local test fixes (17 Nov)", () => {
+  it("names delivery methods in plain words", () => {
+    assert.equal(deliveryMethodText("PICKUP"), "We collect");
+    assert.equal(deliveryMethodText("MANUAL_DELIVERY"), "Moments delivers");
+    assert.equal(deliveryMethodText(null), "—");
+    assert.equal(deliveryMethodText("Courier"), "Courier");
+  });
+
+  it("calls a copy the restaurant's own approval until Moments can see the PO", () => {
+    assert.equal(signedCopyLabel("UPLOADED", "AWAITING_PAYMENT").label, "Approved by you");
+    assert.equal(signedCopyLabel("UPLOADED", "CONFIRMING_PAYMENT").label, "Approved by you");
+    assert.equal(signedCopyLabel("UPLOADED", "CHECKING_SIGNED_COPY").label, "Moments is checking");
+    assert.equal(signedCopyLabel("ACCEPTED", "AWAITING_PAYMENT").label, "Accepted");
+    assert.equal(signedCopyLabel("SENT_BACK", "SENT_BACK").label, "Sent back");
+  });
+});
