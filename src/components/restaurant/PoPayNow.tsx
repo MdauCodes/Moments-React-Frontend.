@@ -5,6 +5,7 @@
 // and Moments confirms it. The same box tops up when Moments raised the total of a changed PO.
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Landmark, Smartphone } from "lucide-react";
+import { toast } from "sonner";
 
 import { ErrorText, Field, Muted, PortalButton, portalColors as c } from "./portalUi";
 import { restaurantApi, type PoDetail } from "@/services/restaurantApi";
@@ -133,7 +134,18 @@ export function PoPayNow({
     }
   }
 
-  const quote = po.orderReference ?? po.poNumber;
+  // The PO number is printed on the PO and is what Moments' payment instructions ask for.
+  const quote = po.poNumber;
+  const bank = money?.bankDetails ?? null;
+
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Account number copied");
+    } catch {
+      /* clipboard blocked: the number can still be selected */
+    }
+  }
 
   return (
     <section
@@ -252,10 +264,65 @@ export function PoPayNow({
             </>
           ) : (
             <>
-              <Muted>
-                Transfer {kes(due)} to Moments Packaging's bank account (as on your invoice, or ask
-                your contact at Moments) and quote <strong>{quote}</strong>. Then tell us it's sent.
-              </Muted>
+              {bank?.accountNumber ? (
+                <div
+                  className="rounded-[10px] p-3 text-[14px]"
+                  style={{ background: c.soft }}
+                  aria-label="Moments' bank account"
+                >
+                  <div>
+                    Transfer <strong>{kes(due)}</strong> to:
+                  </div>
+                  <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                    {bank.bank && (
+                      <>
+                        <dt style={{ color: c.muted }}>Bank</dt>
+                        <dd className="break-words">{bank.bank}</dd>
+                      </>
+                    )}
+                    {bank.accountName && (
+                      <>
+                        <dt style={{ color: c.muted }}>Account name</dt>
+                        <dd className="break-words">{bank.accountName}</dd>
+                      </>
+                    )}
+                    <dt style={{ color: c.muted }}>Account number</dt>
+                    <dd className="flex flex-wrap items-center gap-2">
+                      <strong className="select-all break-all tabular-nums">
+                        {bank.accountNumber}
+                      </strong>
+                      <button
+                        type="button"
+                        onClick={() => void copy(bank.accountNumber ?? "")}
+                        className="inline-flex min-h-11 items-center rounded-[10px] px-2 text-[13px] font-semibold"
+                        style={{ color: c.green }}
+                      >
+                        Copy
+                      </button>
+                    </dd>
+                    {bank.branch && (
+                      <>
+                        <dt style={{ color: c.muted }}>Branch</dt>
+                        <dd className="break-words">{bank.branch}</dd>
+                      </>
+                    )}
+                    <dt style={{ color: c.muted }}>Reference</dt>
+                    <dd className="break-all font-semibold">{quote}</dd>
+                  </dl>
+                  {bank.paymentInstructions && (
+                    <p className="mt-2" style={{ color: c.muted }}>
+                      {bank.paymentInstructions}
+                    </p>
+                  )}
+                  <p className="mt-2">Then tell us it's sent.</p>
+                </div>
+              ) : (
+                <Muted>
+                  Transfer {kes(due)} to Moments Packaging's bank account (as on your invoice, or
+                  ask your contact at Moments) and quote <strong>{quote}</strong>. Then tell us it's
+                  sent.
+                </Muted>
+              )}
               <Field
                 label="Your bank reference (optional)"
                 value={reference}

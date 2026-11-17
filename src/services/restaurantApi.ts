@@ -222,6 +222,16 @@ export interface PoLine {
   amount: number;
 }
 
+/** Moments' bank account for restaurants' transfers (doc 15 §23.11), managed in Moments' settings. */
+export interface BankDetails {
+  bank?: string | null;
+  accountName?: string | null;
+  accountNumber?: string | null;
+  branch?: string | null;
+  /** e.g. "Use your PO number as the reference". */
+  paymentInstructions?: string | null;
+}
+
 /** Money on a PO (§23.7): the balance Moments holds is used first; amountDue is what is left to pay now. */
 export interface PoMoney {
   total: number;
@@ -234,6 +244,8 @@ export interface PoMoney {
   defaultPayerPhone?: string | null;
   bankTransferReference?: string | null;
   bankTransferSentAt?: string | null;
+  /** Moments' own account, set by a Super Admin (§23.11); null until it is set. */
+  bankDetails?: BankDetails | null;
 }
 
 export interface PoTopUp {
