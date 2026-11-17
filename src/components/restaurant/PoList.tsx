@@ -62,7 +62,9 @@ export function OrderList({
                   <div className="mt-1">
                     <Pill tone={highlight ? "wait" : st.tone}>
                       {highlight && r.awaitingPayment
-                        ? "Pay now"
+                        ? r.amountDue
+                          ? `Pay ${kes(r.amountDue)}`
+                          : "Pay now"
                         : highlight && r.stage !== "SENT_BACK"
                           ? "Sign and upload"
                           : st.label}

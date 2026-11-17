@@ -1,6 +1,8 @@
-// One purchase order (PoScreen design, doc 15 §12, §20-§21): header with the PO number, total, stage
-// and who placed it; Download PO; the signed-copy upload when it is this person's turn; then sections
-// that open and close: items (open), signatures (open), delivery, terms, history.
+// One purchase order (PoScreen design; doc 15 §20-§21, §23): header with the PO number, total,
+// stage, Paid / Not paid and who placed it; Download PO; then what this person can do now: upload the
+// signed copy (or a new version Moments changed), pay (M-Pesa or bank, balance used first), top up,
+// or cancel before it reaches Moments; then sections that open and close: payment, versions, items,
+// signatures, delivery, terms, history.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ChevronDown, Download, FileText } from "lucide-react";
@@ -11,6 +13,7 @@ import { PoPayNow } from "@/components/restaurant/PoPayNow";
 import {
   ComingSoon,
   ErrorText,
+  Field,
   Muted,
   Pill,
   PortalButton,
@@ -29,8 +32,10 @@ import {
   fileSize,
   isHeadRole,
   kes,
+  poPaymentBadge,
   poStageText,
   ruleText,
+  vatShare,
 } from "@/lib/restaurantPortal";
 
 export default function RestaurantPoPage() {
@@ -49,7 +54,10 @@ function PoBody() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [justUploaded, setJustUploaded] = useState(false);
-  const [justPaid, setJustPaid] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -108,7 +116,15 @@ function PoBody() {
     );
   }
 
-  const stage = poStageText(po.stage, po.signingMethod);
+  const stage = poStageText(po.stage, po.signingMethod, po.revision);
+  const paid = poPaymentBadge(po.paymentMethod, po.money, po.stage);
+  const vat =
+    po.vatIncluded === false
+      ? null
+      : typeof po.vatIncluded === "number"
+        ? po.vatIncluded
+        : vatShare(po.total);
+  const newVersion = (po.revision ?? 1) > 1 && po.stage === "AWAITING_SIGNED_COPY";
   // The store says whether it is this person's turn (`canUpload`); the guess below (a head, or the
   // name of whoever placed it) is only for a store that doesn't send it yet. The store checks anyway.
   const placedByMe = !!me && me.name === po.placedBy.name;
@@ -117,6 +133,20 @@ function PoBody() {
     canUploadAt(po.stage) &&
     (po.canUpload ?? (isHeadRole(restaurant.myRole) || placedByMe));
   const restaurantCopies = po.signedCopies.filter((s) => s.side === "RESTAURANT");
+
+  async function cancel() {
+    if (!po) return;
+    setCancelBusy(true);
+    setCancelError(null);
+    try {
+      setPo(await restaurantApi.cancelPo(po.orderId, cancelReason.trim() || undefined));
+      setCancelOpen(false);
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : "Couldn't cancel the order.");
+    } finally {
+      setCancelBusy(false);
+    }
+  }
 
   async function downloadPo() {
     if (!po) return;
@@ -144,6 +174,7 @@ function PoBody() {
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
           <Pill tone={stage.tone}>{stage.label}</Pill>
+          {po.stage !== "CANCELLED" && <Pill tone={paid.tone}>{paid.label}</Pill>}
           <Pill>
             Placed by {po.placedBy.name}
             {po.placedBy.rank ? ` · ${po.placedBy.rank}` : ""}
@@ -163,7 +194,7 @@ function PoBody() {
           <Fact
             label="Total"
             value={kes(po.total)}
-            sub={po.vatIncluded != null ? `VAT ${kes(po.vatIncluded)} included` : undefined}
+            sub={vat != null ? `VAT ${kes(vat)} included` : undefined}
           />
           <Fact label="Signing" value={signingLabel(po.signingMethod)} />
         </div>
@@ -185,30 +216,55 @@ function PoBody() {
           className="rounded-[12px] p-3.5 text-[14px]"
           style={{ background: "#E3EEF0", color: "#1D4F5A" }}
         >
-          <strong>Signed copy uploaded.</strong> Moments checks it; you'll get an email when it's
-          accepted, or if it needs a new copy.
+          <strong>Signed copy uploaded: your order is approved.</strong>{" "}
+          {po.paymentMethod === "CREDIT"
+            ? "It goes on your credit account and on to Moments."
+            : "Pay for it below and it goes to Moments."}
         </p>
       )}
 
-      {po.awaitingPayment && (
+      {newVersion && (
+        <p
+          role="alert"
+          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
+          style={{ background: "#FFF4D6", color: "#5A3E00" }}
+        >
+          <strong>Moments changed this order: version {po.revision}.</strong>{" "}
+          {po.sentBackReason ? `${po.sentBackReason} ` : ""}Download the new version, have it
+          signed, and upload it.
+        </p>
+      )}
+
+      {po.canPay && po.stage === "AWAITING_PAYMENT" && (
         <PoPayNow
           po={po}
+          mode="pay"
           defaultPhone={me?.phone ?? po.delivery?.phone ?? ""}
-          onPaid={() => {
-            setJustPaid(true);
-            void load();
-          }}
+          onChanged={() => void load()}
         />
       )}
 
-      {justPaid && !po.awaitingPayment && (
+      {po.stage === "AWAITING_TOP_UP" && (po.money?.topUpDue ?? 0) > 0 && (
+        <PoPayNow
+          po={po}
+          mode="topup"
+          defaultPhone={me?.phone ?? po.delivery?.phone ?? ""}
+          onChanged={() => void load()}
+        />
+      )}
+
+      {po.stage === "CONFIRMING_PAYMENT" && (
         <p
           role="status"
-          className="rounded-[12px] p-3.5 text-[14px]"
-          style={{ background: "#E4F0E8", color: "#1F5A3B" }}
+          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
+          style={{ background: "#E3EEF0", color: "#1D4F5A" }}
         >
-          <strong>Paid.</strong> Moments now prepares your order; you'll get an email when it's
-          ready or on its way.
+          <strong>
+            Bank transfer sent
+            {po.money?.bankTransferSentAt ? ` ${dateTime(po.money.bankTransferSentAt)}` : ""}.
+          </strong>{" "}
+          {po.money?.bankTransferReference ? `Reference ${po.money.bankTransferReference}. ` : ""}
+          Moments marks it received, confirms it, and then the order goes on.
         </p>
       )}
 
@@ -235,6 +291,73 @@ function PoBody() {
             void load();
           }}
         />
+      )}
+
+      {po.money && (
+        <Collapsible title="Payment" summary={paid.label} defaultOpen={po.money.paidAmount > 0}>
+          <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-[14px] tabular-nums">
+            <dt style={{ color: c.muted }}>Order total</dt>
+            <dd className="text-right">{kes(po.money.total)}</dd>
+            {po.money.balanceApplied > 0 && (
+              <>
+                <dt style={{ color: c.muted }}>Your balance with Moments, used</dt>
+                <dd className="text-right">{kes(po.money.balanceApplied)}</dd>
+              </>
+            )}
+            <dt style={{ color: c.muted }}>Paid so far</dt>
+            <dd className="text-right">{kes(po.money.paidAmount)}</dd>
+            <dt className="font-bold">Still to pay</dt>
+            <dd className="text-right font-bold">{kes(po.money.amountDue)}</dd>
+          </dl>
+          {(po.topUps ?? []).length > 0 && (
+            <ul className="mt-3 flex flex-col gap-1.5 text-[13.5px]">
+              {(po.topUps ?? []).map((t) => (
+                <li key={t.id} className="flex list-none justify-between gap-2">
+                  <span>
+                    Top-up · {t.method === "BANK" ? "bank" : "M-Pesa"} · {dateTime(t.at)}
+                    {t.reference ? ` · ${t.reference}` : ""}
+                  </span>
+                  <span className="shrink-0 tabular-nums">
+                    {kes(t.amount)}{" "}
+                    <Pill
+                      tone={
+                        t.status === "CONFIRMED" ? "good" : t.status === "PENDING" ? "wait" : "bad"
+                      }
+                    >
+                      {t.status === "CONFIRMED"
+                        ? "Received"
+                        : t.status === "PENDING"
+                          ? "Waiting"
+                          : "Didn't go through"}
+                    </Pill>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Collapsible>
+      )}
+
+      {(po.revisions ?? []).length > 0 && (
+        <Collapsible title="Versions" summary={`version ${po.revision ?? 1}`}>
+          <ul className="flex flex-col gap-2 text-[14px]">
+            {(po.revisions ?? []).map((r) => (
+              <li key={r.revision} className="list-none">
+                <strong>Version {r.revision}</strong> · {dateTime(r.at)}
+                {r.changedBy ? ` by ${r.changedBy}` : ""} · {kes(r.oldTotal)} → {kes(r.newTotal)}
+                {r.note && (
+                  <div className="text-[13px]" style={{ color: c.muted }}>
+                    {r.note}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+          <Muted className="mt-2 text-[12.5px]">
+            A price Moments sets on a changed order applies to that order only; your catalogue stays
+            as it is.
+          </Muted>
+        </Collapsible>
       )}
 
       <Collapsible
@@ -273,12 +396,8 @@ function PoBody() {
                 <SumRow label="Delivery" value={kes(po.deliveryFee)} />
               )}
               <SumRow label="Total" value={kes(po.total)} strong />
-              {po.vatIncluded != null && (
-                <SumRow
-                  label="of which VAT 16%, included in the prices"
-                  value={kes(po.vatIncluded)}
-                  muted
-                />
+              {vat != null && (
+                <SumRow label="of which VAT 16%, included in the prices" value={kes(vat)} muted />
               )}
             </tbody>
           </table>
@@ -373,6 +492,45 @@ function PoBody() {
           ))}
         </ol>
       </Collapsible>
+
+      {po.canCancel && (
+        <PortalCard aria-labelledby="h-cancel">
+          <h2 id="h-cancel" className="text-[16px] font-bold">
+            Cancel this order
+          </h2>
+          <Muted className="mt-1">
+            You can cancel it until it reaches Moments. Anything already paid stays with Moments as
+            your balance for your next order.
+          </Muted>
+          {cancelOpen ? (
+            <div className="mt-3 flex flex-col gap-2.5">
+              <Field
+                label="Why (optional)"
+                value={cancelReason}
+                maxLength={300}
+                onChange={(e) => setCancelReason(e.target.value)}
+              />
+              <ErrorText>{cancelError}</ErrorText>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <PortalButton onClick={() => void cancel()} disabled={cancelBusy}>
+                  {cancelBusy ? "Cancelling…" : `Yes, cancel ${po.poNumber}`}
+                </PortalButton>
+                <PortalButton
+                  variant="secondary"
+                  onClick={() => setCancelOpen(false)}
+                  disabled={cancelBusy}
+                >
+                  Keep it
+                </PortalButton>
+              </div>
+            </div>
+          ) : (
+            <PortalButton variant="secondary" className="mt-3" onClick={() => setCancelOpen(true)}>
+              Cancel this order
+            </PortalButton>
+          )}
+        </PortalCard>
+      )}
     </div>
   );
 }

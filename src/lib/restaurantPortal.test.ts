@@ -313,7 +313,7 @@ describe("purchase orders", () => {
     assert.equal(poStageText("AWAITING_SIGNED_COPY", "MPESA").label, "With the heads");
     assert.equal(
       poStageText("CHECKING_SIGNED_COPY").label,
-      "Signed copy uploaded · Moments is checking",
+      "With Moments · checking the signed copy",
     );
     assert.equal(poStageText("SENT_BACK").tone, "bad");
     assert.equal(
@@ -445,5 +445,44 @@ describe("credit", () => {
     assert.equal(paymentMethodText("MPESA_PROMPT"), "M-Pesa (from the portal)");
     assert.equal(paymentStatusText("PENDING").label, "Being confirmed");
     assert.equal(paymentStatusText("CONFIRMED").tone, "good");
+  });
+});
+
+import { balanceMovementText, poPaymentBadge, vatShare } from "./restaurantPortal.ts";
+
+describe("paying a PO (§23)", () => {
+  it("names the new stages, and a new version to sign", () => {
+    assert.equal(poStageText("AWAITING_PAYMENT").label, "Approved · waiting for payment");
+    assert.equal(poStageText("CONFIRMING_PAYMENT").label, "Bank transfer · Moments is confirming");
+    assert.equal(poStageText("AWAITING_TOP_UP").tone, "wait");
+    assert.equal(poStageText("AWAITING_SIGNED_COPY", "MANUAL", 2).label, "Version 2 to sign");
+    assert.equal(
+      poStageText("AWAITING_SIGNED_COPY", "MANUAL", 1).label,
+      "Waiting for the signed copy",
+    );
+  });
+
+  it("says Paid / Not paid / On credit", () => {
+    const m = (paidAmount: number, amountDue: number) => ({ total: 1000, paidAmount, amountDue });
+    assert.equal(poPaymentBadge("MPESA", m(1000, 0), "WITH_MOMENTS").label, "Paid");
+    assert.equal(poPaymentBadge("MPESA", m(0, 1000), "AWAITING_PAYMENT").label, "Not paid");
+    assert.equal(
+      poPaymentBadge("MPESA", m(400, 600), "AWAITING_PAYMENT").label,
+      "Partly paid · KES 600 to pay",
+    );
+    assert.equal(
+      poPaymentBadge("BANK_TRANSFER", m(0, 1000), "CONFIRMING_PAYMENT").label,
+      "Bank transfer being confirmed",
+    );
+    assert.equal(poPaymentBadge("CREDIT", m(0, 0), "WITH_MOMENTS").label, "On credit");
+    assert.equal(poPaymentBadge("MPESA", m(1000, 0), "CANCELLED").label, "Cancelled");
+    assert.equal(poPaymentBadge("MPESA", null, "AWAITING_SIGNED_COPY").label, "Not paid");
+  });
+
+  it("works out VAT and names balance movements", () => {
+    assert.equal(vatShare(1160), 160);
+    assert.equal(vatShare(47390), 6536.55);
+    assert.equal(balanceMovementText("KEPT_FROM_CANCEL"), "Kept from a cancelled order");
+    assert.equal(balanceMovementText("APPLIED_TO_PO"), "Used towards an order");
   });
 });

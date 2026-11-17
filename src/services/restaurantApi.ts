@@ -154,6 +154,9 @@ export interface PriceRequestInput {
 
 export type PoStage =
   | "AWAITING_SIGNED_COPY"
+  | "AWAITING_PAYMENT"
+  | "CONFIRMING_PAYMENT"
+  | "AWAITING_TOP_UP"
   | "CHECKING_SIGNED_COPY"
   | "SENT_BACK"
   | "HELD"
@@ -180,9 +183,11 @@ export interface PoRow {
   total: number;
   paymentMethod?: string | null;
   itemCount: number;
+  /** This person has something to do: sign and upload, pay, or top up (§23.7). */
   needsMe: boolean;
-  /** A pay-now PO at WITH_MOMENTS, signed copy accepted, not paid yet: show Pay now (§21.1). */
+  /** Something to pay now (amountDue > 0). */
   awaitingPayment?: boolean;
+  amountDue?: number | null;
 }
 
 export interface SignedCopyFile {
@@ -195,6 +200,8 @@ export interface SignedCopyFile {
 export interface SignedCopy {
   id: string;
   side: "RESTAURANT" | "MOMENTS";
+  /** Which version of the PO this copy signs. */
+  revision?: number;
   uploadedBy: PoPerson;
   uploadedAt: string;
   note?: string | null;
@@ -206,6 +213,7 @@ export interface SignedCopy {
 }
 
 export interface PoLine {
+  productId?: string | null;
   code?: string | null;
   name: string;
   pack?: string | null;
@@ -214,9 +222,44 @@ export interface PoLine {
   amount: number;
 }
 
+/** Money on a PO (§23.7): the balance Moments holds is used first; amountDue is what is left to pay now. */
+export interface PoMoney {
+  total: number;
+  balanceApplied: number;
+  paidAmount: number;
+  amountDue: number;
+  /** The part of amountDue owed after Moments raised the total. */
+  topUpDue: number;
+  /** The restaurant's number: the default for the M-Pesa prompt; any other may be used. */
+  defaultPayerPhone?: string | null;
+  bankTransferReference?: string | null;
+  bankTransferSentAt?: string | null;
+}
+
+export interface PoTopUp {
+  id: string;
+  method: "MPESA" | "BANK";
+  amount: number;
+  status: "PENDING" | "CONFIRMED" | "FAILED" | "REJECTED";
+  reference?: string | null;
+  at: string;
+}
+
+export interface PoRevision {
+  revision: number;
+  at: string;
+  changedBy?: string | null;
+  note?: string | null;
+  oldTotal: number;
+  newTotal: number;
+}
+
 export interface PoDetail {
   orderId: string;
+  /** The display number: PO-KG-2026-0042, or PO-KG-2026-0042-R2 after Moments changed it. */
   poNumber: string;
+  /** 1, then 2 and up after each change Moments makes (the heads sign the new version). */
+  revision?: number;
   stage: PoStage;
   catalogueVersion?: string | null;
   placedBy: PoPerson;
@@ -225,7 +268,8 @@ export interface PoDetail {
   itemsTotal: number;
   deliveryFee?: number | null;
   total: number;
-  vatIncluded?: number | null;
+  /** The store says whether VAT is included (it always is for restaurant prices); older drafts sent the amount. */
+  vatIncluded?: boolean | number | null;
   paymentMethod?: string | null;
   creditDueDays?: number | null;
   delivery?: {
@@ -247,8 +291,42 @@ export interface PoDetail {
   /** The shop order's reference (MP-...), as on payment receipts. */
   orderReference?: string | null;
   paymentStatus?: string | null;
-  /** A pay-now PO at WITH_MOMENTS, signed copy accepted, not paid yet: show Pay now (§21.1). */
+  /** Something to pay now: the order after approval, or a top-up. */
   awaitingPayment?: boolean;
+  money?: PoMoney | null;
+  /** This person may pay now (AWAITING_PAYMENT). */
+  canPay?: boolean;
+  /** The restaurant may still cancel it: only before it reaches Moments. */
+  canCancel?: boolean;
+  topUps?: PoTopUp[];
+  revisions?: PoRevision[];
+}
+
+export interface BalanceMovement {
+  id: string;
+  at: string;
+  kind:
+    | "KEPT_FROM_CANCEL"
+    | "KEPT_FROM_CHANGE"
+    | "APPLIED_TO_PO"
+    | "RETURNED_UNUSED"
+    | "REFUNDED"
+    | "SET_AGAINST_CREDIT";
+  amount: number;
+  balanceChange: number;
+  orderId?: string | null;
+  orderReference?: string | null;
+  reference?: string | null;
+  note?: string | null;
+  by?: string | null;
+}
+
+/** Money Moments holds for the restaurant ("Moments owes you", §23.4 B). */
+export interface BalanceView {
+  restaurantId: string;
+  restaurantName: string;
+  balance: number;
+  movements: BalanceMovement[];
 }
 
 /** The shop's payment status for an order (GET /api/v1/payments/status/{orderId}). */
@@ -575,4 +653,33 @@ export const restaurantApi = {
       { headers: { "X-Session-Id": getSessionId() } },
       "Couldn't check the payment.",
     ),
+  /** Paying by bank instead of M-Pesa: the restaurant says the transfer is sent (§23.7). */
+  bankTransferSent: (orderId: string, reference?: string) =>
+    post<PoDetail>(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}/bank-transfer-sent`,
+      { reference: reference || undefined },
+      "Couldn't record the transfer.",
+    ),
+
+  /** Pays what is left after Moments raised the PO's total. */
+  topUp: (
+    orderId: string,
+    input: { method: "MPESA" | "BANK"; phone?: string; reference?: string },
+  ) =>
+    post<PoTopUp>(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}/top-up`,
+      input,
+      "Couldn't start the top-up.",
+    ),
+
+  /** Only before the PO reaches Moments; after that the store answers 409 "Ask Moments to cancel it." */
+  cancelPo: (orderId: string, reason?: string) =>
+    post<PoDetail>(
+      `/api/v1/restaurant/me/purchase-orders/${orderId}/cancel`,
+      { reason: reason || undefined },
+      "Couldn't cancel the order.",
+    ),
+
+  balance: () =>
+    call<BalanceView>("/api/v1/restaurant/me/balance", {}, "Couldn't load your balance."),
 };

@@ -9,6 +9,8 @@ import { MessageCircle } from "lucide-react";
 import { PortalShell, usePortal } from "@/components/restaurant/PortalShell";
 import { OrderList, usePurchaseOrders } from "@/components/restaurant/PoList";
 import { useCredit } from "@/lib/useCredit";
+import { BalanceCard } from "@/components/restaurant/BalanceCard";
+import { OrderAlerts } from "@/components/restaurant/OrderAlerts";
 import {
   ComingSoon,
   Muted,
@@ -96,9 +98,11 @@ function HomeBody() {
         <HomeOrders isHead={isHead} rule={restaurant.approvalRule} />
 
         <HomeMoney />
+        <BalanceCard />
       </div>
 
       <div className="flex flex-col gap-4">
+        <OrderAlerts />
         <PortalCard aria-labelledby="h-cat">
           <h2 id="h-cat" className="text-[18px] font-bold">
             Your catalogue{catalogue?.version ? ` · ${catalogue.version}` : ""}

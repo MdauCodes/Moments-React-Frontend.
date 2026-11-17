@@ -398,21 +398,36 @@ export function setupDoneSentence(
 
 // ---- purchase orders (doc 15 §20-§21) ----
 
-/** What a PO's stage says to the restaurant, in the design's words (PortalHomePhone, PoScreen). */
-export function poStageText(stage: string, signingMethod?: string): { label: string; tone: Tone } {
+/**
+ * What a PO's stage says to the restaurant (doc 15 §23.7: the heads sign, then it is paid or goes
+ * on credit, then Moments sees it). `revision` > 1 at AWAITING_SIGNED_COPY means Moments changed the
+ * PO and the heads sign the new version.
+ */
+export function poStageText(
+  stage: string,
+  signingMethod?: string,
+  revision?: number,
+): { label: string; tone: Tone } {
   switch (stage) {
     case "AWAITING_SIGNED_COPY":
+      if (revision && revision > 1) return { label: `Version ${revision} to sign`, tone: "wait" };
       return signingMethod && signingMethod !== "MANUAL"
         ? { label: "With the heads", tone: "wait" }
         : { label: "Waiting for the signed copy", tone: "wait" };
+    case "AWAITING_PAYMENT":
+      return { label: "Approved · waiting for payment", tone: "wait" };
+    case "CONFIRMING_PAYMENT":
+      return { label: "Bank transfer · Moments is confirming", tone: "info" };
+    case "AWAITING_TOP_UP":
+      return { label: "Moments changed the total · top up", tone: "wait" };
     case "CHECKING_SIGNED_COPY":
-      return { label: "Signed copy uploaded · Moments is checking", tone: "info" };
+      return { label: "With Moments · checking the signed copy", tone: "info" };
     case "SENT_BACK":
       return { label: "Sent back: upload a new signed copy", tone: "bad" };
     case "HELD":
       return { label: "Held for Moments' approval", tone: "wait" };
     case "WITH_MOMENTS":
-      return { label: "Signed copy accepted · with Moments", tone: "info" };
+      return { label: "With Moments", tone: "info" };
     case "BEING_PREPARED":
       return { label: "Being prepared at Moments", tone: "info" };
     case "AWAITING_FINAL_SIGNATURE":
@@ -618,4 +633,55 @@ export function payProblem(amount: number, owed: number, phone: string): string 
   if (phone.replace(/\D/g, "").length < 9)
     return "Enter the M-Pesa phone number to send the prompt to.";
   return null;
+}
+
+// ---- paying a PO (doc 15 §23) ----
+
+/** The VAT inside a VAT-inclusive amount at 16%, rounded to the cent. */
+export function vatShare(gross: number): number {
+  return Math.round(((gross * 16) / 116) * 100) / 100;
+}
+
+export interface PoMoneyLike {
+  total: number;
+  paidAmount: number;
+  amountDue: number;
+}
+
+/** Paid / Not paid / On credit, for every PO at every stage. */
+export function poPaymentBadge(
+  paymentMethod: string | null | undefined,
+  money: PoMoneyLike | null | undefined,
+  stage: string,
+): { label: string; tone: Tone } {
+  if (stage === "CANCELLED") return { label: "Cancelled", tone: "muted" };
+  if (paymentMethod === "CREDIT") return { label: "On credit", tone: "info" };
+  if (!money) return { label: "Not paid", tone: "muted" };
+  if (money.amountDue <= 0 && money.paidAmount >= money.total)
+    return { label: "Paid", tone: "good" };
+  if (stage === "CONFIRMING_PAYMENT")
+    return { label: "Bank transfer being confirmed", tone: "wait" };
+  if (money.paidAmount > 0)
+    return { label: `Partly paid · ${kes(money.amountDue)} to pay`, tone: "wait" };
+  return { label: "Not paid", tone: stage === "AWAITING_PAYMENT" ? "wait" : "muted" };
+}
+
+/** A line of "Moments owes you" history, in plain words. */
+export function balanceMovementText(kind: string): string {
+  switch (kind) {
+    case "KEPT_FROM_CANCEL":
+      return "Kept from a cancelled order";
+    case "KEPT_FROM_CHANGE":
+      return "Kept when Moments lowered an order";
+    case "APPLIED_TO_PO":
+      return "Used towards an order";
+    case "RETURNED_UNUSED":
+      return "Returned from an order not used";
+    case "REFUNDED":
+      return "Refunded to you";
+    case "SET_AGAINST_CREDIT":
+      return "Set against what you owe on credit";
+    default:
+      return kind;
+  }
 }

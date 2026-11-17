@@ -5,6 +5,7 @@ import { useEffect } from "react";
 
 import { PortalShell, usePortal } from "@/components/restaurant/PortalShell";
 import { PayByMpesa } from "@/components/restaurant/PayByMpesa";
+import { BalanceCard } from "@/components/restaurant/BalanceCard";
 import {
   ComingSoon,
   ErrorText,
@@ -61,6 +62,7 @@ function StatementBody() {
           title="Coming soon"
           text="Your credit account will be here: what you owe, when it's due, and Pay by M-Pesa."
         />
+        <BalanceCard history />
       </div>
     );
   }
@@ -72,6 +74,7 @@ function StatementBody() {
           {credit.restaurantName} pays for each order by M-Pesa or bank. Moments can open a credit
           account for you; ask your contact at Moments.
         </Muted>
+        <BalanceCard history />
       </div>
     );
   }
@@ -196,6 +199,8 @@ function StatementBody() {
             </ul>
           )}
         </PortalCard>
+
+        <BalanceCard history />
 
         <ComingSoon
           title="Monthly statement (PDF)"

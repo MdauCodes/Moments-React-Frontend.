@@ -1,7 +1,8 @@
 // A new purchase order from the restaurant's catalogue (doc 15 §21): pick quantities at its own
 // prices, then delivery and how it will pay, then place it. The store prices it again from the
 // catalogue, gives it a PO number and charges nothing at placing: the heads sign the printed PO
-// first. An M-Pesa/bank PO is paid once Moments accepts the signed copy (owner, 17 Nov; §21).
+// first; once the signed copy is uploaded it is approved, then paid (or put on credit), and only then
+// does Moments see it (owner, 17 Nov; doc 15 §23).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Search } from "lucide-react";
@@ -143,7 +144,7 @@ function OrderBody() {
       orderDraft.clear();
       keyRef.current = newKey();
       toast.success(
-        `${placed.poNumber ?? "Your order"} is placed. Download it, sign it and upload the signed copy.`,
+        `${placed.poNumber ?? "Your order"} is placed. Download it, have it signed and upload the signed copy.`,
       );
       navigate(`/restaurant/orders/${placed.id}`, { replace: true });
     } catch (e) {
@@ -314,8 +315,8 @@ function OrderBody() {
           )}
           <Muted className="mt-2 text-[12.5px]">
             {pay === "CREDIT"
-              ? `Nothing to pay now: it goes on your credit account, due ${live?.paymentTermsDays ?? restaurant.paymentTermsDays ?? 30} days after delivery.`
-              : "Nothing is charged now. Once Moments accepts your signed copy, Pay now appears on the order."}
+              ? `Nothing to pay: once your heads approve it, it goes on your credit account, due ${live?.paymentTermsDays ?? restaurant.paymentTermsDays ?? 30} days after delivery.`
+              : "Nothing is charged now. Once your heads approve it (the signed copy is uploaded), you pay and it goes to Moments. Any balance Moments holds for you is used first."}
           </Muted>
         </PortalCard>
 
@@ -330,8 +331,11 @@ function OrderBody() {
           style={{ background: "#FFF8E6", border: "1px solid #F2DFA6" }}
         >
           <strong>Next:</strong> you get a PO number. Download the PO, have it signed (
-          {ruleText(restaurant.approvalRule)}), and upload the signed copy. Moments then checks it
-          and prepares your order.
+          {ruleText(restaurant.approvalRule)}), and upload the signed copy: that approves it.{" "}
+          {pay === "CREDIT"
+            ? "It then goes on your credit account and to Moments."
+            : "Then you pay, and it goes to Moments."}{" "}
+          Until it reaches Moments you can still cancel it.
         </div>
 
         <ErrorText>{error}</ErrorText>
