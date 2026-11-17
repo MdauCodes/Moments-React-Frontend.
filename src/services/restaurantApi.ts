@@ -4,7 +4,8 @@
 // cookie session; the store decides on every call what they may see and do. Shapes mirror the
 // backend's RestaurantDtos / CatalogueDtos records.
 // ----------------------------------------------------------------------------
-import { apiUrl } from "@/config/api";
+import { apiUrl, getSessionId } from "@/config/api";
+import { PRIVACY_POLICY_VERSION } from "@/lib/policyVersion";
 import { authFetch } from "@/contexts/AuthContext";
 import type {
   ApprovalRule,
@@ -241,6 +242,28 @@ export interface PoDetail {
   canUpload?: boolean;
 }
 
+/** Placing a PO from the catalogue (doc 15 §21): the shop's checkout, as a CATALOGUE order. */
+export interface PlacePoInput {
+  contactName: string;
+  email: string;
+  phone: string;
+  paymentMethod: "CREDIT" | "MPESA" | "BANK_TRANSFER";
+  delivery:
+    | { method: "PICKUP" }
+    | { method: "DELIVERY"; address: string; county: string; receiver: string };
+  notes?: string;
+  items: { productId: string; quantity: number }[];
+  /** One per attempt, so a double tap or a retry can't place the order twice. */
+  idempotencyKey: string;
+}
+
+export interface PlacedPo {
+  id: string;
+  reference?: string | null;
+  poNumber?: string | null;
+  stage?: PoStage | null;
+}
+
 /** An error from the store, with its HTTP status and the store's own message. */
 export class RestaurantApiError extends Error {
   constructor(
@@ -409,4 +432,38 @@ export const restaurantApi = {
     apiUrl(
       `/api/v1/restaurant/me/purchase-orders/${orderId}/signed-copies/${copyId}/files/${index}`,
     ),
+  /**
+   * Places the PO. Prices always come from the restaurant's catalogue on the store; nothing is
+   * charged at placing (the signed copy comes first). Delivery is arranged by Moments.
+   */
+  async placePo(input: PlacePoInput): Promise<PlacedPo> {
+    const body: Record<string, unknown> = {
+      contactName: input.contactName,
+      email: input.email,
+      phone: input.phone,
+      paymentMethod: input.paymentMethod,
+      restaurantOrder: "CATALOGUE",
+      items: input.items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      notes: input.notes || undefined,
+      idempotencyKey: input.idempotencyKey,
+      consentPolicyVersion: PRIVACY_POLICY_VERSION,
+      sessionId: getSessionId(),
+    };
+    if (input.delivery.method === "PICKUP") {
+      body.fulfillmentType = "PICKUP";
+    } else {
+      body.fulfillmentType = "MANUAL_DELIVERY";
+      body.courierType = "RIDER";
+      body.deliveryAddress = input.delivery.address;
+      body.county = input.delivery.county;
+      body.collectorName = input.delivery.receiver;
+    }
+    const res = await authFetch(apiUrl("/api/v1/checkout"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw await readError(res, "Couldn't place the order.");
+    return (await res.json()) as PlacedPo;
+  },
 };

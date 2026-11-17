@@ -11,7 +11,6 @@ import { toast } from "sonner";
 
 import { PortalShell } from "@/components/restaurant/PortalShell";
 import {
-  ComingSoon,
   ErrorText,
   Field,
   Muted,
@@ -271,10 +270,18 @@ function CatalogueBody() {
         </PortalCard>
       )}
 
-      <ComingSoon
-        title="Ordering from your catalogue"
-        text="Purchase orders at these prices open here soon: your heads download the PO, sign it, and upload the signed copy. Until then, order through your contact at Moments."
-      />
+      {cat.lines.length > 0 && (
+        <PortalCard>
+          <h2 className="text-[18px] font-bold">Order from your catalogue</h2>
+          <Muted className="mt-1">
+            Every order is a purchase order at these prices: your heads download it, sign it, and
+            upload the signed copy.
+          </Muted>
+          <div className="mt-3">
+            <PortalButtonLink to="/restaurant/order">New order</PortalButtonLink>
+          </div>
+        </PortalCard>
+      )}
 
       <PortalCard aria-labelledby="h-requests">
         <h2 id="h-requests" className="text-[18px] font-bold">

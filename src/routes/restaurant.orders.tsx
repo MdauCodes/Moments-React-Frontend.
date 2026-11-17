@@ -10,6 +10,7 @@ import {
   ErrorText,
   Muted,
   PortalButton,
+  PortalButtonLink,
   PortalCard,
 } from "@/components/restaurant/portalUi";
 import type { PoRow } from "@/services/restaurantApi";
@@ -32,7 +33,10 @@ function OrdersBody() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-[24px] font-bold">Orders</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-[24px] font-bold">Orders</h1>
+          <PortalButtonLink to="/restaurant/order">New order</PortalButtonLink>
+        </div>
         <Muted>
           Your purchase orders at your catalogue prices. Each one is printed, signed by your heads,
           and the signed copy uploaded here; then Moments prepares it.

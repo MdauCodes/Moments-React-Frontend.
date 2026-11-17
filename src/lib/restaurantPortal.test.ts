@@ -349,3 +349,50 @@ describe("purchase orders", () => {
     assert.equal(signRuleText("ALL", 1), "The head signs the printed PO.");
   });
 });
+
+import { clampQty, deliveryProblem, orderSummary } from "./restaurantPortal.ts";
+
+describe("placing a PO", () => {
+  const lines = [
+    { productId: "a", productName: "Kraft box", unit: "pack", price: 1190 },
+    { productId: "b", productName: "Cup", unit: null, price: "1450.50" },
+    { productId: "c", productName: "Napkin", price: 380 },
+  ];
+
+  it("sums only what has a quantity", () => {
+    const s = orderSummary(lines, { a: 2, b: 1, c: 0 });
+    assert.deepEqual(
+      s.lines.map((l) => [l.productId, l.qty, l.amount]),
+      [
+        ["a", 2, 2380],
+        ["b", 1, 1450.5],
+      ],
+    );
+    assert.equal(s.total, 3830.5);
+    assert.equal(s.count, 3);
+    assert.equal(orderSummary(lines, {}).lines.length, 0);
+  });
+
+  it("keeps quantities whole and in range", () => {
+    assert.equal(clampQty("12"), 12);
+    assert.equal(clampQty("-3"), 0);
+    assert.equal(clampQty("abc"), 0);
+    assert.equal(clampQty(2.7), 2);
+    assert.equal(clampQty(123456), 9999);
+  });
+
+  it("checks delivery details like the store", () => {
+    const base = {
+      method: "DELIVERY" as const,
+      address: "Woodvale Grove, Westlands",
+      county: "Nairobi",
+      receiver: "James Kariuki",
+      phone: "0722 000 418",
+    };
+    assert.equal(deliveryProblem(base), null);
+    assert.match(deliveryProblem({ ...base, receiver: "James" }) ?? "", /first and last/);
+    assert.match(deliveryProblem({ ...base, address: "" }) ?? "", /where Moments should deliver/);
+    assert.match(deliveryProblem({ ...base, phone: "07" }) ?? "", /phone number/);
+    assert.equal(deliveryProblem({ ...base, method: "PICKUP", address: "", receiver: "" }), null);
+  });
+});

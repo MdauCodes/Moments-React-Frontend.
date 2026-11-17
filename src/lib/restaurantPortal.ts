@@ -471,3 +471,72 @@ export function signRuleText(rule: string | null | undefined, heads: number): st
     ? "Any one head signs the printed PO."
     : `All ${heads} heads sign the printed PO.`;
 }
+
+// ---- placing a PO from the catalogue (doc 15 §21: POST /checkout with restaurantOrder CATALOGUE) ----
+
+export interface OrderLineLike {
+  productId: string;
+  productName: string;
+  unit?: string | null;
+  price: number | string;
+}
+
+export interface OrderSummaryLine {
+  productId: string;
+  productName: string;
+  unit: string;
+  qty: number;
+  price: number;
+  amount: number;
+}
+
+/** The PO's lines and total as the restaurant will see them; the store prices it again itself. */
+export function orderSummary(
+  lines: OrderLineLike[],
+  quantities: Record<string, number>,
+): { lines: OrderSummaryLine[]; total: number; count: number } {
+  const out: OrderSummaryLine[] = [];
+  for (const l of lines) {
+    const qty = Math.floor(quantities[l.productId] ?? 0);
+    if (qty <= 0) continue;
+    const price = Number(l.price);
+    out.push({
+      productId: l.productId,
+      productName: l.productName,
+      unit: l.unit ?? "",
+      qty,
+      price,
+      amount: Math.round(price * qty * 100) / 100,
+    });
+  }
+  const total = Math.round(out.reduce((s, l) => s + l.amount, 0) * 100) / 100;
+  return { lines: out, total, count: out.reduce((s, l) => s + l.qty, 0) };
+}
+
+/** Keeps a typed quantity sensible: whole, 0 to 9,999. */
+export function clampQty(value: number | string): number {
+  const n = typeof value === "string" ? parseInt(value, 10) : value;
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.min(9999, Math.floor(n));
+}
+
+export interface DeliveryDraft {
+  method: "DELIVERY" | "PICKUP";
+  address: string;
+  county: string;
+  receiver: string;
+  phone: string;
+}
+
+/** The first problem with the order's delivery details (the store checks again), or null. */
+export function deliveryProblem(d: DeliveryDraft): string | null {
+  if (!d.phone.trim() || d.phone.replace(/\D/g, "").length < 9) {
+    return "Enter a phone number Moments can call about this order.";
+  }
+  if (d.method === "PICKUP") return null;
+  if (!d.address.trim()) return "Enter where Moments should deliver.";
+  if (d.receiver.trim().split(/\s+/).length < 2) {
+    return "Enter the full name (first and last) of whoever receives the order.";
+  }
+  return null;
+}

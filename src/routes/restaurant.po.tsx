@@ -188,6 +188,13 @@ function PoBody() {
         </p>
       )}
 
+      {po.stage === "WITH_MOMENTS" && po.paymentMethod !== "CREDIT" && (
+        <ComingSoon
+          title="Paying for this order"
+          text="Your signed copy is accepted. Moments will tell you how and when to pay by M-Pesa or bank; a Pay now button will appear here."
+        />
+      )}
+
       {myTurn && (
         <SignedCopyUpload
           po={po}

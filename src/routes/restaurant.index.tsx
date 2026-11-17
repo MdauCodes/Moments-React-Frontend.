@@ -74,7 +74,7 @@ function HomeBody() {
         </div>
 
         <div className="grid grid-cols-2 gap-2">
-          <PortalButtonLink to="/restaurant/catalogue" className="min-h-[52px]">
+          <PortalButtonLink to="/restaurant/order" className="min-h-[52px]">
             New order
           </PortalButtonLink>
           <PortalButtonLink
