@@ -17,6 +17,7 @@ import { AdminProtectedRoute } from "@/components/admin/AdminProtectedRoute";
 import { SiteLockOverlay } from "@/components/SiteLockOverlay";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import { MetaPixel } from "@/components/MetaPixel";
+import { GoogleTag } from "@/components/GoogleTag";
 import { MarketingAttributionCapture } from "@/components/MarketingAttributionCapture";
 import { RouteSeo } from "@/components/RouteSeo";
 import { PageViewTracker } from "@/components/PageViewTracker";
@@ -218,6 +219,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <MetaPixel />
+      <GoogleTag />
       <MarketingAttributionCapture />
       <RouteSeo />
       <PageViewTracker />

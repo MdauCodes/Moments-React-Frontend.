@@ -223,15 +223,14 @@ export function getPrivacyPolicyContent() {
               products and admin UI preferences. They improve usability and persist your choices.
             </li>
             <li>
-              <strong>Analytics:</strong> if and when we enable a privacy-friendly analytics tool,
-              it will measure anonymous page views and traffic sources so we can improve the
-              catalogue. No analytics scripts are loaded today; we will update this list before
-              any are added.
+              <strong>Analytics:</strong> Google Tag Manager, and the Google tools it loads, measure
+              page views and where visitors come from so we can improve the catalogue. It loads only
+              after you choose "Accept all" on the cookie banner.
             </li>
             <li>
-              <strong>Marketing:</strong> we do not currently run third-party advertising pixels
-              (Meta, Google Ads, TikTok). If we add them, we will request your consent first via
-              a cookie banner.
+              <strong>Marketing:</strong> the Meta Pixel and Google Ads (through Google Tag Manager)
+              tell us which of our adverts lead to visits and orders. They load only after you
+              choose "Accept all" on the cookie banner; if you don't, they never load.
             </li>
           </ul>
           <p>
