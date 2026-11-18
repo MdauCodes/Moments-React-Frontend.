@@ -272,7 +272,7 @@ function PersonRow({ person, head }: { person: TeamPerson; head: boolean }) {
             <Pill tone="info">{person.role === "OWNER" ? "You · head" : "Head"}</Pill>
           ) : (
             <Pill tone={person.joined ? "muted" : "wait"}>
-              {person.joined ? "Can order" : "Invite sent"}
+              {person.joined ? "Can order" : "Invited, hasn't joined yet"}
             </Pill>
           )}
         </div>

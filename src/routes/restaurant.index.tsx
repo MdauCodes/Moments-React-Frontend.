@@ -115,7 +115,10 @@ function HomeBody() {
               your own prices.
             </Muted>
           ) : (
-            <Muted>No approved prices yet.</Muted>
+            <Muted>
+              No prices yet, so there's nothing to order from. Ask Moments to price the products you
+              buy.
+            </Muted>
           )}
           {nextChange?.changes[0] && (
             <div
@@ -236,7 +239,9 @@ function HomeOrders({ isHead, rule }: { isHead: boolean; rule: string }) {
           <h2 id="h-approve" className="text-[18px] font-bold">
             For you to sign
           </h2>
-          <Muted>Nothing waiting for you.</Muted>
+          <Muted>
+            Nothing is waiting for you: no PO needs your signature or payment right now.
+          </Muted>
         </PortalCard>
       )}
       {open.length > 0 ? (
@@ -246,7 +251,7 @@ function HomeOrders({ isHead, rule }: { isHead: boolean; rule: string }) {
           <h2 id="h-progress" className="text-[18px] font-bold">
             Orders in progress
           </h2>
-          <Muted>None right now.</Muted>
+          <Muted>No orders are in progress. Place one from New order.</Muted>
         </PortalCard>
       )}
       <Link

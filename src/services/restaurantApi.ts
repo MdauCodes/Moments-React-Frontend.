@@ -454,12 +454,35 @@ export class RestaurantApiError extends Error {
   }
 }
 
+const NETWORK_MESSAGE = "We couldn't reach Moments. Check your internet connection and try again.";
+
+/**
+ * An error the restaurant can act on. The store's own message when it sends one (it says what
+ * happened and what to do); otherwise what we were doing and the next step, never a bare code.
+ */
 async function readError(res: Response, fallback: string): Promise<RestaurantApiError> {
   const body = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
-  let message = body.message || body.error || fallback;
-  if (res.status === 429 && !body.message) message = "Too many tries. Wait a little and try again.";
-  if (res.status === 403 && !body.message) message = "That isn't open to your role.";
+  if (body.message) return new RestaurantApiError(body.message, res.status);
+  let message: string;
+  if (res.status === 429) {
+    message = "Too many tries in a short time. Wait a minute, then try again.";
+  } else if (res.status === 403) {
+    message = `${fallback} Your role in the restaurant doesn't allow this; ask your restaurant's contact person.`;
+  } else if (res.status === 401) {
+    message = `${fallback} You've been signed out; sign in again and retry.`;
+  } else {
+    message = `${fallback} Please try again in a moment; if it keeps happening, tell your contact at Moments.`;
+  }
   return new RestaurantApiError(message, res.status);
+}
+
+/** fetch through the session, turning a dropped connection into words instead of "Failed to fetch". */
+async function send(input: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await authFetch(input, init);
+  } catch {
+    throw new RestaurantApiError(NETWORK_MESSAGE, 0);
+  }
 }
 
 async function call<T>(
@@ -469,8 +492,8 @@ async function call<T>(
 ): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
-  const res = await authFetch(apiUrl(path), { ...init, headers });
-  if (!res.ok) throw await readError(res, `${fallback} (${res.status})`);
+  const res = await send(apiUrl(path), { ...init, headers });
+  if (!res.ok) throw await readError(res, fallback);
   return (await res.json()) as T;
 }
 
@@ -485,7 +508,7 @@ function fileNameFrom(res: Response, fallback: string): string {
 
 /** Fetches a PDF the store makes and saves it on the phone or computer. */
 async function savePdfFrom(path: string, fallbackName: string, what: string): Promise<void> {
-  const res = await authFetch(apiUrl(path));
+  const res = await send(apiUrl(path));
   if (!res.ok) throw await readError(res, `Couldn't download ${what}.`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -504,21 +527,26 @@ const post = <T>(path: string, body: unknown, fallback?: string) =>
 export const restaurantApi = {
   /** Public: joining with the emailed code (5 wrong tries lock the invite). */
   async acceptInvite(input: AcceptInviteInput): Promise<AcceptInviteResult> {
-    const res = await fetch(apiUrl("/api/v1/public/restaurant-invites/accept"), {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-    });
-    if (!res.ok) throw await readError(res, "That code didn't work.");
+    let res: Response;
+    try {
+      res = await fetch(apiUrl("/api/v1/public/restaurant-invites/accept"), {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+    } catch {
+      throw new RestaurantApiError(NETWORK_MESSAGE, 0);
+    }
+    if (!res.ok) throw await readError(res, "We couldn't check that code.");
     return (await res.json()) as AcceptInviteResult;
   },
 
   /** The signed-in member's restaurant; a 404 means they are not part of one. */
   async mine(): Promise<MyRestaurant | null> {
-    const res = await authFetch(apiUrl("/api/v1/restaurant/me"));
+    const res = await send(apiUrl("/api/v1/restaurant/me"));
     if (res.status === 404) return null;
-    if (!res.ok) throw await readError(res, "Couldn't load your restaurant.");
+    if (!res.ok) throw await readError(res, "We couldn't open your restaurant.");
     return (await res.json()) as MyRestaurant;
   },
 
@@ -536,7 +564,11 @@ export const restaurantApi = {
     post<MyRestaurant>("/api/v1/restaurant/me/setup/finish", {}, "Couldn't finish the setup."),
 
   headRequests: () =>
-    call<HeadRequestRow[]>("/api/v1/restaurant/me/head-requests", {}, "Couldn't load requests."),
+    call<HeadRequestRow[]>(
+      "/api/v1/restaurant/me/head-requests",
+      {},
+      "We couldn't load your requests.",
+    ),
 
   requestHeadChange: (input: HeadRequestInput) =>
     post<HeadRequestRow>(
@@ -546,10 +578,14 @@ export const restaurantApi = {
     ),
 
   catalogue: () =>
-    call<MyCatalogue>("/api/v1/restaurant/me/catalogue", {}, "Couldn't load your catalogue."),
+    call<MyCatalogue>("/api/v1/restaurant/me/catalogue", {}, "We couldn't load your catalogue."),
 
   priceRequests: () =>
-    call<MyPriceRequest[]>("/api/v1/restaurant/me/price-requests", {}, "Couldn't load requests."),
+    call<MyPriceRequest[]>(
+      "/api/v1/restaurant/me/price-requests",
+      {},
+      "We couldn't load your requests.",
+    ),
 
   requestPrices: (input: PriceRequestInput) =>
     post<MyPriceRequest>(
@@ -569,14 +605,14 @@ export const restaurantApi = {
     call<PoRow[]>(
       `/api/v1/restaurant/me/purchase-orders${stage ? `?stage=${stage}` : ""}`,
       {},
-      "Couldn't load your orders.",
+      "We couldn't load your orders.",
     ),
 
   purchaseOrder: (orderId: string) =>
     call<PoDetail>(
       `/api/v1/restaurant/me/purchase-orders/${orderId}`,
       {},
-      "Couldn't load this order.",
+      "We couldn't open this order.",
     ),
 
   downloadPo: (orderId: string, poNumber: string) =>
@@ -598,7 +634,7 @@ export const restaurantApi = {
     const form = new FormData();
     files.forEach((f) => form.append("files", f, f.name));
     if (note) form.append("note", note);
-    const res = await authFetch(
+    const res = await send(
       apiUrl(`/api/v1/restaurant/me/purchase-orders/${orderId}/signed-copies`),
       { method: "POST", body: form },
     );
@@ -637,17 +673,21 @@ export const restaurantApi = {
       body.county = input.delivery.county;
       body.collectorName = input.delivery.receiver;
     }
-    const res = await authFetch(apiUrl("/api/v1/checkout"), {
+    const res = await send(apiUrl("/api/v1/checkout"), {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
       body: JSON.stringify(body),
     });
-    if (!res.ok) throw await readError(res, "Couldn't place the order.");
+    if (!res.ok) throw await readError(res, "The order wasn't placed.");
     return (await res.json()) as PlacedPo;
   },
   /** The restaurant's credit: a 404 or 405 means the store doesn't have credit yet. */
   credit: () =>
-    call<CreditSummary>("/api/v1/restaurant/me/credit", {}, "Couldn't load your credit."),
+    call<CreditSummary>(
+      "/api/v1/restaurant/me/credit",
+      {},
+      "We couldn't load your credit account.",
+    ),
 
   /** Sends an M-Pesa prompt to `phone` for `amount` (everything owed when left out). */
   payCredit: (input: { amount?: number; phone: string }) =>
@@ -661,14 +701,14 @@ export const restaurantApi = {
     call<PromptStatus>(
       `/api/v1/restaurant/me/credit/payments/${id}`,
       {},
-      "Couldn't check the payment.",
+      "We couldn't check the payment yet.",
     ),
   /**
    * Pay a pay-now PO by M-Pesa once Moments has accepted its signed copy (§21.1): the shop's own
    * payment calls, without the shop's order-history and ad-tracking side effects.
    */
   async payPoByMpesa(orderId: string, phone: string): Promise<void> {
-    const res = await authFetch(apiUrl("/api/v1/payments/initiate"), {
+    const res = await send(apiUrl("/api/v1/payments/initiate"), {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Session-Id": getSessionId() },
       body: JSON.stringify({ orderId, paymentMethod: "MPESA", phone }),
@@ -680,14 +720,14 @@ export const restaurantApi = {
     call<OrderPaymentStatus>(
       `/api/v1/payments/status/${encodeURIComponent(orderId)}`,
       { headers: { "X-Session-Id": getSessionId() } },
-      "Couldn't check the payment.",
+      "We couldn't check the payment yet.",
     ),
   /** Paying by bank instead of M-Pesa: the restaurant says the transfer is sent (§23.7). */
   bankTransferSent: (orderId: string, reference?: string) =>
     post<PoDetail>(
       `/api/v1/restaurant/me/purchase-orders/${orderId}/bank-transfer-sent`,
       { reference: reference || undefined },
-      "Couldn't record the transfer.",
+      "We couldn't record that the transfer was sent.",
     ),
 
   /** Pays what is left after Moments raised the PO's total. */
@@ -706,9 +746,13 @@ export const restaurantApi = {
     post<PoDetail>(
       `/api/v1/restaurant/me/purchase-orders/${orderId}/cancel`,
       { reason: reason || undefined },
-      "Couldn't cancel the order.",
+      "The order wasn't cancelled.",
     ),
 
   balance: () =>
-    call<BalanceView>("/api/v1/restaurant/me/balance", {}, "Couldn't load your balance."),
+    call<BalanceView>(
+      "/api/v1/restaurant/me/balance",
+      {},
+      "We couldn't load your balance with Moments.",
+    ),
 };

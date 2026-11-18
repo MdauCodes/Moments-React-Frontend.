@@ -34,7 +34,7 @@ export function BalanceCard({ history = false }: { history?: boolean }) {
       <Muted className="text-[13px]">
         {view.balance > 0
           ? "Used first on your next order that isn't on credit. Moments can also refund it."
-          : "Nothing held for you right now."}
+          : "Moments isn't holding any money for you right now."}
       </Muted>
       {history && view.movements.length > 0 && (
         <ul className="mt-3 flex flex-col divide-y text-[14px]" style={{ borderColor: c.line }}>

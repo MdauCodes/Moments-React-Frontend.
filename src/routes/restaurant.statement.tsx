@@ -100,7 +100,7 @@ function StatementBody() {
             <Tile label="Owed now" value={kes(credit.owed)} />
             <Tile
               label="Overdue"
-              value={credit.overdue > 0 ? kes(credit.overdue) : "Nothing"}
+              value={credit.overdue > 0 ? kes(credit.overdue) : "Nothing overdue"}
               danger={credit.overdue > 0}
             />
             <Tile

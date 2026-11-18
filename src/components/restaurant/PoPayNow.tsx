@@ -314,13 +314,16 @@ export function PoPayNow({
                       {bank.paymentInstructions}
                     </p>
                   )}
-                  <p className="mt-2">Then tell us it's sent.</p>
+                  <p className="mt-2">
+                    Then tap "I've sent the transfer" below, so Moments looks out for it and moves
+                    your order on once it arrives.
+                  </p>
                 </div>
               ) : (
                 <Muted>
                   Transfer {kes(due)} to Moments Packaging's bank account (as on your invoice, or
                   ask your contact at Moments) and quote <strong>{quote}</strong>. Then tell us it's
-                  sent.
+                  sent, so Moments looks out for it.
                 </Muted>
               )}
               <Field

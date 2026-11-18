@@ -445,6 +445,92 @@ export function poStageText(
   }
 }
 
+export interface StageNote {
+  text: string;
+  linkTo?: string;
+  linkLabel?: string;
+}
+
+/**
+ * One or two plain sentences for every PO stage: what is going on, why, and what to do next (owner,
+ * 17 Nov: every message says all three, briefly). Shown under the stage label on the PO screen.
+ */
+export function poStageExplain(
+  stage: string,
+  opts: { revision?: number; paymentMethod?: string | null; bankReference?: string | null } = {},
+): StageNote {
+  const credit = opts.paymentMethod === "CREDIT";
+  switch (stage) {
+    case "AWAITING_SIGNED_COPY":
+      if (opts.revision && opts.revision > 1) {
+        return {
+          text: `Moments changed this PO, so it needs signing again. Download version ${opts.revision}, have it signed and upload the signed copy.`,
+        };
+      }
+      return {
+        text: `Your heads haven't signed it yet, and Moments doesn't see a PO until they have. Download it, have it signed and upload the signed copy; then ${credit ? "it goes on your credit account" : "you pay"} and it goes to Moments.`,
+      };
+    case "AWAITING_PAYMENT":
+      return {
+        text: "Your heads have approved it. It goes to Moments once it's paid, so pay below by M-Pesa or bank transfer.",
+      };
+    case "CONFIRMING_PAYMENT":
+      return {
+        text: `You told us the bank transfer was sent${opts.bankReference ? ` (reference ${opts.bankReference})` : ""}. Moments is checking the money has arrived, and then the PO goes on. There's nothing to do now.`,
+      };
+    case "AWAITING_TOP_UP":
+      return {
+        text: "Moments changed this PO and the total went up. Pay the difference below so it can go on.",
+      };
+    case "HELD":
+      return {
+        text: "This credit order waits for Moments to approve it, because your account has an overdue bill or the order no longer fits your available credit. Pay what's due, or talk to Moments.",
+        linkTo: "/restaurant/statement",
+        linkLabel: "Open the Statement",
+      };
+    case "CHECKING_SIGNED_COPY":
+      return {
+        text: "Moments has your PO and is checking the signed copy. There's nothing to do now; if it needs a new copy, you'll be told why.",
+      };
+    case "SENT_BACK":
+      return {
+        text: "Moments sent the signed copy back (the reason is below). Upload a new signed copy so the PO can go on.",
+      };
+    case "WITH_MOMENTS":
+      return {
+        text: "Moments has accepted your PO and will start preparing it. There's nothing to do now.",
+      };
+    case "BEING_PREPARED":
+      return {
+        text: "Moments is preparing your order. There's nothing to do now; you'll get an alert when it's ready or on its way.",
+      };
+    case "AWAITING_FINAL_SIGNATURE":
+      return {
+        text: "Your order is prepared. Moments' Director or Operations manager signs the PO next, and then it's ready or sent out.",
+      };
+    case "READY_FOR_PICKUP":
+      return {
+        text: "Your order is ready. Collect it from Moments' shop on Ukwala Road, Nairobi CBD, and give the PO number.",
+      };
+    case "ON_ITS_WAY":
+      return { text: "Your order is on its way. Make sure someone is there to receive it." };
+    case "DELIVERED":
+      return {
+        text: "Your order was delivered. If anything is wrong with it, tell your contact at Moments.",
+      };
+    case "CANCELLED":
+      return {
+        text: "This PO was cancelled. Anything you paid stays with Moments as your balance unless Moments refunded it.",
+        linkTo: "/restaurant/statement",
+        linkLabel: "See your balance",
+      };
+    default:
+      return {
+        text: "This PO is moving on at Moments. You'll be told if anything is needed from you.",
+      };
+  }
+}
+
 /** Stages that are finished: they leave "Orders in progress". */
 export const isPoClosed = (stage: string): boolean =>
   stage === "DELIVERED" || stage === "CANCELLED";
@@ -601,7 +687,7 @@ export function paymentStatusText(status: string): { label: string; tone: Tone }
     case "FAILED":
       return { label: "Didn't go through", tone: "bad" };
     default:
-      return { label: "Being confirmed", tone: "wait" };
+      return { label: "Moments is confirming it", tone: "wait" };
   }
 }
 
@@ -614,7 +700,7 @@ export function chargeDueText(c: {
   label: string;
   tone: Tone;
 } {
-  if (!c.deliveredAt) return { label: "Due once delivered", tone: "muted" };
+  if (!c.deliveredAt) return { label: "Not due until delivered", tone: "muted" };
   if (c.overdue) return { label: `Overdue since ${shortDate(c.dueOn)}`, tone: "bad" };
   return { label: `Due ${shortDate(c.dueOn)}`, tone: "wait" };
 }
@@ -723,14 +809,14 @@ export function poPaymentBadge(
 ): { label: string; tone: Tone } {
   if (stage === "CANCELLED") return { label: "Cancelled", tone: "muted" };
   if (paymentMethod === "CREDIT") return { label: "On credit", tone: "info" };
-  if (!money) return { label: "Not paid", tone: "muted" };
+  if (!money) return { label: "Not paid yet", tone: "muted" };
   if (money.amountDue <= 0 && money.paidAmount >= money.total)
     return { label: "Paid", tone: "good" };
   if (stage === "CONFIRMING_PAYMENT")
     return { label: "Bank transfer being confirmed", tone: "wait" };
   if (money.paidAmount > 0)
     return { label: `Partly paid · ${kes(money.amountDue)} to pay`, tone: "wait" };
-  return { label: "Not paid", tone: stage === "AWAITING_PAYMENT" ? "wait" : "muted" };
+  return { label: "Not paid yet", tone: stage === "AWAITING_PAYMENT" ? "wait" : "muted" };
 }
 
 /** A line of "Moments owes you" history, in plain words. */

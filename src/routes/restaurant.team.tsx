@@ -172,7 +172,7 @@ function TeamBody() {
             <PersonLine
               key={h.key}
               person={h}
-              badge={h.joined ? "Head" : "Invite sent, not joined"}
+              badge={h.joined ? "Head" : "Invited, hasn't joined yet"}
             />
           ))}
         </ul>
@@ -466,7 +466,7 @@ function StaffSection({
             <PersonLine
               key={p.key}
               person={p}
-              badge={p.joined ? "Can order" : "Invite sent, not joined"}
+              badge={p.joined ? "Can order" : "Invited, hasn't joined yet"}
               waiting={!p.joined}
             />
           ))}

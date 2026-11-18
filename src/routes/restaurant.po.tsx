@@ -37,6 +37,7 @@ import {
   isHeadRole,
   kes,
   poPaymentBadge,
+  poStageExplain,
   poStageText,
   ruleText,
   signedCopyLabel,
@@ -123,6 +124,11 @@ function PoBody() {
 
   const stage = poStageText(po.stage, po.signingMethod, po.revision);
   const paid = poPaymentBadge(po.paymentMethod, po.money, po.stage);
+  const stageNote = poStageExplain(po.stage, {
+    revision: po.revision,
+    paymentMethod: po.paymentMethod,
+    bankReference: po.money?.bankTransferReference,
+  });
   const vat =
     po.vatIncluded === false
       ? null
@@ -207,6 +213,23 @@ function PoBody() {
             {po.placedBy.rank ? ` · ${po.placedBy.rank}` : ""}
           </Pill>
         </div>
+        {!po.changeUnderReview && (
+          <p className="mt-2 text-[14px] leading-relaxed" style={{ color: c.ink }}>
+            {stageNote.text}
+            {stageNote.linkTo && (
+              <>
+                {" "}
+                <Link
+                  to={stageNote.linkTo}
+                  className="font-semibold underline"
+                  style={{ color: c.green }}
+                >
+                  {stageNote.linkLabel}
+                </Link>
+              </>
+            )}
+          </p>
+        )}
         <div className="mt-3 grid grid-cols-2 gap-2 text-[13.5px] sm:grid-cols-4">
           <Fact
             label="Pay by"
@@ -301,36 +324,6 @@ function PoBody() {
           defaultPhone={me?.phone ?? po.delivery?.phone ?? ""}
           onChanged={() => void load()}
         />
-      )}
-
-      {po.stage === "CONFIRMING_PAYMENT" && (
-        <p
-          role="status"
-          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
-          style={{ background: "#E3EEF0", color: "#1D4F5A" }}
-        >
-          <strong>
-            Bank transfer sent
-            {po.money?.bankTransferSentAt ? ` ${dateTime(po.money.bankTransferSentAt)}` : ""}.
-          </strong>{" "}
-          {po.money?.bankTransferReference ? `Reference ${po.money.bankTransferReference}. ` : ""}
-          Moments marks it received, confirms it, and then the order goes on.
-        </p>
-      )}
-
-      {po.stage === "HELD" && (
-        <p
-          role="status"
-          className="rounded-[12px] p-3.5 text-[14px] leading-relaxed"
-          style={{ background: "#FFF4D6", color: "#5A3E00" }}
-        >
-          <strong>Waiting for Moments' approval.</strong> Your credit account has an overdue bill,
-          or this order no longer fits the credit available. Pay what's due on the{" "}
-          <Link to="/restaurant/statement" className="font-semibold underline">
-            Statement
-          </Link>{" "}
-          page, or talk to Moments.
-        </p>
       )}
 
       {myTurn && (
@@ -478,7 +471,7 @@ function PoBody() {
               </div>
             </span>
             <Pill tone={po.momentsSignedCopy ? "good" : "muted"}>
-              {po.momentsSignedCopy ? "Signed" : "After the heads"}
+              {po.momentsSignedCopy ? "Signed" : "After your heads"}
             </Pill>
           </li>
         </ul>
@@ -514,7 +507,10 @@ function PoBody() {
           <dt style={{ color: c.muted }}>Receive</dt>
           <dd>{[po.delivery?.receiver, po.delivery?.phone].filter(Boolean).join(", ") || "—"}</dd>
           <dt style={{ color: c.muted }}>When</dt>
-          <dd>After Moments signs; you get a "ready" or "on its way" email.</dd>
+          <dd>
+            After Moments signs the PO. You'll get an email (and an alert, if they're on) when it's
+            ready or on its way.
+          </dd>
         </dl>
       </Collapsible>
 

@@ -114,7 +114,9 @@ function CatalogueBody() {
     try {
       await downloadCatalogue(cat, setPdfProgress);
     } catch {
-      toast.error("Couldn't make the PDF. Try again.");
+      toast.error(
+        "We couldn't make the PDF. Try again; if it keeps failing, ask your contact at Moments to send your catalogue.",
+      );
     } finally {
       setPdfProgress(null);
     }

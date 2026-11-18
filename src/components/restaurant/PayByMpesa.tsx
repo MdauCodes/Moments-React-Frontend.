@@ -113,7 +113,9 @@ export function PayByMpesa({
         )}
         {!pending && !ok && (
           <>
-            <strong>The payment didn't go through.</strong> {prompt.message ?? "Try again."}
+            <strong>The payment didn't go through.</strong>{" "}
+            {prompt.message ??
+              "Check the phone number and try again, or ask Moments if money left your account."}
           </>
         )}
         {(!pending || gaveUp) && (

@@ -67,7 +67,11 @@ function OrdersBody() {
 
 function OrderGroups({ rows }: { rows: PoRow[] }) {
   if (rows.length === 0) {
-    return <Muted>No orders yet. Orders from your catalogue appear here.</Muted>;
+    return (
+      <Muted>
+        No orders yet. Place one from New order; it shows here with where it is at each step.
+      </Muted>
+    );
   }
   const needsYou = (r: PoRow) => r.needsMe || !!r.awaitingPayment;
   const mine = rows.filter(needsYou);

@@ -418,7 +418,10 @@ describe("credit", () => {
   });
 
   it("says when a charge is due", () => {
-    assert.equal(chargeDueText({ deliveredAt: null, overdue: false }).label, "Due once delivered");
+    assert.equal(
+      chargeDueText({ deliveredAt: null, overdue: false }).label,
+      "Not due until delivered",
+    );
     assert.equal(
       chargeDueText({ deliveredAt: "2026-11-18T10:00:00Z", dueOn: "2026-12-18", overdue: false })
         .label,
@@ -443,7 +446,7 @@ describe("credit", () => {
 
   it("names payments", () => {
     assert.equal(paymentMethodText("MPESA_PROMPT"), "M-Pesa (from the portal)");
-    assert.equal(paymentStatusText("PENDING").label, "Being confirmed");
+    assert.equal(paymentStatusText("PENDING").label, "Moments is confirming it");
     assert.equal(paymentStatusText("CONFIRMED").tone, "good");
   });
 });
@@ -465,7 +468,7 @@ describe("paying a PO (§23)", () => {
   it("says Paid / Not paid / On credit", () => {
     const m = (paidAmount: number, amountDue: number) => ({ total: 1000, paidAmount, amountDue });
     assert.equal(poPaymentBadge("MPESA", m(1000, 0), "WITH_MOMENTS").label, "Paid");
-    assert.equal(poPaymentBadge("MPESA", m(0, 1000), "AWAITING_PAYMENT").label, "Not paid");
+    assert.equal(poPaymentBadge("MPESA", m(0, 1000), "AWAITING_PAYMENT").label, "Not paid yet");
     assert.equal(
       poPaymentBadge("MPESA", m(400, 600), "AWAITING_PAYMENT").label,
       "Partly paid · KES 600 to pay",
@@ -476,7 +479,7 @@ describe("paying a PO (§23)", () => {
     );
     assert.equal(poPaymentBadge("CREDIT", m(0, 0), "WITH_MOMENTS").label, "On credit");
     assert.equal(poPaymentBadge("MPESA", m(1000, 0), "CANCELLED").label, "Cancelled");
-    assert.equal(poPaymentBadge("MPESA", null, "AWAITING_SIGNED_COPY").label, "Not paid");
+    assert.equal(poPaymentBadge("MPESA", null, "AWAITING_SIGNED_COPY").label, "Not paid yet");
   });
 
   it("works out VAT and names balance movements", () => {
@@ -530,5 +533,48 @@ describe("local test fixes (17 Nov)", () => {
     assert.equal(signedCopyLabel("UPLOADED", "CHECKING_SIGNED_COPY").label, "Moments is checking");
     assert.equal(signedCopyLabel("ACCEPTED", "AWAITING_PAYMENT").label, "Accepted");
     assert.equal(signedCopyLabel("SENT_BACK", "SENT_BACK").label, "Sent back");
+  });
+});
+
+import { poStageExplain } from "./restaurantPortal.ts";
+
+describe("every PO stage says what is going on and what to do next", () => {
+  const stages = [
+    "AWAITING_SIGNED_COPY",
+    "AWAITING_PAYMENT",
+    "CONFIRMING_PAYMENT",
+    "AWAITING_TOP_UP",
+    "HELD",
+    "CHECKING_SIGNED_COPY",
+    "SENT_BACK",
+    "WITH_MOMENTS",
+    "BEING_PREPARED",
+    "AWAITING_FINAL_SIGNATURE",
+    "READY_FOR_PICKUP",
+    "ON_ITS_WAY",
+    "DELIVERED",
+    "CANCELLED",
+  ];
+
+  it("has full sentences for every stage", () => {
+    for (const st of stages) {
+      const t = poStageExplain(st).text;
+      assert.ok(t.length > 40, st);
+      assert.ok(t.endsWith("."), st);
+    }
+  });
+
+  it("fits the details it is given", () => {
+    assert.match(poStageExplain("AWAITING_SIGNED_COPY", { revision: 2 }).text, /version 2/);
+    assert.match(
+      poStageExplain("AWAITING_SIGNED_COPY", { paymentMethod: "CREDIT" }).text,
+      /credit account/,
+    );
+    assert.match(
+      poStageExplain("AWAITING_SIGNED_COPY", { paymentMethod: "MPESA" }).text,
+      /you pay/,
+    );
+    assert.match(poStageExplain("CONFIRMING_PAYMENT", { bankReference: "EQ-55" }).text, /EQ-55/);
+    assert.equal(poStageExplain("HELD").linkTo, "/restaurant/statement");
   });
 });
