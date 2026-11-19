@@ -12,6 +12,7 @@ import {
   Muted,
   Pill,
   PortalButton,
+  PortalButtonLink,
   PortalCard,
   portalColors as c,
 } from "@/components/restaurant/portalUi";
@@ -71,9 +72,10 @@ function StatementBody() {
       <div className="flex max-w-xl flex-col gap-3">
         <h1 className="text-[24px] font-bold">Statement</h1>
         <Muted>
-          {credit.restaurantName} pays for each order by M-Pesa or bank. Moments can open a credit
-          account for you; ask your contact at Moments.
+          {credit.restaurantName} pays for each order by M-Pesa or bank. To buy now and pay later,
+          apply for credit: fill in Moments' account form, sign it and send it.
         </Muted>
+        <PortalButtonLink to="/restaurant/credit-application">Apply for credit</PortalButtonLink>
         <BalanceCard history />
       </div>
     );
@@ -91,6 +93,11 @@ function StatementBody() {
           <Muted>
             Credit of {kes(credit.creditLimit)}; each order is due {credit.paymentTermsDays ?? "—"}{" "}
             days after delivery.
+            {credit.creditTermsType === "SHARIAH"
+              ? " Shariah-compliant terms: paying late never adds a charge."
+              : credit.creditTermsType === "STANDARD"
+                ? " Standard terms: 3% is added on an amount still unpaid a full month after it's due."
+                : ""}
           </Muted>
         </div>
 
@@ -126,6 +133,16 @@ function StatementBody() {
               ? ` · ${kes(credit.overdue)} overdue: new orders wait for Moments until it's paid`
               : " · nothing overdue"}
           </div>
+          {credit.nextLateChargeOn && credit.nextLateChargeAmount ? (
+            <div
+              className="mt-2 text-[14px] font-semibold"
+              role="alert"
+              style={{ color: c.danger }}
+            >
+              Pay what's overdue before {shortDate(credit.nextLateChargeOn)}, or{" "}
+              {kes(credit.nextLateChargeAmount)} (3%) is added that day.
+            </div>
+          ) : null}
           {credit.unallocated > 0 && (
             <div className="mt-1 text-[13px]" style={{ color: c.muted }}>
               {kes(credit.unallocated)} paid in advance goes to your next order.

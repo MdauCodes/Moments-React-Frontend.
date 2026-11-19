@@ -404,6 +404,8 @@ export interface ChargeRow {
   deliveredAt?: string | null;
   dueOn?: string | null;
   overdue: boolean;
+  /** ORDER, or LATE: 3% a month on an overdue order (Standard terms only). */
+  kind?: "ORDER" | "LATE";
 }
 
 export interface PaymentRow {
@@ -434,6 +436,94 @@ export interface CreditSummary {
   unallocated: number;
   openCharges: ChargeRow[];
   recentPayments: PaymentRow[];
+  /** STANDARD (3% a month on what is unpaid a full month after it is due) or SHARIAH (never a late charge). */
+  creditTermsType?: "STANDARD" | "SHARIAH" | null;
+  /** The next 3% late charge, if what is overdue stays unpaid. */
+  nextLateChargeOn?: string | null;
+  nextLateChargeAmount?: number | null;
+}
+
+// ---- the credit application (owner, 19 Nov 2026): Moments' customer account form, online ----
+
+export type TermsType = "STANDARD" | "SHARIAH";
+export interface Banker {
+  bank: string | null;
+  accountNo: string | null;
+}
+export interface Director {
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+}
+export interface TradeReference {
+  company: string | null;
+  address: string | null;
+  contactPerson: string | null;
+  phone: string | null;
+  email: string | null;
+  period: string | null;
+}
+export interface Guarantor {
+  name: string | null;
+  idNumber: string | null;
+  phone: string | null;
+}
+export interface ApplicationForm {
+  termsType: TermsType | null;
+  legalName: string | null;
+  tradingName: string | null;
+  postalAddress: string | null;
+  email: string | null;
+  plotNo: string | null;
+  road: string | null;
+  phones: string | null;
+  natureOfBusiness: string | null;
+  kraPin: string | null;
+  vatNo: string | null;
+  bankers: Banker[];
+  directors: Director[];
+  paymentsContactName: string | null;
+  paymentsContactPhone: string | null;
+  paymentsContactEmail: string | null;
+  monthlyValue: number | null;
+  creditRequested: number | null;
+  repaymentDays: number | null;
+  paymentFrequency: string | null;
+  mainProducts: string | null;
+  tradeReferences: TradeReference[];
+  signatoryName: string | null;
+  signatoryDesignation: string | null;
+  guarantors: Guarantor[];
+}
+export type ApplicationFileKind =
+  | "SIGNED_FORM"
+  | "GUARANTEE"
+  | "INCORPORATION"
+  | "KRA_PIN"
+  | "VAT"
+  | "DIRECTOR_ID"
+  | "CR12"
+  | "OTHER";
+export interface ApplicationFile {
+  id: string;
+  kind: ApplicationFileKind;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+export interface CreditApplication {
+  id: string | null;
+  restaurantName: string;
+  status: "NEW" | "DRAFT" | "SUBMITTED" | "RETURNED" | "APPROVED" | "DECLINED";
+  form: ApplicationForm;
+  files: ApplicationFile[];
+  missing: string[];
+  editable: boolean;
+  submittedAt: string | null;
+  returnedAt: string | null;
+  returnNote: string | null;
+  decidedAt: string | null;
 }
 
 export interface PromptStatus {
@@ -681,6 +771,59 @@ export const restaurantApi = {
     if (!res.ok) throw await readError(res, "The order wasn't placed.");
     return (await res.json()) as PlacedPo;
   },
+  creditApplication: () =>
+    call<CreditApplication>(
+      "/api/v1/restaurant/me/credit-application",
+      {},
+      "We couldn't load your credit application.",
+    ),
+
+  saveCreditApplication: (form: ApplicationForm) =>
+    call<CreditApplication>(
+      "/api/v1/restaurant/me/credit-application",
+      { method: "PUT", body: JSON.stringify(form) },
+      "Your form wasn't saved.",
+    ),
+
+  submitCreditApplication: () =>
+    post<CreditApplication>(
+      "/api/v1/restaurant/me/credit-application/submit",
+      {},
+      "The application wasn't sent.",
+    ),
+
+  async uploadApplicationFiles(
+    kind: ApplicationFileKind,
+    files: File[],
+  ): Promise<CreditApplication> {
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f, f.name));
+    const res = await send(apiUrl(`/api/v1/restaurant/me/credit-application/files?kind=${kind}`), {
+      method: "POST",
+      body: form,
+    });
+    if (!res.ok) throw await readError(res, "Couldn't upload the file.");
+    return (await res.json()) as CreditApplication;
+  },
+
+  removeApplicationFile: (fileId: string) =>
+    call<CreditApplication>(
+      `/api/v1/restaurant/me/credit-application/files/${fileId}`,
+      { method: "DELETE" },
+      "Couldn't remove the file.",
+    ),
+
+  applicationFileUrl: (fileId: string) =>
+    apiUrl(`/api/v1/restaurant/me/credit-application/files/${fileId}`),
+
+  /** The filled form as a PDF to print, sign (with the guarantee page) and upload. */
+  downloadApplicationPdf: () =>
+    savePdfFrom(
+      "/api/v1/restaurant/me/credit-application/pdf",
+      "credit-application.pdf",
+      "the form",
+    ),
+
   /** The restaurant's credit: a 404 or 405 means the store doesn't have credit yet. */
   credit: () =>
     call<CreditSummary>(

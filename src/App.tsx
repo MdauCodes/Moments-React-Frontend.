@@ -105,6 +105,9 @@ const RestaurantOrdersPage = lazy(() => import("@/routes/restaurant.orders"));
 const RestaurantPoPage = lazy(() => import("@/routes/restaurant.po"));
 const RestaurantOrderPage = lazy(() => import("@/routes/restaurant.order"));
 const RestaurantStatementPage = lazy(() => import("@/routes/restaurant.statement"));
+const RestaurantCreditApplicationPage = lazy(
+  () => import("@/routes/restaurant.credit-application"),
+);
 const AccountMerchantPage = lazy(() => import("@/routes/account.merchant"));
 
 // ── Admin auth pages (no auth required) ────────────────────────────────────
@@ -321,6 +324,7 @@ export default function App() {
                     <Route path="/restaurant/orders/:orderId" element={<RestaurantPoPage />} />
                     <Route path="/restaurant/order" element={<RestaurantOrderPage />} />
                     <Route path="/restaurant/statement" element={<RestaurantStatementPage />} />
+                    <Route path="/restaurant/credit-application" element={<RestaurantCreditApplicationPage />} />
 
                     {/* Admin — no auth. Wrapped (together with the auth-required block below) in
                         one Suspense boundary — every admin route is now a lazy chunk, see the
