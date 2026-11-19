@@ -2,9 +2,29 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+import type { Plugin } from "vite";
+
+// One id per build. Open admin tabs compare it with /version.json and reload themselves when a new
+// build is live (see src/lib/useNewBuildReload.ts), so nobody runs yesterday's code after a deploy.
+const BUILD_ID = process.env.RENDER_GIT_COMMIT || `${Date.now().toString(36)}`;
+
+function buildVersionFile(): Plugin {
+  return {
+    name: "build-version-file",
+    apply: "build",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify({ buildId: BUILD_ID, builtAt: new Date().toISOString() }),
+      });
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [react(), tailwindcss(), tsconfigPaths(), buildVersionFile()],
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   server: { port: 5173 },
   build: {
     outDir: "dist",

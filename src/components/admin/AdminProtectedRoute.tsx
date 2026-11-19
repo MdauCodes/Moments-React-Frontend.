@@ -2,10 +2,12 @@ import { useEffect } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { NewOrderAlertModal } from "@/components/admin/NewOrderAlertModal";
 import { RisellerRecordReminder } from "@/components/admin/RisellerRecordReminder";
+import { RisellerBacklogModal } from "@/components/admin/RisellerBacklogModal";
 import { Forbidden } from "@/components/admin/Forbidden";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { AdminOrdersProvider } from "@/contexts/AdminOrdersContext";
 import type { BackendRole } from "@/services/adminApi";
+import { useNewBuildReload } from "@/lib/useNewBuildReload";
 
 export interface ProtectedRouteProps {
   requiredRole?: BackendRole;
@@ -14,6 +16,7 @@ export interface ProtectedRouteProps {
 export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
   const { user, isAuthenticated, isCheckingSession, ensureValidSession, mustChangePassword } = useAuth();
   const navigate = useNavigate();
+  useNewBuildReload();
   const location = useLocation();
   const hasRequiredRole = !requiredRole || !!user?.roles.includes(requiredRole);
 
@@ -52,6 +55,7 @@ export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
       <Outlet />
       <NewOrderAlertModal />
       <RisellerRecordReminder />
+      <RisellerBacklogModal />
     </AdminOrdersProvider>
   );
 }

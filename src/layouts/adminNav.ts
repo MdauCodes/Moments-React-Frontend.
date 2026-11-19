@@ -38,6 +38,7 @@ import {
   Building2,
   FileText,
   type LucideIcon,
+  RefreshCcw,
 } from "lucide-react";
 
 import { hasAnyPerm, PERM, type PermissionCode } from "@/lib/permissions";
@@ -113,6 +114,7 @@ export const navSections: NavSection[] = [
     items: [
       { label: "Products", to: "/admin/products", icon: Package, requiresAny: [PERM.PRODUCT_VIEW, PERM.PRODUCT_MANAGE] },
       { label: "Stock Levels", to: "/admin/inventory", icon: Boxes, requiresAny: [PERM.PRODUCT_MANAGE] },
+      { label: "Riseller Sales", to: "/admin/riseller-sales", icon: RefreshCcw, requiresAny: [PERM.RISELLER_RECORD] },
       { label: "Classifications", to: "/admin/catalog", icon: ListTree, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Classify Products", to: "/admin/classify-products", icon: LayoutList, requiresAny: [PERM.PRODUCT_MANAGE] },
       { label: "Product Images (AI)", to: "/admin/product-images", icon: Image, adminOnly: true },
