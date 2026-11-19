@@ -154,6 +154,7 @@ const AdminArchitecturePage = lazy(() => import("@/routes/_adminAuth.admin.archi
 const AdminDeveloperPage = lazy(() => import("@/routes/_adminAuth.admin.developer"));
 const AdminProductImagesPage = lazy(() => import("@/routes/_adminAuth.admin.product-images"));
 const AdminPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.payments"));
+const AdminRisellerSalesPage = lazy(() => import("@/routes/_adminAuth.admin.riseller-sales"));
 const AdminPaymentsLogPage = lazy(() => import("@/routes/_adminAuth.admin.payments-log"));
 const AdminFailedPaymentsPage = lazy(() => import("@/routes/_adminAuth.admin.failed-payments"));
 const AdminDeliverySettingsPage = lazy(() => import("@/routes/_adminAuth.admin.delivery-settings"));
@@ -364,6 +365,7 @@ export default function App() {
                       <Route path="/admin/change-requests" element={<Suspense fallback={<AdminRouteFallback />}><AdminChangeRequestsPage /></Suspense>} />
                       <Route path="/admin/architecture" element={<Suspense fallback={<AdminRouteFallback />}><AdminArchitecturePage /></Suspense>} />
                       <Route path="/admin/payments" element={<Suspense fallback={<AdminRouteFallback />}><AdminPaymentsPage /></Suspense>} />
+                      <Route path="/admin/riseller-sales" element={<Suspense fallback={<AdminRouteFallback />}><AdminRisellerSalesPage /></Suspense>} />
                       <Route path="/admin/payments-log" element={<Suspense fallback={<AdminRouteFallback />}><AdminPaymentsLogPage /></Suspense>} />
                       <Route path="/admin/failed-payments" element={<Suspense fallback={<AdminRouteFallback />}><AdminFailedPaymentsPage /></Suspense>} />
                       <Route path="/admin/delivery-settings" element={<Suspense fallback={<AdminRouteFallback />}><AdminDeliverySettingsPage /></Suspense>} />
