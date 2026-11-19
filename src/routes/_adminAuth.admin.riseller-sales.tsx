@@ -97,7 +97,7 @@ function RisellerSalesPage() {
   const toggle = async (on: boolean) => {
     const msg = on
       ? "Turn on sending to Riseller?\n\nFrom now on every paid website order is recorded in Riseller (invoice, payment, stock) once its payment is checked. Orders paid before now are NOT sent: they are listed for staff to choose Sync or Already entered."
-      : "Turn off sending to Riseller?\n\nNothing more is sent. New website sales go back to the hand-entry list.";
+      : "Turn off sending to Riseller?\n\nNothing more is sent. New website orders wait for staff to choose Sync or Already entered.";
     if (!confirm(msg)) return;
     setBusy("switch");
     try {
@@ -150,9 +150,12 @@ function RisellerSalesPage() {
           <div className="admin-panel">
             <HelpPanel title="Riseller sales">
               <p>
-                Paid website orders are recorded in Riseller by themselves once the payment is
-                checked: Riseller makes the invoice, records the M-Pesa payment and takes the stock
-                off the Online Store warehouse. Delivery fees are not sent.
+                Paid website orders are recorded in Riseller: Riseller makes the invoice, records
+                the M-Pesa payment and takes the stock off the Online Store warehouse. Delivery fees
+                are not sent. With the switch off, each order waits in the pop-up until someone
+                chooses
+                <b> Sync</b> or <b>Already entered</b>. With it on, new orders go by themselves once
+                the payment is checked.
               </p>
               <p className="mt-2">
                 <b>Needs you</b>: Riseller refused the order (its reason is shown) or kept not
@@ -177,15 +180,15 @@ function RisellerSalesPage() {
                   <span className="block text-xs text-muted-foreground">
                     {overview?.enabled && overview.enabledSince
                       ? `Since ${when(overview.enabledSince)}.`
-                      : "Website sales are entered by hand from the reminder list."}
+                      : "Each website order waits for staff to choose Sync or Already entered."}
                     {!isSuperAdmin && " Only a super admin can change this."}
                   </span>
                 </label>
               </div>
               {!!overview?.backlogOrders && (
                 <span className="text-sm text-sky-800 dark:text-sky-300">
-                  {overview.backlogOrders} earlier order{overview.backlogOrders === 1 ? "" : "s"} to
-                  check (Sync / Already entered)
+                  {overview.backlogOrders} order{overview.backlogOrders === 1 ? "" : "s"} to check
+                  (Sync / Already entered)
                 </span>
               )}
             </div>
@@ -251,7 +254,7 @@ function RisellerSalesPage() {
                       )}
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {[
-                          r.origin === "BACKLOG" ? "Earlier order" : null,
+                          r.origin === "BACKLOG" ? "Chosen by staff" : null,
                           r.sentAt ? `Sent ${when(r.sentAt)}` : `Updated ${when(r.updatedAt)}`,
                           r.attempts ? `${r.attempts} tr${r.attempts === 1 ? "y" : "ies"}` : null,
                           r.status === "FAILED" && r.nextAttemptAt

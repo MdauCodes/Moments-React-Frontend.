@@ -24,10 +24,11 @@ import {
   type RisellerSaleRow,
 } from "@/services/risellerSalesApi";
 
-// Website orders paid before automatic sending to Riseller was turned on. Some were keyed into
-// Riseller by hand and some were not, and only staff know which, so nothing in this list is sent
-// until someone picks, per order: "Sync" (not in Riseller yet: send it now) or "Already entered"
-// (never send it). Shows by itself while anything is left; "Later" hides it for 30 minutes.
+// Paid website orders not yet entered in Riseller (all of them while automatic sending is off; only
+// the ones paid before it went on, once it is on). Some were keyed into Riseller by hand and some
+// were not, and only staff know which, so nothing here is sent until someone picks, per order:
+// "Sync" (not in Riseller yet: send it now) or "Already entered" (never send it). Shows by itself
+// while anything is left; "Later" hides it for 30 minutes.
 const POLL_MS = 5 * 60_000;
 const LATER_MS = 30 * 60_000;
 const LATER_KEY = "riseller-backlog-later-until";
@@ -82,7 +83,7 @@ export function RisellerBacklogModal() {
   const check = useCallback(async () => {
     try {
       const o = await getRisellerSalesOverview();
-      setCount(o.enabled ? o.backlogOrders : 0);
+      setCount(o.backlogOrders);
     } catch {
       /* no permission yet on an old token, or offline: next poll */
     }
@@ -95,7 +96,24 @@ export function RisellerBacklogModal() {
     if (allowed) void check();
   }, POLL_MS);
 
-  const open = allowed && count > 0 && (openedByHand || serverNow() >= laterUntil);
+  // Another pop-up (a staff notice, the new-order alert...) goes first: two stacked pop-ups send
+  // clicks to the wrong one. This list opens by itself once the other is closed.
+  const [otherDialogOpen, setOtherDialogOpen] = useState(false);
+  useEffect(() => {
+    if (!allowed || count === 0) return;
+    const look = () =>
+      setOtherDialogOpen(
+        [...document.querySelectorAll('[role="alertdialog"], [role="dialog"]')].some(
+          (el) => !el.closest("[data-riseller-overlay]"),
+        ),
+      );
+    look();
+    const t = window.setInterval(look, 1500);
+    return () => window.clearInterval(t);
+  }, [allowed, count]);
+
+  const open =
+    allowed && count > 0 && (openedByHand || (serverNow() >= laterUntil && !otherDialogOpen));
 
   const load = useCallback(async () => {
     try {
@@ -126,7 +144,7 @@ export function RisellerBacklogModal() {
       setCount(rest.length);
       if (rest.length === 0) {
         setOpenedByHand(false);
-        toast.success("Every earlier order is sorted.");
+        toast.success("Every website order is sorted for Riseller.");
       }
     } catch (e) {
       toast.error(`${o.orderReference}: ${reason(e)}`);
@@ -158,8 +176,8 @@ export function RisellerBacklogModal() {
       >
         <RefreshCcw className="h-4 w-4 text-sky-600" />
         {count === 1
-          ? "1 earlier order to check for Riseller"
-          : `${count} earlier orders to check for Riseller`}
+          ? "1 website order to check for Riseller"
+          : `${count} website orders to check for Riseller`}
       </button>
     );
   }
@@ -167,17 +185,17 @@ export function RisellerBacklogModal() {
   return (
     <AlertDialog open>
       <AlertDialogContent
+        data-riseller-overlay
         className="max-h-[92vh] overflow-hidden border-2 border-sky-500 sm:max-w-2xl"
         onEscapeKeyDown={later}
       >
         <div className="space-y-1">
           <AlertDialogTitle className="text-lg font-semibold">
-            Earlier website orders: are they in Riseller?
+            Website orders: are they in Riseller?
           </AlertDialogTitle>
           <AlertDialogDescription>
-            Website sales now go to Riseller by themselves. These orders were paid before that, and
-            some may already have been keyed into Riseller by hand. Check each one in Riseller, then
-            choose:
+            These paid website orders are not marked as entered in Riseller yet. Some may already
+            have been keyed in by hand. Check each one in Riseller, then choose:
           </AlertDialogDescription>
           <ul className="ml-4 list-disc text-sm text-muted-foreground">
             <li>

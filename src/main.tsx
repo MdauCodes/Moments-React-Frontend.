@@ -3,6 +3,23 @@ import { createRoot } from "react-dom/client";
 import "./styles.css";
 import App from "./App";
 
+// After a deploy the previous build's page files are gone, so a tab still running the old build
+// fails when it opens a page it had not loaded yet. Reload once to get the new build instead of
+// showing a broken page; the time guard stops a reload loop if the file is really missing.
+window.addEventListener("vite:preloadError", (event) => {
+  const KEY = "reloaded-for-new-build-at";
+  let last = 0;
+  try {
+    last = Number(window.sessionStorage.getItem(KEY)) || 0;
+    window.sessionStorage.setItem(KEY, String(Date.now()));
+  } catch {
+    /* storage blocked: still reload once */
+  }
+  if (Date.now() - last < 60_000) return;
+  event.preventDefault();
+  window.location.reload();
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
