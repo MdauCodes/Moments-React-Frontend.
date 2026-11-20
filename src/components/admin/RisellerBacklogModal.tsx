@@ -10,6 +10,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { showRisellerSaleResult } from "@/lib/risellerSaleToast";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { PERM } from "@/lib/permissions";
 import { resolveStaffRole } from "@/lib/roles";
@@ -21,7 +22,6 @@ import {
   markRisellerOrderEntered,
   syncRisellerOrder,
   type RisellerBacklogOrder,
-  type RisellerSaleRow,
 } from "@/services/risellerSalesApi";
 
 // Paid website orders not yet entered in Riseller (all of them while automatic sending is off; only
@@ -60,18 +60,6 @@ const when = (iso: string) =>
     hour: "2-digit",
     minute: "2-digit",
   });
-
-function resultToast(ref: string, row: RisellerSaleRow) {
-  if (row.status === "SENT") toast.success(`${ref} recorded in Riseller as ${row.invoiceNo}.`);
-  else if (row.status === "FAILED")
-    toast.warning(
-      `${ref} is not in Riseller yet: ${row.lastError ?? "no clear answer"}. It will try again by itself; follow it under Riseller Sales.`,
-      { duration: 15_000 },
-    );
-  else if (row.status === "NEEDS_ATTENTION")
-    toast.error(`${ref} was not recorded: ${row.lastError ?? "see Riseller Sales"}`);
-  else if (row.status === "PENDING") toast.message(`${ref} queued for Riseller.`);
-}
 
 export function RisellerBacklogModal() {
   const { hasPermission, user } = useAuth();
@@ -140,7 +128,7 @@ export function RisellerBacklogModal() {
         choice === "sync"
           ? await syncRisellerOrder(o.orderId)
           : await markRisellerOrderEntered(o.orderId);
-      if (choice === "sync") resultToast(o.orderReference, row);
+      if (choice === "sync") showRisellerSaleResult(o.orderReference, row);
       else toast.success(`${o.orderReference} marked as already in Riseller.`);
       const rest = (orders ?? []).filter((x) => x.orderId !== o.orderId);
       setOrders(rest);

@@ -11,6 +11,7 @@ import { reportAdminError } from "@/lib/adminErrorToast";
 import { PERM } from "@/lib/permissions";
 import { resolveStaffRole } from "@/lib/roles";
 import { useRequirePermission } from "@/lib/useRequirePermission";
+import { showRisellerSaleResult } from "@/lib/risellerSaleToast";
 import {
   getRisellerSalesOverview,
   listRisellerSales,
@@ -124,14 +125,8 @@ function RisellerSalesPage() {
         action === "retry"
           ? await retryRisellerOrder(row.orderId)
           : await markRisellerOrderEntered(row.orderId);
-      if (next.status === "SENT")
-        toast.success(`${row.orderReference} recorded in Riseller as ${next.invoiceNo}.`);
-      else if (action === "entered")
-        toast.success(`${row.orderReference} marked as entered by hand.`);
-      else
-        toast.message(
-          `${row.orderReference}: ${STATUS[next.status].label}${next.lastError ? ` — ${next.lastError}` : ""}`,
-        );
+      if (action === "entered") toast.success(`${row.orderReference} marked as entered by hand.`);
+      else showRisellerSaleResult(row.orderReference, next);
       await refresh();
     } catch (err) {
       reportAdminError(err, `Couldn't update ${row.orderReference}`);
