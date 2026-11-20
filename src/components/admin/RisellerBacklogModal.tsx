@@ -130,7 +130,16 @@ export function RisellerBacklogModal() {
           : await markRisellerOrderEntered(o.orderId);
       if (choice === "sync") showRisellerSaleResult(o.orderReference, row);
       else toast.success(`${o.orderReference} marked as already in Riseller.`);
-      const rest = (orders ?? []).filter((x) => x.orderId !== o.orderId);
+      // A Sync that has not gone through stays on the list, with its reason, until it does.
+      const openStatus =
+        row.status === "FAILED" || row.status === "NEEDS_ATTENTION" ? row.status : null;
+      const rest = openStatus
+        ? (orders ?? []).map((x) =>
+            x.orderId === o.orderId
+              ? { ...x, status: openStatus, lastError: row.lastError, attempts: row.attempts }
+              : x,
+          )
+        : (orders ?? []).filter((x) => x.orderId !== o.orderId);
       setOrders(rest);
       setCount(rest.length);
       if (rest.length === 0) {
@@ -222,6 +231,12 @@ export function RisellerBacklogModal() {
                         .join(" · ")}
                     </span>
                   </div>
+                  {o.status && (
+                    <p className="mt-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                      <span className="font-semibold">Not in Riseller yet.</span>{" "}
+                      {o.lastError ?? "Riseller gave no clear answer."}
+                    </p>
+                  )}
                   {o.tickedBy && (
                     <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
                       Ticked as entered by {o.tickedBy}
@@ -265,6 +280,8 @@ export function RisellerBacklogModal() {
                     >
                       {busy === `${o.orderId}:sync` ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : o.status ? (
+                        "Try again"
                       ) : (
                         "Sync"
                       )}

@@ -21,6 +21,10 @@ export interface RisellerBacklogOrder {
   /** Someone already ticked this order "Entered" by hand (old reminder): staff re-check it. */
   tickedBy: string | null;
   tickedAt: string | null;
+  /** Set when a Sync was tried and has not gone through yet; the order stays listed until it does. */
+  status: "FAILED" | "NEEDS_ATTENTION" | null;
+  lastError: string | null;
+  attempts: number;
   lines: {
     productName: string;
     productCode: string | null;
