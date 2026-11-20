@@ -2,6 +2,10 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import App from "./App";
+import { startMustReload } from "./lib/mustReload";
+
+// Must reload (owner, 20 Nov 2026): before anything calls the store, so every call says which build it is.
+startMustReload();
 
 // After a deploy the previous build's page files are gone, so a tab still running the old build
 // fails when it opens a page it had not loaded yet. Reload once to get the new build instead of

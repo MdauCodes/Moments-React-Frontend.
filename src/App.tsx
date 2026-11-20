@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { MustReloadPrompt } from "@/components/MustReloadPrompt";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from "@/components/ui/sonner";
@@ -233,6 +234,8 @@ export default function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
+      {/* Must reload (owner, 20 Nov 2026): the store says when this page must or may reload. */}
+      <MustReloadPrompt />
       <ScrollToTop />
       <MetaPixel />
       <GoogleTag />
