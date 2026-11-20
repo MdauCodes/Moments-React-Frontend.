@@ -64,7 +64,10 @@ const when = (iso: string) =>
 function resultToast(ref: string, row: RisellerSaleRow) {
   if (row.status === "SENT") toast.success(`${ref} recorded in Riseller as ${row.invoiceNo}.`);
   else if (row.status === "FAILED")
-    toast.warning(`${ref}: Riseller didn't answer. It will keep trying.`);
+    toast.warning(
+      `${ref} is not in Riseller yet: ${row.lastError ?? "no clear answer"}. It will try again by itself; follow it under Riseller Sales.`,
+      { duration: 15_000 },
+    );
   else if (row.status === "NEEDS_ATTENTION")
     toast.error(`${ref} was not recorded: ${row.lastError ?? "see Riseller Sales"}`);
   else if (row.status === "PENDING") toast.message(`${ref} queued for Riseller.`);
@@ -231,6 +234,12 @@ export function RisellerBacklogModal() {
                         .join(" · ")}
                     </span>
                   </div>
+                  {o.tickedBy && (
+                    <p className="mt-1 rounded bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                      Ticked as entered by {o.tickedBy}
+                      {o.tickedAt ? ` on ${when(o.tickedAt)}` : ""}. Please check Riseller again.
+                    </p>
+                  )}
                   <ul className="mt-1 space-y-0.5 text-sm">
                     {o.lines.map((l, i) => (
                       <li key={i} className="flex justify-between gap-3">

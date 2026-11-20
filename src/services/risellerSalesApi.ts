@@ -18,6 +18,9 @@ export interface RisellerBacklogOrder {
   customerName: string | null;
   paidAt: string;
   orderTotal: number | null;
+  /** Someone already ticked this order "Entered" by hand (old reminder): staff re-check it. */
+  tickedBy: string | null;
+  tickedAt: string | null;
   lines: {
     productName: string;
     productCode: string | null;
