@@ -59,7 +59,7 @@ export function MustReloadPrompt() {
   }
 
   const blocking = s.must;
-  const open = blocking || s.waiting || (s.may && !s.later);
+  const open = blocking || (s.may && !s.later);
   if (!open) return null;
 
   return (

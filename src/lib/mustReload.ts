@@ -156,6 +156,8 @@ export async function check(): Promise<void> {
       /* no storage */
     }
     set({
+      // Nothing is needed any more: the waiting box must not outlive the reason for it.
+      waiting: s.mustReload ? state.waiting : false,
       must: s.mustReload,
       may: s.mayReload,
       message: s.message,
@@ -199,6 +201,14 @@ export async function reloadNow(): Promise<void> {
   }
   if (last && last.from === RELEASE && Date.now() - last.at < LOOP_GUARD_MS) {
     set({ waiting: true });
+    // Without this the "getting the new version" box had no way to go away.
+    window.setTimeout(
+      () => {
+        set({ waiting: false });
+        void check();
+      },
+      LOOP_GUARD_MS - (Date.now() - last.at) + 1_000,
+    );
     return;
   }
   try {
