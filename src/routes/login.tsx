@@ -1,14 +1,11 @@
 import { useSearchParams } from "react-router-dom";
+import { StaffLinkGate } from "@/components/StaffLinkGate";
 
-import { AdminLoginPage } from "./admin.login";
-
-
-
+/** Old staff sign-in address: now only the staff overlay (or a send to the staff link). */
 function LoginAliasPage() {
-  const [_searchParams] = useSearchParams();
-  const redirect = _searchParams.get("redirect") ?? undefined;
-
-  return <AdminLoginPage redirect={redirect} />;
+  const [searchParams] = useSearchParams();
+  const redirect = searchParams.get("redirect") ?? undefined;
+  return <StaffLinkGate wantedPath={redirect?.startsWith("/admin") ? redirect : undefined} />;
 }
 
 export default LoginAliasPage;

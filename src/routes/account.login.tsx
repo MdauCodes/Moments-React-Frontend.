@@ -10,6 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { passwordStore } from "@/services/passwordStore";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
+import { StaffOverlay } from "@/components/StaffOverlay";
+import { isStaffRoles, isUseStaffLinkError } from "@/lib/staffLink";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 
@@ -21,7 +23,7 @@ const inputCls =
   "w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-accent/50";
 
 function LoginPage() {
-  const { login, setSession } = useAuth();
+  const { login, logout, setSession } = useAuth();
   const [_searchParams] = useSearchParams();
   const location = useLocation();
   // ProtectedRoute sends the page the customer was trying to reach via
@@ -45,12 +47,20 @@ function LoginPage() {
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
+  // Staff have their own sign-in link: shown on a 403 USE_STAFF_LINK, or when the account turns out to be staff.
+  const [staffOverlay, setStaffOverlay] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
       const loggedInUser = await login(email.trim(), password, turnstileToken || undefined);
+      if (isStaffRoles(loggedInUser?.roles)) {
+        // The server switch is still off: sign them out again, then point them to the staff link.
+        await logout();
+        setStaffOverlay(true);
+        return;
+      }
       toast.success("Signed in");
       if (loggedInUser?.verificationGraceLoginsRemaining != null) {
         const n = loggedInUser.verificationGraceLoginsRemaining;
@@ -61,15 +71,12 @@ function LoginPage() {
           { duration: 8000 },
         );
       }
-      const roles = loggedInUser?.roles ?? [];
-      const dest =
-        roles.includes("ROLE_ADMIN") || roles.includes("ROLE_STAFF")
-          ? "/admin/dashboard"
-          : (returnUrl ?? "/account/dashboard");
-      navigate(dest);
+      navigate(returnUrl ?? "/account/dashboard");
     } catch (err) {
       const code = (err as { code?: string })?.code;
-      if (code === "CHALLENGE_REQUIRED") {
+      if (isUseStaffLinkError((err as { status?: number })?.status, code)) {
+        setStaffOverlay(true);
+      } else if (code === "CHALLENGE_REQUIRED") {
         setChallengeRequired(true);
         toast.error("Please complete the security check below and try again.");
       } else if (code === "EMAIL_NOT_VERIFIED") {
@@ -113,6 +120,7 @@ function LoginPage() {
 
   return (
     <SiteLayout>
+      {staffOverlay && <StaffOverlay onClose={() => setStaffOverlay(false)} />}
       <section className="px-5 py-16 lg:px-8 lg:py-20" style={{ background: MODAL_BG }}>
         <div
           className="mx-auto max-w-md rounded-3xl border p-6 shadow-sm sm:p-8"

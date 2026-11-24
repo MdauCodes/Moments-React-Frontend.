@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { CRM_URL } from "@/config/crm";
-import { Bell, BellRing, Globe, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, X } from "lucide-react";
+import { staffChooseUrl } from "@/config/staff";
+import { ArrowLeftRight, Bell, BellRing, Globe, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, X } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { RoleBadge } from "@/components/admin/RoleBadge";
@@ -578,6 +579,9 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
             <button type="button" onClick={logout} aria-label="Logout" title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`} className="admin-nav-rail-btn" style={styles.footerIconBtn}>
               <LogOut size={16} />
             </button>
+            <a href={`${staffChooseUrl()}`} aria-label="Switch app" title="Switch app" className="admin-nav-rail-btn" style={styles.footerIconBtn}>
+              <ArrowLeftRight size={16} />
+            </a>
             <Link to="/" aria-label="Back to Moments website" title="Back to website" className="admin-nav-rail-btn" style={styles.footerIconBtn}>
               <Globe size={16} />
             </Link>
@@ -610,6 +614,12 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
             </div>
             {/* Website link + collapse toggle grouped here, in the same unscrollable footer as the
                 account pill above — not up top, not floating mid-list. */}
+            <div style={styles.footerRow}>
+              <a href={`${staffChooseUrl()}`} style={styles.footerLinkBtn} className="admin-nav-item">
+                <ArrowLeftRight size={14} />
+                <span>Switch app</span>
+              </a>
+            </div>
             <div style={styles.footerRow}>
               <Link to="/" style={styles.footerLinkBtn} className="admin-nav-item">
                 <Globe size={14} />

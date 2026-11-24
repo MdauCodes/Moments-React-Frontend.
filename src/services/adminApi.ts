@@ -372,6 +372,19 @@ export async function loginAdmin(email: string, password: string): Promise<Admin
   return next;
 }
 
+/** Swap a staff-site hand-over code for the store admin session (handover doc 18). Stored exactly as loginAdmin does. */
+export async function redeemAdminHandoff(code: string): Promise<AdminSession> {
+  const res = await fetch(apiUrl("/api/v1/auth/handoff/redeem"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, target: "STORE_ADMIN" }),
+  });
+  if (!res.ok) throw await parseApiError(res);
+  const next = normalizeAdminSession((await res.json()) as AuthResponse, {});
+  writeAdminSession(next);
+  return next;
+}
+
 export async function refreshAdminSession(
   session = readAdminSession(),
 ): Promise<AdminSession | null> {

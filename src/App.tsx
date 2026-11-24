@@ -120,6 +120,7 @@ const AccountMerchantPage = lazy(() => import("@/routes/account.merchant"));
 // <Route> blocks below makes each of these its own chunk, fetched only when that route is
 // actually visited.
 const AdminLoginPage = lazy(() => import("@/routes/admin.login"));
+const AdminAuthCallbackPage = lazy(() => import("@/routes/admin.auth.callback"));
 const AdminForgotPasswordPage = lazy(() => import("@/routes/admin.forgot-password"));
 const AdminResetPasswordPage = lazy(() => import("@/routes/admin.reset-password"));
 
@@ -336,6 +337,7 @@ export default function App() {
                         one Suspense boundary — every admin route is now a lazy chunk, see the
                         admin imports above. */}
                     <Route path="/admin/login" element={<Suspense fallback={<AdminRouteFallback />}><AdminLoginPage /></Suspense>} />
+                    <Route path="/admin/auth/callback" element={<Suspense fallback={<AdminRouteFallback />}><AdminAuthCallbackPage /></Suspense>} />
                     <Route path="/admin/forgot-password" element={<Suspense fallback={<AdminRouteFallback />}><AdminForgotPasswordPage /></Suspense>} />
                     <Route path="/admin/reset-password" element={<Suspense fallback={<AdminRouteFallback />}><AdminResetPasswordPage /></Suspense>} />
 

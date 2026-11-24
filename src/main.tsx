@@ -1,7 +1,8 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
 import App from "./App";
+import { inStaffMode } from "./config/staff";
 import { startMustReload } from "./lib/mustReload";
 
 // Must reload (owner, 20 Nov 2026): before anything calls the store, so every call says which build it is.
@@ -24,8 +25,17 @@ window.addEventListener("vite:preloadError", (event) => {
   window.location.reload();
 });
 
+// Staff site (staff.* host, or VITE_APP_MODE=staff): only the small StaffApp, loaded on demand.
+const StaffApp = lazy(() => import("./staff/StaffApp"));
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    {inStaffMode() ? (
+      <Suspense fallback={null}>
+        <StaffApp />
+      </Suspense>
+    ) : (
+      <App />
+    )}
   </StrictMode>
 );
