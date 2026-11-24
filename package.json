@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:staff": "vite --mode staff --port 5180",
     "build": "node scripts/generate-sitemap.mjs && tsc --noEmit && vite build && node scripts/prerender-seo.mjs",
     "prerender-seo": "node scripts/prerender-seo.mjs",
     "generate-sitemap": "node scripts/generate-sitemap.mjs",

@@ -55,7 +55,7 @@ function LoginPage() {
     setSubmitting(true);
     try {
       const loggedInUser = await login(email.trim(), password, turnstileToken || undefined);
-      if (isStaffRoles(loggedInUser?.roles)) {
+      if (isStaffRoles(loggedInUser?.roles, loggedInUser?.accountType)) {
         // The server switch is still off: sign them out again, then point them to the staff link.
         await logout();
         setStaffOverlay(true);

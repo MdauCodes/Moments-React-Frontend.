@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { CRM_URL } from "@/config/crm";
-import { staffChooseUrl } from "@/config/staff";
+import { STAFF_ADDRESSES, staffChooseUrl } from "@/config/staff";
+import { hasUsedStaffLink } from "@/components/StaffLinkGate";
+import { staffSignedOutUrl } from "@/lib/staffLink";
+import { logoutAdmin } from "@/services/adminApi";
 import { ArrowLeftRight, Bell, BellRing, Globe, HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, RefreshCw, Search, X } from "lucide-react";
 
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
@@ -266,6 +269,17 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
   const navigate = useNavigate();
   const pathname = location.pathname;
   const [headerSearch, setHeaderSearch] = useState("");
+
+  // A deliberate sign-out: end the store session, then (staff-link users) tell the staff site to
+  // sign out too, so it does not sign the person straight back in. The marker stays.
+  const handleSignOut = async () => {
+    if (!hasUsedStaffLink()) {
+      logout();
+      return;
+    }
+    await logoutAdmin();
+    window.location.replace(staffSignedOutUrl(STAFF_ADDRESSES.staffUrl));
+  };
 
   const runHeaderSearch = () => {
     const q = headerSearch.trim();
@@ -576,7 +590,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
         {sidebarCollapsed ? (
           <div style={{ ...styles.sidebarBottom, ...styles.sidebarBottomCollapsed }}>
             <div style={styles.avatar} title={displayName}>{getInitials(displayName)}</div>
-            <button type="button" onClick={logout} aria-label="Logout" title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`} className="admin-nav-rail-btn" style={styles.footerIconBtn}>
+            <button type="button" onClick={() => void handleSignOut()} aria-label="Logout" title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`} className="admin-nav-rail-btn" style={styles.footerIconBtn}>
               <LogOut size={16} />
             </button>
             <a href={`${staffChooseUrl()}`} aria-label="Switch app" title="Switch app" className="admin-nav-rail-btn" style={styles.footerIconBtn}>
@@ -604,7 +618,7 @@ export function AdminLayout({ title, actionLabel, onAction, onReload, children }
               </div>
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => void handleSignOut()}
                 aria-label="Logout"
                 title={`Sign out${staffRole ? ` (${STAFF_ROLE_DISPLAY[staffRole]})` : ""}`}
                 style={{ marginLeft: "auto", background: "transparent", border: "none", color: "var(--admin-sidebar-muted)", cursor: "pointer", padding: 4, alignSelf: "flex-start" }}

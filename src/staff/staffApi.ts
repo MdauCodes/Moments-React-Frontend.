@@ -60,12 +60,17 @@ export const clearSession = (): void => removeItem(STAFF_SESSION_KEY);
 export const readDeviceToken = (): string | undefined => getItem(STAFF_DEVICE_KEY) || undefined;
 export const writeDeviceToken = (t: string): void => setItem(STAFF_DEVICE_KEY, t);
 
-async function post<T>(path: string, body: unknown, bearer?: string): Promise<T> {
+async function post<T>(
+  path: string,
+  body: unknown,
+  bearer?: string,
+  credentials: RequestCredentials = "omit",
+): Promise<T> {
   let res: Response;
   try {
     res = await fetch(apiUrl(path), {
       method: "POST",
-      credentials: "include",
+      credentials,
       headers: {
         "Content-Type": "application/json",
         ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
@@ -94,12 +99,17 @@ export type LoginAnswer =
   | { kind: "CUSTOMER" };
 
 export const staffLogin = (email: string, password: string, turnstileToken?: string) =>
-  post<LoginAnswer>("/api/v1/auth/staff/login", {
-    email,
-    password,
-    turnstileToken: turnstileToken || undefined,
-    deviceToken: readDeviceToken(),
-  });
+  post<LoginAnswer>(
+    "/api/v1/auth/staff/login",
+    {
+      email,
+      password,
+      turnstileToken: turnstileToken || undefined,
+      deviceToken: readDeviceToken(),
+    },
+    undefined,
+    "include",
+  );
 
 export const staffVerify = (challengeId: string, code: string, rememberDevice: boolean) =>
   post<{ kind?: string; deviceToken?: string } & StaffSession>("/api/v1/auth/staff/login/verify", {
@@ -158,6 +168,7 @@ export async function logoutStaff(s: StaffSession | null): Promise<void> {
   try {
     await fetch(apiUrl("/api/v1/auth/logout"), {
       method: "POST",
+      credentials: "omit",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken: s.refreshToken }),
     });
@@ -166,15 +177,29 @@ export async function logoutStaff(s: StaffSession | null): Promise<void> {
   }
 }
 
-/** Core: is the CRM open to this person? */
-export async function checkCrmAccess(accessToken: string): Promise<boolean> {
+async function crmMe(accessToken: string): Promise<{ status: number; body: unknown } | null> {
   try {
     const res = await fetch(`${CORE_API_URL.replace(/\/+$/, "")}/api/v1/auth/me`, {
+      credentials: "omit",
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     const body = await res.json().catch(() => null);
-    return crmTileOpen(res.status, body);
+    return { status: res.status, body };
   } catch {
-    return false;
+    return null;
   }
+}
+
+/**
+ * Core: is the CRM open to this person? On 401 the session is refreshed once and the check retried.
+ * Returns false only when Core really answers no access (or the session is gone).
+ */
+export async function checkCrmAccess(session: StaffSession): Promise<boolean> {
+  let r = await crmMe(session.accessToken);
+  if (r?.status === 401) {
+    const next = await refreshSession(session);
+    if (!next) return false;
+    r = await crmMe(next.accessToken);
+  }
+  return r ? crmTileOpen(r.status, r.body) : false;
 }

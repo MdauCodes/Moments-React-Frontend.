@@ -68,8 +68,10 @@ export function resolveNext(
   const path = `${u.pathname}${u.search}` || "/";
   const crm = originOf(addr.crmUrl);
   const shop = originOf(addr.shopUrl);
+  const shopOrigins = new Set<string>(shop ? [shop] : []);
+  if (shop === "https://momentspackaging.com") shopOrigins.add("https://www.momentspackaging.com");
   if (u.origin === crm) return { target: "CRM", origin: u.origin, path };
-  if (u.origin === shop) return { target: "STORE_ADMIN", origin: u.origin, path };
+  if (shopOrigins.has(u.origin)) return { target: "STORE_ADMIN", origin: u.origin, path };
   if (isLocalHost(currentHostname) && isLocalHost(u.hostname)) {
     return {
       target: u.pathname.startsWith("/admin") ? "STORE_ADMIN" : "CRM",
@@ -123,9 +125,39 @@ export function staffLinkUrl(staffUrl: string, wantedOrigin: string, wantedPath?
   return `${base}/?next=${encodeURIComponent(`${wantedOrigin.replace(/\/+$/, "")}${wantedPath}`)}`;
 }
 
-/** Roles that mean "this is staff" on the customer login. */
-export function isStaffRoles(roles: readonly string[] | undefined | null): boolean {
+const CUSTOMER_ACCOUNT_TYPES = ["INDIVIDUAL_SHOPPER", "BUSINESS"];
+
+/**
+ * Is this customer-login answer really a staff account? The store's accountType is the source of
+ * truth (customers are INDIVIDUAL_SHOPPER or BUSINESS; anything else is not a customer). The roles
+ * set can drift, so it is used only when accountType is absent.
+ */
+export function isStaffRoles(
+  roles: readonly string[] | undefined | null,
+  accountType?: string | null,
+): boolean {
+  if (typeof accountType === "string" && accountType.trim()) {
+    return !CUSTOMER_ACCOUNT_TYPES.includes(accountType.trim().toUpperCase());
+  }
   return !!roles && (roles.includes("ROLE_STAFF") || roles.includes("ROLE_ADMIN"));
+}
+
+/** Where a deliberate store-admin sign-out goes: the staff site, told to really sign out. */
+export function staffSignedOutUrl(staffUrl: string): string {
+  return `${staffUrl.replace(/\/+$/, "")}/?signedout=1`;
+}
+
+/** Does the staff-site address ask for a real sign-out (`?signedout=1`)? */
+export function hasSignedOutFlag(search: string): boolean {
+  return new URLSearchParams(search).get("signedout") === "1";
+}
+
+/** The address (path + query + hash) with `signedout` removed. */
+export function withoutSignedOut(pathname: string, search: string, hash = ""): string {
+  const params = new URLSearchParams(search);
+  params.delete("signedout");
+  const q = params.toString();
+  return `${pathname}${q ? `?${q}` : ""}${hash}`;
 }
 
 /** USE_STAFF_LINK 403 from /auth/login. */

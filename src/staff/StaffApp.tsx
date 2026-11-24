@@ -3,7 +3,14 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from
 import { PasswordInput } from "@/components/PasswordInput";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { STAFF_ADDRESSES } from "@/config/staff";
-import { callbackUrl, resolveNext, storeAdminTileOpen, type HandoffTarget } from "@/lib/staffLink";
+import {
+  callbackUrl,
+  hasSignedOutFlag,
+  resolveNext,
+  storeAdminTileOpen,
+  withoutSignedOut,
+  type HandoffTarget,
+} from "@/lib/staffLink";
 import {
   checkCrmAccess,
   clearSession,
@@ -92,7 +99,10 @@ function SignIn() {
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [checking, setChecking] = useState(() => !!readSession());
+  // `?signedout=1` (a deliberate sign-out elsewhere): really sign out here, never auto-proceed.
+  const signedOutRequested = useRef(hasSignedOutFlag(window.location.search));
+  const [checking, setChecking] = useState(() => !signedOutRequested.current && !!readSession());
+  const autoRan = useRef(false);
   const codeRef = useRef<HTMLInputElement>(null);
 
   /** Goes on after sign-in: straight to the wanted app, or to the chooser. */
@@ -109,21 +119,32 @@ function SignIn() {
 
   // Already signed in on this browser: carry on straight away.
   useEffect(() => {
+    // StrictMode runs effects twice: only one hand-over (one code) may be requested.
+    if (autoRan.current) return;
+    autoRan.current = true;
+    if (signedOutRequested.current) {
+      const s = readSession();
+      window.history.replaceState(
+        null,
+        "",
+        withoutSignedOut(window.location.pathname, window.location.search, window.location.hash),
+      );
+      void logoutStaff(s).finally(() => {
+        clearSession();
+      });
+      return;
+    }
     const s = readSession();
     if (!s) return;
-    let cancelled = false;
     proceed(s)
       .then((ok) => {
         if (ok) return;
         clearSession();
-        if (!cancelled) setChecking(false);
+        setChecking(false);
       })
       .catch(() => {
-        if (!cancelled) setChecking(false);
+        setChecking(false);
       });
-    return () => {
-      cancelled = true;
-    };
   }, [proceed]);
 
   useEffect(() => {
@@ -297,6 +318,12 @@ function SignIn() {
         <button type="submit" disabled={busy} className={btnCls}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
+        <a
+          href={`${STAFF_ADDRESSES.shopUrl.replace(/\/+$/, "")}/admin/forgot-password`}
+          className="block min-h-11 py-3 text-center text-sm text-muted-foreground underline"
+        >
+          Forgot password?
+        </a>
       </form>
     </Shell>
   );
@@ -359,7 +386,9 @@ function Chooser() {
   useEffect(() => {
     if (!accessToken) return;
     let cancelled = false;
-    void checkCrmAccess(accessToken).then((ok) => {
+    const current = readSession();
+    if (!current) return;
+    void checkCrmAccess(current).then((ok) => {
       if (!cancelled) setCrm(ok ? "open" : "faded");
     });
     return () => {

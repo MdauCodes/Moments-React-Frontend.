@@ -6,6 +6,7 @@ import {
   DEFAULT_ADDRESSES as A,
   callbackUrl,
   crmTileOpen,
+  hasSignedOutFlag,
   isLocalHost,
   isStaffMode,
   isStaffRoles,
@@ -14,7 +15,9 @@ import {
   resolveNext,
   safeAdminNext,
   staffLinkUrl,
+  staffSignedOutUrl,
   storeAdminTileOpen,
+  withoutSignedOut,
 } from "./staffLink.ts";
 
 describe("staff mode detection", () => {
@@ -134,6 +137,13 @@ describe("tile fading rules", () => {
 });
 
 describe("customer login staff detection", () => {
+  it("accountType wins; roles only when absent", () => {
+    assert.equal(isStaffRoles(["ROLE_CUSTOMER"], "BUSINESS"), false);
+    assert.equal(isStaffRoles(["ROLE_ADMIN"], "INDIVIDUAL_SHOPPER"), false);
+    assert.equal(isStaffRoles(["ROLE_CUSTOMER"], "STAFF"), true);
+    assert.equal(isStaffRoles(["ROLE_STAFF"], null), true);
+    assert.equal(isStaffRoles(["ROLE_STAFF"], ""), true);
+  });
   it("roles", () => {
     assert.equal(isStaffRoles(["ROLE_CUSTOMER"]), false);
     assert.equal(isStaffRoles(["ROLE_STAFF"]), true);
@@ -145,5 +155,30 @@ describe("customer login staff detection", () => {
     assert.equal(isUseStaffLinkError(undefined, "USE_STAFF_LINK"), true);
     assert.equal(isUseStaffLinkError(401, "USE_STAFF_LINK"), false);
     assert.equal(isUseStaffLinkError(403, "OTHER"), false);
+  });
+});
+
+describe("signed-out handling", () => {
+  it("builds the staff sign-out address", () => {
+    assert.equal(staffSignedOutUrl("https://staff.momentspackaging.com/"), "https://staff.momentspackaging.com/?signedout=1");
+  });
+  it("detects the flag", () => {
+    assert.equal(hasSignedOutFlag("?signedout=1"), true);
+    assert.equal(hasSignedOutFlag("?signedout=0"), false);
+    assert.equal(hasSignedOutFlag(""), false);
+  });
+  it("removes only the flag", () => {
+    assert.equal(withoutSignedOut("/", "?signedout=1"), "/");
+    assert.equal(withoutSignedOut("/", "?signedout=1&next=x", "#h"), "/?next=x#h");
+  });
+});
+
+describe("next origin: www", () => {
+  it("accepts www.momentspackaging.com as the shop", () => {
+    const r = resolveNext("https://www.momentspackaging.com/admin/orders", A, "staff.momentspackaging.com");
+    assert.deepEqual(r, { target: "STORE_ADMIN", origin: "https://www.momentspackaging.com", path: "/admin/orders" });
+  });
+  it("still rejects other origins", () => {
+    assert.equal(resolveNext("https://evil.momentspackaging.com/", A, "staff.momentspackaging.com"), null);
   });
 });
