@@ -4,7 +4,7 @@ import { NewOrderAlertModal } from "@/components/admin/NewOrderAlertModal";
 import { RisellerRecordReminder } from "@/components/admin/RisellerRecordReminder";
 import { RisellerBacklogModal } from "@/components/admin/RisellerBacklogModal";
 import { Forbidden } from "@/components/admin/Forbidden";
-import { hasUsedStaffLink, staffLinkFor } from "@/components/StaffLinkGate";
+import { redirectToStaffSignIn } from "@/components/StaffLinkGate";
 import { useAuth } from "@/contexts/AdminAuthContext";
 import { AdminOrdersProvider } from "@/contexts/AdminOrdersContext";
 import type { BackendRole } from "@/services/adminApi";
@@ -24,13 +24,8 @@ export function ProtectedRoute({ requiredRole }: ProtectedRouteProps) {
       location.pathname === "/login" ||
       location.pathname.startsWith("/admin/login");
     if (onLoginPage) return;
-    const wanted = `${location.pathname}${location.search}`;
-    // A returning staff-link user goes straight to the staff site, carrying the page they wanted in `next`.
-    if (hasUsedStaffLink()) {
-      window.location.replace(staffLinkFor(wanted));
-      return;
-    }
-    navigate(`/admin/login?redirect=${encodeURIComponent(wanted)}`, { replace: true });
+    // Signed out (with or without the staff-link marker): straight to the staff sign-in, carrying the page they wanted.
+    redirectToStaffSignIn(`${location.pathname}${location.search}`);
   };
 
   useEffect(() => {

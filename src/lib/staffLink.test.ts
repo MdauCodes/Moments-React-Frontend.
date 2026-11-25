@@ -8,6 +8,8 @@ import {
   crmTileOpen,
   hasSignedOutFlag,
   isLocalHost,
+  decodeJwtClaims,
+  isStaffAccount,
   isStaffMode,
   isStaffRoles,
   isUseStaffLinkError,
@@ -180,5 +182,47 @@ describe("next origin: www", () => {
   });
   it("still rejects other origins", () => {
     assert.equal(resolveNext("https://evil.momentspackaging.com/", A, "staff.momentspackaging.com"), null);
+  });
+});
+
+function jwt(claims: object): string {
+  const b = (o: object) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  return `${b({ alg: "HS256" })}.${b(claims)}.sig`;
+}
+
+describe("redirect to the staff sign-in", () => {
+  it("next carries the full address of the page they wanted", () => {
+    assert.equal(
+      staffLinkUrl(A.staffUrl, "https://momentspackaging.com", "/admin"),
+      "https://staff.momentspackaging.com/?next=https%3A%2F%2Fmomentspackaging.com%2Fadmin",
+    );
+    assert.equal(
+      staffLinkUrl(A.staffUrl, "https://momentspackaging.com", "/admin/orders?x=1"),
+      "https://staff.momentspackaging.com/?next=https%3A%2F%2Fmomentspackaging.com%2Fadmin%2Forders%3Fx%3D1",
+    );
+  });
+  it("the link's next is accepted by the staff site", () => {
+    const u = new URL(staffLinkUrl(A.staffUrl, "https://momentspackaging.com", "/admin/orders"));
+    const r = resolveNext(u.searchParams.get("next"), A, "staff.momentspackaging.com");
+    assert.equal(r?.target, "STORE_ADMIN");
+    assert.equal(r?.path, "/admin/orders");
+  });
+});
+
+describe("staff detection from token claims", () => {
+  it("decodes a token payload; junk gives null", () => {
+    assert.deepEqual(decodeJwtClaims(jwt({ isStaff: true })), { isStaff: true });
+    assert.equal(decodeJwtClaims("nope"), null);
+    assert.equal(decodeJwtClaims(undefined), null);
+  });
+  it("token isStaff or staffRole means staff, even if accountType says customer", () => {
+    assert.equal(isStaffAccount({ accessToken: jwt({ isStaff: true }), accountType: "BUSINESS" }), true);
+    assert.equal(isStaffAccount({ accessToken: jwt({ staffRole: "ADMIN" }) }), true);
+  });
+  it("user-object flags, then accountType/roles as fallback", () => {
+    assert.equal(isStaffAccount({ isStaff: true }), true);
+    assert.equal(isStaffAccount({ roles: ["ROLE_CUSTOMER"], accountType: "BUSINESS" }), false);
+    assert.equal(isStaffAccount({ accessToken: jwt({ isStaff: false }), roles: ["ROLE_STAFF"] }), true);
+    assert.equal(isStaffAccount({ accessToken: jwt({ isStaff: false }), roles: ["ROLE_CUSTOMER"] }), false);
   });
 });

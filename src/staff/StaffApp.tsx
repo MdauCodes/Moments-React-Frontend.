@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { ArrowRight, Boxes, LayoutDashboard, LogOut, Store, type LucideIcon } from "lucide-react";
+import logo from "@/assets/moments_logo_without_background.png";
 import { PasswordInput } from "@/components/PasswordInput";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { STAFF_ADDRESSES } from "@/config/staff";
@@ -25,22 +27,49 @@ import {
   type StaffSession,
 } from "./staffApi";
 
+// CRM look (tokens from the CRM's styles.css): cream page, deep green bar, 1px borders, 4px corners.
 const inputCls =
-  "w-full rounded-xl border border-border bg-background px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-accent/50";
+  "h-10 w-full rounded-[4px] border border-[#d9d2c3] bg-white px-3 text-base text-[#17241c] placeholder:text-[#8a948d] focus:border-[#1f6b45] focus:outline-none focus:ring-1 focus:ring-[#1f6b45] md:text-sm";
 const btnCls =
-  "inline-flex w-full min-h-11 items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60";
+  "inline-flex h-10 w-full items-center justify-center gap-2 rounded-[4px] bg-[#1f6b45] px-4 text-[13px] font-medium text-white transition-colors hover:bg-[#1a5c3b] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#1f6b45] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50";
+const btnOutlineCls =
+  "inline-flex h-9 items-center justify-center gap-2 rounded-[4px] border border-[#d9d2c3] bg-white px-3 text-[13px] font-medium text-[#17241c] transition-colors hover:bg-[#f1ece0] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#1f6b45]";
+const labelCls = "mb-1 block text-[13px] font-medium text-[#17241c]";
 
-function Shell({ title, children }: { title: string; children: ReactNode }) {
+function Shell({
+  title,
+  children,
+  wide,
+  aside,
+}: {
+  title: string;
+  children: ReactNode;
+  wide?: boolean;
+  aside?: ReactNode;
+}) {
+  useEffect(() => {
+    document.title = "Moments Staff";
+  }, []);
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-background px-4 py-8">
-      <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-sm sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Moments staff
-        </p>
-        <h1 className="mt-1 font-display text-2xl sm:text-3xl">{title}</h1>
-        {children}
-      </div>
-    </main>
+    <div className="flex min-h-dvh flex-col bg-[#faf7f0] font-sans text-[#17241c]">
+      <header className="flex h-14 items-center justify-between gap-3 border-b border-[#1f3a2b] bg-[#13261b] px-4 sm:px-6">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 items-center rounded-[4px] bg-white px-2">
+            <img src={logo} alt="Moments" className="h-7 w-auto" />
+          </span>
+          <span className="text-sm font-semibold tracking-tight text-white">Moments Staff</span>
+        </div>
+        {aside}
+      </header>
+      <main className="flex flex-1 items-start justify-center px-4 py-6 sm:items-center sm:py-10">
+        <div
+          className={`w-full ${wide ? "max-w-xl" : "max-w-sm"} rounded-[6px] border border-[#e6e0d4] bg-white p-5 shadow-[0_1px_2px_rgba(30,30,20,0.05)] sm:p-6`}
+        >
+          <h1 className="font-sans text-[17px] font-semibold leading-tight tracking-tight">{title}</h1>
+          {children}
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -48,7 +77,7 @@ function ErrorLine({ message }: { message: string }) {
   return (
     <p
       role="alert"
-      className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+      className="rounded-[4px] border border-red-300 bg-red-50 px-3 py-2 text-[13px] text-red-800"
     >
       {message}
     </p>
@@ -226,7 +255,7 @@ function SignIn() {
   if (checking) {
     return (
       <Shell title="Signing you in">
-        <p role="status" className="mt-4 text-sm text-muted-foreground">
+        <p role="status" className="mt-3 text-[13px] text-[#56615a]">
           One moment…
         </p>
       </Shell>
@@ -236,12 +265,12 @@ function SignIn() {
   if (challengeId) {
     return (
       <Shell title="Check your email">
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-1.5 text-[13px] text-[#56615a]">
           We sent a 6-digit code{emailHint ? ` to ${emailHint}` : ""}. It works for 10 minutes.
         </p>
-        <form onSubmit={submitCode} className="mt-6 space-y-4">
+        <form onSubmit={submitCode} className="mt-4 space-y-3">
           <div>
-            <label htmlFor="staff-code" className="mb-1.5 block text-sm font-medium">
+            <label htmlFor="staff-code" className={labelCls}>
               Code
             </label>
             <input
@@ -255,10 +284,10 @@ function SignIn() {
               className={`${inputCls} text-center tracking-[0.4em]`}
             />
           </div>
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+          <label className="flex min-h-9 items-center gap-2 text-[13px]">
             <input
               type="checkbox"
-              className="h-5 w-5"
+              className="h-4 w-4 accent-[#1f6b45]"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
             />
@@ -270,7 +299,7 @@ function SignIn() {
           </button>
           <button
             type="button"
-            className="min-h-11 w-full text-sm text-muted-foreground underline"
+            className="min-h-9 w-full text-[13px] text-[#56615a] underline hover:text-[#17241c]"
             onClick={() => {
               setChallengeId(null);
               setError("");
@@ -285,9 +314,9 @@ function SignIn() {
 
   return (
     <Shell title="Staff sign-in">
-      <form onSubmit={submitCredentials} className="mt-6 space-y-4">
+      <form onSubmit={submitCredentials} className="mt-4 space-y-3">
         <div>
-          <label htmlFor="staff-email" className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="staff-email" className={labelCls}>
             Email
           </label>
           <input
@@ -301,7 +330,7 @@ function SignIn() {
           />
         </div>
         <div>
-          <label htmlFor="staff-password" className="mb-1.5 block text-sm font-medium">
+          <label htmlFor="staff-password" className={labelCls}>
             Password
           </label>
           <PasswordInput
@@ -320,7 +349,7 @@ function SignIn() {
         </button>
         <a
           href={`${STAFF_ADDRESSES.shopUrl.replace(/\/+$/, "")}/admin/forgot-password`}
-          className="block min-h-11 py-3 text-center text-sm text-muted-foreground underline"
+          className="block min-h-9 py-2 text-center text-[13px] text-[#56615a] underline hover:text-[#17241c]"
         >
           Forgot password?
         </a>
@@ -338,6 +367,7 @@ function Tile({
   later,
   onOpen,
   busy,
+  Icon,
 }: {
   title: string;
   blurb: string;
@@ -345,28 +375,38 @@ function Tile({
   later?: boolean;
   onOpen?: () => void;
   busy?: boolean;
+  Icon: LucideIcon;
 }) {
   const faded = state === "faded" || later;
+  const note = later
+    ? "Coming later"
+    : state === "faded"
+      ? "Ask an admin for access"
+      : state === "checking"
+        ? "Checking access…"
+        : null;
   return (
     <button
       type="button"
       disabled={faded || state === "checking" || busy}
       onClick={onOpen}
-      className={`min-h-24 w-full rounded-2xl border border-border bg-background p-4 text-left transition ${
-        faded ? "opacity-50" : "hover:border-accent/60 hover:shadow-sm"
+      className={`flex min-h-16 w-full items-center gap-3 rounded-[6px] border border-[#e6e0d4] bg-white p-3 text-left transition-colors ${
+        faded
+          ? "cursor-not-allowed bg-[#f6f3ea] opacity-60"
+          : "hover:border-[#1f6b45] hover:bg-[#f3f8f4]"
       }`}
     >
-      <span className="block font-display text-lg">{title}</span>
-      <span className="mt-1 block text-sm text-muted-foreground">{blurb}</span>
-      {later ? (
-        <span className="mt-2 block text-xs font-medium text-muted-foreground">Coming later</span>
-      ) : state === "faded" ? (
-        <span className="mt-2 block text-xs font-medium text-muted-foreground">
-          Ask an admin for access
-        </span>
-      ) : state === "checking" ? (
-        <span className="mt-2 block text-xs text-muted-foreground">Checking access…</span>
-      ) : null}
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[4px] bg-[#e7f1ea] text-[#1f6b45]">
+        <Icon className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block text-[13px] text-[#56615a]">{blurb}</span>
+        {note && <span className="mt-0.5 block text-xs font-medium text-[#56615a]">{note}</span>}
+      </span>
+      {!faded && state !== "checking" && (
+        <ArrowRight className="h-4 w-4 shrink-0 text-[#56615a]" aria-hidden />
+      )}
     </button>
   );
 }
@@ -420,10 +460,19 @@ function Chooser() {
     [session.user?.firstName, session.user?.lastName].filter(Boolean).join(" ") ||
     session.user?.email;
   return (
-    <Shell title="Where to?">
-      {name && <p className="mt-2 text-sm text-muted-foreground">Signed in as {name}</p>}
-      <div className="mt-6 grid gap-3">
+    <Shell
+      title="Where to?"
+      wide
+      aside={
+        <div className="flex items-center gap-3">
+          {name && <span className="hidden text-[13px] text-white/80 sm:inline">{name}</span>}
+        </div>
+      }
+    >
+      {name && <p className="mt-1.5 text-[13px] text-[#56615a]">Signed in as {name}</p>}
+      <div className="mt-4 grid gap-2">
         <Tile
+          Icon={LayoutDashboard}
           title="CRM"
           blurb="Leads, enquiries and customers"
           state={crm}
@@ -431,24 +480,29 @@ function Chooser() {
           onOpen={() => open("CRM")}
         />
         <Tile
+          Icon={Store}
           title="Store admin"
           blurb="Orders, products and settings"
           state={store}
           busy={busy}
           onOpen={() => open("STORE_ADMIN")}
         />
-        <Tile title="Core / ERP" blurb="Stock, finance and operations" state="faded" later />
+        <Tile Icon={Boxes} title="Core / ERP" blurb="Stock, finance and operations" state="faded" later />
       </div>
-      {error && <ErrorLine message={error} />}
+      {error && (
+        <div className="mt-3">
+          <ErrorLine message={error} />
+        </div>
+      )}
       <button
         type="button"
-        className="mt-6 min-h-11 w-full rounded-full border border-border px-6 py-3 text-sm font-semibold hover:border-accent/50"
+        className={`${btnOutlineCls} mt-4 w-full sm:w-auto`}
         onClick={async () => {
           await logoutStaff(session);
           setSession(null);
         }}
       >
-        Sign out
+        <LogOut className="h-4 w-4" aria-hidden /> Sign out
       </button>
     </Shell>
   );

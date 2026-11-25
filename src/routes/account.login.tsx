@@ -10,8 +10,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { passwordStore } from "@/services/passwordStore";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { MODAL_BG, MODAL_BORDER } from "@/lib/modalTheme";
-import { StaffOverlay } from "@/components/StaffOverlay";
-import { isStaffRoles, isUseStaffLinkError } from "@/lib/staffLink";
+import { redirectToStaffSignIn } from "@/components/StaffLinkGate";
+import { STAFF_REDIRECT_TEXT, isUseStaffLinkError } from "@/lib/staffLink";
 
 const searchSchema = z.object({ redirect: z.string().optional() });
 
@@ -47,18 +47,24 @@ function LoginPage() {
   const [otp, setOtp] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
-  // Staff have their own sign-in link: shown on a 403 USE_STAFF_LINK, or when the account turns out to be staff.
-  const [staffOverlay, setStaffOverlay] = useState(false);
+  // Staff have their own sign-in: on a 403 USE_STAFF_LINK, or when the account turns out to be staff,
+  // the customer session is ended and the browser goes to the staff sign-in.
+  const [toStaff, setToStaff] = useState(false);
+
+  function sendToStaff() {
+    setToStaff(true);
+    redirectToStaffSignIn("/admin");
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setSubmitting(true);
     try {
       const loggedInUser = await login(email.trim(), password, turnstileToken || undefined);
-      if (isStaffRoles(loggedInUser?.roles, loggedInUser?.accountType)) {
-        // The server switch is still off: sign them out again, then point them to the staff link.
+      if (loggedInUser?.staffAccount) {
+        // Staff account on the customer form: end the customer session, then go to the staff sign-in.
         await logout();
-        setStaffOverlay(true);
+        sendToStaff();
         return;
       }
       toast.success("Signed in");
@@ -75,7 +81,8 @@ function LoginPage() {
     } catch (err) {
       const code = (err as { code?: string })?.code;
       if (isUseStaffLinkError((err as { status?: number })?.status, code)) {
-        setStaffOverlay(true);
+        await logout().catch(() => undefined);
+        sendToStaff();
       } else if (code === "CHALLENGE_REQUIRED") {
         setChallengeRequired(true);
         toast.error("Please complete the security check below and try again.");
@@ -120,7 +127,11 @@ function LoginPage() {
 
   return (
     <SiteLayout>
-      {staffOverlay && <StaffOverlay onClose={() => setStaffOverlay(false)} />}
+      {toStaff && (
+        <p role="status" className="px-5 pt-6 text-center text-sm">
+          {STAFF_REDIRECT_TEXT}
+        </p>
+      )}
       <section className="px-5 py-16 lg:px-8 lg:py-20" style={{ background: MODAL_BG }}>
         <div
           className="mx-auto max-w-md rounded-3xl border p-6 shadow-sm sm:p-8"

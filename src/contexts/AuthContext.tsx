@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, ReactNode, useCallback } from "react";
+import { isStaffAccount } from "@/lib/staffLink";
 import { apiUrl, getImpersonationToken, getSessionId } from "@/config/api";
 
 export interface AuthUser {
@@ -8,6 +9,9 @@ export interface AuthUser {
   lastName: string;
   roles: string[];
   accountType?: "INDIVIDUAL_SHOPPER" | "BUSINESS";
+  /** Not sent by the store today; read if it ever is (JWT claim names: isStaff, staffRole). */
+  isStaff?: boolean;
+  staffRole?: string;
 }
 
 /** login()'s own return shape — a plain AuthUser plus an optional one-off signal from the
@@ -16,7 +20,11 @@ export interface AuthUser {
  *  login form can nudge them to verify soon instead of saying nothing until the login that
  *  finally gets rejected. Never persisted on `user` in context state — read once, right after
  *  login(), then discarded. */
-export type LoggedInUser = AuthUser & { verificationGraceLoginsRemaining?: number };
+export type LoggedInUser = AuthUser & {
+  verificationGraceLoginsRemaining?: number;
+  /** True when the token claims (if the body has a token) or the user object say this is staff. */
+  staffAccount?: boolean;
+};
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -291,7 +299,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextUser);
     setLoginSessionId(mintLoginSessionNonce());
     const graceLoginsRemaining = (data as { verificationGraceLoginsRemaining?: number }).verificationGraceLoginsRemaining;
-    return graceLoginsRemaining != null ? { ...nextUser, verificationGraceLoginsRemaining: graceLoginsRemaining } : nextUser;
+    // Staff check: the access token's claims when the body carries one (normally it is an httpOnly
+    // cookie, so then the user object), with accountType/roles as the fallback.
+    const body = data as { accessToken?: unknown; token?: unknown };
+    const staffAccount = isStaffAccount({
+      accessToken: body.accessToken ?? body.token,
+      isStaff: nextUser.isStaff,
+      staffRole: nextUser.staffRole,
+      roles: nextUser.roles,
+      accountType: nextUser.accountType,
+    });
+    return { ...nextUser, staffAccount, ...(graceLoginsRemaining != null ? { verificationGraceLoginsRemaining: graceLoginsRemaining } : {}) };
   };
 
   const setSession = (nextUser: AuthUser) => {

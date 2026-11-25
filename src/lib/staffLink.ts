@@ -17,9 +17,8 @@ export type HandoffTarget = "CRM" | "STORE_ADMIN";
 
 export const STAFF_LINK_USED_KEY = "moments_staff_link_used";
 
-/** The staff overlay text (contract). */
-export const STAFF_OVERLAY_TEXT =
-  "This sign-in isn't for Moments staff. Staff have their own sign-in link: ask the person who manages your account for it.";
+/** The one line shown while a staff member is being sent to the staff sign-in. */
+export const STAFF_REDIRECT_TEXT = "Taking you to the staff sign-in…";
 
 export function isStaffMode(hostname: string, appMode?: string): boolean {
   return appMode === "staff" || hostname.toLowerCase().startsWith("staff.");
@@ -140,6 +139,49 @@ export function isStaffRoles(
     return !CUSTOMER_ACCOUNT_TYPES.includes(accountType.trim().toUpperCase());
   }
   return !!roles && (roles.includes("ROLE_STAFF") || roles.includes("ROLE_ADMIN"));
+}
+
+/** Decode a JWT's payload (no signature check: only reads claims the server already issued). */
+export function decodeJwtClaims(token: unknown): Record<string, unknown> | null {
+  if (typeof token !== "string") return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const json = decodeURIComponent(
+      Array.from(atob(padded), (c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0")).join(""),
+    );
+    const v = JSON.parse(json);
+    return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface StaffEvidence {
+  /** Access token, when the response body carries one (the store normally uses httpOnly cookies). */
+  accessToken?: unknown;
+  /** Flags on the user object the login answer returns. */
+  isStaff?: unknown;
+  staffRole?: unknown;
+  roles?: readonly string[] | null;
+  accountType?: string | null;
+}
+
+/**
+ * Is this signed-in account staff? Order: the token's own claims (isStaff, then staffRole), then
+ * the same fields on the user object, then accountType/roles as the fallback.
+ */
+export function isStaffAccount(e: StaffEvidence): boolean {
+  const claims = decodeJwtClaims(e.accessToken);
+  if (claims) {
+    if (claims.isStaff === true) return true;
+    if (typeof claims.staffRole === "string" && claims.staffRole.trim()) return true;
+  }
+  if (e.isStaff === true) return true;
+  if (typeof e.staffRole === "string" && e.staffRole.trim()) return true;
+  return isStaffRoles(e.roles, e.accountType);
 }
 
 /** Where a deliberate store-admin sign-out goes: the staff site, told to really sign out. */
