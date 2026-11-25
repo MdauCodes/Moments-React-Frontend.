@@ -147,16 +147,37 @@ export const requestHandoff = (accessToken: string, target: HandoffTarget) =>
     accessToken,
   );
 
-/** Handoff with one refresh retry on 401. Returns the code, or null when the session is gone. */
+/** True when a JWT's exp is in the past or within the margin (unreadable tokens count as fresh; the server decides). */
+export function tokenExpired(token: string, marginMs = 30_000, now = Date.now()): boolean {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return false;
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return typeof json.exp === "number" && json.exp * 1000 - marginMs <= now;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Handoff with a refresh first when the access token has run out, and one refresh retry when the store refuses it.
+ * The store answers an expired token with 403 (not 401), which used to end in "Something went wrong" (25 Nov 2026).
+ * Returns the code, or null when the session is gone.
+ */
 export async function handoffWithRefresh(
   s: StaffSession,
   target: HandoffTarget,
 ): Promise<string | null> {
+  let session: StaffSession | null = s;
+  if (tokenExpired(s.accessToken)) {
+    session = await refreshSession(s);
+    if (!session) return null;
+  }
   try {
-    return (await requestHandoff(s.accessToken, target)).code;
+    return (await requestHandoff(session.accessToken, target)).code;
   } catch (e) {
-    if (!(e instanceof StaffApiError) || e.status !== 401) throw e;
-    const next = await refreshSession(s);
+    if (!(e instanceof StaffApiError) || (e.status !== 401 && e.status !== 403)) throw e;
+    const next = await refreshSession(session);
     if (!next) return null;
     return (await requestHandoff(next.accessToken, target)).code;
   }
@@ -195,6 +216,11 @@ async function crmMe(accessToken: string): Promise<{ status: number; body: unkno
  * Returns false only when Core really answers no access (or the session is gone).
  */
 export async function checkCrmAccess(session: StaffSession): Promise<boolean> {
+  if (tokenExpired(session.accessToken)) {
+    const fresh = await refreshSession(session);
+    if (!fresh) return false;
+    session = fresh;
+  }
   let r = await crmMe(session.accessToken);
   if (r?.status === 401) {
     const next = await refreshSession(session);

@@ -9,12 +9,16 @@
 // - Never a loop: after reloading, if the page is still the old build (a cache catching up), it waits and checks
 //   again instead of reloading again.
 import { API_BASE } from "@/config/api";
+import { inStaffMode } from "@/config/staff";
 
 export const RELEASE: string = typeof __APP_RELEASE__ === "string" ? __APP_RELEASE__ : "dev";
 
-export type AppName = "site" | "admin" | "restaurant";
+export type AppName = "site" | "admin" | "restaurant" | "staff";
 
 export function currentApp(): AppName {
+  // The staff site is its own build (staff.momentspackaging.com). Reporting it as "site" made its build stamp the
+  // shop's "latest", so every shop page was told to reload into a version it could never get (25 Nov 2026).
+  if (inStaffMode()) return "staff";
   const p = window.location.pathname;
   if (p.startsWith("/admin")) return "admin";
   if (p.startsWith("/restaurant")) return "restaurant";
@@ -214,7 +218,13 @@ export async function reloadNow(): Promise<void> {
   try {
     window.localStorage.setItem(
       RELOAD_KEY,
-      JSON.stringify({ from: RELEASE, at: Date.now(), app: currentApp() }),
+      JSON.stringify({
+        from: RELEASE,
+        at: Date.now(),
+        app: currentApp(),
+        to: latestRelease,
+        must: state.must,
+      }),
     );
   } catch {
     /* no storage: still reload */
@@ -233,7 +243,8 @@ export async function reloadNow(): Promise<void> {
 
 /** After a reload: record it, or (still the old build) wait and check again instead of reloading again. */
 function afterReload() {
-  let last: { from: string; at: number; app: AppName } | null = null;
+  let last: { from: string; at: number; app: AppName; to?: string | null; must?: boolean } | null =
+    null;
   try {
     last = JSON.parse(window.localStorage.getItem(RELOAD_KEY) ?? "null");
   } catch {
@@ -257,6 +268,15 @@ function afterReload() {
         clientId: clientId(),
       }),
     }).catch(() => undefined);
+  } else if (!last.must) {
+    // A suggested reload that brought back the same build: the "new" version isn't reachable from here (another
+    // build, or a cache still catching up). Don't ask again for that version; a newer one will ask afresh.
+    try {
+      if (last.to) window.localStorage.setItem(LATER_KEY, last.to);
+      window.localStorage.removeItem(RELOAD_KEY);
+    } catch {
+      /* none */
+    }
   } else if (Date.now() - last.at < LOOP_GUARD_MS) {
     set({ waiting: true });
     window.setTimeout(

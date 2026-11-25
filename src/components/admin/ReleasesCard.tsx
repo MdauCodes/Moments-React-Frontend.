@@ -19,7 +19,7 @@ type HistoryRow = {
   setBy: string | null;
 };
 type AppView = {
-  app: "site" | "admin" | "restaurant";
+  app: "site" | "admin" | "restaurant" | "staff";
   liveRelease: string | null;
   minRelease: string | null;
   latestRelease: string | null;
@@ -39,6 +39,7 @@ const APP_NAME: Record<AppView["app"], string> = {
   site: "Website",
   admin: "Store admin",
   restaurant: "Restaurant portal",
+  staff: "Staff sign-in site",
 };
 const ACTION_WORDS: Record<string, string> = {
   REQUIRE: "Required everyone to reload",
