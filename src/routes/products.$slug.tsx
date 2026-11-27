@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { packContents, piecesPerUnitLine } from "@/lib/packContents";
 import { useEnquiry } from "@/contexts/EnquiryContext";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Heart, Share2 } from "lucide-react";
@@ -385,7 +386,7 @@ export default function ProductDetail() {
                       <button key={key} type="button" onClick={() => handleSelectTier(key)}
                         className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${active ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
                         <span className="font-display text-base text-foreground">{t.uomName ?? t.collectionName}</span>
-                        <span className="mt-0.5 text-xs text-muted-foreground">{unitCount(Number(t.quantity), product.risellerUomName)} each</span>
+                        <span className="mt-0.5 text-xs text-muted-foreground">{packContents(product, Number(t.quantity)) ?? unitCount(Number(t.quantity), product.risellerUomName)} each</span>
                         {t.uomDescription && <span className="mt-0.5 text-[11px] italic text-muted-foreground">{t.uomDescription}</span>}
                         <span className="mt-2 text-sm font-semibold text-foreground">KES {cPrice.toLocaleString()}</span>
                         <span className="text-[11px] text-muted-foreground">KES {Number(t.pricePerUnit).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
@@ -396,7 +397,7 @@ export default function ProductDetail() {
                     <button type="button" onClick={() => handleSelectTier(null)}
                       className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${tierTouched && selectedTierId === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
                       <span className="font-display text-base text-foreground">Individual {unitPlural(product.risellerUomName)}</span>
-                      <span className="mt-0.5 text-xs text-muted-foreground">Buy any quantity</span>
+                      <span className="mt-0.5 text-xs text-muted-foreground">{piecesPerUnitLine(product) ?? "Buy any quantity"}</span>
                       <span className="mt-2 text-sm font-semibold text-foreground">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                     </button>
                   )}
@@ -534,7 +535,7 @@ export default function ProductDetail() {
                   <p className="text-sm">
                     {qty.toLocaleString()} × {selectedTier.uomName ?? selectedTier.collectionName} (× {unitCount(collectionQty, product.risellerUomName)} each) ={" "}
                     <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
-                    <span className="ml-2 text-xs opacity-80">· {unitCount(qty * collectionQty, product.risellerUomName)} in total</span>
+                    <span className="ml-2 text-xs opacity-80">· {packContents(product, qty * collectionQty) ?? unitCount(qty * collectionQty, product.risellerUomName)} in total</span>
                   </p>
                 ) : unitPrice > 0 ? (
                   <p className="text-sm">

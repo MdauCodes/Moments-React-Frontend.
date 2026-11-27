@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ChangeEvent, type FormEvent } from "react";
+import { piecesPerUnit } from "@/lib/packContents";
+import { individualUnitLabel } from "@/lib/uomLabel";
 import { Camera, ChevronDown } from "lucide-react";
 import { adminJson } from "@/services/adminApi";
 import { reportAdminError } from "@/lib/adminErrorToast";
@@ -67,6 +69,8 @@ export interface ProductFormValues {
   compareAtPrice?: number;
   stock?: number;
   lowStockThreshold?: number;
+  /** Single pieces in one base unit (e.g. 100 cups in a packet); undefined = not set. */
+  piecesPerUnit?: number;
   trackInventory?: boolean;
   variants?: ProductVariant[];
   individualSalesEnabled?: boolean;
@@ -112,6 +116,7 @@ export function emptyProductValues(): ProductFormValues {
     compareAtPrice: undefined,
     stock: 0,
     lowStockThreshold: 10,
+    piecesPerUnit: undefined,
     trackInventory: true,
     variants: [],
     individualSalesEnabled: true,
@@ -156,6 +161,7 @@ export function productToFormValues(p: Product): ProductFormValues {
     compareAtPrice: anyP.compareAtPrice,
     stock: anyP.stockCount ?? anyP.stock ?? 0,
     lowStockThreshold: anyP.lowStockThreshold ?? 10,
+    piecesPerUnit: anyP.piecesPerUnit ?? undefined,
     trackInventory: anyP.trackInventory ?? (anyP.stockStatus ? anyP.stockStatus !== "MADE_TO_ORDER" : true),
     variants: anyP.variants ? [...anyP.variants] : [],
     individualSalesEnabled: anyP.individualSalesEnabled ?? true,
@@ -1203,6 +1209,28 @@ export function ProductEditor({ initial, productId, submitLabel, onSubmit, onDel
             <span style={{ ...s.helper, marginTop: -6 }}>
               Turn off for made-to-order or unlimited-supply items where a stock count doesn't make sense.
             </span>
+
+            <div style={s.col}>
+              <label style={s.label}>
+                Pieces in one {individualUnitLabel(values.risellerUomName)}
+              </label>
+              <input
+                type="number"
+                min={1}
+                step={1}
+                style={s.input}
+                placeholder={piecesPerUnit({ risellerUomName: values.risellerUomName, description: values.description }) ? `From description: ${piecesPerUnit({ risellerUomName: values.risellerUomName, description: values.description })}` : "e.g. 100"}
+                value={values.piecesPerUnit ?? ""}
+                onChange={(e) => {
+                  const n = Math.floor(Number(e.target.value));
+                  set("piecesPerUnit", e.target.value === "" || !(n > 0) ? undefined : n);
+                }}
+              />
+              <span style={s.helper}>
+                Shown to customers as "100 pieces per packet", and for cartons and bales as "20 packets · 2,000 pieces".
+                Leave empty to use the pack size written in the description, if any. Not needed for items sold by the piece.
+              </span>
+            </div>
 
             {(values.trackInventory ?? true) && (
               <div style={s.row} data-admin-row>

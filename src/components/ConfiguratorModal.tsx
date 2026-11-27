@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { packContents, piecesPerUnitLine } from "@/lib/packContents";
 import { useEffect, useMemo, useState } from "react";
 import { Heart, X } from "lucide-react";
 import { toast } from "sonner";
@@ -327,7 +328,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                       )}
                       <span className="font-display text-sm text-foreground">{label}</span>
                       <span className="mt-0.5 text-[11px] text-muted-foreground">
-                        {unitCount(Number(t.quantity), product.risellerUomName)}
+                        {packContents(product, Number(t.quantity)) ?? unitCount(Number(t.quantity), product.risellerUomName)}
                       </span>
                       {t.uomDescription && (
                         <span className="mt-0.5 text-[10px] italic text-muted-foreground line-clamp-2">
@@ -352,7 +353,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                     }`}
                   >
                     <span className="font-display text-sm text-foreground">Individual {unitPlural(product.risellerUomName)}</span>
-                    <span className="mt-0.5 text-[11px] text-muted-foreground">Buy any quantity</span>
+                    <span className="mt-0.5 text-[11px] text-muted-foreground">{piecesPerUnitLine(product) ?? "Buy any quantity"}</span>
                     <span className="mt-1.5 text-sm font-semibold text-foreground">
                       KES {(product.basePrice ?? 0).toLocaleString()}
                     </span>

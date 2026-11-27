@@ -230,6 +230,8 @@ export type Product = {
    * buy option's label when present, admin-defined tiers stay available either way.
    */
   risellerUomName?: string | null;
+  /** Single pieces in one base unit (e.g. 100 cups in a packet); null = not set by staff. */
+  piecesPerUnit?: number | null;
   /** Riseller's item code (e.g. "558") — what a customer can quote when ordering by phone or
    *  WhatsApp. Absent until the item has one. */
   productCode?: string | null;

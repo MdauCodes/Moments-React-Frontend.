@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { packContents } from "@/lib/packContents";
 import { Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 
@@ -242,10 +243,8 @@ export function QuickAddUomButtons({
                 </span>
               )}
             </span>
-            {opt.packQty > 1 && (
-              <span className="mt-0.5 text-xs text-muted-foreground">
-                {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
-              </span>
+            {packContents(product, opt.packQty) && (
+              <span className="mt-0.5 text-xs text-muted-foreground">{packContents(product, opt.packQty)}</span>
             )}
           </span>
           <span className="flex shrink-0 items-center gap-3">

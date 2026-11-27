@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { piecesPerUnitLine } from "@/lib/packContents";
 import { useState } from "react";
 import { Flame } from "lucide-react";
 
@@ -296,6 +297,9 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
               )}
               <span className="ml-1 text-[11px] font-medium text-muted-foreground sm:text-xs">/ {individualUnitLabel(p.risellerUomName)}</span>
             </p>
+            {piecesPerUnitLine(p) && (
+              <p className="text-[10px] text-muted-foreground sm:text-[11px]">{piecesPerUnitLine(p)}</p>
+            )}
             {emphasizeDeal && p.originalBasePrice && p.originalBasePrice > p.basePrice && (
               <SaveBadge amount={p.originalBasePrice - p.basePrice} />
             )}

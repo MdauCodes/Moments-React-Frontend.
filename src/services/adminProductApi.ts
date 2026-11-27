@@ -64,6 +64,8 @@ function buildPayload(values: ProductFormValues, productId?: string) {
     clearOriginalBasePrice: !values.compareAtPrice,
     stockCount: values.trackInventory ? values.stock ?? 0 : undefined,
     lowStockThreshold: values.trackInventory ? values.lowStockThreshold ?? 10 : undefined,
+    piecesPerUnit: values.piecesPerUnit && values.piecesPerUnit > 0 ? values.piecesPerUnit : undefined,
+    clearPiecesPerUnit: !values.piecesPerUnit,
     individualSalesEnabled: values.individualSalesEnabled ?? true,
     pricingTiers,
     stockStatus: values.stockStatus ?? "MADE_TO_ORDER",
