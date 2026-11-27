@@ -53,8 +53,8 @@ export function QuickAddUomButtons({
   // the clearest possible "yes, that registered" feedback alongside the toast.
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
-  // Per-option × N multiplier — card layout only (the detail/PDP layout has its own surrounding
-  // quantity UI already). Keyed by option so "Carton" and "Packet" on the same product each keep
+  // Per-option × N multiplier, used by both layouts (the product page used to rely on a separate
+  // quantity panel that only appeared after the first add). Keyed by option so "Carton" and "Packet" on the same product each keep
   // their own count. Resets to 1 after a successful add, same reasoning as justAdded: the next tap
   // is far more likely to be a fresh decision than "add 3 more of what I just added".
   const [multipliers, setMultipliers] = useState<Record<string, number>>({});
@@ -156,7 +156,7 @@ export function QuickAddUomButtons({
                   aria-label={`Decrease quantity of ${opt.label}`}
                   onClick={(e) => stepperTap(e, opt.key, -1)}
                   disabled={mult <= 1}
-                  className="grid h-full min-h-[32px] w-8 place-items-center text-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                  className="grid h-full min-h-[40px] w-8 place-items-center text-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
                 >
                   <Minus className="h-3.5 w-3.5" />
                 </button>
@@ -167,7 +167,7 @@ export function QuickAddUomButtons({
                   type="button"
                   aria-label={`Increase quantity of ${opt.label}`}
                   onClick={(e) => stepperTap(e, opt.key, 1)}
-                  className="grid h-full min-h-[32px] w-8 place-items-center text-foreground transition-colors hover:bg-secondary"
+                  className="grid h-full min-h-[40px] w-8 place-items-center text-foreground transition-colors hover:bg-secondary"
                 >
                   <Plus className="h-3.5 w-3.5" />
                 </button>
@@ -178,7 +178,7 @@ export function QuickAddUomButtons({
                 type="button"
                 disabled={justAdded === opt.key}
                 onClick={(e) => handleTap(e, opt)}
-                className={`min-w-0 flex-1 rounded-full px-3 py-1.5 text-center text-[11px] font-semibold leading-tight transition-opacity disabled:opacity-60 sm:text-xs ${
+                className={`min-h-[40px] min-w-0 flex-1 rounded-full px-3 py-1.5 text-center text-[11px] font-semibold leading-tight transition-opacity disabled:opacity-60 sm:text-xs ${
                   i === 0
                     ? "bg-primary text-primary-foreground hover:opacity-90"
                     : "border border-border bg-card text-foreground hover:border-foreground/40"
@@ -213,56 +213,98 @@ export function QuickAddUomButtons({
     );
   }
 
+  // Detail (product page) layout: one full-width block per option, all built the same way — name
+  // and price on top, a − n + stepper and a wide Add button underneath — so the options line up
+  // instead of sitting in uneven half-width cards (owner, 2026-11-27).
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {visible.map((opt) => (
-        <button
-          key={opt.key}
-          type="button"
-          disabled={justAdded === opt.key}
-          onClick={(e) => handleTap(e, opt)}
-          // Border-2 + shadow + an always-visible "+" badge (never hover-only — touch devices have
-          // no hover state to reveal it) so this reads as a tappable action card on sight, not a
-          // static price label. The cheapest-per-unit option gets the primary-color treatment —
-          // same isCheapestPerUnit signal ProductCard already computes, just applied to styling
-          // here instead of only to the savings badge.
-          className={`flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100 ${
-            opt.isCheapestPerUnit
-              ? "border-primary bg-primary/5"
-              : "border-border bg-card hover:border-primary/40"
-          }`}
-        >
-          <span className="flex flex-col items-start">
-            <span className="font-display text-base text-foreground">
-              Add {opt.quantity.toLocaleString()} {pluralUnit(opt.label, opt.quantity)}
-            </span>
-            {opt.packQty > 1 && (
-              <span className="mt-0.5 text-xs text-muted-foreground">
-                {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
-              </span>
-            )}
-            <span className="mt-2 text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
-            {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
-              <span className="mt-1 rounded-full bg-forest/15 px-1.5 py-px text-[10px] font-semibold text-forest">
-                Save {opt.savingsPct}%
-              </span>
-            )}
-          </span>
-          <span className="inline-flex h-9 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground">
-            <Plus className="h-4 w-4" />
-            Add
-          </span>
-        </button>
-      ))}
+    <div className="flex flex-col gap-2">
+      {visible.map((opt) => {
+        const mult = getMultiplier(opt.key);
+        const effQuantity = opt.quantity * mult;
+        const effLineTotal = opt.lineTotal * mult;
+        const effPackQty = opt.packQty * mult;
+        return (
+          <div
+            key={opt.key}
+            className={`flex flex-col gap-3 rounded-xl border-2 px-4 py-3 ${
+              opt.isCheapestPerUnit && visible.length > 1 ? "border-primary bg-primary/5" : "border-border bg-card"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-base text-foreground">
+                  {cleanOptionTitle(opt.label)}
+                  {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
+                    <span className="rounded-full bg-forest/15 px-1.5 py-px font-sans text-[10px] font-semibold text-forest">
+                      Save {opt.savingsPct}%
+                    </span>
+                  )}
+                </p>
+                {opt.packQty > 1 && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
+                  </p>
+                )}
+              </div>
+              <p className="shrink-0 text-right">
+                <span className="block text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
+                <span className="block text-[11px] text-muted-foreground">per {opt.label.toLowerCase()}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex h-11 items-center overflow-hidden rounded-full border border-border bg-background">
+                <button
+                  type="button"
+                  aria-label={`Fewer ${opt.label}`}
+                  onClick={() => adjustMultiplier(opt.key, -1)}
+                  disabled={mult <= 1}
+                  className="grid h-full w-10 place-items-center text-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="min-w-[1.75rem] text-center text-sm font-semibold tabular-nums" aria-live="polite">
+                  {mult}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`More ${opt.label}`}
+                  onClick={() => adjustMultiplier(opt.key, 1)}
+                  className="grid h-full w-10 place-items-center text-foreground transition-colors hover:bg-secondary"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              <button
+                type="button"
+                disabled={justAdded === opt.key}
+                onClick={(e) => handleTap(e, opt)}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                <Plus className="h-4 w-4" />
+                Add · KES {effLineTotal.toLocaleString()}
+                <span className="sr-only">
+                  {" "}for {effQuantity.toLocaleString()} {pluralUnit(opt.label, effQuantity)}
+                  {effPackQty > 1 ? ` (${effPackQty.toLocaleString()} ${pluralUnit(opt.unitNoun, effPackQty)})` : ""}
+                </span>
+              </button>
+            </div>
+          </div>
+        );
+      })}
       {overflow && onMoreOptions && (
         <button
           type="button"
           onClick={handleMoreOptions}
-          className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-3 text-center text-sm font-medium text-muted-foreground hover:border-foreground/40"
+          className="rounded-xl border border-dashed border-border px-4 py-3 text-center text-sm font-medium text-muted-foreground hover:border-foreground/40"
         >
           More options
         </button>
       )}
     </div>
   );
+}
+
+/** "Carton" → "Carton", "packet" → "Packet": option names read as titles in the detail rows. */
+function cleanOptionTitle(label: string): string {
+  return label ? label.charAt(0).toUpperCase() + label.slice(1) : label;
 }

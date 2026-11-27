@@ -479,7 +479,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                       product.name,
                       selectedTier
                         ? `${quantity.toLocaleString()} × ${selectedTier.uomName ?? selectedTier.collectionName}`
-                        : `${quantity.toLocaleString()} pieces`,
+                        : unitCount(quantity, product.risellerUomName),
                     ),
                   });
                 }}

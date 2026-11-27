@@ -321,7 +321,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
             <button
               type="button"
               onClick={handleCTAClick}
-              className="w-full rounded-full bg-primary px-2 py-2 text-[11px] font-semibold leading-tight text-primary-foreground transition-opacity hover:opacity-90 sm:px-3 sm:text-xs"
+              className="flex min-h-[40px] w-full items-center justify-center rounded-full bg-primary px-2 py-2 text-[11px] font-semibold leading-tight text-primary-foreground transition-opacity hover:opacity-90 sm:px-3 sm:text-xs"
             >
               <span className="sm:hidden">
                 {hasTiers || (individualEnabled && p.basePrice) ? "Add to cart" : "Get a quote"}
@@ -359,7 +359,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                   }.`,
                 });
               }}
-              className="w-full rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
+              className="flex min-h-[40px] w-full items-center justify-center rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
             >
               Request this item
             </button>

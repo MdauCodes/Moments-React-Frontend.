@@ -52,6 +52,9 @@ export default function ProductDetail() {
   const [related, setRelated] = useState<Product[]>([]);
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
   const [tierTouched, setTierTouched] = useState(false);
+  // "Please choose…" prompts wait until the customer actually tries to add; showing them in red
+  // before anything was touched read as an error on arrival (owner screenshot, 2026-11-27).
+  const [triedAdd, setTriedAdd] = useState(false);
 
   // ── fetch product ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -66,7 +69,8 @@ export default function ProductDetail() {
       setVariantId(variants[0]?.id ?? variants[0]?.label);
       // Never pre-select a size — a customer who never touches this control must not silently
       // "order" size #1. handleAddToCart blocks Add to Cart until a real choice is made.
-      setSize("");
+      // ...but a single size is not a choice: pre-select it rather than demand a tap on the only pill.
+      setSize(p.sizes?.length === 1 ? p.sizes[0] : "");
       setMaterial((p as any).materials?.[0] ?? p.material ?? "");
       setFinish(p.finish ?? "Standard");
       setQty(p.moq);
@@ -74,6 +78,7 @@ export default function ProductDetail() {
       // customer must make explicitly (handleAddToCart blocks on tierMissing below).
       setSelectedTierId(collTiers.length === 1 ? ((collTiers[0] as any).id ?? "tier-0") : null);
       setTierTouched(false);
+      setTriedAdd(false);
       setLoading(false);
       reviewStore.listForProduct(p.slug).then(({ summary }) => {
         if (summary.count > 0) setReviewSummary({ count: summary.count, average: summary.average });
@@ -138,7 +143,9 @@ export default function ProductDetail() {
   // The demoted "order more than one" panel only needs to appear once a real choice has been
   // made on an eligible product; an ineligible (multi-dimension) product keeps showing it
   // unconditionally, exactly as before.
-  const showQuantityPanel = !eligible || tierTouched;
+  // Quick-add products pick their quantity in each option row (stepper + Add), so the separate
+  // quantity panel is only for products that go through the full configurator.
+  const showQuantityPanel = !eligible;
 
   const enterprise = (product?.moq ?? 0) >= 10000;
   const saved = wishlist.has(product?.id ?? "");
@@ -196,8 +203,7 @@ export default function ProductDetail() {
     if (enterprise) { navigate("/enterprise-quote"); return; }
     if (qty < minQty) { setQtyError(`Minimum: ${minQty.toLocaleString()}`); return; }
     if (stock.exceedsAvailable) return; // the bulk-quote box below the button is already showing
-    if (sizeMissing) return; // the Size field's own inline prompt (sizeMissing) is already visible
-    if (tierMissing) return; // ditto for the tier prompt near "Choose how to buy"
+    if (sizeMissing || tierMissing) { setTriedAdd(true); return; } // shows the inline prompts
     addItem({
       productId: product.id,
       productName: product.name,
@@ -367,27 +373,13 @@ export default function ProductDetail() {
 
           {/* Pricing */}
           <div className="mt-5">
-            {eligible ? (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to buy</p>
-                <QuickAddUomButtons
-                  product={product}
-                  layout="detail"
-                  onTierChosen={(tierId) => {
-                    setSelectedTierId(tierId);
-                    setTierTouched(true);
-                    setQty(1);
-                    setQtyError(null);
-                  }}
-                />
-              </div>
-            ) : hasCollections ? (
+            {eligible ? null : hasCollections ? (
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to buy</p>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {collectionTiers.map((t: any, i: number) => {
                     const key = t.id ?? `tier-${i}`;
-                    const active = key === selectedTierId;
+                    const active = tierTouched && key === selectedTierId;
                     const cPrice = Number(t.collectionPrice ?? Number(t.pricePerUnit) * Number(t.quantity)) || 0;
                     return (
                       <button key={key} type="button" onClick={() => handleSelectTier(key)}
@@ -402,14 +394,18 @@ export default function ProductDetail() {
                   })}
                   {individualEnabled && (
                     <button type="button" onClick={() => handleSelectTier(null)}
-                      className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${selectedTierId === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
+                      className={`flex flex-col items-start rounded-xl border px-4 py-3 text-left transition-colors ${tierTouched && selectedTierId === null ? "border-primary bg-primary/5 ring-2 ring-primary/30" : "border-border bg-card hover:border-foreground/40"}`}>
                       <span className="font-display text-base text-foreground">Individual {unitPlural(product.risellerUomName)}</span>
                       <span className="mt-0.5 text-xs text-muted-foreground">Buy any quantity</span>
                       <span className="mt-2 text-sm font-semibold text-foreground">KES {(product.basePrice ?? 0).toLocaleString()}/{individualUnitLabel(product.risellerUomName)}</span>
                     </button>
                   )}
                 </div>
-                {tierMissing && <p className="text-xs font-medium text-accent">Please choose how you'd like to buy</p>}
+                {tierMissing && (
+                  <p className={`text-xs font-medium ${triedAdd ? "text-accent" : "text-muted-foreground"}`}>
+                    {triedAdd ? "Please choose how you'd like to buy" : "Pick an option to set your quantity."}
+                  </p>
+                )}
               </div>
             ) : tiers.length > 0 ? (
               <div className="overflow-hidden rounded-xl border border-border">
@@ -451,6 +447,20 @@ export default function ProductDetail() {
               )}
             </div>
 
+            {eligible && stock.canOrder && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose how to buy</p>
+                <QuickAddUomButtons
+                  product={product}
+                  layout="detail"
+                  onTierChosen={(tierId) => {
+                    setSelectedTierId(tierId);
+                    setTierTouched(true);
+                  }}
+                />
+              </div>
+            )}
+
             {!stock.canOrder && (
               <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
                 <p className="text-sm text-foreground/80">
@@ -488,7 +498,7 @@ export default function ProductDetail() {
             {stock.canOrder && product.sizes && product.sizes.length > 0 && (
               <ConfigField label="Size">
                 <PillGroup options={product.sizes} value={size} onChange={setSize} />
-                {sizeMissing && <p className="mt-1.5 text-xs font-medium text-accent">Please choose a size</p>}
+                {sizeMissing && triedAdd && <p className="mt-1.5 text-xs font-medium text-accent">Please choose a size</p>}
               </ConfigField>
             )}
             {stock.canOrder && ((product as any).materials?.length ?? 0) > 0 && (
@@ -498,10 +508,10 @@ export default function ProductDetail() {
               <ConfigField label="Finish"><PillGroup options={[finish]} value={finish} onChange={setFinish} /></ConfigField>
             )}
 
-            {stock.canOrder && showQuantityPanel && (
+            {stock.canOrder && showQuantityPanel && !tierMissing && (
               <ConfigField
                 label={eligible ? "Add more?" : selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
-                note={eligible ? undefined : selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
+                note={eligible ? undefined : selectedTier ? `(× ${unitCount(collectionQty, product.risellerUomName)} each)` : `(Min. ${unitCount(product.moq, product.risellerUomName)})`}>
                 {/* No max and no silent clamp to the shelf count: a capped box tells a bulk buyer
                     the same thing "only N left" did. A large quantity shows the bulk-quote box. */}
                 <input type="number" min={minQty}
@@ -516,13 +526,13 @@ export default function ProductDetail() {
               </ConfigField>
             )}
 
-            {stock.canOrder && showQuantityPanel && (
+            {stock.canOrder && showQuantityPanel && !tierMissing && (
               <div className="rounded-xl bg-primary px-5 py-4 text-primary-foreground">
                 {selectedTier ? (
                   <p className="text-sm">
-                    {qty.toLocaleString()} × {selectedTier.uomName ?? selectedTier.collectionName} (× {collectionQty} pieces each) ={" "}
+                    {qty.toLocaleString()} × {selectedTier.uomName ?? selectedTier.collectionName} (× {unitCount(collectionQty, product.risellerUomName)} each) ={" "}
                     <span className="font-display text-lg font-semibold">KES {lineTotal.toLocaleString()}</span>
-                    <span className="ml-2 text-xs opacity-80">· {(qty * collectionQty).toLocaleString()} total pieces</span>
+                    <span className="ml-2 text-xs opacity-80">· {unitCount(qty * collectionQty, product.risellerUomName)} in total</span>
                   </p>
                 ) : unitPrice > 0 ? (
                   <p className="text-sm">
@@ -563,7 +573,7 @@ export default function ProductDetail() {
               </button>
             ) : showQuantityPanel ? (
               <button type="button" onClick={handleAddToCart}
-                disabled={sizeMissing || tierMissing || stock.exceedsAvailable}
+                disabled={stock.exceedsAvailable}
                 title={
                   sizeMissing ? "Please choose a size first"
                     : tierMissing ? "Please choose how you'd like to buy first"
@@ -571,7 +581,7 @@ export default function ProductDetail() {
                     : undefined
                 }
                 className={`h-[52px] w-full rounded-full text-sm font-semibold shadow-sm transition-opacity ${
-                  sizeMissing || tierMissing || stock.exceedsAvailable
+                  stock.exceedsAvailable
                     ? "cursor-not-allowed bg-accent/40 text-accent-foreground/60"
                     : "bg-accent text-accent-foreground hover:opacity-90"
                 }`}>
@@ -590,8 +600,8 @@ export default function ProductDetail() {
                     message: bulkQuoteEnquiryMessage(
                       product.name,
                       selectedTier
-                        ? `${qty.toLocaleString()} × ${selectedTier.uomName ?? selectedTier.collectionName} (${(qty * collectionQty).toLocaleString()} pieces)`
-                        : `${qty.toLocaleString()} pieces`,
+                        ? `${qty.toLocaleString()} × ${selectedTier.uomName ?? selectedTier.collectionName} (${unitCount(qty * collectionQty, product.risellerUomName)})`
+                        : unitCount(qty, product.risellerUomName),
                     ),
                   })}
                   className="mt-2 inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
