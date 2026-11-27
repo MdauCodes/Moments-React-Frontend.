@@ -144,7 +144,7 @@ export default function ShopLandingPage() {
         {products === null ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="aspect-[3/4] animate-pulse rounded-2xl bg-secondary" />
+              <div key={i} className="aspect-[1/1] animate-pulse rounded-2xl bg-secondary" />
             ))}
           </div>
         ) : products.length === 0 ? (
@@ -170,7 +170,8 @@ export default function ShopLandingPage() {
                     to={productPath(p.slug)}
                     className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-lg"
                   >
-                    <div className="aspect-square overflow-hidden bg-secondary">
+                    {/* 4:3, not square: a shorter photo keeps more products on screen (owner, 2026-11-28). */}
+                    <div className="aspect-[4/3] overflow-hidden bg-secondary">
                       {image ? (
                         <img
                           src={image}

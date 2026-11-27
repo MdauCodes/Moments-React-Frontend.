@@ -53,7 +53,7 @@ function DealsPage() {
               <p className="mt-2 text-sm text-muted-foreground">Check back soon — this page refreshes regularly.</p>
             </div>
           ) : (
-            products.map((p) => <ProductCard key={p.id} product={p} onConfigure={handleConfigure} emphasizeDeal />)
+            products.map((p) => <ProductCard key={p.id} product={p} onConfigure={handleConfigure} emphasizeDeal compactImage />)
           )}
         </div>
       </div>

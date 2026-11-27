@@ -9,11 +9,28 @@ import { useCart, type CartItem } from "@/contexts/CartContext";
 import { WHATSAPP_NUMBER } from "@/data/products";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 import { LidSuggestions } from "@/components/LidSuggestions";
+import { packContents } from "@/lib/packContents";
+import { cleanUomLabel, individualUnitLabel, unitCount } from "@/lib/uomLabel";
+import { pluralUnit } from "@/lib/uomWords";
 
 
 
 function fmt(n: number) {
   return new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(n);
+}
+
+/** "35 packets · 1,750 pieces" when the cart API sends the unit; plain "35" before it does
+ *  (never the old wrong "35 units" for a product sold in packets). */
+function contentsOf(it: CartItem, baseQty: number): string {
+  if (!it.risellerUomName) return baseQty.toLocaleString();
+  return packContents({ risellerUomName: it.risellerUomName, piecesPerUnit: it.piecesPerUnit }, baseQty) ?? unitCount(baseQty, it.risellerUomName);
+}
+
+/** "Carton · 35 packets" (was "Carton of 35 of 35 units"). */
+function packLabel(it: CartItem): string {
+  const name = cleanUomLabel(it.collectionName, it.collectionQuantity);
+  if (!it.collectionQuantity) return name;
+  return it.risellerUomName ? `${name} · ${contentsOf(it, it.collectionQuantity)}` : `${name} · ${it.collectionQuantity.toLocaleString()} each`;
 }
 
 /** Why checkout would refuse this line right now, or null when it's fine. */
@@ -106,7 +123,7 @@ function CartPage() {
                   <img
                     src={cloudinaryOptimized(it.primaryImageUrl, 200)}
                     alt={it.productName}
-                    className="h-20 w-20 flex-shrink-0 rounded-lg object-cover sm:h-24 sm:w-24"
+                    className="h-14 w-14 flex-shrink-0 rounded-lg object-cover sm:h-16 sm:w-16"
                   />
                   <div className="flex flex-1 flex-col">
                     <div className="flex items-start justify-between gap-2">
@@ -114,8 +131,7 @@ function CartPage() {
                         <h3 className="font-display text-base text-foreground">{it.productName}</h3>
                         {it.collectionName && (
                           <p className="mt-0.5 text-xs font-semibold text-accent">
-                            {it.collectionName}
-                            {it.collectionQuantity ? ` of ${it.collectionQuantity} units` : ""}
+                            {packLabel(it)}
                           </p>
                         )}
                         {(() => {
@@ -144,7 +160,7 @@ function CartPage() {
                         {/* Clear price breakdown */}
                         <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
                           <p>
-                            <span className="text-foreground">{fmt(it.unitPrice)}</span> per unit
+                            <span className="text-foreground">{fmt(it.unitPrice)}</span> {it.risellerUomName ? `per ${individualUnitLabel(it.risellerUomName)}` : "each"}
                             {it.collectionName && it.collectionQuantity ? (
                               <>
                                 {" "}·{" "}
@@ -170,7 +186,7 @@ function CartPage() {
                     <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
                       <div className="flex flex-col gap-1">
                         <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {it.collectionName ? `${it.collectionName}s` : "Qty"}
+                          {it.collectionName ? `Number of ${pluralUnit(cleanUomLabel(it.collectionName, it.collectionQuantity).toLowerCase(), 2)}` : "Qty"}
                           <input
                             type="number"
                             min={1}
@@ -189,10 +205,12 @@ function CartPage() {
                         </label>
                         {it.collectionName && it.collectionQuantity ? (
                           <p className="text-[11px] text-muted-foreground">
-                            = {(it.totalUnits ?? it.quantity * it.collectionQuantity).toLocaleString()} units total
+                            = {contentsOf(it, it.totalUnits ?? it.quantity * it.collectionQuantity)} in total
                           </p>
                         ) : (
-                          <p className="text-[11px] text-muted-foreground">Minimum order: 1 unit</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Minimum order: 1{it.risellerUomName ? ` ${individualUnitLabel(it.risellerUomName)}` : ""}
+                          </p>
                         )}
                       </div>
                       <LidSuggestions productName={it.productName} variant="inline" inCartProductIds={cartProductIds} />

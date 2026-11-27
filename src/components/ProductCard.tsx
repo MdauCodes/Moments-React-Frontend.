@@ -21,9 +21,12 @@ interface ProductCardProps {
    *  New Arrivals, the full catalogue) keeps its current, calmer look — this was scoped
    *  specifically to the Deals page/homepage section, not a sitewide change. */
   emphasizeDeal?: boolean;
+  /** Shorter image (2:1) for pages that want compact cards, e.g. Deals. The product list keeps the
+   *  default 16:9 (owner, 2026-11-28). */
+  compactImage?: boolean;
 }
 
-export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductCardProps) {
+export function ProductCard({ product: p, onConfigure, emphasizeDeal, compactImage }: ProductCardProps) {
   const stock = getStockInfo(p, null, 0);
 
   const image = cloudinaryOptimized(p.primaryImageUrl, 480);
@@ -88,7 +91,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
     <article
       className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-secondary">
+      <div className={`relative w-full overflow-hidden bg-secondary ${compactImage ? "aspect-[2/1]" : "aspect-[16/9]"}`}>
         {image ? (
           <img
             src={image}

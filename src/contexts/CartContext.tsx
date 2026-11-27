@@ -30,6 +30,10 @@ export interface CartItem {
   unitsInStock?: number | null;
   /** False when checkout would refuse this line (out of stock, removed, or more than is in stock). */
   purchasable?: boolean;
+  /** Product's base unit code (e.g. "PKT") and pieces in one — from the cart API once the store
+   *  API branch feat/pieces-per-unit is live; undefined before that (cart then says "each"). */
+  risellerUomName?: string | null;
+  piecesPerUnit?: number | null;
 }
 
 /** What to show in the just-added mini-cart (CartAddedSheet) — deliberately NOT the full merged
@@ -128,6 +132,8 @@ function parseBackendCart(data: unknown): CartItem[] | null {
       stockStatus: it.stockStatus ?? undefined,
       unitsInStock: it.unitsInStock != null ? Number(it.unitsInStock) : null,
       purchasable: it.purchasable !== false,
+      risellerUomName: it.risellerUomName ?? null,
+      piecesPerUnit: it.piecesPerUnit != null ? Number(it.piecesPerUnit) : null,
     });
   }
   return items;
