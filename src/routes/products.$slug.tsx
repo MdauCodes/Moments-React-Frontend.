@@ -330,9 +330,11 @@ export default function ProductDetail() {
         <span className="text-foreground">{product.name}</span>
       </nav>
 
-      <section className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:gap-8 sm:py-8 lg:grid-cols-5 lg:gap-10 lg:px-8 lg:py-10">
+      <section className="mx-auto grid max-w-7xl gap-6 px-5 py-6 sm:gap-8 sm:py-8 lg:grid-cols-12 lg:gap-10 lg:px-8 lg:py-10">
         {/* LEFT — gallery */}
-        <div className="lg:col-span-3">
+        {/* Compact photo column (owner, 2026-11-27): the photo is capped small, so the info and
+            buy box get the width instead of empty space beside a capped image. */}
+        <div className="lg:col-span-5">
           <ProductGallery
             images={allImages}
             productName={product.name}
@@ -347,7 +349,7 @@ export default function ProductDetail() {
         </div>
 
         {/* RIGHT — info + configurator */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-7">
           {productIndustries.length > 0 && (
             <div className="mb-4 flex flex-wrap gap-2">
               {productIndustries.map((ind: any) => (

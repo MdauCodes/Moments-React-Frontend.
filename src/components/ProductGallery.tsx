@@ -65,7 +65,7 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
           at every breakpoint so a wide desktop grid column can't stretch this into a letterboxed
           rectangle the way height-only clamping did (flex-1 + a max-width + mx-auto is the
           standard flex trick: grow to fill space up to the cap, then center in what's left). */}
-      <div className="relative mx-auto aspect-[4/3] max-h-[260px] w-full flex-1 sm:aspect-square sm:max-h-[380px] sm:max-w-[380px] lg:max-h-[440px] lg:max-w-[440px]">
+      <div className="relative mx-auto aspect-[16/10] max-h-[200px] w-full flex-1 sm:aspect-square sm:max-h-[300px] sm:max-w-[300px] lg:max-h-[340px] lg:max-w-[340px]">
         <button
           type="button"
           onClick={() => setLightboxOpen(true)}
@@ -90,13 +90,13 @@ export function ProductGallery({ images, productName, badges }: ProductGalleryPr
       </div>
 
       {images.length > 1 && (
-        <div className="scrollbar-hide flex gap-2 overflow-x-auto lg:w-20 lg:flex-shrink-0 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto">
+        <div className="scrollbar-hide flex gap-2 overflow-x-auto lg:w-14 lg:flex-shrink-0 lg:flex-col lg:overflow-x-visible lg:overflow-y-auto">
           {images.map((img, i) => (
             <button
               key={img + i}
               type="button"
               onClick={() => setActiveIndex(i)}
-              className={`h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors lg:h-20 lg:w-20 ${
+              className={`h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border-2 transition-colors lg:h-14 lg:w-14 ${
                 i === activeIndex ? "border-primary" : "border-transparent hover:border-border"
               }`}
             >
