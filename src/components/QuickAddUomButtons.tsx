@@ -53,8 +53,8 @@ export function QuickAddUomButtons({
   // the clearest possible "yes, that registered" feedback alongside the toast.
   const [justAdded, setJustAdded] = useState<string | null>(null);
 
-  // Per-option × N multiplier, used by both layouts (the product page used to rely on a separate
-  // quantity panel that only appeared after the first add). Keyed by option so "Carton" and "Packet" on the same product each keep
+  // Per-option × N multiplier — card layout only (the product page has its own "Add more?" box,
+  // shown after the first add). Keyed by option so "Carton" and "Packet" on the same product each keep
   // their own count. Resets to 1 after a successful add, same reasoning as justAdded: the next tap
   // is far more likely to be a fresh decision than "add 3 more of what I just added".
   const [multipliers, setMultipliers] = useState<Record<string, number>>({});
@@ -213,84 +213,50 @@ export function QuickAddUomButtons({
     );
   }
 
-  // Detail (product page) layout: one full-width block per option, all built the same way — name
-  // and price on top, a − n + stepper and a wide Add button underneath — so the options line up
-  // instead of sitting in uneven half-width cards (owner, 2026-11-27).
+  // Detail (product page) layout: one tappable card per option — the whole card is the button,
+  // no extra steppers (owner preferred the fewest buttons, 2026-11-27). Cards are full width and
+  // built the same way — name and contents on the left, price and a "+ Add" badge on the right —
+  // so they line up. After the first add, the page's own "Add more?" box takes larger quantities.
   return (
     <div className="flex flex-col gap-2">
-      {visible.map((opt) => {
-        const mult = getMultiplier(opt.key);
-        const effQuantity = opt.quantity * mult;
-        const effLineTotal = opt.lineTotal * mult;
-        const effPackQty = opt.packQty * mult;
-        return (
-          <div
-            key={opt.key}
-            className={`flex flex-col gap-3 rounded-xl border-2 px-4 py-3 ${
-              opt.isCheapestPerUnit && visible.length > 1 ? "border-primary bg-primary/5" : "border-border bg-card"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-base text-foreground">
-                  {cleanOptionTitle(opt.label)}
-                  {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
-                    <span className="rounded-full bg-forest/15 px-1.5 py-px font-sans text-[10px] font-semibold text-forest">
-                      Save {opt.savingsPct}%
-                    </span>
-                  )}
-                </p>
-                {opt.packQty > 1 && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
-                  </p>
-                )}
-              </div>
-              <p className="shrink-0 text-right">
-                <span className="block text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
-                <span className="block text-[11px] text-muted-foreground">per {opt.label.toLowerCase()}</span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex h-11 items-center overflow-hidden rounded-full border border-border bg-background">
-                <button
-                  type="button"
-                  aria-label={`Fewer ${opt.label}`}
-                  onClick={() => adjustMultiplier(opt.key, -1)}
-                  disabled={mult <= 1}
-                  className="grid h-full w-10 place-items-center text-foreground transition-colors hover:bg-secondary disabled:opacity-30 disabled:hover:bg-transparent"
-                >
-                  <Minus className="h-4 w-4" />
-                </button>
-                <span className="min-w-[1.75rem] text-center text-sm font-semibold tabular-nums" aria-live="polite">
-                  {mult}
+      {visible.map((opt) => (
+        <button
+          key={opt.key}
+          type="button"
+          disabled={justAdded === opt.key}
+          onClick={(e) => handleTap(e, opt)}
+          // Border-2 + shadow + an always-visible "+ Add" badge (never hover-only: touch devices
+          // have no hover) so the card reads as tappable on sight, not as a static price label.
+          className={`flex min-h-[72px] w-full items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.99] disabled:opacity-60 disabled:active:scale-100 ${
+            opt.isCheapestPerUnit && visible.length > 1
+              ? "border-primary bg-primary/5"
+              : "border-border bg-card hover:border-primary/40"
+          }`}
+        >
+          <span className="flex min-w-0 flex-col items-start">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-display text-base text-foreground">
+              Add 1 {cleanOptionTitle(opt.label).toLowerCase()}
+              {opt.isCheapestPerUnit && opt.savingsPct > 0 && (
+                <span className="rounded-full bg-forest/15 px-1.5 py-px font-sans text-[10px] font-semibold text-forest">
+                  Save {opt.savingsPct}%
                 </span>
-                <button
-                  type="button"
-                  aria-label={`More ${opt.label}`}
-                  onClick={() => adjustMultiplier(opt.key, 1)}
-                  className="grid h-full w-10 place-items-center text-foreground transition-colors hover:bg-secondary"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
-              </div>
-              <button
-                type="button"
-                disabled={justAdded === opt.key}
-                onClick={(e) => handleTap(e, opt)}
-                className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                <Plus className="h-4 w-4" />
-                Add · KES {effLineTotal.toLocaleString()}
-                <span className="sr-only">
-                  {" "}for {effQuantity.toLocaleString()} {pluralUnit(opt.label, effQuantity)}
-                  {effPackQty > 1 ? ` (${effPackQty.toLocaleString()} ${pluralUnit(opt.unitNoun, effPackQty)})` : ""}
-                </span>
-              </button>
-            </div>
-          </div>
-        );
-      })}
+              )}
+            </span>
+            {opt.packQty > 1 && (
+              <span className="mt-0.5 text-xs text-muted-foreground">
+                {opt.packQty.toLocaleString()} {pluralUnit(opt.unitNoun, opt.packQty)}
+              </span>
+            )}
+          </span>
+          <span className="flex shrink-0 items-center gap-3">
+            <span className="text-right text-sm font-semibold text-foreground">KES {opt.lineTotal.toLocaleString()}</span>
+            <span className="inline-flex h-9 items-center gap-1 rounded-full bg-primary px-3 text-sm font-semibold text-primary-foreground">
+              <Plus className="h-4 w-4" />
+              Add
+            </span>
+          </span>
+        </button>
+      ))}
       {overflow && onMoreOptions && (
         <button
           type="button"

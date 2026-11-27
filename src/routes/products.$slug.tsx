@@ -143,9 +143,9 @@ export default function ProductDetail() {
   // The demoted "order more than one" panel only needs to appear once a real choice has been
   // made on an eligible product; an ineligible (multi-dimension) product keeps showing it
   // unconditionally, exactly as before.
-  // Quick-add products pick their quantity in each option row (stepper + Add), so the separate
-  // quantity panel is only for products that go through the full configurator.
-  const showQuantityPanel = !eligible;
+  // Quick-add products: one tap on an option card adds it; the "Add more?" box then appears for
+  // larger quantities. Other products always show the quantity box.
+  const showQuantityPanel = !eligible || tierTouched;
 
   const enterprise = (product?.moq ?? 0) >= 10000;
   const saved = wishlist.has(product?.id ?? "");
@@ -456,6 +456,8 @@ export default function ProductDetail() {
                   onTierChosen={(tierId) => {
                     setSelectedTierId(tierId);
                     setTierTouched(true);
+                    setQty(1);
+                    setQtyError(null);
                   }}
                 />
               </div>
