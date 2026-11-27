@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import { customerStockMessage } from "@/lib/stock";
 import { toast } from "sonner";
 import { apiFetch } from "@/config/api";
 import { metaAddToCart } from "@/lib/metaEvents";
@@ -354,7 +355,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         });
         if (!res.ok) {
           const data = await res.json().catch(() => null);
-          toast.error(data?.message || "Couldn't update that quantity.");
+          toast.error(data?.message ? customerStockMessage(String(data.message)) : "Couldn't update that quantity.");
           if (previous != null) {
             setItems((prev) =>
               prev.map((it) =>

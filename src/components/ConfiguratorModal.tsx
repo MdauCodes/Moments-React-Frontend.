@@ -9,7 +9,8 @@ import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cleanUomLabel, individualUnitLabel, unitCount, unitPlural } from "@/lib/uomLabel";
-import { getStockInfo } from "@/lib/stock";
+import { getStockInfo, BULK_QUOTE_MESSAGE, bulkQuoteEnquiryMessage } from "@/lib/stock";
+import { useEnquiry } from "@/contexts/EnquiryContext";
 import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
 import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
@@ -22,6 +23,7 @@ interface ConfiguratorModalProps {
 
 export function ConfiguratorModal({ product, onClose, preSelectedTierId }: ConfiguratorModalProps) {
   const { addItem } = useCart();
+  const { openEnquiry } = useEnquiry();
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -135,14 +137,8 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
     const digitsOnly = v.replace(/\D/g, "");
     const n = digitsOnly === "" ? 0 : parseInt(digitsOnly, 10);
     setQuantity(n);
-    const requested = n * (selectedTier ? collectionQty : 1);
-    setError(
-      n < minQty
-        ? `Minimum: ${minQty.toLocaleString()}`
-        : stock.state === "low_stock" && requested > stock.available
-          ? `Only ${stock.available.toLocaleString()} left`
-          : null,
-    );
+    // Over the shelf count shows the bulk-quote box (stock.exceedsAvailable), never a count.
+    setError(n < minQty ? `Minimum: ${minQty.toLocaleString()}` : null);
   };
 
   const hasSizeOptions = (product.sizes?.length ?? 0) > 0;
@@ -158,10 +154,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
       setError(`Minimum: ${minQty.toLocaleString()}`);
       return;
     }
-    if (stock.exceedsAvailable) {
-      setError(`Only ${stock.available.toLocaleString()} left`);
-      return;
-    }
+    if (stock.exceedsAvailable) return; // the bulk-quote box is already showing
     if (sizeMissing) {
       setError("Please choose a size");
       return;
@@ -445,12 +438,6 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
                   if (quantity < minQty) {
                     setQuantity(minQty);
                     setError(null);
-                  } else if (stock.state === "low_stock") {
-                    const maxQty = Math.floor(stock.available / (selectedTier ? collectionQty : 1));
-                    if (quantity > maxQty) {
-                      setQuantity(Math.max(minQty, maxQty));
-                      setError(null);
-                    }
                   }
                 }}
                 className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -478,18 +465,57 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
 
           <p className="text-xs text-muted-foreground"></p>
 
+          {stock.canOrder && stock.exceedsAvailable && (
+            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+              <p className="text-sm text-foreground/85">{BULK_QUOTE_MESSAGE}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openEnquiry({
+                    topic: "bulk",
+                    product: { id: String(product.id), name: product.name, slug: product.slug },
+                    message: bulkQuoteEnquiryMessage(
+                      product.name,
+                      selectedTier
+                        ? `${quantity.toLocaleString()} × ${selectedTier.uomName ?? selectedTier.collectionName}`
+                        : `${quantity.toLocaleString()} pieces`,
+                    ),
+                  });
+                }}
+                className="mt-2 inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                Request full quantity
+              </button>
+            </div>
+          )}
+
           {!stock.canOrder ? (
-            <a
-              href={whatsappLink(
-                `Hi, I'd like to enquire about ${product.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={onClose}
-              className="block w-full rounded-full bg-accent px-6 py-3.5 text-center text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
-            >
-              Enquire on WhatsApp
-            </a>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openEnquiry({
+                    topic: "product",
+                    product: { id: String(product.id), name: product.name, slug: product.slug },
+                    message: `I'd like to order ${product.name}. Please let me know when you can supply it, and the price for my quantity.`,
+                  });
+                }}
+                className="block w-full rounded-full bg-accent px-6 py-3.5 text-center text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90"
+              >
+                Request this item
+              </button>
+              <a
+                href={whatsappLink(`Hi, I'd like to order ${product.name}. When can you supply it?`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={onClose}
+                className="block text-center text-xs font-medium text-muted-foreground underline underline-offset-4"
+              >
+                Or ask on WhatsApp
+              </a>
+            </div>
           ) : (hasCollections || individualEnabled) && showQuantityPanel ? (
             <button
               type="button"
@@ -498,7 +524,7 @@ export function ConfiguratorModal({ product, onClose, preSelectedTierId }: Confi
               title={
                 sizeMissing ? "Please choose a size first"
                   : tierMissing ? "Please choose how you'd like to buy first"
-                  : stock.exceedsAvailable ? `Only ${stock.available.toLocaleString()} left — reduce the quantity`
+                  : stock.exceedsAvailable ? BULK_QUOTE_MESSAGE
                   : undefined
               }
               className={`w-full rounded-full px-6 py-3.5 text-sm font-semibold shadow-sm transition-opacity ${

@@ -20,9 +20,10 @@ function fmt(n: number) {
 function unavailableReason(it: CartItem): string | null {
   if (it.purchasable !== false) return null;
   if (it.stockStatus === "OUT_OF_STOCK" || it.stockStatus === "MADE_TO_ORDER" || !it.unitsInStock) {
-    return "Out of stock now — please remove it to continue.";
+    return "Restocking now — remove it to continue, or ask us for a quote and we'll source it.";
   }
-  return `Only ${it.unitsInStock.toLocaleString()} unit${it.unitsInStock === 1 ? "" : "s"} left — lower the quantity to continue.`;
+  // Never the shelf count: a small number here put bulk buyers off (owner, 2026-11-27).
+  return "We'll supply this full quantity on request — lower it to check out now, or send us a quick request.";
 }
 
 function CartPage() {

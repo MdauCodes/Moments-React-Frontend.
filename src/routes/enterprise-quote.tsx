@@ -30,18 +30,18 @@ import { metaLead } from "@/lib/metaEvents";
 
 
 const schema = z.object({
-  contactName: z.string().trim().min(2, "Enter your full name").max(120),
-  email: z.string().trim().email("Enter a valid email").max(255),
-  phone: z.string().trim().min(7, "Enter a phone number").max(30),
-  company: z.string().trim().min(2, "Enter your company").max(160),
-  industry: z.string().min(1, "Pick an industry"),
+  contactName: z.string().trim().min(2, "Please add your name so we know who to ask for.").max(120),
+  email: z.string().trim().email("That email doesn't look quite right. Please check it, like name@company.co.ke.").max(255),
+  phone: z.string().trim().min(7, "Please add a phone number. We use it to call or WhatsApp you back.").max(30),
+  company: z.string().trim().min(2, "Please add your company or business name.").max(160),
+  industry: z.string().min(1, "Please pick the closest line of business."),
   estimatedQuantity: z
     .number({ message: "Tell us roughly how many units." })
     // An empty box parses to 0, which used to surface as "Minimum 10,000 units" — technically
     // true, but it reads as a rejection of a number they never typed.
     .refine((n) => n > 0, { message: "Tell us roughly how many units." })
     .refine((n) => Number.isInteger(n), { message: "Use a whole number, like 25000." })
-    .refine((n) => n >= 10000, { message: "Enterprise pricing starts at 10,000 units." }),
+    .refine((n) => n >= 10000, { message: "This form is for 10,000 units and up. For smaller orders you can buy straight from our shop." }),
   productInterest: z.string().trim().max(2000).optional().default(""),
   message: z.string().trim().max(2000).optional().default(""),
 });
@@ -66,6 +66,7 @@ function EnterpriseQuotePage() {
   const [consent, setConsent] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const fieldErrorCount = Object.values(errors).filter(Boolean).length;
   const { honeypot, setHoneypot, toPayload } = useBotDefenseFields();
   const renderedAt = useRef(Date.now()).current;
   const errorBannerRef = useRef<HTMLDivElement | null>(null);
@@ -131,7 +132,7 @@ function EnterpriseQuotePage() {
       setErrors(map);
       requestAnimationFrame(() =>
         focusFirstError(
-          ["eq-contactName", "eq-email", "eq-phone", "eq-company", "eq-industry", "eq-estimatedQuantity", "eq-consent"],
+          ["eq-contactName", "eq-company", "eq-phone", "eq-email", "eq-industry", "eq-estimatedQuantity", "eq-consent"],
           Object.fromEntries(Object.entries(map).map(([k, v]) => [`eq-${k}`, v])),
         ),
       );
@@ -166,7 +167,7 @@ function EnterpriseQuotePage() {
         return;
       }
       if (res.status === 422 || res.status === 400) {
-        setSubmitError("Some of those details were not accepted. Please check your phone number and email, then try again.");
+        setSubmitError("We could not accept some of those details. Please check your phone number and email, then send again.");
         return;
       }
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
@@ -174,7 +175,7 @@ function EnterpriseQuotePage() {
       setSuccess({ firstName, email: data.email });
       metaLead("enterprise-quote");
     } catch {
-      setSubmitError("That did not go through — nothing you typed has been lost, so please try again.");
+      setSubmitError("Sorry, that did not go through. Everything you typed is still here, so please tap send again.");
     } finally {
       setSubmitting(false);
       requestAnimationFrame(() => errorBannerRef.current?.focus());
@@ -186,7 +187,7 @@ function EnterpriseQuotePage() {
       <main className="bg-background">
         {/* Header */}
         <section className="bg-[#2d4a3e] text-[#f5f0e8]">
-          <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 py-12 text-center sm:py-20">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#c4622d]">
               Enterprise &amp; Bulk Orders
             </p>
@@ -197,7 +198,7 @@ function EnterpriseQuotePage() {
               For orders above 10,000 units we put together a price built around your order — with a
               production schedule and one person you deal with throughout.
             </p>
-            <div className="mt-7 flex flex-wrap justify-center gap-2">
+            <div className="mt-7 flex flex-wrap justify-center gap-2 sm:gap-3">
               {["Dedicated account manager", "Custom pricing", "Priority production"].map((c) => (
                 <span
                   key={c}
@@ -211,8 +212,8 @@ function EnterpriseQuotePage() {
         </section>
 
         {/* Form */}
-        <section className="px-4 py-12 sm:py-16">
-          <div className="mx-auto w-full max-w-[560px]">
+        <section className="px-4 py-10 sm:py-16">
+          <div className="mx-auto w-full max-w-[720px]">
             {success ? (
               <div
                 ref={successRef}
@@ -230,6 +231,11 @@ function EnterpriseQuotePage() {
                   <span className="font-medium text-foreground">{success.email}</span> within one
                   working day.
                 </p>
+                <ol className="mx-auto mt-6 max-w-sm space-y-2 text-left text-sm text-foreground/80">
+                  <li className="flex gap-3"><StepDot n={1} />We check stock, sizes and printing for your quantity.</li>
+                  <li className="flex gap-3"><StepDot n={2} />We send you a written quote with price and delivery date.</li>
+                  <li className="flex gap-3"><StepDot n={3} />You confirm, and we schedule production and delivery.</li>
+                </ol>
                 {whatsappNumber && (
                   <a
                     href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
@@ -246,144 +252,170 @@ function EnterpriseQuotePage() {
             ) : (
               <form
                 onSubmit={handleSubmit}
-                className="rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8"
+                className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-8"
                 noValidate
               >
-                <h2 className="font-display text-2xl text-foreground">Tell us what you need</h2>
+                <h2 className="font-display text-2xl text-foreground sm:text-[28px]">Tell us what you need</h2>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  A few details is all it takes — we will come back to you with real numbers.
+                  Three short steps. We reply within one working day with real prices.
+                  Fields marked <span className="text-[#c4622d]">*</span> are needed.
                 </p>
-                <div className="mt-6 space-y-4">
-                  <Field id="eq-contactName" label="Your name" error={errors.contactName} required>
-                    <Input
-                      id="eq-contactName"
-                      value={form.contactName}
-                      onChange={(e) => update("contactName", e.target.value)}
-                      autoComplete="name"
-                      aria-invalid={errors.contactName ? true : undefined}
-                      aria-describedby={errors.contactName ? "eq-contactName-error" : undefined}
-                      className="min-h-[48px]"
-                    />
-                  </Field>
-                  <Field id="eq-email" label="Work email" error={errors.email} required>
-                    <Input
-                      id="eq-email"
-                      type="email"
-                      inputMode="email"
-                      value={form.email}
-                      onChange={(e) => update("email", e.target.value)}
-                      autoComplete="email"
-                      aria-invalid={errors.email ? true : undefined}
-                      aria-describedby={errors.email ? "eq-email-error" : undefined}
-                      className="min-h-[48px]"
-                    />
-                  </Field>
-                  <Field
-                    id="eq-phone"
-                    label="Phone number"
-                    error={errors.phone}
-                    required
-                    helper="We reply on WhatsApp too. 0712 345 678 is fine."
-                  >
-                    <Input
+
+                {fieldErrorCount > 0 && (
+                  <div role="status" className="mt-5 rounded-xl border border-[#c4622d]/40 bg-[#c4622d]/10 px-4 py-3 text-sm text-foreground">
+                    {fieldErrorCount === 1
+                      ? "One detail needs a quick look. It is marked below."
+                      : `${fieldErrorCount} details need a quick look. They are marked below.`}
+                  </div>
+                )}
+
+                <FormStep n={1} title="About you">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field id="eq-contactName" label="Your name" error={errors.contactName} required>
+                      <Input
+                        id="eq-contactName"
+                        value={form.contactName}
+                        onChange={(e) => update("contactName", e.target.value)}
+                        autoComplete="name"
+                        aria-invalid={errors.contactName ? true : undefined}
+                        aria-describedby={errors.contactName ? "eq-contactName-error" : undefined}
+                        className={INPUT_CLASS}
+                      />
+                    </Field>
+                    <Field id="eq-company" label="Company name" error={errors.company} required>
+                      <Input
+                        id="eq-company"
+                        value={form.company}
+                        onChange={(e) => update("company", e.target.value)}
+                        autoComplete="organization"
+                        aria-invalid={errors.company ? true : undefined}
+                        aria-describedby={errors.company ? "eq-company-error" : undefined}
+                        className={INPUT_CLASS}
+                      />
+                    </Field>
+                    <Field
                       id="eq-phone"
-                      type="tel"
-                      inputMode="tel"
-                      value={form.phone}
-                      onChange={(e) => update("phone", e.target.value)}
-                      onBlur={() => {
-                        const tidy = normalizeKenyanPhone(form.phone);
-                        if (tidy && tidy !== form.phone) update("phone", tidy);
-                      }}
-                      autoComplete="tel"
-                      placeholder="0712 345 678"
-                      aria-invalid={errors.phone ? true : undefined}
-                      aria-describedby={errors.phone ? "eq-phone-error" : "eq-phone-helper"}
-                      className="min-h-[48px]"
-                    />
-                  </Field>
-                  <Field id="eq-company" label="Company name" error={errors.company} required>
-                    <Input
-                      id="eq-company"
-                      value={form.company}
-                      onChange={(e) => update("company", e.target.value)}
-                      autoComplete="organization"
-                      aria-invalid={errors.company ? true : undefined}
-                      aria-describedby={errors.company ? "eq-company-error" : undefined}
-                      className="min-h-[48px]"
-                    />
-                  </Field>
-                  <Field id="eq-industry" label="What line of business?" error={errors.industry} required>
-                    <Select value={form.industry} onValueChange={(v) => update("industry", v)}>
-                      <SelectTrigger
-                        id="eq-industry"
-                        aria-invalid={errors.industry ? true : undefined}
-                        aria-describedby={errors.industry ? "eq-industry-error" : undefined}
-                        className="min-h-[48px]"
-                      >
-                        <SelectValue placeholder="Pick the closest one" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {industryNames.map((name) => (
-                          <SelectItem key={name} value={name}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field
-                    id="eq-estimatedQuantity"
-                    label="Roughly how many units?"
-                    error={errors.estimatedQuantity}
-                    required
-                    helper="Enterprise pricing starts at 10,000 units."
-                  >
-                    <Input
+                      label="Phone number"
+                      error={errors.phone}
+                      required
+                      helper="We call or WhatsApp you on this number."
+                    >
+                      <Input
+                        id="eq-phone"
+                        type="tel"
+                        inputMode="tel"
+                        value={form.phone}
+                        onChange={(e) => update("phone", e.target.value)}
+                        onBlur={() => {
+                          const tidy = normalizeKenyanPhone(form.phone);
+                          if (tidy && tidy !== form.phone) update("phone", tidy);
+                        }}
+                        autoComplete="tel"
+                        placeholder="e.g. 0712 345 678"
+                        aria-invalid={errors.phone ? true : undefined}
+                        aria-describedby={errors.phone ? "eq-phone-error" : "eq-phone-helper"}
+                        className={INPUT_CLASS}
+                      />
+                    </Field>
+                    <Field id="eq-email" label="Work email" error={errors.email} required helper="Your written quote goes here.">
+                      <Input
+                        id="eq-email"
+                        type="email"
+                        inputMode="email"
+                        value={form.email}
+                        onChange={(e) => update("email", e.target.value)}
+                        autoComplete="email"
+                        placeholder="e.g. name@company.co.ke"
+                        aria-invalid={errors.email ? true : undefined}
+                        aria-describedby={errors.email ? "eq-email-error" : "eq-email-helper"}
+                        className={INPUT_CLASS}
+                      />
+                    </Field>
+                  </div>
+                </FormStep>
+
+                <FormStep n={2} title="Your order">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <Field id="eq-industry" label="Line of business" error={errors.industry} required>
+                      <Select value={form.industry} onValueChange={(v) => update("industry", v)}>
+                        <SelectTrigger
+                          id="eq-industry"
+                          aria-invalid={errors.industry ? true : undefined}
+                          aria-describedby={errors.industry ? "eq-industry-error" : undefined}
+                          className={INPUT_CLASS}
+                        >
+                          <SelectValue placeholder="Pick the closest one" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {industryNames.map((name) => (
+                            <SelectItem key={name} value={name}>
+                              {name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </Field>
+                    <Field
                       id="eq-estimatedQuantity"
-                      type="number"
-                      inputMode="numeric"
-                      min={10000}
-                      placeholder="e.g. 25000"
-                      value={form.estimatedQuantity}
-                      onChange={(e) => update("estimatedQuantity", e.target.value)}
-                      aria-invalid={errors.estimatedQuantity ? true : undefined}
-                      aria-describedby={
-                        errors.estimatedQuantity ? "eq-estimatedQuantity-error" : "eq-estimatedQuantity-helper"
-                      }
-                      className="min-h-[48px]"
-                    />
-                    {qtyTooLow && (
-                      <p className="mt-2 text-xs text-[#c4622d]">
-                        Under 10,000?{" "}
-                        <Link to="/products" className="underline underline-offset-2">
-                          You can order straight from our catalogue →
-                        </Link>
-                      </p>
-                    )}
-                  </Field>
-                  <Field id="eq-productInterest" label="What packaging are you after?" error={errors.productInterest}>
-                    <Textarea
-                      id="eq-productInterest"
-                      value={form.productInterest}
-                      onChange={(e) => update("productInterest", e.target.value)}
-                      placeholder="e.g. Printed kraft bags and food boxes"
-                      rows={3}
-                    />
-                  </Field>
-                  <Field id="eq-message" label="Anything else we should know?" error={errors.message}>
+                      label="Roughly how many units?"
+                      error={errors.estimatedQuantity}
+                      required
+                      helper="From 10,000 units. A rough number is fine."
+                    >
+                      <Input
+                        id="eq-estimatedQuantity"
+                        type="number"
+                        inputMode="numeric"
+                        min={10000}
+                        placeholder="e.g. 25000"
+                        value={form.estimatedQuantity}
+                        onChange={(e) => update("estimatedQuantity", e.target.value)}
+                        aria-invalid={errors.estimatedQuantity ? true : undefined}
+                        aria-describedby={
+                          errors.estimatedQuantity ? "eq-estimatedQuantity-error" : "eq-estimatedQuantity-helper"
+                        }
+                        className={INPUT_CLASS}
+                      />
+                    </Field>
+                  </div>
+                  {qtyTooLow && !errors.estimatedQuantity && (
+                    <p className="mt-3 rounded-lg bg-secondary px-3 py-2 text-xs text-foreground/80">
+                      Under 10,000 units?{" "}
+                      <Link to="/products" className="font-medium text-[#c4622d] underline underline-offset-2">
+                        Order straight from our shop
+                      </Link>{" "}
+                      — it is quicker.
+                    </p>
+                  )}
+                  <div className="mt-4">
+                    <Field id="eq-productInterest" label="What packaging are you after?" error={errors.productInterest}>
+                      <Textarea
+                        id="eq-productInterest"
+                        value={form.productInterest}
+                        onChange={(e) => update("productInterest", e.target.value)}
+                        placeholder="e.g. Printed kraft bags and food boxes"
+                        rows={3}
+                        className={TEXTAREA_CLASS}
+                      />
+                    </Field>
+                  </div>
+                </FormStep>
+
+                <FormStep n={3} title="Anything else" last>
+                  <Field id="eq-message" label="Sizes, branding, delivery dates" error={errors.message}>
                     <Textarea
                       id="eq-message"
                       value={form.message}
                       onChange={(e) => update("message", e.target.value)}
-                      placeholder="Sizes, branding, delivery dates — whatever matters to you."
-                      rows={4}
+                      placeholder="Whatever matters to you. You can leave this empty."
+                      rows={3}
+                      className={TEXTAREA_CLASS}
                     />
                   </Field>
-                </div>
+                </FormStep>
                 <HoneypotField value={honeypot} onChange={setHoneypot} />
                 <TurnstileWidget onToken={setTurnstileToken} />
-                <div className="mt-5">
+                <div className="mt-6 border-t border-border pt-5">
                   <ConsentCheckbox
                     id="eq-consent"
                     checked={consent}
@@ -429,8 +461,11 @@ function EnterpriseQuotePage() {
                   disabled={submitting}
                   className="mt-5 h-[52px] w-full bg-[#2d4a3e] text-base text-[#f5f0e8] hover:bg-[#2d4a3e]/90"
                 >
-                  {submitting ? "Sending…" : "Send my quote request"}
+                  {submitting ? "Sending your request…" : "Send my quote request"}
                 </Button>
+                <p className="mt-3 text-center text-xs text-muted-foreground">
+                  No payment now. We reply within one working day.
+                </p>
               </form>
             )}
           </div>
@@ -456,6 +491,35 @@ function EnterpriseQuotePage() {
   );
 }
 
+const INPUT_CLASS = "min-h-[48px]";
+const TEXTAREA_CLASS = "min-h-[96px]";
+
+/** A numbered group of fields, so the form reads as three short steps rather than one long list. */
+function FormStep({ n, title, last, children }: { n: number; title: string; last?: boolean; children: React.ReactNode }) {
+  return (
+    <fieldset className={`mt-6 ${last ? "" : "border-b border-border pb-6"}`}>
+      <legend className="mb-4 text-base font-semibold text-foreground">
+        <span className="flex items-center gap-3">
+          <StepDot n={n} />
+          {title}
+        </span>
+      </legend>
+      {children}
+    </fieldset>
+  );
+}
+
+function StepDot({ n }: { n: number }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#2d4a3e] text-xs font-semibold text-[#f5f0e8]"
+    >
+      {n}
+    </span>
+  );
+}
+
 /** `id` is required: it ties the label to the control and gives the hint/error stable ids for the
  *  control's aria-describedby. Before this, none of these labels were associated with anything. */
 function Field({
@@ -474,7 +538,7 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <Label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
         {required && (

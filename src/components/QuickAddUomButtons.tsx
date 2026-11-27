@@ -85,7 +85,8 @@ export function QuickAddUomButtons({
     const stock = getStockInfo(product, null, effectiveTotalUnits);
     if (!stock.canOrder) return;
     if (stock.exceedsAvailable) {
-      toast.error(`Only ${stock.available.toLocaleString()} left — reduce the quantity to add this.`);
+      // No count to the customer: point them at a bulk quote on the product page instead.
+      toast.message("We'll supply this full quantity on request — open the product and tap “Request full quantity”.");
       return;
     }
 

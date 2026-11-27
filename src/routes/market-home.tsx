@@ -631,9 +631,7 @@ function MarketCard({
         ) : p.moq > 1 ? (
           <p className="text-[11px] text-muted-foreground">Min. order {p.moq}</p>
         ) : null}
-        {stock.state === "low_stock" && (
-          <p className="text-[11px] font-semibold text-amber-800">{stock.label}</p>
-        )}
+        {/* No low-stock line here: customers see "In stock" only, never a count (owner, 2026-11-27). */}
         <button
           type="button"
           onClick={(e) => {

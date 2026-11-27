@@ -1,5 +1,4 @@
 import type { Product } from "@/data/products";
-import { unitCount } from "@/lib/uomLabel";
 
 export type StockState = "in_stock" | "low_stock" | "out_of_stock" | "untracked";
 
@@ -74,7 +73,10 @@ export function getStockInfo(
       state: "low_stock",
       available,
       threshold,
-      label: `Only ${unitCount(available, product.risellerUomName)} left`,
+      // Customer-facing: never a small count. Bulk buyers read "only 3 left" as "they can't handle
+      // my order" (owner, 2026-11-27). The exact count stays in `available` for the quantity check
+      // and for staff pages, which read stock from the admin API.
+      label: "In stock",
       exceedsAvailable: requestedQty > available,
       canOrder: true,
       isMadeToOrder: false,
@@ -86,7 +88,7 @@ export function getStockInfo(
       state: "in_stock",
       available,
       threshold,
-      label: `In stock — ${unitCount(available, product.risellerUomName)}`,
+      label: "In stock",
       exceedsAvailable: false,
       canOrder: true,
       isMadeToOrder: false,
@@ -102,4 +104,26 @@ export function getStockInfo(
     canOrder: true,
     isMadeToOrder: false,
   };
+}
+
+/** Shown when a customer asks for more than the shelf holds right now. Never names the count:
+ *  it points them at a bulk quote instead, which is how Moments handles large orders anyway. */
+export const BULK_QUOTE_MESSAGE =
+  "Need this many? We'll supply your full quantity — send us a quick request and we'll confirm the price and delivery.";
+
+/** Pre-filled enquiry text for a bulk request of one product. */
+export function bulkQuoteEnquiryMessage(productName: string, quantityText?: string): string {
+  return quantityText
+    ? `Please supply ${quantityText} of ${productName}. What is the price and when can you deliver?`
+    : `I'd like a bulk quote for ${productName}. My quantity is: `;
+}
+
+/** The store API words its stock refusals with the exact shelf count ("Only 8 units of ... are
+ *  currently in stock", "Insufficient stock ... Available: 8"). Swap those for the bulk-quote
+ *  wording before a customer sees them; any other message passes through unchanged. */
+export function customerStockMessage(message: string): string {
+  if (/\bonly\s+\d+\s+unit/i.test(message) || /insufficient stock/i.test(message) || /available:\s*\d+/i.test(message)) {
+    return "We'll supply this full quantity on request. Lower it to check out now, or send us a quick request and we'll confirm the price and delivery.";
+  }
+  return message;
 }

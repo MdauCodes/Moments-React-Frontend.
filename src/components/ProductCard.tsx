@@ -136,14 +136,12 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
                    visually almost identical. */
                 stock.state === "out_of_stock"
                   ? "bg-secondary text-muted-foreground"
-                  : stock.state === "low_stock"
-                    ? "bg-amber-500 text-amber-950"
-                    : "bg-green-700 text-white"
+                  : "bg-green-700 text-white"
               }`}
             >
               {stock.state === "out_of_stock"
                 ? stock.isMadeToOrder ? "Made to Order" : "Out of Stock"
-                : stock.state === "low_stock" ? stock.label : "In Stock"}
+                : "In Stock"}
             </span>
           )}
 
@@ -306,7 +304,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           <p className="text-[11px] text-muted-foreground sm:text-sm">Contact for pricing</p>
         )}
 
-        <StockLine state={stock.state} count={stock.available} label={stock.label} isMadeToOrder={stock.isMadeToOrder} emphasize={emphasizeDeal} />
+        <StockLine state={stock.state} isMadeToOrder={stock.isMadeToOrder} emphasize={emphasizeDeal} />
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2 sm:gap-2 sm:pt-3">
           {!eligible && (
@@ -363,7 +361,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
               }}
               className="w-full rounded-full border border-primary/30 bg-secondary px-2 py-2 text-center text-[11px] font-semibold leading-tight text-foreground transition-colors hover:bg-secondary/70 sm:px-3 sm:text-xs"
             >
-              Enquire
+              Request this item
             </button>
           )}
         </div>
@@ -375,46 +373,35 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
 
 function StockLine({
   state,
-  count,
-  label,
   isMadeToOrder,
   emphasize,
 }: {
   state: string;
-  count: number;
-  label: string;
   isMadeToOrder?: boolean;
   emphasize?: boolean;
 }) {
   if (state === "untracked" || state === "in_stock") return null;
 
   if (state === "low_stock") {
-    // Deals-page emphasis is still driven by the same real stockCount as everywhere else — this
-    // only ever shows for products genuinely low on stock, never fabricated for effect.
+    // Low stock reads the same as in stock to customers: a small "only N left" count put bulk
+    // buyers off (owner, 2026-11-27). The Deals page keeps its flame tag, without a number.
     if (emphasize) {
       return (
         <div className="mt-1 flex items-center gap-1.5 text-[10px] sm:text-[11px]">
           <span className="inline-flex items-center gap-1 rounded-full bg-red-600 px-2 py-0.5 font-semibold text-white shadow-sm">
             <Flame className="h-3 w-3" />
-            {count > 0 ? `Only ${count.toLocaleString()} left — going fast` : label}
+            Hot deal
           </span>
         </div>
       );
     }
-    return (
-      <div className="mt-1 flex items-center gap-1.5 text-[10px] sm:text-[11px]">
-        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-px font-medium text-amber-700">
-          <span className="h-1 w-1 rounded-full bg-current" />
-          {count > 0 ? `Only ${count.toLocaleString()} left` : label}
-        </span>
-      </div>
-    );
+    return null;
   }
 
   return (
     // /85 rather than /70 — /70 landed at 4.46:1, just under the 4.5:1 AA line for 10px text.
     <p className="mt-1 text-[10px] text-muted-foreground/85 sm:text-[11px]">
-      {isMadeToOrder ? "Made to order — enquire for availability." : "Out of stock — enquire for availability."}
+      {isMadeToOrder ? "Made to order — request it and we'll confirm lead time." : "Restocking — request it and we'll source it for you."}
     </p>
   );
 }

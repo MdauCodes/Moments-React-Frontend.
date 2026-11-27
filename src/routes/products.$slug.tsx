@@ -15,7 +15,7 @@ import { api } from "@/services/api";
 import { apiUrl } from "@/config/api";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
-import { getStockInfo } from "@/lib/stock";
+import { getStockInfo, BULK_QUOTE_MESSAGE, bulkQuoteEnquiryMessage } from "@/lib/stock";
 import { getQuickAddTiers, isQuickAddEligible } from "@/lib/quickAdd";
 import { QuickAddUomButtons } from "@/components/QuickAddUomButtons";
 import { LidSuggestions } from "@/components/LidSuggestions";
@@ -169,14 +169,9 @@ export default function ProductDetail() {
     const n = Number(v);
     if (Number.isNaN(n)) return;
     setQty(n);
-    const requested = n * (selectedTier ? collectionQty : 1);
-    setQtyError(
-      n < minQty
-        ? `Minimum: ${minQty.toLocaleString()}`
-        : stock.state === "low_stock" && requested > stock.available
-          ? `Only ${stock.available.toLocaleString()} left`
-          : null,
-    );
+    // More than the shelf holds is not an error message with a count: the bulk-quote box under
+    // the button (stock.exceedsAvailable) takes over instead.
+    setQtyError(n < minQty ? `Minimum: ${minQty.toLocaleString()}` : null);
   };
 
   const handleSelectTier = (tierKey: string | null) => {
@@ -200,7 +195,7 @@ export default function ProductDetail() {
     if (!stock.canOrder) return; // UI already hides this control — guard in case that ever changes
     if (enterprise) { navigate("/enterprise-quote"); return; }
     if (qty < minQty) { setQtyError(`Minimum: ${minQty.toLocaleString()}`); return; }
-    if (stock.exceedsAvailable) { setQtyError(`Only ${stock.available.toLocaleString()} left`); return; }
+    if (stock.exceedsAvailable) return; // the bulk-quote box below the button is already showing
     if (sizeMissing) return; // the Size field's own inline prompt (sizeMissing) is already visible
     if (tierMissing) return; // ditto for the tier prompt near "Choose how to buy"
     addItem({
@@ -445,8 +440,14 @@ export default function ProductDetail() {
           <div className="mt-5 space-y-4 rounded-2xl border border-kraft/20 bg-card p-4 shadow-sm sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <StockBadge state={stock.state} label={stock.label} isMadeToOrder={stock.isMadeToOrder} />
-              {stock.state !== "untracked" && stock.state !== "out_of_stock" && Number.isFinite(stock.available) && stock.available > 0 && (
-                <span className="text-xs text-muted-foreground/70">{unitCount(stock.available, product.risellerUomName)} available</span>
+              {stock.canOrder && (
+                <button
+                  type="button"
+                  onClick={() => openEnquiry({ topic: "bulk", product: { id: String(product.id), name: product.name, slug: product.slug }, message: bulkQuoteEnquiryMessage(product.name) })}
+                  className="text-xs font-medium text-accent underline underline-offset-4"
+                >
+                  Ordering in bulk? Ask us for a quote
+                </button>
               )}
             </div>
 
@@ -455,7 +456,7 @@ export default function ProductDetail() {
                 <p className="text-sm text-foreground/80">
                   {stock.isMadeToOrder
                     ? "This item is made to order and isn't available for direct purchase right now. Send us an enquiry and we'll get back to you with availability and lead time."
-                    : "This item is currently out of stock. Send us an enquiry and we'll let you know when it's back, or offer an alternative."}
+                    : "We're restocking this item. Tap Request this item and we'll confirm when we can supply your quantity, or suggest a close match."}
                 </p>
               </div>
             )}
@@ -473,8 +474,8 @@ export default function ProductDetail() {
                         <span className="text-xs font-semibold text-foreground">{v.label}</span>
                         <span className="mt-0.5 text-[11px] text-muted-foreground">
                           {v.price ? `KES ${v.price.toLocaleString()}` : "—"}{" · "}
-                          <span className={vStock.state === "out_of_stock" ? "text-destructive" : vStock.state === "low_stock" ? "text-accent" : "text-foreground/70"}>
-                            {vStock.state === "out_of_stock" ? "Out of stock" : vStock.state === "low_stock" ? `${vStock.available} left` : "In stock"}
+                          <span className={vStock.state === "out_of_stock" ? "text-destructive" : "text-foreground/70"}>
+                            {vStock.state === "out_of_stock" ? "Restocking" : "In stock"}
                           </span>
                         </span>
                       </button>
@@ -501,16 +502,13 @@ export default function ProductDetail() {
               <ConfigField
                 label={eligible ? "Add more?" : selectedTier ? `Number of ${selectedTier.uomName ?? selectedTier.collectionName}s` : "Quantity"}
                 note={eligible ? undefined : selectedTier ? `(× ${collectionQty} pieces each)` : `(Min. ${product.moq.toLocaleString()} pieces)`}>
+                {/* No max and no silent clamp to the shelf count: a capped box tells a bulk buyer
+                    the same thing "only N left" did. A large quantity shows the bulk-quote box. */}
                 <input type="number" min={minQty}
-                  max={stock.state === "low_stock" ? Math.floor(stock.available / (selectedTier ? collectionQty : 1)) : undefined}
                   step={1} value={qty}
                   onChange={(e) => handleQty(e.target.value)}
                   onBlur={() => {
                     if (qty < minQty) setQty(minQty);
-                    else if (stock.state === "low_stock") {
-                      const maxQty = Math.floor(stock.available / (selectedTier ? collectionQty : 1));
-                      if (qty > maxQty) setQty(Math.max(minQty, maxQty));
-                    }
                     setQtyError(null);
                   }}
                   className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20" />
@@ -539,15 +537,25 @@ export default function ProductDetail() {
 
             {stock.canOrder && <LidSuggestions productName={product.name} />}
             {!stock.canOrder ? (
-              <a
-                href={whatsappLink(
-                  `Hi, I'd like to enquire about ${product.name} — it's currently showing as ${stock.isMadeToOrder ? "made to order" : "out of stock"}. Is it available?`,
-                )}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex h-[52px] w-full items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">
-                Enquire on WhatsApp
-              </a>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => openEnquiry({
+                    topic: "product",
+                    product: { id: String(product.id), name: product.name, slug: product.slug },
+                    message: `I'd like to order ${product.name}. Please let me know when you can supply it, and the price for my quantity.`,
+                  })}
+                  className="flex h-[52px] w-full items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground shadow-sm transition-opacity hover:opacity-90">
+                  Request this item
+                </button>
+                <a
+                  href={whatsappLink(`Hi, I'd like to order ${product.name}. When can you supply it?`)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center text-xs font-medium text-muted-foreground underline underline-offset-4">
+                  Or ask on WhatsApp
+                </a>
+              </div>
             ) : enterprise ? (
               <button type="button" onClick={() => navigate("/enterprise-quote")}
                 className="h-[52px] w-full rounded-full border border-primary text-sm font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground">
@@ -559,7 +567,7 @@ export default function ProductDetail() {
                 title={
                   sizeMissing ? "Please choose a size first"
                     : tierMissing ? "Please choose how you'd like to buy first"
-                    : stock.exceedsAvailable ? `Only ${stock.available.toLocaleString()} left — reduce the quantity`
+                    : stock.exceedsAvailable ? BULK_QUOTE_MESSAGE
                     : undefined
                 }
                 className={`h-[52px] w-full rounded-full text-sm font-semibold shadow-sm transition-opacity ${
@@ -570,6 +578,27 @@ export default function ProductDetail() {
                 {eligible ? `Add ${qty.toLocaleString()} more` : "Add to cart"}
               </button>
             ) : null}
+
+            {stock.canOrder && !enterprise && showQuantityPanel && stock.exceedsAvailable && (
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="text-sm text-foreground/85">{BULK_QUOTE_MESSAGE}</p>
+                <button
+                  type="button"
+                  onClick={() => openEnquiry({
+                    topic: "bulk",
+                    product: { id: String(product.id), name: product.name, slug: product.slug },
+                    message: bulkQuoteEnquiryMessage(
+                      product.name,
+                      selectedTier
+                        ? `${qty.toLocaleString()} × ${selectedTier.uomName ?? selectedTier.collectionName} (${(qty * collectionQty).toLocaleString()} pieces)`
+                        : `${qty.toLocaleString()} pieces`,
+                    ),
+                  })}
+                  className="mt-2 inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90">
+                  Request full quantity
+                </button>
+              </div>
+            )}
 
             <button
               type="button"
@@ -687,10 +716,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function StockBadge({ state, label, isMadeToOrder }: { state: string; label: string; isMadeToOrder?: boolean }) {
   if (state === "untracked") return null;
+  // Low stock shows as plain "In stock" to customers (no "Low stock" tag, no count).
   const styles = state === "out_of_stock" ? "bg-red-50 text-red-700 border-red-300"
-    : state === "low_stock" ? "bg-amber-50 text-amber-700 border-amber-300"
     : "bg-green-50 text-green-700 border-green-300";
-  const displayLabel = state === "out_of_stock" ? (isMadeToOrder ? "Made to order" : "Out of stock") : state === "low_stock" ? "Low stock" : "In stock";
+  const displayLabel = state === "out_of_stock" ? (isMadeToOrder ? "Made to order" : "Out of stock") : "In stock";
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wider ${styles}`} title={label}>
       <span className="h-1.5 w-1.5 rounded-full bg-current" /> {displayLabel}

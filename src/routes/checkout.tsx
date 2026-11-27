@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
+import { customerStockMessage } from "@/lib/stock";
 import { PaymentFailedFeedback } from "@/components/CheckoutFeedbackCards";
 import { SoftNote } from "@/components/SoftNote";
 import { CheckoutCouponUnlock, type UnlockedCoupons } from "@/components/CheckoutCouponUnlock";
@@ -1241,7 +1242,7 @@ function CheckoutModal() {
       enterWaiting(id, ref!);
     } catch (err) {
       setPayState("failed");
-      setErrorMsg(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      setErrorMsg(err instanceof Error ? customerStockMessage(err.message) : "Something went wrong. Please try again.");
     }
   }
 
