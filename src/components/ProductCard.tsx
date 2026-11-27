@@ -88,7 +88,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
     <article
       className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:-translate-y-1 hover:shadow-lg sm:rounded-2xl"
     >
-      <div className="relative aspect-[5/2] w-full overflow-hidden bg-secondary sm:aspect-[2/1]">
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-secondary">
         {image ? (
           <img
             src={image}
@@ -422,7 +422,7 @@ function SaveBadge({ amount }: { amount: number }) {
 export function ProductCardSkeleton() {
   return (
     <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card">
-      <div className="shimmer aspect-[5/2] w-full sm:aspect-[2/1]" />
+      <div className="shimmer aspect-[16/10] w-full" />
       <div className="flex flex-1 flex-col p-6">
         <div className="shimmer h-5 w-3/4 rounded-md" />
         <div className="shimmer mt-2 h-3 w-full rounded-md" />
