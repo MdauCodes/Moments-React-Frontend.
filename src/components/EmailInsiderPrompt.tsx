@@ -187,7 +187,7 @@ export function EmailInsiderPrompt({ onClose }: { onClose: () => void }) {
                 </li>
                 <li className="flex items-center gap-2">
                   <Tag className="h-3.5 w-3.5 text-primary" />
-                  Insider-only deals &amp; bulk pricing
+                  New products and offers by email
                 </li>
                 <li className="flex items-center gap-2">
                   <Sparkles className="h-3.5 w-3.5 text-primary" />

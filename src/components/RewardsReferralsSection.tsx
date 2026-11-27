@@ -91,7 +91,7 @@ export function RewardsReferralsSection() {
     if (!shareUrl) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Moments Packaging", text: `Use my code ${code} for a discount`, url: shareUrl });
+        await navigator.share({ title: "Moments Packaging", text: "Sign up with my link and we both earn Reward Coupons on your first order", url: shareUrl });
       } catch {
         /* cancelled */
       }
@@ -105,8 +105,7 @@ export function RewardsReferralsSection() {
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
         <HowItWorksCard icon={Gift} title="How Reward Coupons work">
-          You earn Reward Coupons from a welcome bonus on signup, on every paid order, and for leaving product
-          reviews. Redeem them for a real KES discount at checkout — no minimum order, no expiry.
+          Earn 1 Reward Coupon for every KES 100 you spend (10 coupons = KES 1 off), plus a welcome bonus and bonuses for product reviews. No expiry. Use them for up to 20% of an order; verify your email to use them more than 3 times. They can't be combined with a promo code.
         </HowItWorksCard>
         <HowItWorksCard icon={Users} title="How referrals work">
           Share your code below. When someone signs up with it and their first order is confirmed, you both earn
@@ -121,8 +120,7 @@ export function RewardsReferralsSection() {
         </div>
         {tier ? (
           <p className="mt-2 text-xs text-muted-foreground">
-            You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier —{" "}
-            {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
+            You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier{tier.perkDescription ? ` — ${tier.perkDescription.toLowerCase()}` : ""}.
           </p>
         ) : (
           <p className="mt-2 text-xs text-muted-foreground">Keep earning Reward Coupons to unlock a VIP tier.</p>

@@ -245,8 +245,7 @@ function OverviewTab({
             </div>
             {tier ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier —{" "}
-                {tier.discountPercent}% off every order{tier.perkDescription ? `, ${tier.perkDescription.toLowerCase()}` : ""}.
+                You're on the <span className="font-semibold text-foreground">{tier.tierName}</span> tier{tier.perkDescription ? ` — ${tier.perkDescription.toLowerCase()}` : ""}.
               </p>
             ) : (
               <p className="mt-2 text-xs text-muted-foreground">Keep earning Reward Coupons to unlock a VIP tier.</p>
@@ -318,7 +317,7 @@ function RewardsTab({
     if (!shareUrl) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Moments Packaging", text: `Use my link for a discount`, url: shareUrl });
+        await navigator.share({ title: "Moments Packaging", text: "Sign up with my link and we both earn Reward Coupons on your first order", url: shareUrl });
       } catch {
         /* cancelled */
       }

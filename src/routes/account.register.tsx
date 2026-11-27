@@ -27,7 +27,7 @@ const ACCOUNT_TYPES: {
     icon: Gift,
     title: "Individual Shopper Account",
     desc: "For individuals ordering for themselves or their own small business.",
-    perks: ["Welcome bonus Reward Coupons on signup", "Earn Reward Coupons on every order", "Referral rewards & VIP tiers"],
+    perks: ["Welcome bonus Reward Coupons on signup", "Earn 1 Reward Coupon for every KES 100 you spend", "Referral rewards & VIP tiers"],
   },
   {
     value: "BUSINESS",

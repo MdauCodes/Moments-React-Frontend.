@@ -201,9 +201,7 @@ export function WelcomeStarterModal({ onClose }: { onClose: () => void }) {
                     Here at Moments Packaging, we believe your loyalty should pay you back.
                   </p>
                   <p className="mt-1.5 text-[13px] leading-snug sm:mt-2 sm:text-sm sm:leading-normal" style={{ color: `${FOREST_DEEP}bf` }}>
-                    Every account comes with 1,000 free Coupon Points (worth KES 100) when you join. Earn even more
-                    with every order through exclusive discounts, referral rewards, and VIP perks. Open a Business
-                    Account to also unlock a one-time 5% promo code, issued as soon as your business profile is set up.
+                    Every account comes with 1,000 free Reward Coupons (worth KES 100) when you join, and you earn more with every order and through referral rewards. Open a Business Account to also get a one-time welcome code: 5% off one order of KES 5,000 or more, within 30 days of signing up.
                   </p>
                   <p className="mt-1.5 text-[11px]" style={{ color: `${FOREST_DEEP}b3` }}>
                     See our{" "}
@@ -233,7 +231,7 @@ export function WelcomeStarterModal({ onClose }: { onClose: () => void }) {
                       <Briefcase className="h-5 w-5" />
                     </span>
                     <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create a Business Account</span>
-                    <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 coupons + a one-time 5% welcome code</span>
+                    <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 Reward Coupons + a welcome code (5% off one order of KES 5,000 or more, within 30 days of signing up)</span>
                     <CtaPill>Get started</CtaPill>
                   </button>
                   <Link
@@ -330,7 +328,7 @@ export function WelcomeStarterModal({ onClose }: { onClose: () => void }) {
               </p>
               <p className="mx-auto mt-2 max-w-sm text-sm" style={{ color: `${FOREST_DEEP}bf` }}>
                 Without an account, you can still shop as a guest—but you won't earn Reward Coupons, referral
-                rewards, or VIP discounts, and your order history won't be saved. Create an account to unlock these
+                rewards, or VIP tiers, and your order history won't be saved. Create an account to unlock these
                 benefits on future orders.
               </p>
 
@@ -342,7 +340,7 @@ export function WelcomeStarterModal({ onClose }: { onClose: () => void }) {
                   style={{ borderColor: `${FOREST_DEEP}2e`, background: CARD_BG }}
                 >
                   <span className="text-sm font-bold" style={{ color: FOREST_DEEP }}>Create a Business Account</span>
-                  <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 coupons + a one-time 5% welcome code</span>
+                  <span className="text-[11.5px] leading-tight" style={{ color: `${FOREST_DEEP}b3` }}>1,000 Reward Coupons + a welcome code (5% off one order of KES 5,000 or more, within 30 days of signing up)</span>
                   <CtaPill>Get started</CtaPill>
                 </button>
                 <button

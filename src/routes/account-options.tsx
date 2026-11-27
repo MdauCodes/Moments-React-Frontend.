@@ -29,7 +29,7 @@ const INDIVIDUAL_BENEFITS = [
   {
     Icon: TrendingUp,
     title: "Earn on Every Order",
-    desc: "Earn Reward Coupons with every paid order, plus additional bonuses for leaving product reviews.",
+    desc: "Earn 1 Reward Coupon for every KES 100 you spend (10 coupons = KES 1 off), plus bonuses for leaving product reviews.",
   },
   {
     Icon: Users,

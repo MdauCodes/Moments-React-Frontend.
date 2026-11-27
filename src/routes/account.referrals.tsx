@@ -112,7 +112,7 @@ function ReferralsPage() {
       try {
         await navigator.share({
           title: "Moments Packaging",
-          text: `Use my link to get a discount at Moments Packaging Kenya`,
+          text: "Sign up with my link and we both earn Reward Coupons on your first order",
           url: shareUrl,
         });
       } catch {

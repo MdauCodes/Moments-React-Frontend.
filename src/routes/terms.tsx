@@ -145,19 +145,19 @@ export function getTermsContent() {
             earns Reward Coupons, including:
           </p>
           <ul>
-            <li>1000 Coupon Points when creating an account.</li>
-            <li>Coupon Points for every completed and paid order.</li>
-            <li>Coupon Points for submitting eligible product reviews.</li>
+            <li>1000 Reward Coupons when creating an account.</li>
+            <li>Reward Coupons for every completed and paid order.</li>
+            <li>Reward Coupons for submitting eligible product reviews.</li>
           </ul>
           <p>
-            The number of Coupon Points awarded per order, as well as their redemption value in
+            The number of Reward Coupons awarded per order, as well as their redemption value in
             KES, is determined by Moments Packaging and may change from time to time. The current
             earning and redemption rates are always displayed in your account dashboard before
             redemption.
           </p>
           <p>
-            Coupon Points may be redeemed for discounts at checkout, up to the maximum percentage
-            allowed for each order, as shown in your dashboard. Coupon Points cannot be redeemed
+            Reward Coupons may be redeemed for discounts at checkout, up to the maximum percentage
+            allowed for each order, as shown in your dashboard. Reward Coupons cannot be redeemed
             for cash, transferred to another customer, or combined with a promotional code on the
             same order.
           </p>
@@ -168,8 +168,8 @@ export function getTermsContent() {
           </p>
           <p>
             The validity period of Reward Coupons, referral rewards, and promotional offers is
-            determined by Moments Packaging. Coupon Points earned beyond their validity period may
-            expire and no longer be eligible for redemption. Redeeming Coupon Points above the
+            determined by Moments Packaging. Reward Coupons earned beyond their validity period may
+            expire and no longer be eligible for redemption. Redeeming Reward Coupons above the
             free redemption threshold may also require a verified email address to help prevent
             fraud.
           </p>

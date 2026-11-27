@@ -127,20 +127,17 @@ export function useRewardDeliveryGap() {
   const primaryGap = useMemo(() => {
     const candidates: { amount: number; benefit: string }[] = [];
     if (kesToWelcomeCode != null && welcomeCode) {
-      candidates.push({ amount: kesToWelcomeCode, benefit: `use your welcome code ${welcomeCode} for 5% off` });
-    }
-    if (kesToNextTier != null && nextTierName != null) {
-      candidates.push({ amount: kesToNextTier, benefit: `unlock ${nextTierName} — ${nextTierDiscountPercent}% off every order` });
+      candidates.push({ amount: kesToWelcomeCode, benefit: `to use your welcome code ${welcomeCode} for 5% off` });
     }
     if (kesToFreeDelivery != null && freeDeliveryZoneLabel != null) {
       // Scoped to "hand-delivery" specifically, not a blanket "delivery" claim — the threshold is
       // only ever honoured for MANUAL_DELIVERY + HAND_DELIVERY within the zone. A customer who
       // picks TumaBoda instead pays full price regardless of cart total.
-      candidates.push({ amount: kesToFreeDelivery, benefit: `get free hand-delivery within ${freeDeliveryZoneLabel}` });
+      candidates.push({ amount: kesToFreeDelivery, benefit: `for free hand-delivery in ${freeDeliveryZoneLabel} (town centre)` });
     }
     if (candidates.length === 0) return null;
     return candidates.sort((a, b) => a.amount - b.amount)[0];
-  }, [kesToWelcomeCode, welcomeCode, kesToNextTier, nextTierName, nextTierDiscountPercent, kesToFreeDelivery, freeDeliveryZoneLabel]);
+  }, [kesToWelcomeCode, welcomeCode, kesToFreeDelivery, freeDeliveryZoneLabel]);
 
   const bonusCoupons =
     primaryGap && rewardsConfig && rewardsConfig.pointsPer100Kes > 0

@@ -149,7 +149,7 @@ export function ProductCard({ product: p, onConfigure, emphasizeDeal }: ProductC
           {stock.state !== "out_of_stock" &&
             (p.isDiscount ? (
               <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground sm:px-2.5 sm:py-1 sm:text-[10px]">
-                -{p.discountPercent ?? 10}%
+                {p.discountPercent && p.discountPercent > 0 ? `-${p.discountPercent}%` : "Deal"}
               </span>
             ) : p.isNewArrival ? (
               <span className="rounded-full bg-primary px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-primary-foreground sm:px-2.5 sm:py-1 sm:text-[10px]">

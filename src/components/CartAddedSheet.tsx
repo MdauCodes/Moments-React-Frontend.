@@ -137,7 +137,7 @@ export function CartAddedSheet() {
             {primaryGap ? (
               <div className="mt-1">
                 <p className="text-[11px] leading-tight text-muted-foreground">
-                  {fmtKes(primaryGap.amount)} more to {primaryGap.benefit}
+                  Add {fmtKes(primaryGap.amount)} more {primaryGap.benefit}
                   {bonusCoupons > 0 && ` +${bonusCoupons} coupon${bonusCoupons === 1 ? "" : "s"}`}
                 </p>
                 <div className="mt-1 h-[3px] w-full max-w-[10rem] overflow-hidden rounded-full bg-[oklch(from_var(--clay)_0.93_calc(c*0.4)_h)]">

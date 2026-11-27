@@ -55,9 +55,9 @@ const siteLd = {
 
 const ANNOUNCE_ITEMS = [
   "1,000 Reward Coupons free on signup",
-  "Redeem coupons for a discount at checkout",
+  "Redeem Reward Coupons for a discount at checkout",
   "5% welcome code for new Business Accounts",
-  "Earn coupons on every order",
+  "Earn 1 Reward Coupon for every KES 100 you spend (10 coupons = KES 1 off)",
   "Referral rewards — you and your friend both earn",
 ];
 
@@ -918,7 +918,7 @@ const PROMO_FOREST = "#0d3320";
  *  so a discounted product sitting in the Best Sellers lineup advertised no discount. Priority is
  *  discount > new > fast, i.e. loudest commercial signal first. */
 function promoFlag(p: Product): { label: string; bg: string; color: string; ring: string } | null {
-  if (p.isDiscount) return { label: `-${p.discountPercent ?? 10}%`, bg: PROMO_GOLD, color: PROMO_FOREST, ring: "rgba(13,51,32,0.3)" };
+  if (p.isDiscount) return { label: p.discountPercent && p.discountPercent > 0 ? `-${p.discountPercent}%` : "Deal", bg: PROMO_GOLD, color: PROMO_FOREST, ring: "rgba(13,51,32,0.3)" };
   if (p.isNewArrival) return { label: "NEW", bg: PROMO_FOREST, color: PROMO_GOLD, ring: "rgba(232,200,120,0.55)" };
   if (p.isFastMoving) return { label: "HOT", bg: "var(--kraft-ink)", color: "var(--kraft-foreground)", ring: "rgba(255,255,255,0.4)" };
   return null;

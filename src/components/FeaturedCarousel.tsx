@@ -37,7 +37,7 @@ function getCardCopy(p: FlaggedProduct): { hook: string; cta: string } {
   switch (p.flag) {
     case "discount":
       return {
-        hook: p.discountPercent ? `Save ${p.discountPercent}% on bulk orders` : "Limited-time bulk deal",
+        hook: p.discountPercent ? `${p.discountPercent}% off` : "On offer",
         cta: p.discountPercent ? `Get ${p.discountPercent}% off` : "Grab the deal",
       };
     case "fast":

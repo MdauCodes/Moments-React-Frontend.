@@ -95,7 +95,7 @@ export function RewardDeliveryBanners({ topOffsetClassName }: { topOffsetClassNa
     content = (
       <div className="text-center leading-snug">
         {bullet}
-        Shop <AnimatedKes value={primaryGap.amount} /> more to {primaryGap.benefit}
+        Add <AnimatedKes value={primaryGap.amount} /> more {primaryGap.benefit}
         {isAuthenticated && bonusCoupons > 0 && (
           <> — plus earn <AnimatedNumber value={bonusCoupons} /> more coupon{bonusCoupons === 1 ? "" : "s"}</>
         )}
@@ -113,9 +113,9 @@ export function RewardDeliveryBanners({ topOffsetClassName }: { topOffsetClassNa
   } else if (myTier || welcomeCodeReady || freeDeliveryUnlockedZoneLabel) {
     tone = "success";
     const parts = [
-      myTier ? `you're on the ${myTier.tierName} tier (${myTier.discountPercent}% off)` : null,
+      myTier ? `you're on the ${myTier.tierName} tier` : null,
       welcomeCodeReady && welcomeCode ? `your welcome code ${welcomeCode} is ready` : null,
-      freeDeliveryUnlockedZoneLabel ? `free delivery to ${freeDeliveryUnlockedZoneLabel}` : null,
+      freeDeliveryUnlockedZoneLabel ? `free hand-delivery in ${freeDeliveryUnlockedZoneLabel}` : null,
     ].filter((p): p is string => Boolean(p));
     content = (
       <div className="text-center leading-snug">

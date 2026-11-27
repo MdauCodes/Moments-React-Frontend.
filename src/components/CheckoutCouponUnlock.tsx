@@ -136,7 +136,7 @@ export function CheckoutCouponUnlock({
 
   const what = [
     offers.codes > 0 ? `${offers.codes} coupon${offers.codes === 1 ? "" : "s"}` : null,
-    offers.points ? "reward points" : null,
+    offers.points ? "Reward Coupons" : null,
   ]
     .filter(Boolean)
     .join(" and ");

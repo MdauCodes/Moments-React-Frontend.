@@ -90,7 +90,7 @@ function DashboardPage() {
     if (!referralShareUrl) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Moments Packaging", text: "Use my link for a discount", url: referralShareUrl });
+        await navigator.share({ title: "Moments Packaging", text: "Sign up with my link and we both earn Reward Coupons on your first order", url: referralShareUrl });
       } catch {
         /* cancelled */
       }

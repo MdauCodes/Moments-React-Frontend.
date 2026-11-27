@@ -663,7 +663,7 @@ function CheckoutModal() {
   const qualifiesForFreeCbdDelivery = cartTotal >= cbdFreeDeliveryThresholdKes;
   const cbdHandDeliveryLabel = qualifiesForFreeCbdDelivery
     ? `Free delivery — your order already qualifies (${fmt(cbdFreeDeliveryThresholdKes)}+)`
-    : `${fmt(cbdHandDeliveryFeeKes)} delivery fee, or free on orders of ${fmt(cbdFreeDeliveryThresholdKes)} or more`;
+    : `Hand-delivery in Nairobi CBD: ${fmt(cbdHandDeliveryFeeKes)}, or free when your items total ${fmt(cbdFreeDeliveryThresholdKes)} or more. Other delivery options are charged at their normal rate.`;
 
   useEffect(() => {
     if (!county.trim()) {
@@ -2189,10 +2189,10 @@ function CheckoutModal() {
                               ) : (
                                 <>
                                   <span className="font-semibold text-foreground">
-                                    {fmt(cbdHandDeliveryFeeKes)} delivery fee
-                                  </span>{" "}
-                                  — added to your total, paid now with the rest of your order. Free on orders of{" "}
-                                  {fmt(cbdFreeDeliveryThresholdKes)} or more.
+                                    Hand-delivery in Nairobi CBD: {fmt(cbdHandDeliveryFeeKes)}
+                                  </span>
+                                  , or free when your items total {fmt(cbdFreeDeliveryThresholdKes)} or more. Other
+                                  delivery options are charged at their normal rate.
                                 </>
                               )}
                             </p>

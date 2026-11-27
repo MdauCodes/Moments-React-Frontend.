@@ -9,7 +9,7 @@ import { cloudinaryOptimized } from "@/lib/cloudinaryImage";
 type TabKey = "discount" | "new" | "fast";
 
 const TABS: { key: TabKey; label: string; sublabel: string; icon: typeof Tag }[] = [
-  { key: "discount", label: "Discounted", sublabel: "Save more on bulk", icon: Tag },
+  { key: "discount", label: "Discounted", sublabel: "On offer", icon: Tag },
   { key: "new", label: "New arrivals", sublabel: "Hizi zimeingia jana", icon: Sparkles },
   { key: "fast", label: "Trending", sublabel: "People like these", icon: Flame },
 ];
